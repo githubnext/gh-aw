@@ -69,6 +69,7 @@ const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
+const ConclusionAdmissionJobName JobName = "conclusion_admission"
 const GradersJobName JobName = "graders"
 const UnlockJobName JobName = "unlock"
 
@@ -93,6 +94,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(UploadCodeScanningJobName):  {},
 	string(UploadCodeCoverageJobName):  {},
 	string(ConclusionJobName):          {},
+	string(ConclusionAdmissionJobName): {},
 	string(GradersJobName):             {},
 	string(UnlockJobName):              {},
 }

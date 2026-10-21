@@ -107,6 +107,30 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
   });
 
   describe("Triggering target validation", () => {
+    it.each(["schedule", "workflow_dispatch"])("accepts the temporary-ID parent summary on %s with explicit targeting", async eventName => {
+      vi.stubGlobal("context", { eventName, payload: {}, repo: { owner: "owner", repo: "repo" } });
+      const handlersModule = await import("./safe_outputs_handlers.cjs");
+      const appendModule = await import("./safe_outputs_append.cjs");
+      const handlers = handlersModule.createHandlers(server, appendModule.createAppendFunction(outputFile), {
+        "add-comment": { target: "*", max: 2 },
+      });
+      registerTool(server, {
+        ...JSON.parse(fs.readFileSync(toolsFile, "utf8"))[0],
+        handler: handlers.addCommentHandler,
+      });
+
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 22,
+        method: "tools/call",
+        params: { name: "add_comment", arguments: { body: "Temporary-ID smoke summary for the parent issue", item_number: "aw_test01" } },
+      });
+
+      expect(response.result.isError).not.toBe(true);
+      expect(JSON.parse(response.result.content[0].text).result).toBe("success");
+      expect(JSON.parse(fs.readFileSync(outputFile, "utf8").trim())).toMatchObject({ type: "add_comment", item_number: "aw_test01" });
+    });
+
     it.each(["*", "42"])("should preserve explicit target %s without triggering context", async target => {
       vi.stubGlobal("context", { eventName: "schedule", payload: {}, repo: { owner: "owner", repo: "repo" } });
       const handlersModule = await import("./safe_outputs_handlers.cjs");

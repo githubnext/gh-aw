@@ -171,6 +171,33 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Equal(t, "${{ needs.admission.outputs.result }}", activation.Env["GH_AW_ADMISSION_RESULT"])
 	assert.NotContains(t, strings.Join(activation.Steps, ""), "activation_admission.cjs")
 	assert.Contains(t, strings.Join(activation.Steps, ""), "daily-ai-credits-workflow-guardrail")
+	conclusion, exists := compiler.jobManager.GetJob("conclusion")
+	require.True(t, exists)
+	assert.NotContains(t, conclusion.Permissions, "id-token: write")
+	conclusionSteps := strings.Join(conclusion.Steps, "")
+	assert.NotContains(t, conclusionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionSteps, "Prepare admission conclusion metadata")
+	assert.Contains(t, conclusionSteps, "readCompactUnifiedSession('/tmp/gh-aw/usage/aw_session.jsonl')")
+	assert.NotContains(t, conclusionSteps, "path.join(process.env.RUNNER_TEMP, 'gh-aw', 'usage'")
+	assert.Equal(t, "${{ steps.admission-conclusion-metadata.outputs.compact_session }}", conclusion.Outputs["admission_compact_session"])
+	assert.Equal(t, "${{ steps.upload-usage-artifact.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_id"])
+	assert.Equal(t, "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_retry_id"])
+	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Prepare admission conclusion metadata"))
+	assert.Less(t, strings.Index(conclusionSteps, "Prepare admission conclusion metadata"), strings.Index(conclusionSteps, "Upload usage artifact"))
+	assert.Greater(t, strings.Index(conclusionSteps, "Retry upload usage artifact"), strings.Index(conclusionSteps, "Upload usage artifact"))
+	conclusionAdmission, exists := compiler.jobManager.GetJob(string(constants.ConclusionAdmissionJobName))
+	require.True(t, exists)
+	assert.Equal(t, []string{"conclusion"}, conclusionAdmission.Needs)
+	assert.Equal(t, "always() && needs.conclusion.result != 'skipped' && vars.GH_AW_DEFAULT_ADMISSION_URL != ''", conclusionAdmission.If)
+	assert.Contains(t, conclusionAdmission.Permissions, "id-token: write")
+	assert.Contains(t, conclusionAdmission.Permissions, "contents: read")
+	conclusionAdmissionSteps := strings.Join(conclusionAdmission.Steps, "")
+	assert.Contains(t, conclusionAdmissionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_ADMISSION_COMPACT_SESSION: ${{ needs.conclusion.outputs.admission_compact_session }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_USAGE_ARTIFACT_ID: ${{ needs.conclusion.outputs.usage_artifact_id }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ needs.conclusion.outputs.usage_artifact_retry_id }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
+	assert.NotContains(t, conclusionAdmissionSteps, "safe_outputs")
 	for name, job := range compiler.jobManager.jobs {
 		if name == "admission" {
 			continue
@@ -180,10 +207,14 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 		}
 		encoded, err := json.Marshal(job)
 		require.NoError(t, err)
-		for _, fragment := range []string{"steps.admission", "admission-aic", "admission_budget.cjs", "GH_AW_ADMISSION_WORKFLOW_HASH"} {
+		for _, fragment := range []string{"steps.admission.outputs", "admission-aic", "admission_budget.cjs"} {
 			assert.NotContains(t, string(encoded), fragment, "job %s", name)
 		}
+		if name != string(constants.ConclusionAdmissionJobName) {
+			assert.NotContains(t, string(encoded), "GH_AW_ADMISSION_WORKFLOW_HASH", "job %s", name)
+		}
 	}
+
 	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nChanged admission prompt\n"), 0o644))
 	require.NoError(t, NewCompiler().CompileWorkflow(file))
 	changed, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
@@ -194,12 +225,81 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.NotEqual(t, hashes[2], changedHashes[2], "Prompt changes must invalidate workflow-content caches")
 }
 
+func TestAdmissionConclusionWorkQueueParticipant(t *testing.T) {
+	data := &WorkflowData{
+		Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+	job, err := NewCompiler().buildConclusionJob(data, "agent", []string{"safe_outputs"})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	assert.NotContains(t, job.Permissions, "id-token: write")
+	steps := strings.Join(job.Steps, "")
+	for _, name := range []string{"Generate usage activity summary and unified session", "Prepare admission conclusion metadata", "Upload usage artifact"} {
+		assert.Equal(t, 1, strings.Count(steps, "name: "+name+"\n"))
+	}
+	assert.NotContains(t, steps, "Report admission conclusion")
+	assert.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "Generate usage activity summary and unified session"))
+	assert.Less(t, strings.Index(steps, "Generate usage activity summary and unified session"), strings.Index(steps, "Prepare admission conclusion metadata"))
+	assert.Greater(t, strings.Index(steps, "Retry upload usage artifact"), strings.Index(steps, "Upload usage artifact"))
+}
+
+func TestAdmissionConclusionUploadOrdering(t *testing.T) {
+	for _, worker := range []bool{false, true} {
+		data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
+		if worker {
+			data.Tools = map[string]any{"work-queue": map[string]any{"worker": true}}
+		}
+		job, err := NewCompiler().buildConclusionJob(data, "agent", nil)
+		require.NoError(t, err)
+		require.NotNil(t, job)
+		steps := strings.Join(job.Steps, "")
+		previous := -1
+		for _, name := range []string{
+			"Generate usage activity summary and unified session",
+			"Upload usage artifact",
+			"Wait before retrying usage artifact upload",
+			"Retry upload usage artifact",
+		} {
+			index := strings.Index(steps, "      - name: "+name+"\n")
+			require.Greater(t, index, previous, "%s must follow preceding publication steps", name)
+			previous = index
+		}
+		assert.NotContains(t, steps, "Report admission conclusion")
+	}
+}
+
+func TestConclusionAdmissionRequiresValidWorkflowHashes(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		frontmatterHash string
+		bodyHash        string
+	}{
+		{name: "missing frontmatter hash", bodyHash: strings.Repeat("b", 64)},
+		{name: "short body hash", frontmatterHash: strings.Repeat("a", 64), bodyHash: strings.Repeat("b", 63)},
+		{name: "uppercase hash", frontmatterHash: strings.Repeat("A", 64), bodyHash: strings.Repeat("b", 64)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewCompiler().buildConclusionAdmissionJob(&WorkflowData{
+				Name:            "test",
+				FrontmatterHash: tc.frontmatterHash,
+				BodyHash:        tc.bodyHash,
+			})
+			require.EqualError(t, err, "admission requires 64-character lowercase SHA-256 workflow hashes")
+		})
+	}
+}
+
 func TestAdmissionActivationDependencyConditions(t *testing.T) {
 	for _, condition := range []string{"", "github.event_name == 'push'", "always()"} {
 		t.Run(condition, func(t *testing.T) {
 			compiler := NewCompiler()
 			activation := &Job{If: condition, Needs: []string{"pre_activation", "select"}}
-			admission, err := compiler.buildAdmissionJob(&WorkflowData{Name: "test"}, activation)
+			admission, err := compiler.buildAdmissionJob(&WorkflowData{
+				Name:            "test",
+				FrontmatterHash: strings.Repeat("a", 64),
+				BodyHash:        strings.Repeat("b", 64),
+			}, activation)
 			require.NoError(t, err)
 			assert.Equal(t, []string{"pre_activation", "select"}, admission.Needs)
 			assert.Contains(t, admission.If, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
@@ -216,16 +316,18 @@ func TestAdmissionActivationDependencyConditions(t *testing.T) {
 }
 
 func TestAdmissionJobCannotBeCustomized(t *testing.T) {
-	for _, config := range []map[string]any{
-		{}, {"if": "always()"}, {"needs": "agent"}, {"env": map[string]any{"UNTRUSTED": "value"}},
-		{"permissions": map[string]any{"contents": "write"}}, {"continue-on-error": true},
-		{"setup-steps": []any{map[string]any{"run": "echo unsafe"}}},
-		{"pre-steps": []any{map[string]any{"run": "echo unsafe"}}},
-		{"steps": []any{map[string]any{"run": "echo unsafe"}}},
-	} {
-		data := &WorkflowData{Jobs: map[string]any{"admission": config}}
-		require.ErrorContains(t, NewCompiler().applyBuiltinJobPreSteps(data), "jobs.admission is compiler-owned")
-		require.ErrorContains(t, NewCompiler().applyBuiltinJobAugmentations(data), "jobs.admission is compiler-owned")
+	for _, name := range []string{"admission", "conclusion_admission"} {
+		for _, config := range []map[string]any{
+			{}, {"if": "always()"}, {"needs": "agent"}, {"env": map[string]any{"UNTRUSTED": "value"}},
+			{"permissions": map[string]any{"contents": "write"}}, {"continue-on-error": true},
+			{"setup-steps": []any{map[string]any{"run": "echo unsafe"}}},
+			{"pre-steps": []any{map[string]any{"run": "echo unsafe"}}},
+			{"steps": []any{map[string]any{"run": "echo unsafe"}}},
+		} {
+			data := &WorkflowData{Jobs: map[string]any{name: config}}
+			require.ErrorContains(t, NewCompiler().applyBuiltinJobPreSteps(data), "jobs."+name+" is compiler-owned")
+			require.ErrorContains(t, NewCompiler().applyBuiltinJobAugmentations(data), "jobs."+name+" is compiler-owned")
+		}
 	}
 
 }
@@ -259,13 +361,15 @@ func TestAdmissionSkipSafeDownstreamConditions(t *testing.T) {
 }
 
 func TestAdmissionRejectsFrontmatterHooks(t *testing.T) {
-	for _, hook := range []string{"setup-steps", "pre-steps", "steps"} {
-		t.Run(hook, func(t *testing.T) {
-			file := filepath.Join(t.TempDir(), "workflow.md")
-			source := "---\non: workflow_dispatch\njobs:\n  admission:\n    " + hook + ":\n      - run: echo author-hook\n---\nTest\n"
-			require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
-			require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "jobs.admission is compiler-owned")
-		})
+	for _, name := range []string{"admission", "conclusion_admission"} {
+		for _, hook := range []string{"setup-steps", "pre-steps", "steps"} {
+			t.Run(name+"/"+hook, func(t *testing.T) {
+				file := filepath.Join(t.TempDir(), "workflow.md")
+				source := "---\non: workflow_dispatch\njobs:\n  " + name + ":\n    " + hook + ":\n      - run: echo author-hook\n---\nTest\n"
+				require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
+				require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "jobs."+name+" is compiler-owned")
+			})
+		}
 	}
 }
 

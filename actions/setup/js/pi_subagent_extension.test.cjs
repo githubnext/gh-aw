@@ -274,7 +274,7 @@ process.stdin.on("end", () => {
       const parentPrompt = writeInlineSubAgents(source, dir, dir, "pi");
       expect(parentPrompt).not.toContain("## agent:");
       stagePiArtifacts(process.env.PI_CODING_AGENT_DIR);
-      const expected = ["claude-haiku-4.5", "gpt-5-mini", "gpt-4o-mini"];
+      const expected = ["claude-haiku-4.5", "gpt-5.6-luna", "gpt-4o-mini"];
       const sdk = {
         parseFrontmatter: content => {
           const [, header, body] = content.split("---");

@@ -320,8 +320,8 @@ requires a verified non-PR Result and current target authority. Later policy
 expansion cannot retroactively authorize closure. Agent payload fields,
 including `issue_completion_policy`, never control closure. PR delivery alone
 never authorizes closure.
-Likewise, `keep_open: true` on a successful Claim finish prevents closure even
-under `close-on-result`; only a later terminal Work completion can authorize it.
+`keep_open: true` on a successful Claim finish prevents closure even under
+`close-on-result`; only a later terminal Work completion can authorize it.
 
 ### Synchronization and recovery
 
@@ -420,10 +420,9 @@ namespaces. `DEBUG=work-queue:store,work-queue:dispatch` selects components;
 patterns support `*`, with comma or whitespace separators.
 `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` enables all queue events,
 including when a GitHub Actions run is re-run with debug logging.
-Each emitted event ends with `+Nms`, the monotonic elapsed time since the previous
-emitted event in the same namespace within that process. The first event uses
-`+0ms`; suppressed events do not reset the interval. Always-visible queue
-diagnostics and failures use the same timing.
+Each event ends with `+Nms`, the elapsed time since the previous emitted event in
+the same namespace within that process (`+0ms` for the first). Suppressed events
+do not reset the interval. Always-visible diagnostics use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`, `provisioning`,
 `reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
@@ -462,8 +461,8 @@ A failure after a grant retains the durable request and commit IDs in the contro
 receipt, together with each original reservation's blocked launch status.
 Unknown launch or release outcomes remain unknown; failure alone does not prove
 that no worker launched.
-Payloads, identifiers, repository names, paths, URLs, tokens, raw API responses,
-raw error messages, and stack traces are not logged. Debug events do not grant
+Debug events never include payloads, identifiers, repository names, paths, URLs,
+tokens, raw API responses, raw errors, or stack traces, and they do not grant
 authority or replace durable queue receipts.
 
 ## Workflow roles and intent tools
@@ -630,12 +629,11 @@ Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
 100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
 commits. Real-Git assertions require zero ledger API calls for nested
 checkpoints, detached reads, stable-request recovery, journal publication and
-CAS conflicts. Damaged checkpoints and unavailable ancestry fail closed.
-Injected object-transport fixtures also retain historical API/cache budgets;
-their simulated network costs are not production Git measurements.
-The local stress simulator explicitly registers its Git-backed adapter for both
-parent and worker RPC clients, keeping ledger operations on disposable local
-repositories rather than the production GitHub transport.
+CAS conflicts; damaged checkpoints and unavailable ancestry fail closed.
+Injected object-transport fixtures retain historical API/cache budgets, but
+their simulated network costs are not production Git measurements. The local
+stress simulator registers its Git-backed adapter for both parent and worker RPC
+clients, so ledger operations stay on disposable local repositories.
 
 Compiled controls keep the protected queue publisher credential separate from
 the worker-dispatch credential. Git reads recheck remote access even when local
@@ -653,8 +651,8 @@ npm --prefix actions/setup/js run test:work-queue-performance
 
 These tests verify native checkpoint ancestry, compare reconstructed state with
 the captured ledger, and measure cold and repeated reads with and without static
-authentication caching. They make no network requests, publish no queue records,
-and launch no workers. Missing live-data settings skip the optional cases.
+authentication caching. They make no network requests, publish no records, and
+launch no workers; missing settings skip them.
 
 ## Operator commands
 
@@ -971,13 +969,12 @@ or run `policy` before the first submission are unsupported. Authorized first
 submission replaces those steps; `policy` remains available only for later
 quiescent updates. Existing queues do not need a reset or history rewrite.
 
-Worker finish is a Claim-scoped MCP intent, not an operator command that can
-impersonate a worker. Direct `claim --work-id`, legacy scalar assignments
-(including agent-selected winners), Issues storage, old records, automatic
-upgrades, and arbitrary run-ID adoption are unsupported by the native protocol.
-Before deploying the current protocol, quiesce old writers and workflows and
-preserve their evidence. Permissions to change the queue and trusted run
-evidence must be established independently. An operator actor string does not
+Worker finish is a Claim-scoped MCP intent, not an operator command. Direct
+`claim --work-id`, legacy scalar assignments (including agent-selected winners),
+Issues storage, old records, automatic upgrades, and arbitrary run-ID adoption
+are unsupported. Before deploying the current protocol, quiesce old writers and
+workflows and preserve their evidence. Queue-change permissions and trusted run
+evidence must be established independently; an operator actor string does not
 authorize a worker.
 
 ### Keyboard browser and checked actions

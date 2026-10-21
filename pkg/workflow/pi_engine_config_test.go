@@ -50,6 +50,48 @@ func TestPiEngineConfigValidation(t *testing.T) {
 	}
 }
 
+func TestPiEngineDefaultMCPExposure(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		config string
+		want   string
+	}{
+		{"omitted", "", `{"mcp":{"exposure":"direct"}}`},
+		{"empty", `{}`, `{"mcp":{"exposure":"direct"}}`},
+		{"empty MCP", `{"mcp":{}}`, `{"mcp":{"exposure":"direct"}}`},
+		{"other settings", `{"settings":{"defaultThinkingLevel":"high"},"model":{"maxTokens":32000},"session":{"enabled":true}}`, `{"settings":{"defaultThinkingLevel":"high"},"model":{"maxTokens":32000},"session":{"enabled":true},"mcp":{"exposure":"direct"}}`},
+		{"tool overrides", `{"mcp":{"toolExposure":{"github":{"delete_*":"hidden"}}}}`, `{"mcp":{"exposure":"direct","toolExposure":{"github":{"delete_*":"hidden"}}}}`},
+		{"explicit direct", `{"mcp":{"exposure":"direct"}}`, `{"mcp":{"exposure":"direct"}}`},
+		{"explicit deferred", `{"mcp":{"exposure":"deferred"}}`, `{"mcp":{"exposure":"deferred"}}`},
+		{"explicit codemode", `{"mcp":{"exposure":"codemode"}}`, `{"mcp":{"exposure":"codemode"}}`},
+		{"explicit hidden", `{"mcp":{"exposure":"hidden"}}`, `{"mcp":{"exposure":"hidden"}}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "pi", Config: test.config}}
+			require.NoError(t, validatePiJSONConfig(test.config))
+			env := make(map[string]string)
+			NewPiEngine().applyPiConfigEnv(env, data)
+			assert.JSONEq(t, test.want, env["GH_AW_PI_CONFIG"])
+			assert.Equal(t, test.config, data.EngineConfig.Config, "defaulting must not mutate authored configuration")
+		})
+	}
+	t.Run("no engine config", func(t *testing.T) {
+		env := make(map[string]string)
+		NewPiEngine().applyPiConfigEnv(env, &WorkflowData{})
+		assert.JSONEq(t, `{"mcp":{"exposure":"direct"}}`, env["GH_AW_PI_CONFIG"])
+	})
+}
+
+func TestPiEngineMCPExposureAcrossDrivers(t *testing.T) {
+	for _, driver := range []string{"", "pi_agent_core_driver.cjs", "pi_rpc_driver.cjs"} {
+		t.Run(driver, func(t *testing.T) {
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "pi", Driver: driver}}
+			steps := NewPiEngine().GetExecutionSteps(data, "/tmp/gh-aw/agent-stdio.log")
+			assert.Contains(t, strings.Join(steps[0], "\n"), `GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'`)
+		})
+	}
+}
+
 func TestPiEngineNativeProvidersAndFederation(t *testing.T) {
 	engine := NewPiEngine()
 	google := &WorkflowData{Model: "google/gemini-2.5-pro", EngineConfig: &EngineConfig{ID: "pi"}}
