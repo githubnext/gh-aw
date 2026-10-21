@@ -21,6 +21,36 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_docs_not_needed_stops_before_page_writes(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        prompt = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)
+        self.assertRegex(prompt, r"(?m)^docs:not-needed: no changes; stop\.$")
+        self.assertIn("Only docs:required:\n", prompt)
+        self.assertLess(prompt.index("docs:not-needed:"), prompt.index("Only docs:required:"))
+        required = prompt.split("Only docs:required:\n", 1)[1]
+        for action in ("Update required pages", "Open docs-only PR"):
+            with self.subTest(required_action=action):
+                self.assertNotIn(action, prompt.split("Only docs:required:\n", 1)[0])
+                self.assertIn(action, required)
+
+    def test_docs_on_demand_rewrites_prompt_and_outputs(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        self.assertIn("### On-demand rewrite\n", guide)
+        variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "remove merged condition, `create-pull-request`, `create-issue`",
+            "`push-to-pull-request-branch` (scope: `allowed-files`) + `add-comment`",
+            "read current triggering PR, not merged PR",
+            "docs:not-needed: no changes; stop",
+            "Missing/conflicting/unsafe: comment; stop",
+            "Only docs:required: edit allowed docs; push to current PR branch",
+            "Remove merged-PR reads, new-docs-PR creation, issue escalation",
+            "Never request undeclared outputs",
+            "extra outputs only if explicitly configured",
+        ):
+            with self.subTest(on_demand_contract=required):
+                self.assertIn(required, variant)
+
     def test_live_test_branch_notification(self):
         for path in (
             DEBUG_GUIDE,
