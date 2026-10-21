@@ -77,6 +77,21 @@
                   "audit_path": {
                     "type": "string"
                   },
+                  "branch": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "type": "string"
+                  },
+                  "head_sha": {
+                    "type": "string"
+                  },
+                  "attempt": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  },
                   "cluster_ids": {
                     "type": [
                       "null",
@@ -272,6 +287,21 @@
                       "type": "string"
                     },
                     "audit_path": {
+                      "type": "string"
+                    },
+                    "branch": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "head_sha": {
+                      "type": "string"
+                    },
+                    "attempt": {
+                      "type": "string"
+                    },
+                    "updated_at": {
                       "type": "string"
                     }
                   },
@@ -6313,6 +6343,21 @@
                   "audit_path": {
                     "type": "string"
                   },
+                  "branch": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "type": "string"
+                  },
+                  "head_sha": {
+                    "type": "string"
+                  },
+                  "attempt": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  },
                   "cluster_ids": {
                     "type": [
                       "null",
@@ -6508,6 +6553,21 @@
                       "type": "string"
                     },
                     "audit_path": {
+                      "type": "string"
+                    },
+                    "branch": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "head_sha": {
+                      "type": "string"
+                    },
+                    "attempt": {
+                      "type": "string"
+                    },
+                    "updated_at": {
                       "type": "string"
                     }
                   },
