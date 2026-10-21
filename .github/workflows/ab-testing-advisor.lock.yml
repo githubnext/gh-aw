@@ -188,6 +188,7 @@ jobs:
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_MODEL_COSTS: '{"providers":{"openai":{"models":{"gpt-6.1-sol":{"cost":{"cache_read":"1e-07","cache_write":"2.5e-06","input":"2e-06","output":"1e-05"}}}}}}'
           GH_AW_INFO_FEATURES: '{"gh-aw-detection":true}'
+          GH_AW_INFO_SUB_AGENT_MODELS: "[{\"model\":\"small\",\"name\":\"workflow-characterizer\",\"patterns\":[\"openai/gpt-5*mini*\",\"openai/gpt-5*nano*\"]},{\"model\":\"small\",\"name\":\"field-presence-checker\",\"patterns\":[\"openai/gpt-5*mini*\",\"openai/gpt-5*nano*\"]}]"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
