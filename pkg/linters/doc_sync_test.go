@@ -44,6 +44,7 @@ var notYetEnforced = map[string]string{
 	"reflectdeepequalusage":       "existing reflect.DeepEqual uses need case-by-case review before CI enforcement",
 	"seenmapbool":                 "existing production violations need remediation",
 	"sprintferrdot":               "has not yet completed an enforcement-readiness audit",
+	"sprintfstring":               "has not yet completed an enforcement-readiness audit",
 	"ssljson":                     "has not yet completed an enforcement-readiness audit",
 	"stringsconcatloop":           "has not yet completed an enforcement-readiness audit",
 	"typeassertionnil":            "needs a cross-platform enforcement-readiness audit before CI enables it",
