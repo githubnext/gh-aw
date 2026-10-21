@@ -8,15 +8,96 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAdmissionOptIn(t *testing.T) {
+	for _, repo := range []string{"", "false", "true"} {
+		for _, workflow := range []string{"", "false", "true"} {
+			t.Run("repo="+repo+"/workflow="+workflow, func(t *testing.T) {
+				root := t.TempDir()
+				require.NoError(t, os.MkdirAll(filepath.Join(root, ".github", "workflows"), 0o755))
+				if repo != "" {
+					require.NoError(t, os.WriteFile(filepath.Join(root, RepoConfigFileName), []byte(`{"admission":`+repo+`}`), 0o600))
+				}
+				compiler := NewCompiler(WithNoEmit(true))
+				compiler.gitRoot = root
+				source := "---\non:\n  workflow_dispatch:\n"
+				if workflow != "" {
+					source += "  admission: " + workflow + "\n"
+				}
+				source += "---\nAdmission opt-in\n"
+				data, err := compiler.ParseWorkflowString(source, filepath.Join(root, "workflow.md"))
+				require.NoError(t, err)
+				enabled := repo == "true" || workflow == "true"
+				require.Equal(t, enabled, data.AdmissionEnabled)
+				output, err := compiler.CompileToYAML(data, filepath.Join(root, "workflow.md"))
+				require.NoError(t, err)
+				var header strings.Builder
+				require.NoError(t, compiler.generateManifestHeader(&header, data, nil, nil))
+				manifest, err := ExtractGHAWManifestFromLockFile(header.String())
+				require.NoError(t, err)
+				require.NotNil(t, manifest)
+				assert.Equal(t, enabled, manifest.Admission)
+				manifestJSON, err := manifest.ToJSON()
+				require.NoError(t, err)
+				var manifestFields map[string]json.RawMessage
+				require.NoError(t, json.Unmarshal([]byte(manifestJSON), &manifestFields))
+				assert.Equal(t, strconv.FormatBool(enabled), string(manifestFields["admission"]))
+				assert.Contains(t, manifestFields, "admission", "disabled admission must be recorded explicitly")
+				roundtrip, err := ExtractGHAWManifestFromLockFile("# gh-aw-manifest: " + manifestJSON + "\n")
+				require.NoError(t, err)
+				assert.Equal(t, manifest, roundtrip)
+				for _, name := range []string{"admission", "conclusion_admission"} {
+					_, exists := compiler.jobManager.GetJob(name)
+					assert.Equal(t, enabled, exists, name)
+				}
+				activation, exists := compiler.jobManager.GetJob("activation")
+				require.True(t, exists)
+				conclusion, exists := compiler.jobManager.GetJob("conclusion")
+				require.True(t, exists)
+				_, admissionOutput := activation.Outputs["admission-result"]
+				assert.Equal(t, enabled, admissionOutput)
+				_, compactOutput := conclusion.Outputs["admission_compact_session"]
+				assert.Equal(t, enabled, compactOutput)
+				assert.Equal(t, enabled, strings.Contains(strings.Join(conclusion.Steps, ""), "Prepare admission conclusion metadata"))
+				if enabled {
+					assert.Contains(t, activation.Needs, "admission")
+					assert.Contains(t, activation.If, admissionJobResultCondition)
+				} else {
+					assert.NotContains(t, output, "needs.admission.")
+					assert.NotContains(t, activation.Needs, "admission")
+					assert.NotContains(t, activation.Permissions, "id-token: write")
+					assert.NotContains(t, conclusion.Permissions, "id-token: write")
+				}
+				var rendered map[string]any
+				require.NoError(t, yaml.Unmarshal([]byte(output), &rendered))
+				require.IsType(t, map[string]any{}, rendered["on"])
+				assert.NotContains(t, rendered["on"].(map[string]any), "admission")
+			})
+		}
+	}
+}
+
+func TestAdmissionRejectsInvalidOptIn(t *testing.T) {
+	for _, value := range []string{`"true"`, "1", "{}", "[]"} {
+		t.Run(value, func(t *testing.T) {
+			source := "---\non:\n  workflow_dispatch:\n  admission: " + value + "\n---\nTest\n"
+			_, err := NewCompiler().ParseWorkflowString(source, filepath.Join(t.TempDir(), "workflow.md"))
+			require.Error(t, err)
+			assertInvalidAWJSONWarning(t, `{"admission":`+value+`}`)
+		})
+	}
+}
 
 func TestAdmissionRuntimeBudgetSelection(t *testing.T) {
 	for _, tc := range []struct {
@@ -126,7 +207,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	t.Setenv("GH_AW_ADMISSION_WORKFLOW_HASH", "compiler-process-hash")
 	dir := testutil.TempDir(t, "admission-runtime-*")
 	file := filepath.Join(dir, "admission.md")
-	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nAdmission runtime\n"), 0o644))
+	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  admission: true\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nAdmission runtime\n"), 0o644))
 	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(file))
 	content, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
@@ -215,7 +296,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 		}
 	}
 
-	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nChanged admission prompt\n"), 0o644))
+	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  admission: true\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nChanged admission prompt\n"), 0o644))
 	require.NoError(t, NewCompiler().CompileWorkflow(file))
 	changed, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
 	require.NoError(t, err)
@@ -227,8 +308,9 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 
 func TestAdmissionConclusionWorkQueueParticipant(t *testing.T) {
 	data := &WorkflowData{
-		Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
-		SafeOutputs: &SafeOutputsConfig{},
+		AdmissionEnabled: true,
+		Tools:            map[string]any{"work-queue": map[string]any{"worker": true}},
+		SafeOutputs:      &SafeOutputsConfig{},
 	}
 	job, err := NewCompiler().buildConclusionJob(data, "agent", []string{"safe_outputs"})
 	require.NoError(t, err)
@@ -380,7 +462,7 @@ func TestAdmissionRejectsCodeGenerationSwitch(t *testing.T) {
 			source := "---\non: workflow_dispatch\nadmission-gate: " + value + "\n---\nTest workflow\n"
 			require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
 			err := NewCompiler().CompileWorkflow(file)
-			require.ErrorContains(t, err, "admission-gate", "admission code generation has no frontmatter switch")
+			require.ErrorContains(t, err, "admission-gate", "only on.admission is a supported workflow opt-in")
 		})
 	}
 }

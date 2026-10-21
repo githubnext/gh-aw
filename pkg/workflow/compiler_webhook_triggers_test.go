@@ -233,6 +233,7 @@ func TestWebhookMinimumRolesDoesNotRestrictNativeTriggers(t *testing.T) {
 
 func TestGatewayDispatchSettingsSchemaParity(t *testing.T) {
 	settings := map[string]any{
+		"admission":                          true,
 		"allow-bot-authored-trigger-comment": true, "bots": []any{"cao-gateway"}, "cooldown": "5m",
 		"github-app":   map[string]any{"client-id": "${{ vars.APP_ID }}", "private-key": "${{ secrets.APP_KEY }}"},
 		"github-token": "${{ secrets.TOKEN }}", "labels": []any{"review"}, "manual-approval": "production",

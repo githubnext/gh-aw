@@ -756,6 +756,7 @@
               "propertyNames": {
                 "enum": [
                   "gateway-dispatch",
+                  "admission",
                   "allow-bot-authored-trigger-comment",
                   "bots",
                   "cooldown",
@@ -2768,6 +2769,11 @@
                   "vulnerability-alerts": "read"
                 }
               ]
+            },
+            "admission": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable admission and conclusion_admission jobs for this workflow. Also enabled when aw.json sets admission to true."
             },
             "stale-check": {
               "oneOf": [
