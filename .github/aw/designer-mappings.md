@@ -66,8 +66,8 @@ Quick-reference mapping tables for `.github/aw/designer.md`. Load this file duri
 | "add labels", "remove labels" | `add-labels`, `remove-labels` |
 | "replace a label with another" | `replace-label` |
 | "log completion message", "signal no action needed" | `noop` (auto-enabled; no declaration required in most workflows) |
-| "track when tools are missing", "create issues for missing tools" | `missing-tool` (auto-enabled; configure `create-issue: true` to file tracking issues) |
-| "track when data is unavailable", "create issues for missing data" | `missing-data` (auto-enabled; configure `create-issue: true` to file tracking issues) |
+| "track when tools are missing", "create issues for missing tools" | `report-missing-tool` (auto-enabled; configure `create-issue: true` to file tracking issues) |
+| "track when data is unavailable", "create issues for missing data" | `report-missing-data` (auto-enabled; configure `create-issue: true` to file tracking issues) |
 | "flag when agent can't finish", "report infrastructure failure" | `report-incomplete` (auto-enabled; configure `create-issue: true` to track failures) |
 | "surface analysis on the commit/PR checks UI" | `create-check-run` |
 | "upload a file as a run artifact" | `upload-artifact` |
