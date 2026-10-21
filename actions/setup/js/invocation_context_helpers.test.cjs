@@ -174,6 +174,13 @@ describe("invocation_context_helpers", () => {
       expect(resolveTargetRepo().eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
     });
 
+    it.each([undefined, ""])("allows an underscored handler target owner with global allowlist %j", allowedRepos => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", allowedRepos);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": "mona_acme/tools" } }));
+
+      expect(resolveTargetRepo("mona_acme/tools").eventRepo).toEqual({ owner: "mona_acme", repo: "tools" });
+    });
+
     it("combines target-repo and allowed_repos across handlers", () => {
       vi.stubEnv("GH_AW_ALLOWED_REPOS", "");
       vi.stubEnv(

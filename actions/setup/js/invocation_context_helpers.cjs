@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseRepoSlug: parseSharedRepoSlug, parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
+const { parseRepoSlug: parseSharedRepoSlug, isExactRepoSlug, parseAllowedRepos, validateTargetRepo } = require("./repo_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 /**
@@ -180,8 +180,7 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
               allowedRepos.add(repo);
             }
             const handlerTargetRepo = parseRepoSlug(value["target-repo"]);
-            // The shared parser checks slug structure, not characters or wildcard patterns.
-            if (handlerTargetRepo && /^[A-Za-z0-9-]+$/.test(handlerTargetRepo.owner) && /^[A-Za-z0-9_.-]+$/.test(handlerTargetRepo.repo)) {
+            if (isExactRepoSlug(handlerTargetRepo)) {
               allowedRepos.add(`${handlerTargetRepo.owner}/${handlerTargetRepo.repo}`);
             }
           }
