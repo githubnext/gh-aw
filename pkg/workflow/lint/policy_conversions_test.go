@@ -63,6 +63,26 @@ func TestAllowedLabelsRule(t *testing.T) {
 	}
 }
 
+func TestAllowedLabelsRuleSkipsBooleanHandlers(t *testing.T) {
+	// smoke-claude-sub-agents disables issue creation with `create-issue: false`; a boolean
+	// handler has no allowed-labels to check and must not be reported as malformed.
+	for _, handler := range []string{"create-issue", "create-discussion", "update-discussion", "create-pull-request"} {
+		other := "create-discussion"
+		if handler == other {
+			other = "create-pull-request"
+		}
+		for _, value := range []string{"true", "false"} {
+			input := policyTestInput(t, "safe-outputs:\n  "+handler+": "+value+"\n  "+other+":\n    allowed-labels: ['*']")
+			runner, err := New(AllowedLabelsRule())
+			require.NoError(t, err)
+			diagnostics, err := runner.Run(context.Background(), input)
+			require.NoError(t, err, handler+": "+value)
+			require.Len(t, diagnostics, 1, "other handlers are still checked")
+			assert.Equal(t, "safe-outputs."+other+".allowed-labels", diagnostics[0].Path)
+		}
+	}
+}
+
 func TestPushTargetRule(t *testing.T) {
 	for _, tt := range []struct {
 		fields string
