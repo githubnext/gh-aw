@@ -83,6 +83,65 @@ function runHarnessWithStub({ stubScript, prompt = "fix the bug", extraArgs = []
 }
 
 describe("claude_harness.cjs", () => {
+  describe("threat detection model aliases", () => {
+    const reflectData = {
+      endpoints: [{ provider: "anthropic", configured: true, port: 10001, models: ["claude-haiku-4-5-20251001", "claude-sonnet-5"] }],
+      model_aliases: { detection: ["small"], small: ["anthropic/claude-haiku-*"] },
+    };
+    const stubScript = `
+      const fs = require("fs");
+      fs.appendFileSync(process.env.CLAUDE_HARNESS_STUB_CALLS, JSON.stringify({
+        args: process.argv.slice(2), model: process.env.ANTHROPIC_MODEL
+      }) + "\\n");
+      process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "done" }) + "\\n");
+    `;
+
+    it.each([{ extraArgs: ["--model", "detection"] }, { extraArgs: ["--model=detection"] }])("resolves $extraArgs before invoking Claude, including CLI overrides", ({ extraArgs }) => {
+      for (const model of ["detection", "claude-sonnet-5", ""]) {
+        const { result, calls } = runHarnessWithStub({
+          stubScript,
+          reflectData,
+          extraArgs,
+          extraEnv: { GH_AW_PHASE: "detection", GH_AW_LLM_PROVIDER: "anthropic", ANTHROPIC_MODEL: model, GH_AW_SAFE_OUTPUTS: "", GH_AW_HARNESS_MAX_RETRIES: "0" },
+        });
+        expect(result.status, result.stderr).toBe(0);
+        expect(calls).toHaveLength(1);
+        expect(calls[0].model).toBe("claude-haiku-4-5-20251001");
+        expect(calls[0].args).toContainEqual(expect.stringContaining("claude-haiku-4-5-20251001"));
+        expect(calls[0].args.join(" ")).not.toContain("detection");
+      }
+    });
+
+    it.each([
+      { extraArgs: [], model: "detection", resolved: "claude-haiku-4-5-20251001" },
+      { extraArgs: ["--model", "claude-sonnet-5"], model: "detection", resolved: "claude-sonnet-5" },
+      { extraArgs: ["--model=claude-sonnet-5"], model: "detection", resolved: "claude-sonnet-5" },
+      { extraArgs: ["--", "--model", "literal-prompt"], model: "detection", resolved: "claude-haiku-4-5-20251001" },
+    ])("preserves explicit models and option boundaries: $extraArgs", ({ extraArgs, model, resolved }) => {
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        reflectData,
+        extraArgs,
+        extraEnv: { GH_AW_PHASE: "detection", GH_AW_LLM_PROVIDER: "anthropic", ANTHROPIC_MODEL: model, GH_AW_SAFE_OUTPUTS: "", GH_AW_HARNESS_MAX_RETRIES: "0" },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({ model: resolved, args: ["--print", ...extraArgs] });
+    });
+
+    it("does not launch Claude when the detection alias cannot resolve", () => {
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        reflectData: { ...reflectData, endpoints: [{ ...reflectData.endpoints[0], models: ["claude-sonnet-5"] }] },
+        extraArgs: ["--model", "detection"],
+        extraEnv: { GH_AW_PHASE: "detection", GH_AW_LLM_PROVIDER: "anthropic", ANTHROPIC_MODEL: "claude-sonnet-5", GH_AW_SAFE_OUTPUTS: "", GH_AW_HARNESS_MAX_RETRIES: "0" },
+      });
+      expect(result.status).not.toBe(0);
+      expect(calls).toHaveLength(0);
+      expect(result.stderr).toContain("detection");
+    });
+  });
+
   describe("Copilot inference environment", () => {
     const reflectData = {
       endpoints: [

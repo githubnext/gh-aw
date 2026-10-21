@@ -71,7 +71,7 @@ const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractD
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
-const { applyModelFallback, normalizeClaudeModel, normalizeClaudeModelArgs } = require("./model_fallback.cjs");
+const { applyModelFallback, normalizeClaudeModel } = require("./model_fallback.cjs");
 const { resolveEngineModel } = require("./resolve_model_alias.cjs");
 const { applyClaudeSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
@@ -531,14 +531,31 @@ async function main() {
   const reflection = await fetchAWFReflect({ logger: log });
   let childEnv;
   try {
+    let modelEnv = process.env;
     if (process.env.GH_AW_MODEL_ROUTING === "1") {
       initialArgs = removeClaudeRoutingOverrides(initialArgs);
     } else {
-      initialArgs = normalizeClaudeModelArgs(initialArgs, normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"), process.env, { reflectData: reflection.reflectData, logger: log });
+      // CLI model flags override ANTHROPIC_MODEL, so resolve that effective model once.
+      for (let i = 0; i < initialArgs.length; i++) {
+        if (initialArgs[i] === "--") break;
+        if (initialArgs[i] === "--model" && i + 1 < initialArgs.length) {
+          modelEnv = { ...process.env, ANTHROPIC_MODEL: initialArgs[++i] };
+        } else if (initialArgs[i].startsWith("--model=")) {
+          modelEnv = { ...process.env, ANTHROPIC_MODEL: initialArgs[i].slice("--model=".length) };
+        }
+      }
     }
-    childEnv = await buildClaudeChildEnv(reflection.reflectData, process.env, log, {
+    childEnv = await buildClaudeChildEnv(reflection.reflectData, modelEnv, log, {
       refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
     });
+    for (let i = 0; i < initialArgs.length; i++) {
+      if (initialArgs[i] === "--") break;
+      if (initialArgs[i] === "--model" && i + 1 < initialArgs.length) {
+        initialArgs[++i] = childEnv.ANTHROPIC_MODEL;
+      } else if (initialArgs[i].startsWith("--model=")) {
+        initialArgs[i] = `--model=${childEnv.ANTHROPIC_MODEL}`;
+      }
+    }
   } catch (error) {
     removeClaudePlugin(pluginDir);
     throw error;
