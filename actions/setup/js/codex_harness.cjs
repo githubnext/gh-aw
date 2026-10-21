@@ -1386,6 +1386,7 @@ if (typeof module !== "undefined" && module.exports) {
     removeCodexRoutingOverrides,
     applyCodexRoutingEffort,
     resolveCodexModelRouting,
+    getCodexRoutingFailureCode,
     getCodexModelEnvVar,
     resolvePostResultWatchdogIdleTimeoutMs,
     createMCPCallWatchdog,

@@ -52,6 +52,7 @@ const {
   removeCodexRoutingOverrides,
   applyCodexRoutingEffort,
   resolveCodexModelRouting,
+  getCodexRoutingFailureCode,
   resolveCodexConfiguredModel,
 } = require("./codex_harness.cjs");
 const reflectFixtures = require("./fixtures/model_resolution_reflect.cjs");
@@ -357,6 +358,13 @@ describe("codex_harness.cjs", () => {
       expect(calls[0].args).not.toContain("fixed-model");
       expect(outcome).toMatchObject({ status: "selected", wire_model: "gpt-5.6-luna", endpoint: "/responses", effort, applied_effort: effort });
       expect(outcome).not.toHaveProperty("failure_code");
+    });
+
+    it.each([
+      ["AWF /reflect returned unsupported reasoning effort ultra", "unsupported_effort"],
+      ["AWF model routing selection has none compatible endpoints", "unsupported_endpoint"],
+    ])("classifies Codex routing failure %s", (error, expectedCode) => {
+      expect(getCodexRoutingFailureCode(error)).toBe(expectedCode);
     });
 
     it("routed_codex_out_of_contract_effort_is_rejected", () => {
