@@ -23,7 +23,7 @@ type HealthJobEvidence struct {
 	UpdatedAt time.Time `json:"updated_at,omitzero"`
 }
 
-// Only failure-first representatives collect typed jobs beyond the presence lookup.
+// Failure-first representatives and lifecycle candidates share typed job evidence.
 func collectHealthRepresentativeJobs(run WorkflowRun, collection *HealthCollection) (err error) {
 	key := healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}
 	if collection.jobs == nil {

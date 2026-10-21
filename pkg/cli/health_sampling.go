@@ -108,7 +108,7 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 			oldest = response.CreatedAt
 		}
 		run := response.workflowRun()
-		if isIgnoredHealthRun(run) {
+		if isIgnoredHealthRun(run) || filterHealthPRLifecycleRun(run, collection) {
 			continue
 		}
 		if run.Status == "waiting" || isClusterFailureConclusion(run.Conclusion) {
@@ -138,6 +138,9 @@ func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, erro
 	key := healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}
 	if hasJobs, checked := collection.jobPresence[key]; checked {
 		return hasJobs, nil
+	}
+	if jobs := collection.jobs[key]; jobs != nil && jobs.complete {
+		return len(jobs.details) > 0, nil
 	}
 	endpoint := fmt.Sprintf("%s/actions/runs/%d", healthRepositoryEndpoint(collection.repoOverride), run.DatabaseID)
 	if run.Attempt > 0 {

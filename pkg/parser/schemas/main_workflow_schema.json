@@ -12046,7 +12046,8 @@
         "missing-tool": {
           "$ref": "#/properties/safe-outputs/properties/report-missing-tool",
           "description": "Deprecated alias for report-missing-tool. Run gh aw fix to migrate.",
-          "deprecated": true
+          "deprecated": true,
+          "x-deprecation-message": "The 'missing-tool' safe-output key is deprecated. Use 'report-missing-tool' instead. Run 'gh aw fix' to migrate."
         },
         "report-missing-tool": {
           "oneOf": [
@@ -12133,7 +12134,8 @@
         "missing-data": {
           "$ref": "#/properties/safe-outputs/properties/report-missing-data",
           "description": "Deprecated alias for report-missing-data. Run gh aw fix to migrate.",
-          "deprecated": true
+          "deprecated": true,
+          "x-deprecation-message": "The 'missing-data' safe-output key is deprecated. Use 'report-missing-data' instead. Run 'gh aw fix' to migrate."
         },
         "report-missing-data": {
           "oneOf": [

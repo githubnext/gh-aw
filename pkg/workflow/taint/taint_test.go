@@ -26,6 +26,26 @@ func checkSteps(t *testing.T, steps string) Result {
 	return result
 }
 
+func TestCheckSecretLeaksReportsOTLPAttributeValues(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+env:
+  GH_AW_OTLP_ATTRIBUTES: '{"account":"${{ secrets.API_TOKEN }}"}'
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ready
+`))
+	require.NoError(t, err)
+
+	result, err := CheckSecretLeaks(workflow)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, OTLPAttribute, result.Findings[0].Site.Kind)
+	assert.Equal(t, "env.GH_AW_OTLP_ATTRIBUTES", result.Findings[0].Site.Path)
+	assert.NotContains(t, result.Findings[0].String(), "API_TOKEN")
+}
+
 func TestSecretLeakSinksAndFilters(t *testing.T) {
 	tests := []struct {
 		name  string

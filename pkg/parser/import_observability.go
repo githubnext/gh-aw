@@ -46,7 +46,8 @@ func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEnd
 			result = append(result, entry)
 		}
 	case map[string]any:
-		if url, _ := ep["url"].(string); url != "" {
+		url, ok := ep["url"].(string)
+		if ok && url != "" {
 			entry := observabilityImportEndpoint{URL: url}
 			if h, hasH := ep["headers"]; hasH {
 				entry.Headers = h
@@ -59,8 +60,8 @@ func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEnd
 			if !ok {
 				continue
 			}
-			url, _ := itemMap["url"].(string)
-			if url == "" {
+			url, ok := itemMap["url"].(string)
+			if !ok || url == "" {
 				continue
 			}
 			entry := observabilityImportEndpoint{URL: url}
@@ -76,13 +77,15 @@ func extractOTLPEndpointsFromObsMap(obs map[string]any) []observabilityImportEnd
 // mergeObservabilityConfigs takes a slice of observability config JSON strings (one per
 // import), extracts all OTLP endpoint entries from each (supporting string, object, and
 // array forms), deduplicates by URL (first occurrence wins), and returns a single merged
-// observability JSON string with all endpoints expressed as an array.  Custom OTLP
-// attributes are also merged across imports (first occurrence wins per key).
+// observability JSON string with all endpoints expressed as an array. Custom OTLP
+// span and resource attributes are also merged across imports (first occurrence wins
+// per key).
 // Returns "" when no valid endpoints or attributes are found.
 func mergeObservabilityConfigs(configs []string) string {
 	seen := make(map[string]struct{})
 	var allEndpoints []observabilityImportEndpoint
 	mergedAttrs := make(map[string]string)
+	mergedResourceAttrs := make(map[string]string)
 	var mergedGitHubApp map[string]any
 
 	for i, cfgJSON := range configs {
@@ -100,17 +103,14 @@ func mergeObservabilityConfigs(configs []string) string {
 				allEndpoints = append(allEndpoints, e)
 			}
 		}
-		for k, v := range extractOTLPAttributesFromObsMap(obs) {
-			if _, exists := mergedAttrs[k]; !exists {
-				mergedAttrs[k] = v
-			}
-		}
+		mergeOTLPStringMapFirstWins(mergedAttrs, extractOTLPAttributesFromObsMap(obs))
+		mergeOTLPStringMapFirstWins(mergedResourceAttrs, extractOTLPResourceAttributesFromObsMap(obs))
 		if mergedGitHubApp == nil {
 			mergedGitHubApp = extractOTLPGitHubAppFromObsMap(obs)
 		}
 	}
 
-	if len(allEndpoints) == 0 && len(mergedAttrs) == 0 && mergedGitHubApp == nil {
+	if len(allEndpoints) == 0 && len(mergedAttrs) == 0 && len(mergedResourceAttrs) == 0 && mergedGitHubApp == nil {
 		return ""
 	}
 
@@ -124,6 +124,9 @@ func mergeObservabilityConfigs(configs []string) string {
 	if len(mergedAttrs) > 0 {
 		otlpMap["attributes"] = mergedAttrs
 	}
+	if len(mergedResourceAttrs) > 0 {
+		otlpMap["resource-attributes"] = mergedResourceAttrs
+	}
 	if mergedGitHubApp != nil {
 		otlpMap["github-app"] = mergedGitHubApp
 	}
@@ -134,6 +137,14 @@ func mergeObservabilityConfigs(configs []string) string {
 		return ""
 	}
 	return string(b)
+}
+
+func mergeOTLPStringMapFirstWins(destination, source map[string]string) {
+	for key, value := range source {
+		if _, exists := destination[key]; !exists {
+			destination[key] = value
+		}
+	}
 }
 
 func extractOTLPGitHubAppFromObsMap(obs map[string]any) map[string]any {
@@ -171,6 +182,14 @@ func extractOTLPGitHubAppFromObsMap(obs map[string]any) map[string]any {
 // import the workflow package (circular-dependency risk), so the helper lives
 // here as a local copy.  Both implementations must stay in sync.
 func extractOTLPAttributesFromObsMap(obs map[string]any) map[string]string {
+	return extractOTLPStringMapFromObsMap(obs, "attributes")
+}
+
+func extractOTLPResourceAttributesFromObsMap(obs map[string]any) map[string]string {
+	return extractOTLPStringMapFromObsMap(obs, "resource-attributes")
+}
+
+func extractOTLPStringMapFromObsMap(obs map[string]any, fieldName string) map[string]string {
 	if obs == nil {
 		return nil
 	}
@@ -182,7 +201,7 @@ func extractOTLPAttributesFromObsMap(obs map[string]any) map[string]string {
 	if !ok {
 		return nil
 	}
-	attrsAny, ok := otlpMap["attributes"]
+	attrsAny, ok := otlpMap[fieldName]
 	if !ok {
 		return nil
 	}

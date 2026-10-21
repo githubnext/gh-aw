@@ -1037,11 +1037,9 @@ func appendRepositoryPackageExtensionSpecs(parsedSpecs []*WorkflowSpec, repoSpec
 		base := filepath.Base(agentFile)
 		workflowName := strings.TrimSuffix(base, filepath.Ext(base))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug:    repoSpec.RepoSlug,
-				Version:     effectiveVersion,
-				PackagePath: repoSpec.PackagePath,
-			},
+			RepoSlug:           repoSpec.RepoSlug,
+			Version:            effectiveVersion,
+			PackagePath:        repoSpec.PackagePath,
 			WorkflowPath:       agentFile,
 			WorkflowName:       workflowName,
 			Host:               host,
@@ -1087,10 +1085,8 @@ func resolveAddWorkflowSpecAndContent(ctx context.Context, initialSpec *Workflow
 			return nil, nil, fmt.Errorf("invalid redirect %q in %s: %w", redirect, locationKey, err)
 		}
 		nextSpec := &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug: redirectedSource.Repo,
-				Version:  redirectedSource.Ref,
-			},
+			RepoSlug:     redirectedSource.Repo,
+			Version:      redirectedSource.Ref,
 			WorkflowPath: redirectedSource.Path,
 			WorkflowName: normalizeWorkflowID(redirectedSource.Path),
 			Host:         currentSpec.Host,
@@ -1191,10 +1187,8 @@ func expandLocalWildcard(spec *WorkflowSpec) ([]*WorkflowSpec, error) {
 	})
 	result := sliceutil.Map(mdMatches, func(match string) *WorkflowSpec {
 		return &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug: spec.RepoSlug,
-				Version:  spec.Version,
-			},
+			RepoSlug:     spec.RepoSlug,
+			Version:      spec.Version,
 			WorkflowPath: match,
 			WorkflowName: normalizeWorkflowID(match),
 			IsWildcard:   false,

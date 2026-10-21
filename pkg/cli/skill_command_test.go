@@ -35,7 +35,7 @@ func TestSkillCommand(t *testing.T) {
 	require.Equal(t, expected, stdout.String())
 	require.Contains(t, stdout.String(), "---\nname: agentic-workflows\n")
 	require.Contains(t, stdout.String(), ".github/aw/create-agentic-workflow.md")
-	require.Contains(t, stdout.String(), "[Model and engine misconfiguration](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration)")
+	require.Contains(t, stdout.String(), "`.github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration`")
 	require.NotContains(t, stdout.String(), agenticWorkflowsSkillFileListPlaceholder)
 	require.Empty(t, stderr.String())
 
