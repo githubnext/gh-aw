@@ -411,7 +411,7 @@ _ = typeassertionnil.Analyzer
 
 - The package is intentionally organized as a namespace (`pkg/linters/*`) so individual analyzers remain isolated and independently testable.
 - CI enforces selected production analyzers via the native and WebAssembly `LINTER_FLAGS` lists in `.github/workflows/cgo.yml`; `fprintferrorunchecked` is excluded from blocking checks and reported separately as a non-blocking warning on native Go code.
-- `consolestderr` has dedicated blocking steps on both targets. `TestCIEnforcedLintersMatchTargets` compares the combined bulk and dedicated analyzer sets per target, independently of the registry guard; the pre-existing native-only `contextcancelnotdeferred` exception is tracked in #65753 and must be removed when WebAssembly enables it.
+- `consolestderr` has dedicated blocking steps on both targets. `TestCIEnforcedLintersMatchTargets` requires the combined bulk and dedicated analyzer sets to match across native and WebAssembly targets, independently of the registry guard.
 - `typeassertionnil` is registered but excluded from CI enforcement pending a cross-platform enforcement-readiness audit.
 - `unchecked_deferredclose` is registered but excluded from CI enforcement until existing deferred `Close()` findings are remediated.
 - `walkdirignoredeerror` is registered but excluded from CI enforcement until existing discarded `WalkDir` errors in `pkg/cli/audit_threat_detection.go` and `pkg/cli/model_routing.go` are remediated.
