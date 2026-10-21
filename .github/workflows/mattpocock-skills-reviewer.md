@@ -37,7 +37,7 @@ model: claude-sonnet-5
     events:
     - pull_request_comment
     - pull_request_review_comment
-    name: matt
+    name: [matt, review]
     strategy: centralized
 permissions:
   contents: read
