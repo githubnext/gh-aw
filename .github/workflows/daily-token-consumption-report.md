@@ -91,8 +91,8 @@ First, attempt to call `search_events` using:
 If `search_events` is **not available** (the tool is absent from the available tool list because no embedded LLM provider is configured), fall back to `list_events` with direct Sentry query syntax:
 - `organizationSlug`: the org discovered in Step 1
 - `dataset: spans`
-- `query`: a filter for AI/LLM spans with AIC/cost data; start with `span.op:ai*` and also try `span.op:gen_ai*` if the first returns no results; if neither matches, try an empty query and filter client-side for records with AIC fields
-- `fields`: include AIC/cost fields such as `gh-aw.aic`, `gh_aw.aic`, `aic`, `agent_usage.aic`, plus workflow metadata (`github.workflow`, `github.run_id`, `span.op`, `span.description`, `timestamp`); omit fields that return errors and retry with remaining fields
+- Start with schema-valid span identity fields and inspect a representative raw gh-aw trace to discover custom fields. Do not restrict discovery to `span.op:ai*` or `span.op:gen_ai*`: gh-aw job spans carry cost, not individual model/tool spans.
+- `fields`: request the confirmed numeric `gh-aw.aic` field and canonical workflow/run fields (`gh-aw.workflow.name`, `gh-aw.run.id`, `github.run_id`, `github.workflow_ref`) using the backend's discovered field syntax. An `Unknown attribute` error proves only that the requested field is not queryable in this schema; it does not prove the producer omitted it. Record the exact rejected field and inspect raw spans before recommending instrumentation changes.
 - `sort`: `-timestamp`
 - Use pagination to cover the last 24 hours
 
@@ -120,7 +120,9 @@ If `list_datasources` returns no Tempo datasource, or if `tempo_get-attribute-na
 
 For each Sentry event/span and Grafana span, derive:
 
-- **Workflow name** using first non-empty of likely fields:
+- **Workflow name** using first non-empty of confirmed fields:
+  - `gh-aw.workflow.name` (canonical span/resource attribute)
+  - `gen_ai.workflow.name`
   - `github.workflow`
   - `github.workflow_ref`
   - `workflow.name`
@@ -131,17 +133,10 @@ For each Sentry event/span and Grafana span, derive:
   - `gh-aw.run.id`
   - `gh_aw.run.id`
   - `gh_aw.run_id`
-- **AIC value** with precedence:
-  - Prefer `gh-aw.aic` → `gh_aw.aic` → `agent_usage.aic` → `aic`.
-  - **For Sentry spans**: if none are present, use `0` (zero is distinct from "absent" and makes gaps visible in Sentry EAP).
-  - **For Grafana spans**: if none are present, record as **absent** (not 0). Track absent-AIC spans separately for the `events_with_aic_data_grafana` gap metric — only count a span in that metric when a confirmed numeric AIC value is present.
-- Recognized AIC fields:
-  - `gh-aw.aic`
-  - `gh_aw.aic`
-  - `agent_usage.aic`
-  - `aic`
-
-For Sentry spans, normalize missing values to `0`. For Grafana spans, treat absent AIC fields as unknown and do not zero-fill them.
+- **AIC value**: use a finite non-negative numeric `gh-aw.aic`, including an explicit zero. Only use legacy aliases if raw telemetry confirms their meaning and numeric type; never substitute USD cost or token counts.
+- On **both backends**, absent, invalid, or unqueryable AIC is **unknown**, never `0`. Count only confirmed numeric values as events with AIC data.
+- Cost-owning jobs are `agent`, `detection`, and engine-named jobs. Cost is emitted on the dedicated agent span (`gh-aw.agent.agent`) when present, otherwise on the owning job's conclusion span. Do not require AIC on individual `gen_ai.chat`/tool spans or downstream non-owning jobs.
+- Correlate cost and workflow identity on the same span using `gh-aw.workflow.name`, `gh-aw.run.id`, `gh-aw.repository`, and resource `github.workflow_ref`. Deduplicate mirrored spans by trace ID and span ID; do not sum both backends or collapse distinct cost-owning jobs into one run record.
 
 ## Analysis Requirements
 
@@ -155,11 +150,11 @@ Calculate:
 (Note: `events_with_aic_data_sentry + events_with_aic_data_grafana` may exceed `events_with_aic_data` when the same span is reported by both backends, since spans are exported to both simultaneously.)
 
 - `events_missing_workflow`
-- `total_aic`: sourced from Sentry (canonical); note if Grafana-only would yield a different total
+- `total_aic`: sum confirmed numeric Sentry cost records (canonical); label a partial sample as a subtotal and report unknown, not zero, when no numeric records exist. Note if Grafana-only would yield a different total.
 - `workflow_count` (unique workflows)
 - `top_workflows_by_aic` (top 10)
-- `avg_aic_per_event`
-- `p95_aic_per_event`
+- `avg_aic_per_event`: over confirmed numeric cost records only
+- `p95_aic_per_event`: over confirmed numeric cost records only
 
 For each workflow include:
 - workflow name
@@ -217,7 +212,7 @@ Use this body structure:
 
 ### Recommendations
 - 2-4 concrete actions to reduce AIC usage for the highest consumers.
-- If Grafana lacks queryable numeric AIC, include at least one recommendation for fixing the instrumentation gap (for example: ensure spans emit `gh-aw.aic` as a numeric attribute, configure Tempo to index the relevant attribute, or verify OTLP export settings).
+- For either backend's AIC gap, recommend the smallest evidence-supported fix: producer emission only if raw cost-owning spans lack the field despite available cost data; otherwise field indexing/query syntax or missing trace-query tool access. Do not infer an emission bug from schema validation errors alone.
 
 ### References
 - Include up to four relevant links (Sentry query links, Grafana traces/query references, and/or run links when available).
@@ -226,7 +221,7 @@ Use this body structure:
 
 - Be explicit when telemetry fields are absent or ambiguous.
 - Never invent AIC values.
-- If Grafana lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
+- If either backend lacks queryable numeric AIC, report that as an observability gap (unknown AIC), not as zero usage.
 - Keep the report concise and actionable.
 
 ## Completion Requirement

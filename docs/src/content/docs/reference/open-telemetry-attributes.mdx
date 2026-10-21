@@ -89,7 +89,7 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.steering_event_count</code></td><td>Count of steering events recorded during the run.</td></tr>
     <tr><td><code>gh-aw.action_minutes</code></td><td>Elapsed runtime converted to minutes.</td></tr>
     <tr><td><code>gh-aw.tracker.id</code></td><td>Tracker identifier when present.</td></tr>
-    <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed for the run when available.</td></tr>
+    <tr><td><code>gh-aw.aic</code></td><td>AI credits consumed by the cost-owning job (agent, detection, or engine), encoded as a double when available. Explicit zero is preserved; missing cost data is omitted, not zero-filled.</td></tr>
     <tr><td><code>gh-aw.max_ai_credits</code></td><td>Configured max AI credits budget for the run when available.</td></tr>
     <tr><td><code>gh-aw.max_ai_credits_exceeded</code></td><td>Whether the run exceeded the max AI credits budget.</td></tr>
     <tr><td><code>gh-aw.ai_credits_rate_limit_error</code></td><td>Whether an AI-credits rate-limit or budget-exhaustion signal was detected.</td></tr>
@@ -126,6 +126,8 @@ These attributes appear on built-in workflow setup, agent, and conclusion spans 
     <tr><td><code>gh-aw.github.rate_limit.reset</code></td><td>GitHub rate limit reset timestamp.</td></tr>
   </tbody>
 </table>
+
+For AIC rollups, use `gh-aw.aic` on the dedicated agent span (`gh-aw.agent.agent`) or, when no dedicated span exists, the cost-owning job's conclusion span. It is emitted once per owning job, alongside `gh-aw.workflow.name`, `gh-aw.run.id`, and `gh-aw.repository`. Individual model/tool spans and downstream non-owning jobs need not carry AIC. Deduplicate spans mirrored to multiple backends by trace ID and span ID. Missing or unqueryable cost is unknown, not zero; backend field-validation errors alone do not prove an exporter failure.
 
 Working-Set Rebuild Factor measures cumulative context reconstruction relative to peak invocation context. It is an efficiency/trajectory metric, not a measurement of semantic coherence debt and not a predictor of task success. Numeric working-set attributes are emitted on the built-in conclusion span only when the measurement exists.
 
