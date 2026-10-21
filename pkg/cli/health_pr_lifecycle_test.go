@@ -38,8 +38,8 @@ func lifecyclePRJSON(run WorkflowRun, state string, closed, merged time.Time) st
 }
 
 func lifecycleJobsJSON(run WorkflowRun, failure bool) string {
-	job := JobInfoWithDuration{JobInfo: JobInfo{ID: 99, Name: "agent", Status: "completed", Conclusion: "cancelled",
-		CompletedAt: run.UpdatedAt.Add(-time.Minute)}}
+	job := JobInfoWithDuration{ID: 99, Name: "agent", Status: "completed", Conclusion: "cancelled",
+		CompletedAt: run.UpdatedAt.Add(-time.Minute)}
 	if failure {
 		job.Conclusion = "failure"
 		job.Steps = []JobStep{{Name: "Checkout PR branch", Conclusion: "failure", Status: "completed",
@@ -47,9 +47,9 @@ func lifecycleJobsJSON(run WorkflowRun, failure bool) string {
 	}
 	jobs := []JobInfoWithDuration{job}
 	if failure {
-		jobs = append(jobs, JobInfoWithDuration{JobInfo: JobInfo{ID: 100, Name: "conclusion",
+		jobs = append(jobs, JobInfoWithDuration{ID: 100, Name: "conclusion",
 			Status: "completed", Conclusion: "failure", Steps: []JobStep{{Name: "Handle agent failure",
-				Conclusion: "failure", StartedAt: run.UpdatedAt.Add(-30 * time.Second)}}}})
+				Conclusion: "failure", StartedAt: run.UpdatedAt.Add(-30 * time.Second)}}})
 	}
 	data, _ := json.Marshal(map[string]any{"jobs": jobs, "total_count": len(jobs)})
 	return string(data)
