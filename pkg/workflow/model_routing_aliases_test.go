@@ -345,6 +345,61 @@ func TestRoutingAllowedModelsKnownCopilotIdStaysExact(t *testing.T) {
 	require.Equal(t, []string{"github-copilot/gpt-5.6*"}, compiled.candidates(t))
 }
 
+func TestRoutingAllowedModelsAliasNamedLikeIdFollowsEngineModelRule(t *testing.T) {
+	aliases := BuiltinModelAliases()
+	var catalog []string
+	for id := range bundledCopilotModelIDs() {
+		catalog = append(catalog, "github-copilot/"+id)
+	}
+	names := []string{"gemini-3.8-flash", "gpt-5-mini", "gpt-5.5", "gpt-5", "gpt-5-codex", "gpt-6"}
+	aliasesJSON, err := json.Marshal(aliases)
+	require.NoError(t, err)
+	catalogJSON, err := json.Marshal(catalog)
+	require.NoError(t, err)
+	namesJSON, err := json.Marshal(names)
+	require.NoError(t, err)
+
+	// Resolve each name with the engine.model resolver against the bundled Copilot catalogue.
+	cmd := exec.Command("node", "-e", `
+const { resolveConfiguredModel } = require("./actions/setup/js/resolve_model_alias.cjs");
+const aliasMap = JSON.parse(process.env.ALIASES), catalog = JSON.parse(process.env.CATALOG);
+const status = {};
+for (const name of JSON.parse(process.env.NAMES)) {
+  try {
+    status[name] = resolveConfiguredModel({ configuredModel: name, aliasMap, catalog }).status;
+  } catch (err) {
+    // An alias that the catalogue cannot resolve is still resolved as an alias.
+    if (err.name !== "ModelAliasResolutionError") throw err;
+    status[name] = "resolved";
+  }
+}
+process.stdout.write(JSON.stringify(status));`)
+	cmd.Dir = filepath.Join("..", "..")
+	cmd.Env = append(os.Environ(), "ALIASES="+string(aliasesJSON), "CATALOG="+string(catalogJSON), "NAMES="+string(namesJSON))
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	var engineModelStatus map[string]string
+	require.NoError(t, json.Unmarshal(output, &engineModelStatus))
+
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			require.Contains(t, aliases, name, "%s must be an alias for this test", name)
+			groups := mustRoutingGroups(t, routedPolicyWorkflowData("copilot", "", nil, nil, []string{name}), "copilot")
+			require.Len(t, groups, 1)
+			if engineModelStatus[name] == "exact" {
+				require.False(t, groups[0].Alias)
+				require.Equal(t, []string{"github-copilot/" + name}, groups[0].Patterns)
+			} else {
+				require.Equal(t, "resolved", engineModelStatus[name])
+				require.True(t, groups[0].Alias)
+				require.Equal(t, sharedTableCopilotPatterns(name), groups[0].Patterns)
+			}
+		})
+	}
+	require.Equal(t, "exact", engineModelStatus["gemini-3.8-flash"])
+	require.Equal(t, "resolved", engineModelStatus["gpt-5"])
+}
+
 func TestRoutingAllowedModelsNoInventedFamilyPatterns(t *testing.T) {
 	for _, alias := range []string{"grok", "computer-use"} {
 		_, err := expandModelRoutingAlias(alias, BuiltinModelAliases(), "codex")
