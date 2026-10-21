@@ -66,14 +66,28 @@ function domainURLPatterns(domains, { block = false } = {}) {
  * The compiler copies the finalized config after expanding network_allowed.
  * Read it at startup, not at compilation, without changing shell permissions.
  * @param {string[]} args
- * @param {{env?: NodeJS.ProcessEnv, sdkMode?: boolean, configPath: string}} options
+ * @param {{env?: NodeJS.ProcessEnv, sdkMode?: boolean, configPath: string, fallbackConfigPath?: string}} options
  * @returns {string[]}
  */
-function addCopilotURLPermissions(args, { env = process.env, sdkMode = false, configPath }) {
+function addCopilotURLPermissions(args, { env = process.env, sdkMode = false, configPath, fallbackConfigPath }) {
   if (sdkMode || env.AWF_REFLECT_ENABLED !== "1") return args;
+  let configContents;
+  try {
+    configContents = fs.readFileSync(configPath, "utf8");
+  } catch (err) {
+    const errAny = /** @type {any} */ err;
+    if (!fallbackConfigPath || errAny?.code !== "ENOENT") {
+      throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
+    }
+    try {
+      configContents = fs.readFileSync(fallbackConfigPath, "utf8");
+    } catch {
+      throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
+    }
+  }
   let config;
   try {
-    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config = JSON.parse(configContents);
   } catch {
     throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
   }

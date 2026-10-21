@@ -127,6 +127,19 @@ describe("Copilot URL permissions", () => {
     expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath })).toThrow("Cannot read AWF config");
   });
 
+  it("falls back only when the implicit config file is missing", () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-url-fallback-"));
+    const configPath = path.join(tempDir, "default-awf-config.json");
+    const fallbackConfigPath = path.join(tempDir, "runner-temp", "gh-aw", "awf-config.json");
+    fs.mkdirSync(path.dirname(fallbackConfigPath), { recursive: true });
+    fs.writeFileSync(fallbackConfigPath, JSON.stringify({ network: { allowDomains: ["shared.example.test"] } }));
+    const options = { env: { AWF_REFLECT_ENABLED: "1" }, configPath, fallbackConfigPath };
+
+    expect(addCopilotURLPermissions([], options)).toContain("https://shared.example.test");
+    fs.writeFileSync(configPath, "{");
+    expect(() => addCopilotURLPermissions([], options)).toThrow("Cannot read AWF config");
+  });
+
   it("uses caller-added domains and ecosystems from the finalized runtime config", async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-url-runtime-"));
     const dir = path.join(tempDir, "gh-aw");
@@ -171,5 +184,34 @@ describe("Copilot URL permissions", () => {
     expect(args).toEqual(expect.arrayContaining(["--allow-tool", "shell(curl:*)", "--deny-tool", "workflow", "--allow-url", "https://github.com", "https://*.github.com", "--deny-url", "https://private.github.com"]));
     expect(args).not.toContain("http://github.com");
     expect(args).not.toContain("--allow-all-urls");
+  });
+
+  it("starts with the shared RUNNER_TEMP config when the default config is absent and no override is set", () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-url-shared-config-"));
+    const runnerTemp = path.join(tempDir, "runner-temp");
+    const sharedConfigDir = path.join(runnerTemp, "gh-aw");
+    fs.mkdirSync(sharedConfigDir, { recursive: true });
+    fs.writeFileSync(path.join(sharedConfigDir, "awf-config.json"), JSON.stringify({ network: { allowDomains: ["shared.example.test"] } }));
+    const stubPath = path.join(tempDir, "shared-config-stub.cjs");
+    const argsPath = path.join(tempDir, "shared-config-args.json");
+    fs.writeFileSync(stubPath, `require("fs").writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(process.argv.slice(2)));`);
+    const result = spawnSync(process.execPath, [require.resolve("./copilot_harness.cjs"), process.execPath, stubPath], {
+      cwd: tempDir,
+      env: {
+        PATH: process.env.PATH,
+        HOME: tempDir,
+        COPILOT_HOME: path.join(tempDir, ".copilot"),
+        GH_AW_TMP_DIR: tempDir,
+        GH_AW_SESSION_STATE_BASE_DIR: tempDir,
+        RUNNER_TEMP: runnerTemp,
+        GH_AW_SKIP_REFLECT: "true",
+        AWF_REFLECT_ENABLED: "1",
+      },
+      encoding: "utf8",
+      timeout: 10000,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const args = JSON.parse(fs.readFileSync(argsPath, "utf8"));
+    expect(args).toContain("https://shared.example.test");
   });
 });
