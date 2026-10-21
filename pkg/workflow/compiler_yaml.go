@@ -21,6 +21,9 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	c.jobManager = NewJobManager()
 
 	// Build all jobs
+	if err := c.validateDryRunEffects(data); err != nil {
+		return err
+	}
 	data, err := c.prepareDryRunWorkflowData(data)
 	if err != nil {
 		return err
@@ -33,6 +36,7 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	c.disableDryRunPushJobs()
+	c.disableDryRunCustomJobs(data)
 
 	if err := c.applyEnvironmentOverride(); err != nil {
 		return err

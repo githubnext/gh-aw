@@ -55,7 +55,7 @@ func TestDryRunScannerDifferential(t *testing.T) {
 			t.Parallel()
 			baseline := &dryRunScannerBaseline{results: map[string]error{"zizmor": toError(test.before)}}
 			diff, err := baseline.filter("zizmor", toError(test.after))
-			assert.Equal(t, test.added > 0, err != nil)
+			assert.Equal(t, test.added+test.existing > 0, err != nil)
 			require.NotNil(t, diff)
 			assert.Equal(t, &DryRunScannerDifferential{
 				Baseline: len(test.before), Existing: test.existing, Added: test.added, Ignored: test.ignored,
@@ -254,8 +254,8 @@ Say Done.
 			MarkdownFiles: []string{source}, DryRun: true, Strict: true, Zizmor: true,
 			JSONOutput: true, activeModels: &activeModelInventory{},
 		})
-		require.NoError(t, err)
-		return err
+		require.ErrorContains(t, err, "1 existing, 0 added")
+		return nil
 	})
 	assert.Equal(t, 2, calls)
 	var results []ValidationResult
@@ -263,10 +263,10 @@ Say Done.
 	require.NotEmpty(t, results)
 	report := results[len(results)-1].DryRun
 	require.NotNil(t, report)
-	assert.Equal(t, "passed", report.Gate)
+	assert.Equal(t, "failed", report.Gate)
 	assert.Equal(t, "pre_compile_lock_files", report.WarningBaseline)
 	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, report.Scanners["zizmor"].Differential)
-	assert.Equal(t, "passed", report.Scanners["zizmor"].Status)
+	assert.Equal(t, "failed", report.Scanners["zizmor"].Status)
 }
 
 func TestCollectDryRunBaselineInputsSetsWorkflowIdentifierPerFile(t *testing.T) {

@@ -313,9 +313,9 @@ func (c *Compiler) buildCallWorkflowJob(data *WorkflowData, workflowName, markdo
 		With: buildCallWorkflowInputs(workflowName, markdownPath, jobName),
 	}
 	if c.dryRun {
-		callJob.Actions.If = nil
 		callJob.Needs = []string{"safe_outputs"}
-		callJob.If = "false"
+		makeDryRunJobInert(callJob)
+		return callJob
 	}
 	addCallWorkflowSecrets(callJob, workflowName, markdownPath)
 	addCallWorkflowPermissions(callJob, data, workflowName, markdownPath)

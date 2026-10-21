@@ -188,7 +188,9 @@ func TestDryRunWorkQueueAndCallWorkflow(t *testing.T) {
 	createWorker(t, dir, "worker", "")
 	path := filepath.Join(dir, "gateway.md")
 	queueSource := `---
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  admission: true
 engine: copilot
 tools:
   work-queue:
@@ -223,9 +225,9 @@ Debug generated delegated workflow jobs.
 			if source == delegatedSource {
 				require.Contains(t, compiled.Jobs, "call-worker")
 				if enabled {
-					assert.Equal(t, false, compiled.Jobs["call-worker"]["if"])
+					assert.Equal(t, "${{ !always() }}", compiled.Jobs["call-worker"]["if"])
 				} else {
-					assert.NotEqual(t, false, compiled.Jobs["call-worker"]["if"])
+					assert.NotEqual(t, "${{ !always() }}", compiled.Jobs["call-worker"]["if"])
 				}
 			} else {
 				assert.Equal(t, map[string]any{

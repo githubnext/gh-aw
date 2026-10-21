@@ -58,47 +58,56 @@ func (c *Compiler) prepareDryRunWorkflowData(data *WorkflowData) (*WorkflowData,
 }
 
 func prepareDryRunWorkflowDispatch(data *WorkflowData) error {
-	var document map[string]any
-	if err := goyaml.Unmarshal([]byte(data.On), &document); err != nil {
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(data.On), &document); err != nil {
 		return fmt.Errorf("cannot enable dry-run workflow_dispatch: %w", err)
 	}
-	on := make(map[string]any)
-	switch value := document["on"].(type) {
-	case map[string]any:
-		on = value
-	case string:
-		on[value] = nil
-	case []any:
-		for _, event := range value {
-			name, ok := event.(string)
-			if !ok {
-				return errors.New("dry-run workflow triggers must be event names")
+	root := &yaml.Node{Kind: yaml.MappingNode}
+	if len(document.Content) > 0 {
+		root = document.Content[0]
+	}
+	if root.Kind != yaml.MappingNode {
+		return errors.New("dry-run workflow triggers require a workflow mapping")
+	}
+	on := artifactMappingValue(root, "on")
+	if on == nil {
+		on = &yaml.Node{Kind: yaml.MappingNode}
+		root.Content = append(root.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "on"}, on)
+	}
+	changed := on.Kind != yaml.MappingNode
+	if err := normalizeDryRunTriggers(on); err != nil {
+		return err
+	}
+	if artifactMappingValue(on, "workflow_dispatch") == nil {
+		dispatch := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: ""}
+		if call := artifactMappingValue(on, "workflow_call"); call != nil {
+			if inputs := artifactMappingValue(call, "inputs"); inputs != nil {
+				dispatch = &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
+					{Kind: yaml.ScalarNode, Value: "inputs"}, inputs,
+				}}
 			}
-			on[name] = nil
 		}
-	case nil:
-	default:
-		return errors.New("dry-run workflow triggers must be a mapping, event name, or event list")
+		on.Content = append(on.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: "workflow_dispatch"}, dispatch)
+		changed = true
 	}
-	if _, exists := on["workflow_dispatch"]; !exists {
-		var dispatch any
-		if call, ok := on["workflow_call"].(map[string]any); ok {
-			if inputs, exists := call["inputs"]; exists {
-				dispatch = map[string]any{"inputs": inputs}
-			}
+	if changed {
+		var rendered strings.Builder
+		encoder := yaml.NewEncoder(&rendered)
+		encoder.SetIndent(2)
+		if err := encoder.Encode(root); err != nil {
+			return fmt.Errorf("cannot render dry-run workflow_dispatch: %w", err)
 		}
-		on["workflow_dispatch"] = dispatch
+		data.On = strings.TrimSuffix(rendered.String(), "\n")
 	}
-	rendered, err := MarshalWithFieldOrder(map[string]any{"on": on}, []string{"on"})
-	if err != nil {
-		return fmt.Errorf("cannot render dry-run workflow_dispatch: %w", err)
+	var parsed map[string]map[string]any
+	if err := goyaml.Unmarshal([]byte(data.On), &parsed); err != nil {
+		return fmt.Errorf("cannot read dry-run workflow_dispatch: %w", err)
 	}
-	data.On = strings.TrimSuffix(string(rendered), "\n")
-	rawOn := maps.Clone(on)
+	rawOn := maps.Clone(parsed["on"])
 	if configured, ok := data.RawFrontmatter["on"].(map[string]any); ok && configured != nil {
 		rawOn = maps.Clone(configured)
 	}
-	rawOn["workflow_dispatch"] = on["workflow_dispatch"]
+	rawOn["workflow_dispatch"] = parsed["on"]["workflow_dispatch"]
 	rawOn["roles"] = data.Roles
 	delete(rawOn, "bots")
 	if data.RawFrontmatter == nil {
@@ -107,6 +116,35 @@ func prepareDryRunWorkflowDispatch(data *WorkflowData) error {
 	data.RawFrontmatter["on"] = rawOn
 	if data.ParsedFrontmatter != nil {
 		data.ParsedFrontmatter.On = rawOn
+	}
+	return nil
+}
+
+func normalizeDryRunTriggers(on *yaml.Node) error {
+	switch on.Kind {
+	case yaml.MappingNode:
+	case yaml.ScalarNode:
+		if on.Tag != "!!str" && on.Tag != "!!null" {
+			return errors.New("dry-run workflow triggers must be a mapping, event name, or event list")
+		}
+		event := *on
+		on.Kind, on.Tag, on.Value, on.Style = yaml.MappingNode, "", "", 0
+		on.Content = nil
+		if event.Tag != "!!null" {
+			event.HeadComment, event.LineComment, event.FootComment = "", "", ""
+			on.Content = append(on.Content, &event, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: ""})
+		}
+	case yaml.SequenceNode:
+		events := on.Content
+		on.Kind, on.Tag, on.Style, on.Content = yaml.MappingNode, "", 0, nil
+		for _, event := range events {
+			if event.Kind != yaml.ScalarNode || event.Tag != "!!str" {
+				return errors.New("dry-run workflow triggers must be event names")
+			}
+			on.Content = append(on.Content, event, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: ""})
+		}
+	default:
+		return errors.New("dry-run workflow triggers must be a mapping, event name, or event list")
 	}
 	return nil
 }
