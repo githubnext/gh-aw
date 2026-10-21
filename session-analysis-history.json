@@ -243,8 +243,25 @@
         "4 branches (dominant 60%), ~256min window; duration mean 2.51min/median 2.508min, CI-gate timing only.",
         "0/13 open PRs orphaned (max gate=1) -> NORMAL, 48th healthy day. Standard run (roll=78)."
       ]
+    },
+    {
+      "date": "2026-10-21",
+      "sessions_analyzed": 50,
+      "completion_rate": 80.0,
+      "average_duration_minutes": 13.106,
+      "median_duration_minutes": 7.65,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": null,
+      "key_insights": [
+        "80.0% completion (40/50: 40 success, 6 action_required, 3 cancelled, 1 failure), +8pts vs 10-20 (72.0%); NEW ALL-TIME HIGH across 49 days (prev record 78.0% on 09-02); 48-day mean 35.8%.",
+        "Partial data-pipeline recovery: 3/50 sessions have event-log transcripts today (first non-zero count in 4 days) -- all review-bot subagents (Matt Pocock Skills Reviewer 47 turns, Test Quality Sentinel 4 turns, PR Code Quality Reviewer 24 turns), 100%/100%/97.4% tool success. Run population still CI-gate/review-bot, not true agent sessions.",
+        "provenance 90.0% bot-driven (36/40); true-agentic 4/4=100% resolved; Squad (4 runs, 0 success) excluded as ambiguous.",
+        "2 branches (60%/40% split, ties narrowest on record), ~178min window; duration mean 13.11min/median 7.65min (6/50 zero-dur).",
+        "0/15 open PRs orphaned (max gate=1) -> NORMAL, 49th healthy day. Standard run (roll=55)."
+      ]
     }
   ],
-  "last_updated": "2026-10-20",
+  "last_updated": "2026-10-21",
   "version": "1.10"
 }

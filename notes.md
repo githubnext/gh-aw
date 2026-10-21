@@ -230,3 +230,12 @@ _(Prior peak 06-27: 40% (20 succ); superseded by 54% on 07-04. Per-day detail in
 - 4 branches (add-declarative-webhook-triggers 60%, fix-copilot-sub-agent-models 20%, expand-experiment-model-expressions 14%, fix-sub-agent-model-resolution 6%), ~256min window.
 - Duration mean 2.51min/median 2.508min (13/50 zero-dur) -- CI-gate timing only.
 - Orphans 0/13 (max gate_count=1) -> 0% NORMAL, 48th healthy day; roll=78, no experimental.
+
+## 2026-10-21
+
+- 80.0% raw completion (40 success/6 action_required/3 cancelled/1 failure), +8pts vs 10-20; **NEW ALL-TIME HIGH** across 49 recorded days, beating the prior record of 78.0% (09-02); 48-day mean 35.8% (range 4-78%).
+- Partial data-pipeline recovery: 3/50 sessions carry event-log transcripts today (first non-zero count in 4 consecutive days). All three are review-bot subagent runs (Matt Pocock Skills Reviewer 47 turns, Test Quality Sentinel 4 turns, PR Code Quality Reviewer 24 turns), tool success 100%/100%/97.4% (1 failed tool call out of 38 in the PR Code Quality Reviewer run, no retries observed). Fetched run population is still CI-gate/review-bot workflows, not true coding-agent sessions.
+- provenance_inversion: 90.0% bot-driven (36/40: 24 core-CI-gate + 5 code-scanning + 7 review-bot/advisory), within the 72-100% historical band; true-agentic (Addressing comment on PR #70672) 4/4=100% resolved; Squad/Squad Implement Worker (4 runs, 0 success) excluded as provenance-ambiguous.
+- 2 unique branches (copilot/g-1-g-5-g-6-g-9-g-12-complete-routing-analytics 60%, copilot/make-admission-jobs-optional 40%), ties 10-19 for narrowest spread on record; ~178min window.
+- Duration mean 13.11min/median 7.65min (6/50 zero-dur, max 87.3min) -- highest since 10-18, consistent with longer review-bot runs in the mix.
+- Orphans 0/15 (max gate_count/branch=1 on main) -> 0% NORMAL, 49th consecutive healthy day; roll=55, no experimental strategy.
