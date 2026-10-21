@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -157,6 +158,316 @@ func TestActionlintShellcheckIdentitySurvivesLeadingScriptComment(t *testing.T) 
 	assert.Equal(t, beforeIdentity, afterIdentity)
 }
 
+func TestScannerFindingIdentityAST(t *testing.T) {
+	t.Parallel()
+	wrap := func(steps string) string {
+		return "on: workflow_dispatch\njobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
+	}
+	for _, test := range []struct {
+		name, extension, before, after, beforeTarget, afterTarget string
+		same                                                      bool
+	}{
+		{
+			name: "quotes comments and indentation", same: true,
+			before:       wrap("      - id: check\n        run: echo unsafe\n"),
+			after:        wrap("      - id: check\n        run: 'echo unsafe' # comment\n"),
+			beforeTarget: "echo unsafe", afterTarget: "'echo unsafe'",
+		},
+		{
+			name: "flow mapping columns distinguish fields", same: false,
+			before:       wrap("      - id: check\n        env: {FIRST: unsafe, SECOND: unsafe}\n        run: echo ok\n"),
+			after:        wrap("      - id: check\n        env: {FIRST: unsafe, SECOND: unsafe}\n        run: echo ok\n"),
+			beforeTarget: "FIRST", afterTarget: "SECOND",
+		},
+		{
+			name: "flow mapping reordering", same: true,
+			before:       wrap("      - id: check\n        env: {FIRST: unsafe, SECOND: safe}\n        run: echo ok\n"),
+			after:        wrap("      - id: check\n        env: {SECOND: safe, FIRST: unsafe}\n        run: echo ok\n"),
+			beforeTarget: "FIRST", afterTarget: "FIRST",
+		},
+		{
+			name: "changed value at unchanged key", same: false,
+			before:       wrap("      - id: check\n        env:\n          TOKEN: before\n        run: echo ok\n"),
+			after:        wrap("      - id: check\n        env:\n          TOKEN: after\n        run: echo ok\n"),
+			beforeTarget: "TOKEN:", afterTarget: "TOKEN:",
+		},
+		{
+			name: "duplicate names do not conflate steps", same: false,
+			before:       wrap("      - name: duplicate\n        env: {TOKEN: unsafe}\n        run: echo first\n      - name: duplicate\n        env: {TOKEN: safe}\n        run: echo second\n"),
+			after:        wrap("      - name: duplicate\n        env: {TOKEN: safe}\n        run: echo first\n      - name: duplicate\n        env: {TOKEN: unsafe}\n        run: echo second\n"),
+			beforeTarget: "TOKEN: unsafe", afterTarget: "TOKEN: unsafe",
+		},
+		{
+			name: "anonymous action inputs do not conflate steps", same: false,
+			before:       wrap("      - uses: actions/checkout@v4\n        with: {path: first}\n"),
+			after:        wrap("      - uses: actions/checkout@v4\n        with: {path: second}\n"),
+			beforeTarget: "uses:", afterTarget: "uses:",
+		},
+		{
+			name: "anonymous step shifts", same: true,
+			before:       wrap("      - run: echo unsafe\n"),
+			after:        wrap("      - run: echo safe\n      - run: echo unsafe\n"),
+			beforeTarget: "echo unsafe", afterTarget: "echo unsafe",
+		},
+		{
+			name: "block script comment insertion", same: true,
+			before:       wrap("      - id: check\n        run: |\n          echo unsafe\n"),
+			after:        wrap("      - id: check\n        run: |\n          # harmless comment\n          echo unsafe\n"),
+			beforeTarget: "echo unsafe", afterTarget: "echo unsafe",
+		},
+		{
+			name: "run key includes script value", same: false,
+			before:       wrap("      - id: check\n        run: |\n          echo before\n"),
+			after:        wrap("      - id: check\n        run: |\n          echo after\n"),
+			beforeTarget: "run:", afterTarget: "run:",
+		},
+		{
+			name: "quoted dotted keys are distinct", same: false,
+			before:       wrap("      - id: check\n        env: {'a.b': unsafe, a: unsafe}\n        run: echo ok\n"),
+			after:        wrap("      - id: check\n        env: {'a.b': unsafe, a: unsafe}\n        run: echo ok\n"),
+			beforeTarget: "'a.b'", afterTarget: "a: unsafe",
+		},
+		{
+			name: "alias values come from the Actions AST", same: false,
+			before:       "env: &shared\n  TOKEN: before\n" + wrap("      - id: check\n        env: *shared\n        run: echo ok\n"),
+			after:        "env: &shared\n  TOKEN: after\n" + wrap("      - id: check\n        env: *shared\n        run: echo ok\n"),
+			beforeTarget: "*shared", afterTarget: "*shared",
+		},
+		{
+			name: "alias renaming preserves semantic value", same: true,
+			before:       "env: &before\n  TOKEN: unsafe\n" + wrap("      - id: check\n        env: *before\n        run: echo ok\n"),
+			after:        "env: &after\n  TOKEN: unsafe\n" + wrap("      - id: check\n        env: *after\n        run: echo ok\n"),
+			beforeTarget: "*before", afterTarget: "*after",
+		},
+		{
+			name: "uppercase YAML extension", extension: ".YAML", same: true,
+			before:       wrap("      - id: check\n        run: echo unsafe\n"),
+			after:        "# header\n" + wrap("      - run: echo safe\n      - id: check\n        run: echo unsafe\n"),
+			beforeTarget: "echo unsafe", afterTarget: "echo unsafe",
+		},
+		{
+			name: "AW post steps", extension: ".md", same: true,
+			before:       "---\non: workflow_dispatch\nsafe-outputs:\n  post-steps:\n    - id: check\n      run: echo unsafe\n---\nPrompt\n",
+			after:        "---\n# header\non: workflow_dispatch\nsafe-outputs:\n  post-steps:\n    - run: echo safe\n    - id: check\n      run: 'echo unsafe'\n---\nPrompt\n",
+			beforeTarget: "echo unsafe", afterTarget: "'echo unsafe'",
+		},
+		{
+			name: "AW dotted job ID", extension: ".md", same: true,
+			before:       "---\nsafe-jobs:\n  'a.b':\n    steps:\n      - id: check\n        run: echo unsafe\n---\nPrompt\n",
+			after:        "---\nsafe-jobs:\n  'a.b':\n    steps:\n      - run: echo safe\n      - id: check\n        run: echo unsafe\n---\nPrompt\n",
+			beforeTarget: "echo unsafe", afterTarget: "echo unsafe",
+		},
+		{
+			name: "AW changed run value", extension: ".md", same: false,
+			before:       "---\nsteps:\n  - id: check\n    run: echo before\n---\nPrompt\n",
+			after:        "---\nsteps:\n  - id: check\n    run: echo after\n---\nPrompt\n",
+			beforeTarget: "run:", afterTarget: "run:",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			extension := test.extension
+			if extension == "" {
+				extension = ".yml"
+			}
+			path := filepath.Join(t.TempDir(), "workflow"+extension)
+			identity := func(content, target string) string {
+				require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+				offset := strings.Index(content, target)
+				require.NotEqual(t, -1, offset)
+				lineStart := strings.LastIndex(content[:offset], "\n") + 1
+				finding := scanfindings.Finding{
+					File: path, Line: strings.Count(content[:offset], "\n") + 1,
+					Column: offset - lineStart + 1, RuleID: "test",
+					Severity: scanfindings.SeverityMedium, Message: "unsafe",
+				}
+				source := make(scannerSources).load(normalizeScannerFile(path))
+				require.NotNil(t, source)
+				require.NotEmpty(t, source.locations, "must use a parsed AST, not coordinate fallback")
+				location := source.locate(finding.Line, finding.Column)
+				require.NotNil(t, location, "finding must have an exact source anchor")
+				if strings.Contains(target, "echo") || target == "run:" {
+					require.True(t, location.run, "script findings must anchor to run, not a neighboring field")
+				}
+				return scannerFindingIdentity(finding)
+			}
+			before := identity(test.before, test.beforeTarget)
+			after := identity(test.after, test.afterTarget)
+			assert.Equal(t, test.same, before == after)
+		})
+	}
+}
+
+func TestScannerSourcesAreScopedToOneResult(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	before := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n      - id: check\n        run: echo before\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	finding := scanfindings.Finding{File: path, Line: 6, Column: 9, RuleID: "test", Severity: scanfindings.SeverityHigh}
+	sources := make(scannerSources)
+	identity := sources.findingIdentity(finding)
+	baseline := withScannerFindings(errors.New("findings"), []scanfindings.Finding{finding})
+	require.NoError(t, os.WriteFile(path, []byte(strings.ReplaceAll(before, "echo before", "echo after")), 0600))
+	assert.Equal(t, identity, sources.findingIdentity(finding), "a scanner result uses one immutable source snapshot")
+	assert.NotEqual(t, identity, scannerFindingIdentity(finding), "a new result reparses the file")
+	diff, err := (&dryRunScannerBaseline{results: map[string]error{"test": baseline}}).filter(
+		"test", withScannerFindings(errors.New("findings"), []scanfindings.Finding{finding}),
+	)
+	require.Error(t, err)
+	assert.Equal(t, 1, diff.Added)
+	assert.Zero(t, diff.Existing)
+}
+
+func TestScannerSourceUnmappedLocationsRemainConservative(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	content := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo unsafe\n        env:\n          TOKEN: unsafe\n# outside\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+	require.NotEmpty(t, source.locations)
+	assert.Nil(t, source.locate(9, 1), "an outside comment must not inherit a preceding scalar")
+	assert.Nil(t, source.locate(99, 1), "out-of-bounds findings must not inherit a preceding scalar")
+	location := source.locate(8, 11)
+	require.NotNil(t, location)
+	assert.False(t, location.run, "a following env field must not be part of a dash-prefixed run scalar")
+	assert.Equal(t, "$.jobs.agent.steps[0].env.TOKEN", location.path)
+	for _, line := range []int{0, 9, 99} {
+		_, ok := actionlintShellcheckIdentity(actionlintError{
+			Filepath: path, Line: line, Column: 1, Message: "SC2086:warning:1:1: quote this",
+		})
+		assert.False(t, ok)
+	}
+}
+
+func TestScannerSourceQuotedScalarBounds(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	content := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: 'x'\n      EMPTY: ''\n    steps:\n      - run: echo safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+
+	for _, test := range []struct{ scalar, path string }{
+		{"'x'", "$.jobs.agent.env.TOKEN"},
+		{"''", "$.jobs.agent.env.EMPTY"},
+	} {
+		offset := strings.Index(content, test.scalar)
+		require.NotEqual(t, -1, offset)
+		line := strings.Count(content[:offset], "\n") + 1
+		lineStart := strings.LastIndex(content[:offset], "\n") + 1
+		column := offset - lineStart + 1
+		for position := column; position < column+len([]rune(test.scalar)); position++ {
+			location := source.locate(line, position)
+			require.NotNil(t, location, "quoted scalar character at column %d should be included", position)
+			assert.Equal(t, test.path, location.path)
+		}
+		assert.Nil(t, source.locate(line, column+len([]rune(test.scalar))), "the exclusive endpoint must not be part of the scalar")
+	}
+}
+
+func TestScannerSourceDoesNotExtendPlainScalarsAcrossComments(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	content := "jobs:\n  agent:\n    env:\n      TOKEN: value\n      # comment\n      NEXT: safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+	commentLine := strings.Count(content[:strings.Index(content, "# comment")], "\n") + 1
+	assert.Nil(t, source.locate(commentLine, 0), "a comment after a plain scalar must not inherit its location")
+}
+
+func TestScannerSourceFallsBackForUnsortedNeeds(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	before := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo a\n  y:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo y\n  z:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo z\n  agent:\n    needs: [z, a]\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	document, err := actions.Parse([]byte(before))
+	require.NoError(t, err)
+	_, err = actions.Lower(document)
+	require.NoError(t, err)
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+	assert.Empty(t, source.locations, "lowered needs reordered from source must fall back rather than mispair anchors")
+	finding := scanfindings.Finding{File: path, Line: 15, Column: 13, RuleID: "test", Severity: scanfindings.SeverityHigh}
+	beforeIdentity := scannerFindingIdentity(finding)
+
+	after := strings.Replace(before, "needs: [z, a]", "needs: [y, a]", 1)
+	require.NoError(t, os.WriteFile(path, []byte(after), 0600))
+	assert.NotEqual(t, beforeIdentity, scannerFindingIdentity(finding), "changing the first dependency must not retain its old identity")
+}
+
+func TestScannerSourceAmbiguityUsesBestCandidateSet(t *testing.T) {
+	t.Parallel()
+	source := scannerSource{
+		lines: []string{"  one two three"},
+		locations: []scannerSourceLocation{
+			{path: "$.first", line: 1, column: 1, endLine: 1, endColumn: 8},
+			{path: "$.second", line: 1, column: 1, endLine: 1, endColumn: 8},
+			{path: "$.specific", line: 1, column: 4, endLine: 1, endColumn: 8},
+		},
+	}
+	location := source.locate(1, 0)
+	require.NotNil(t, location)
+	assert.Equal(t, "$.specific", location.path)
+
+	source.locations = source.locations[:2]
+	assert.Nil(t, source.locate(1, 0), "equally specific candidates with different paths remain ambiguous")
+}
+
+func TestActionlintShellcheckIdentityKeepsDiagnosticText(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	require.NoError(t, os.WriteFile(path, []byte("jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n      - id: check\n        run: echo unsafe\n"), 0600))
+	issue := actionlintError{Filepath: path, Line: 6, Column: 9, Message: "SC2086:warning:1:1: first message"}
+	before, ok := actionlintShellcheckIdentity(issue)
+	require.True(t, ok)
+	issue.Message = "SC2086:warning:1:1: second message"
+	after, ok := actionlintShellcheckIdentity(issue)
+	require.True(t, ok)
+	assert.NotEqual(t, before, after)
+	for _, message := range []string{"SC2086:warning:0:1: invalid", "SC2086:warning:1:0: invalid", "SC2086:warning:-1:1: invalid"} {
+		_, _, _, _, ok := parseActionlintShellcheckMessage(message)
+		assert.False(t, ok)
+	}
+}
+
+func TestActionlintShellcheckIdentityWithActionlintPrefix(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	before := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n      - id: check\n        run: |\n          echo \"$value\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	lineFor := func(content, text string) int {
+		offset := strings.Index(content, text)
+		require.NotEqual(t, -1, offset)
+		return strings.Count(content[:offset], "\n") + 1
+	}
+	resultIdentity := func(content string, issue actionlintError) string {
+		require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+		stableIdentity, ok := make(scannerSources).shellcheckIdentity(issue)
+		require.True(t, ok, "prefixed ShellCheck message should produce a structural identity")
+		output, err := json.Marshal([]actionlintError{issue})
+		require.NoError(t, err)
+		result := withActionlintFindings(errors.New("actionlint findings"), string(output))
+		var findings *scannerFindingsError
+		require.ErrorAs(t, result, &findings)
+		require.Len(t, findings.diagnostics, 1)
+		assert.Equal(t, stableIdentity, findings.diagnostics[0].Identity)
+		return findings.diagnostics[0].Identity
+	}
+	issue := actionlintError{
+		Kind: "shellcheck", Filepath: path, Line: lineFor(before, `echo "$value"`), Column: 9,
+		Message: actionlintShellcheckMessagePrefix + "SC2086:warning:1:6: quote this",
+	}
+	beforeIdentity := resultIdentity(before, issue)
+
+	after := strings.Replace(before, "          echo", "          # harmless comment\n          echo", 1)
+	issue.Line = lineFor(after, `echo "$value"`)
+	issue.Message = actionlintShellcheckMessagePrefix + "SC2086:warning:2:6: quote this"
+	afterIdentity := resultIdentity(after, issue)
+	assert.Equal(t, beforeIdentity, afterIdentity)
+}
+
 func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 	stdout := `[
 {"ident":"secrets-outside-env","desc":"secret outside environment","determinations":{"severity":"Medium"},"locations":[{"symbolic":{"key":{"Local":{"verbatim_path":"test.lock.yml"}}},"concrete":{"location":{"start_point":{"row":1}}}}]},
@@ -205,8 +516,12 @@ func TestZizmorEmptyDiagnosticsOnlyAllowsFilteredFindings(t *testing.T) {
 		_, _, err := parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{
 			dryRun: true, filteredWarnings: &filteredWarnings,
 		})
-		require.NoError(t, err)
-		assert.Error(t, zizmorEmptyDiagnosticsError(10, filteredWarnings), "output: %s", stdout)
+		if stdout == "null" {
+			require.NoError(t, err)
+			assert.Error(t, zizmorEmptyDiagnosticsError(10, filteredWarnings))
+		} else {
+			require.Error(t, err, "unusable findings must fail even alongside usable diagnostics")
+		}
 	}
 }
 

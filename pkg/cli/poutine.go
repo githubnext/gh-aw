@@ -477,7 +477,7 @@ func poutineFindingsToShared(findings []poutineFinding, rules poutineRules, file
 
 		shared = append(shared, scanfindings.NewFinding(scanfindings.NewFindingParams{
 			RuleID: finding.RuleID, SeverityLabel: severityLabel, Message: message,
-			File: firstNonEmpty(finding.Meta.Path, filePath), Line: lineNum, Column: 1,
+			File: firstNonEmpty(finding.Meta.Path, filePath), Line: lineNum,
 			FileLines: fileLines,
 		}))
 	}

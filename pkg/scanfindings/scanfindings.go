@@ -114,6 +114,19 @@ type Finding struct {
 	// Context holds the source lines surrounding the finding, used when
 	// rendering the finding to a terminal. It is optional.
 	Context []string `json:"-"`
+	// Locations retains every source/sink scope for differential matching.
+	// File/Line/Column above remain the single human-facing display location.
+	Locations []SourceLocation `json:"-"`
+}
+
+// SourceLocation identifies a scanner's semantic scope, not just its first token.
+// An empty Path means the scanner did not provide a reliable YAML scope.
+type SourceLocation struct {
+	File   string
+	Path   string
+	Role   string
+	Line   int
+	Column int
 }
 
 // NewFindingParams contains scanner-adapted fields for NewFinding.
