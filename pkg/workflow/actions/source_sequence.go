@@ -173,13 +173,7 @@ func mergeSourceSequence(source, before, after *ast.SequenceNode) (ast.Node, err
 				}
 			}
 		}
-		column := value.GetToken().Position.Column
-		// Block mapping tokens point at the first colon, not the first key.
-		// Aligning that colon to the sequence item can shift keys below column one.
-		for _, field := range sourceMappingEntries(value) {
-			column = min(column, field.Key.GetToken().Position.Column)
-		}
-		shiftSourceNode(value, source.Start.Position.Column+2-column)
+		shiftSourceNode(value, source.Start.Position.Column+2-sourceNodeColumn(value))
 		if source.IsFlowStyle {
 			value, err = flowSourceNode(value)
 			if err != nil {
