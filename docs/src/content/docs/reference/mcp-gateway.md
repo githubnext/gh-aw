@@ -407,12 +407,24 @@ The optional `trustedBots` field in the gateway configuration passes an addition
 
 **Frontmatter Example** (workflow author):
 
-```yaml
+```aw wrap title=".github/workflows/trusted-bots.md"
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+tools:
+  github:
+    toolsets: [issues]
 sandbox:
   mcp:
     trusted-bots:
       - github-actions[bot]
       - copilot-swe-agent[bot]
+---
+
+Summarize the open issues in this repository.
 ```
 
 **Requirements**:
@@ -1309,15 +1321,27 @@ In this case, the audience defaults to `"https://my-server.example.com/mcp"`.
 
 **Frontmatter Example** (workflow author):
 
-```yaml
-tools:
-  mcp-servers:
-    my-mcp-server:
-      type: http
-      url: "https://my-server.example.com/mcp"
-      auth:
-        type: github-oidc
-        audience: "https://my-server.example.com"
+```aw wrap title=".github/workflows/oidc-mcp.md"
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  id-token: write
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - my-server.example.com
+mcp-servers:
+  my-mcp-server:
+    type: http
+    url: "https://my-server.example.com/mcp"
+    auth:
+      type: github-oidc
+      audience: "https://my-server.example.com"
+---
+
+Use my-mcp-server to summarize the available project information.
 ```
 
 #### 7.6.2 Interaction with Static Headers
