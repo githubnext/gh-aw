@@ -213,9 +213,11 @@ function createCopilotSDKModelObserver({ configuredModel, expectedModel, provide
       const row = providerRow(base);
       const model = modelID(row ? row.id : base);
       if (!model) return "";
-      const matches = unconstrained || (row && expectedRow ? row === expectedRow : model.toLowerCase() === expected.toLowerCase());
-      const effective = matches ? (unconstrained ? model : expected) : modelID(base);
-      if (effective === recorded) return "";
+      // A qualified id outside the configured provider mapping cannot match a provider-qualified expectation.
+      const unmapped = !row && base.includes("/");
+      const matches = unconstrained || (expectedRow && (row || unmapped) ? row === expectedRow : model.toLowerCase() === expected.toLowerCase());
+      const effective = matches ? (unconstrained ? model : expected) : validateModelIdentifier(base) || model;
+      if (matches && effective === recorded) return "";
       recorded = effective;
       recordCopilotModelSelection({ status: matches ? "observed" : "substituted", configured_model: configuredModel, resolved_model: resolvedModel, effective_model: effective }, env);
       if (matches) return "";

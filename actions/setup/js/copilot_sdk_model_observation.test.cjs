@@ -132,6 +132,43 @@ describe("Copilot SDK main-session model observation", () => {
     expect(selection()).toMatchObject({ resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
   });
 
+  it("sdk_same_id_provider_switch_after_match_is_substituted", () => {
+    const watch = observer("gpt-5.6-luna", "copilot-responses/gpt-5.6-luna");
+    watch.setSessionId(SESSION_ID);
+    const [start, firstMessage] = mainEvents();
+    expect(watch.observe(start)).toBe("");
+    expect(watch.observe(firstMessage)).toBe("");
+    expect(selection().status).toBe("observed");
+    // Derived from the 39529495361 fixture: the main session switches to the same id on an unconfigured `copilot` provider.
+    const diagnostic = watch.observe({ ...derivedMainModelChange(), data: { ...derivedMainModelChange().data, newModel: "copilot/gpt-5.6-luna" } });
+    expect(diagnostic).toContain("Copilot substituted 'copilot/gpt-5.6-luna'");
+    expect(selection()).toEqual({ status: "substituted", configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: "copilot/gpt-5.6-luna" });
+    expect(watch.observe(firstMessage)).toBe(diagnostic);
+    expect(selection().status).toBe("substituted");
+  });
+
+  it.each([
+    ["unknown prefix", "x/gpt-5.6-luna", "substituted"],
+    ["unmapped github-copilot prefix", "github-copilot/gpt-5.6-luna", "substituted"],
+    ["mapped provider row", "copilot-responses/gpt-5.6-luna", "observed"],
+    ["matching bare id", "gpt-5.6-luna", "observed"],
+  ])("sdk_qualified_ids_resolve_only_through_provider_mapping (%s)", (_name, model, status) => {
+    const watch = observer("gpt-5.6-luna", "copilot-responses/gpt-5.6-luna");
+    watch.setSessionId(SESSION_ID);
+    // Derived from the 39529495361 fixture: the captured main assistant message reporting a different model id.
+    const [, firstMessage] = mainEvents();
+    const diagnostic = watch.observe({ ...firstMessage, data: { ...firstMessage.data, model } });
+    expect(selection()).toEqual({ status, configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: status === "observed" ? "gpt-5.6-luna" : model });
+    expect(diagnostic).toEqual(status === "observed" ? "" : expect.stringContaining(`Copilot substituted '${model}'`));
+  });
+
+  it("sdk_fixture_main_session_is_observed", () => {
+    const watch = observer("gpt-5.6-luna", "copilot-responses/gpt-5.6-luna");
+    watch.setSessionId(SESSION_ID);
+    for (const event of sdkEvents()) expect(watch.observe(event)).toBe("");
+    expect(selection()).toEqual({ status: "observed", configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
+  });
+
   /**
    * Run copilot_harness.cjs in SDK driver mode with retries enabled. The stub driver runs the real
    * SDK session runner against a fake SDK client that replays `replay.json`, records each attempt
