@@ -403,6 +403,34 @@ describe("repo_helpers", () => {
     });
   });
 
+  describe("isExactRepoSlug", () => {
+    it.each([
+      { owner: "owner", repo: "repo" },
+      { owner: "Owner-123", repo: "Repo_123.test-name" },
+      { owner: "mona_acme", repo: "tools" },
+    ])("accepts exact repository parts %j", async repo => {
+      const { isExactRepoSlug } = await import("./repo_helpers.cjs");
+      expect(isExactRepoSlug(repo)).toBe(true);
+    });
+
+    it.each([null, undefined])("rejects missing repository parts %j", async repo => {
+      const { isExactRepoSlug } = await import("./repo_helpers.cjs");
+      expect(isExactRepoSlug(repo)).toBe(false);
+    });
+
+    it.each(["", "*", "name*", "name?", "name[abc]", "name{a,b}", "name/repo", "name repo", "name@repo", "name\nrepo", "name "])("rejects invalid characters or patterns in either component %j", async value => {
+      const { isExactRepoSlug } = await import("./repo_helpers.cjs");
+      expect(isExactRepoSlug({ owner: value, repo: "repo" })).toBe(false);
+      expect(isExactRepoSlug({ owner: "owner", repo: value })).toBe(false);
+    });
+
+    it("rejects dots in the owner while allowing them in the repository name", async () => {
+      const { isExactRepoSlug } = await import("./repo_helpers.cjs");
+      expect(isExactRepoSlug({ owner: "owner.name", repo: "repo" })).toBe(false);
+      expect(isExactRepoSlug({ owner: "owner", repo: "repo.name" })).toBe(true);
+    });
+  });
+
   describe("resolveAndValidateRepo", () => {
     it("should successfully resolve and validate default repo", async () => {
       const { resolveAndValidateRepo } = await import("./repo_helpers.cjs");

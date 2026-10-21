@@ -621,12 +621,15 @@ When evaluating cross-repository operations, implementations MUST apply these ru
    - MUST reject cross-repository operations
    - Same-repository operations are permitted
 
+**Invocation-context authorization** is a separate runtime check applied when resolving a `workflow_dispatch` target repository after safe-output processing. If parsing `GH_AW_ALLOWED_REPOS` yields one or more entries, that list MUST remain authoritative and MUST NOT be extended with handler configuration. Otherwise, when handler configuration is valid, the resolver MUST build a fallback from configured per-handler `allowed_repos` entries, retaining their existing matching semantics, and exact, valid per-handler `target-repo` slugs. Handler `target-repo` values MUST be trimmed and validated as exact repository slugs before inclusion; wildcard and malformed values MUST be ignored. The resolver MUST reject any dispatch target that is neither the workflow repository nor allowed by this effective list. This fallback preserves the handler's configured target without authorizing arbitrary repositories.
+
 **Matching Rules**
 
-- Matching is EXACT (case-sensitive)
-- Wildcards (*, ?) are NOT supported
-- Pattern matching is NOT supported
-- Each repository MUST be explicitly listed
+- Literal repository entries match EXACTLY (case-sensitive)
+- Explicit allowlist patterns retain the matching semantics supported by that allowlist; `?` is NOT supported
+- A per-handler `target-repo` fallback value is never treated as a pattern, even if the safe-output handler supports a wildcard target
+- Exact fallback slugs allow ASCII alphanumerics, hyphens, and underscores in the owner (including Enterprise Managed User logins), and additionally dots in the repository name
+- Each repository MUST be explicitly listed or match an explicit supported allowlist pattern
 
 Internal work-queue Claim adapters use the authenticated worker profile's `effect_scope` as a singleton repository allowlist. Declared adapters MUST specify a fixed literal `target-repo`, validated by `work_queue_claim_adapters.cjs`. Every selected repository, including native adapter runtime fallbacks and independently resolved mutation targets, MUST match the profile allowlist through `assertClaimAuthorized` before effects execute. Repository allowlist rejection carries error code E004 while preserving the queue protocol message `work_queue_effect_scope_denied`. This queue-specific authorization does not replace type-specific or global allowlists for user-facing safe-output handlers.
 
