@@ -14,6 +14,7 @@ const { normalizeEngineLogEntries, normalizeEngineSessionEvents, parseEngineLog 
 const { sessionTimestamp, orderSessionSources } = require("./unified_session_order.cjs");
 const { normalizeOtelEvents } = require("./unified_session_otel.cjs");
 const { getApiProxyEventName } = require("./steering_helpers.cjs");
+const { estimateBaseline, projectModelConfig } = require("./routing_analytics.cjs");
 
 const SESSION_FILE_FORMAT_VERSION = 1;
 
@@ -127,6 +128,7 @@ function normalizeRuntimeEvent(component, record) {
     if (kind === "http_access" || record.decision !== undefined) type = "firewall.http_access";
     else if (kind === "token_usage") type = "firewall.token_usage";
     else if (kind === "model_routing") type = "firewall.model_routing";
+    else if (kind === "upstream_error_response") type = "firewall.upstream_error";
     else if (kind === "steering" || kind.endsWith("_steering")) type = "firewall.steering";
   }
   return {
@@ -665,6 +667,24 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       report(path.join(rootDir, "usage/aw_session.jsonl"), "invalid_admission_metadata", undefined);
     }
   }
+  /** @type {SessionEvent[]} */
+  const routingEstimates = [];
+  const infoSource = metadata ? sources.find(source => source.component === "workflow" && source.path === path.relative(rootDir, metadata)) : undefined;
+  const runInfo = infoSource?.events[0]?.type === "workflow.info" ? infoSource.events[0].data : undefined;
+  if (metadata && infoSource && runInfo && Object.hasOwn(runInfo, "model_config")) {
+    // Older sessions without runner-written configuration keep routing analytics unknown.
+    const admissionData = sources.find(source => source.component === "guardrail" && source.phase === "admission")?.events[0]?.data;
+    const config = projectModelConfig(runInfo.model_config, admissionData);
+    if (!config) {
+      report(metadata, "invalid_model_config", undefined);
+    } else {
+      infoSource.events.push({ type: "model.config", data: config });
+      const firewall = sources.filter(source => source.component === "firewall" && source.phase === "agent");
+      const proxyRecords = type => firewall.flatMap(source => source.events.filter(event => event.type === type).map(event => event.data));
+      const estimate = estimateBaseline({ config, subAgentModels: runInfo.sub_agent_models, tokenUsage: proxyRecords("firewall.token_usage"), routing: proxyRecords("firewall.model_routing") });
+      if (estimate) routingEstimates.push({ type: "model.baseline_estimate", data: estimate });
+    }
+  }
   const status = dailyAIC.GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS;
   if (typeof status === "string" && ["disabled", "skipped", "under_budget", "exceeded", "structural_error", "transient_error"].includes(status) && !sources.some(source => source.events.some(event => event.type === "guardrail.daily_aic"))) {
     /** @type {Record<string, string | number | boolean>} */
@@ -728,7 +748,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
   };
   /** @type {import("./types/agent_session").SessionFileFormatEvent} */
   const format = { type: "session.format", data: { version: SESSION_FILE_FORMAT_VERSION } };
-  sources.push({ component: "collector", phase: "conclusion", path: "usage/aw_session.jsonl", events: [format, ...warnings, summary] });
+  sources.push({ component: "collector", phase: "conclusion", path: "usage/aw_session.jsonl", events: [format, ...warnings, ...routingEstimates, summary] });
   const events = mergeSessionSources(sources);
   const formatIndex = events.findIndex(event => event.type === "session.format" && event.provenance.component === "collector" && event.provenance.index === 0);
   // File metadata leads the stream without inventing a timestamp for it.

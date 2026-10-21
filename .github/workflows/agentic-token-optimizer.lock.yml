@@ -164,6 +164,9 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
+          GH_AW_INFO_ENGINE_HARNESS: "copilot-cli"
+          GH_AW_INFO_MODEL_CONFIG: '{"routing":{"enabled":false},"models":{"allowed":[],"blocked":[]},"max_ai_credits_source":"frontmatter"}'
+          GH_AW_INFO_MAX_AI_CREDITS: "1500"
           GH_AW_INFO_FRONTMATTER_SOURCE: "githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473"
           GH_AW_INFO_BODY_MODIFIED: "false"
           GH_AW_COMPILED_STRICT: "true"

@@ -169,6 +169,9 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
+          GH_AW_INFO_ENGINE_HARNESS: "copilot-sdk"
+          GH_AW_INFO_MODEL_CONFIG: '{"routing":{"enabled":false},"models":{"allowed":[],"blocked":[]},"max_ai_credits_source":"default"}'
+          GH_AW_INFO_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_FEATURES: '{"gh-aw-detection":true}'
           GH_AW_INFO_SUB_AGENT_MODELS: "[{\"model\":\"claude-haiku-4.5\",\"name\":\"chunk-analyzer\",\"patterns\":[\"github-copilot/claude-haiku-4.5\"]},{\"model\":\"large\",\"name\":\"pr-description-synthesizer\",\"patterns\":[\"github-copilot/*sonnet*\",\"anthropic/*sonnet*\",\"github-copilot/gpt-6*\",\"openai/gpt-6*\",\"github-copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\",\"github-copilot/gpt-5*\",\"openai/gpt-5*\",\"github-copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"]}]"

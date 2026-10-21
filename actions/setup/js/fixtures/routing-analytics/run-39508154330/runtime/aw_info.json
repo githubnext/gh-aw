@@ -1,0 +1,64 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "gpt-5.6-luna",
+  "version": "1.0.98",
+  "agent_version": "1.0.98",
+  "workflow_name": "Smoke Copilot SDK Routed",
+  "workflow_id": "github/gh-aw/.github/workflows/smoke-copilot-sdk-routed.lock.yml@refs/heads/main",
+  "workflow_call_id": "39508154330-1:github/gh-aw/.github/workflows/smoke-copilot-sdk-routed.lock.yml@refs/heads/main",
+  "caller_workflow_ref": "github/gh-aw/.github/workflows/smoke-copilot-sdk-routed.lock.yml@refs/heads/main",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": false,
+  "run_id": 39508154330,
+  "run_number": 53,
+  "run_attempt": "1",
+  "repository": "github/gh-aw",
+  "ref": "refs/heads/main",
+  "sha": "70e15c7ff659c05c2f4466aa172bb910d28847a2",
+  "actor": "SivaKesava1",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": [
+    "defaults"
+  ],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.70",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-20T22:27:34.002Z",
+  "frontmatter_emoji": "🧭",
+  "features": {
+    "gh-aw-detection": false
+  },
+  "sub_agent_models": [
+    {
+      "model": "claude-haiku-4.5",
+      "name": "haiku-whoami",
+      "patterns": [
+        "github-copilot/claude-haiku-4.5"
+      ]
+    }
+  ],
+  "requested_model": "auto",
+  "model_routing": {
+    "status": "selected",
+    "source": "awf-routing",
+    "provider": "copilot",
+    "wire_model": "gpt-5.6-luna",
+    "model": "github-copilot/gpt-5.6-luna",
+    "effort": "max",
+    "endpoint": "/responses",
+    "selected_endpoint": "/responses",
+    "mode": "balanced",
+    "selected_id": "choice-0003",
+    "router_version": "0.1.3"
+  },
+  "routed_model": "gpt-5.6-luna"
+}

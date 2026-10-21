@@ -12,6 +12,11 @@ import (
 
 var compilerYamlStepLifecycleLog = logger.New("workflow:compiler_yaml:steps")
 
+func writeFormattedYAML(yaml *strings.Builder, format string, args ...any) {
+	formatted := fmt.Sprintf(format, args...)
+	yaml.WriteString(formatted)
+}
+
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
 	writeStepsSection(yaml, data.PreSteps)
 }
@@ -150,68 +155,81 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("      - name: Generate agentic run info\n")
 	yaml.WriteString("        id: generate_aw_info\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", engine.GetDisplayName())
+	writeFormattedYAML(yaml, "          GH_AW_INFO_ENGINE_ID: \"%s\"\n", engineID)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_ENGINE_NAME: \"%s\"\n", engine.GetDisplayName())
 	if modelConfigured {
 		// data.Model may reference an experiment variant as needs.activation.outputs.<name>
 		// (rewritten from engine.model: ${{ experiments.<name> }} for jobs downstream of
 		// activation). This step runs inside the activation job itself, so it must read the
 		// pick-experiment step's output directly rather than via the needs context.
 		infoModel := RewriteActivationOutputsToLocalStepOutputs(data.Model, data.Experiments)
-		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", infoModel)
+		writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL: \"%s\"\n", infoModel)
 	} else {
 		// Use the engine's default model as fallback when neither explicit model nor
 		// model variable is configured, so the run details show "agent" rather than "(none)".
 		defaultModel := getDefaultAgentModel(engineID)
 		defaultModelOverrideVar := getDefaultModelOverrideVar(engineID)
 		if defaultModel != "" && defaultModelOverrideVar != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel))
+			writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpression(modelEnvVar, defaultModelOverrideVar, defaultModel))
 		} else if defaultModel != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
+			writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '%s' }}\n", modelEnvVar, defaultModel)
 		} else if defaultModelOverrideVar != "" {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar))
+			writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL: %s\n", compilerenv.BuildModelOverrideExpressionEmptyFallback(modelEnvVar, defaultModelOverrideVar))
 		} else {
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
+			writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL: ${{ vars.%s || '' }}\n", modelEnvVar)
 		}
 	}
-	fmt.Fprintf(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", agentVersion)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_VERSION: \"%s\"\n", version)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_AGENT_VERSION: \"%s\"\n", agentVersion)
 	// CLI version only for released builds
 	if IsReleasedVersion(c.version) {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", c.version)
+		writeFormattedYAML(yaml, "          GH_AW_INFO_CLI_VERSION: \"%s\"\n", c.version)
 	}
-	fmt.Fprintf(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_WORKFLOW_NAME: \"%s\"\n", data.Name)
 	// Unlike github.workflow_ref, job.workflow_ref identifies the executing reusable workflow.
 	yaml.WriteString("          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}\n")
-	fmt.Fprintf(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
-	fmt.Fprintf(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.GetCapabilities().ToolsAllowlist)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_EXPERIMENTAL: \"%t\"\n", engine.IsExperimental())
+	writeFormattedYAML(yaml, "          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: \"%t\"\n", engine.GetCapabilities().ToolsAllowlist)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_STAGED: \"%s\"\n", stagedValue)
 	if c.dryRun {
 		yaml.WriteString("          GH_AW_INFO_DRY_RUN: \"true\"\n")
 	}
-	fmt.Fprintf(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", domainsJSON)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
-	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_ALLOWED_DOMAINS: '%s'\n", domainsJSON)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_FIREWALL_ENABLED: \"%t\"\n", firewallEnabled)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_AWF_VERSION: \"%s\"\n", firewallVersion)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
+	writeFormattedYAML(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
+	if harness := copilotEngineHarness(engineID, data); harness != "" {
+		writeFormattedYAML(yaml, "          GH_AW_INFO_ENGINE_HARNESS: \"%s\"\n", harness)
+	}
+	if modelConfigJSON, budget := buildAwInfoModelConfig(data); modelConfigJSON != "" {
+		writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL_CONFIG: '%s'\n", strings.ReplaceAll(modelConfigJSON, "'", "''"))
+		if budget != "" {
+			if containsExpression(budget) {
+				writeFormattedYAML(yaml, "          GH_AW_INFO_MAX_AI_CREDITS: %s\n", budget)
+			} else {
+				writeFormattedYAML(yaml, "          GH_AW_INFO_MAX_AI_CREDITS: \"%s\"\n", budget)
+			}
+		}
+	}
 	// Only emit the cache-memory flag when at least one cache is configured.
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		yaml.WriteString("          GH_AW_INFO_CACHE_MEMORY: \"true\"\n")
 	}
 	if data.Source != "" {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
+		writeFormattedYAML(yaml, "          GH_AW_INFO_FRONTMATTER_SOURCE: %q\n", data.Source)
 		// Body-modified defaults to false at compile time; update flows may override this
 		// signal when source/body drift is detected before execution.
 		yaml.WriteString("          GH_AW_INFO_BODY_MODIFIED: \"false\"\n")
 	}
 	if data.FrontmatterEmoji != "" {
-		fmt.Fprintf(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
+		writeFormattedYAML(yaml, "          GH_AW_INFO_FRONTMATTER_EMOJI: %q\n", data.FrontmatterEmoji)
 	}
 	// Always include strict mode flag for lockdown validation.
 	// validateLockdownRequirements uses this to enforce strict: true for public repositories.
 	// Use effectiveStrictMode to infer strictness from the source (frontmatter), not just the CLI flag.
-	fmt.Fprintf(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.effectiveStrictMode(data.RawFrontmatter))
+	writeFormattedYAML(yaml, "          GH_AW_COMPILED_STRICT: \"%t\"\n", c.effectiveStrictMode(data.RawFrontmatter))
 	// When a workflow_call trigger is present, pass the target_repo resolved by the
 	// resolve-host-repo step so it can be stored in aw_info.json for observability.
 	if hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
@@ -227,7 +245,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			yaml.WriteString("          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}\n")
 			yaml.WriteString("          GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}\n")
 			if customToken := getGitHubToken(toolConfig); customToken != "" {
-				fmt.Fprintf(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
+				writeFormattedYAML(yaml, "          CUSTOM_GITHUB_TOKEN: %s\n", customToken)
 			}
 		}
 	}
@@ -237,26 +255,26 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		if modelCostsJSON, err := json.Marshal(data.ModelCosts); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedModelCostsJSON := strings.ReplaceAll(string(modelCostsJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
+			writeFormattedYAML(yaml, "          GH_AW_INFO_MODEL_COSTS: '%s'\n", escapedModelCostsJSON)
 		}
 	}
 	if runtimeFeatures := runtimeVisibleFeatures(data.Features); len(runtimeFeatures) > 0 {
 		if featuresJSON, err := json.Marshal(runtimeFeatures); err == nil {
 			// Escape single quotes for YAML single-quoted scalar safety
 			escapedFeaturesJSON := strings.ReplaceAll(string(featuresJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)
+			writeFormattedYAML(yaml, "          GH_AW_INFO_FEATURES: '%s'\n", escapedFeaturesJSON)
 		}
 	}
 	if len(data.Skills) > 0 {
 		if skillsJSON, err := json.Marshal(data.Skills); err == nil {
 			escapedSkillsJSON := strings.ReplaceAll(string(skillsJSON), "'", "''")
-			fmt.Fprintf(yaml, "          GH_AW_INFO_SKILLS: '%s'\n", escapedSkillsJSON)
+			writeFormattedYAML(yaml, "          GH_AW_INFO_SKILLS: '%s'\n", escapedSkillsJSON)
 		} else {
 			compilerYamlStepLifecycleLog.Printf("Failed to marshal skills for GH_AW_INFO_SKILLS, engine will not receive skill list: %v", err)
 		}
 	}
 	writeSubagentModelDeclarations(yaml, data, engineID)
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	writeFormattedYAML(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');\n")
@@ -355,8 +373,8 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
-	fmt.Fprintf(yaml, "          mkdir -p /tmp/gh-aw\n")
-	fmt.Fprintf(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
+	writeFormattedYAML(yaml, "          mkdir -p /tmp/gh-aw\n")
+	writeFormattedYAML(yaml, "          cp \"$GH_AW_SAFE_OUTPUTS\" /tmp/gh-aw/%s 2>/dev/null || true\n", constants.SafeOutputsFilename)
 	if isWorkQueueEnabled(data) {
 		yaml.WriteString("      - name: Copy work queue claim finish intent\n")
 		yaml.WriteString("        if: always()\n")
@@ -364,7 +382,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          finish_intent_dir=\"$(dirname \"$GH_AW_SAFE_OUTPUTS\")/work-queue\"\n")
-		fmt.Fprintf(yaml, "          if cp \"$finish_intent_dir/work-queue.finish.jsonl\" %s 2>/dev/null; then\n", constants.WorkQueueFinishIntentPath)
+		writeFormattedYAML(yaml, "          if cp \"$finish_intent_dir/work-queue.finish.jsonl\" %s 2>/dev/null; then\n", constants.WorkQueueFinishIntentPath)
 		yaml.WriteString("            echo 'Work queue: copied finish intent into agent artifact'\n")
 		yaml.WriteString("          else\n")
 		yaml.WriteString("            echo 'Work queue: no finish intent to copy (tool not called or file unavailable)'\n")
@@ -374,7 +392,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
 	yaml.WriteString("        if: always()\n")
-	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	writeFormattedYAML(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
@@ -401,16 +419,16 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		domainsStr = computed
 	}
 	if domainsStr != "" {
-		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
+		writeFormattedYAML(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 	if data.SafeOutputs != nil && data.SafeOutputs.URLs != "" {
-		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_URLS: %q\n", data.SafeOutputs.URLs)
+		writeFormattedYAML(yaml, "          GH_AW_SAFE_OUTPUTS_URLS: %q\n", data.SafeOutputs.URLs)
 	}
 
 	// Add allowed GitHub references configuration for reference escaping
 	if data.SafeOutputs != nil && data.SafeOutputs.AllowGitHubReferences != nil {
 		refsStr := strings.Join(data.SafeOutputs.AllowGitHubReferences, ",")
-		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", refsStr)
+		writeFormattedYAML(yaml, "          GH_AW_ALLOWED_GITHUB_REFS: %q\n", refsStr)
 	}
 
 	// Add GitHub server URL and API URL for dynamic domain extraction
@@ -421,15 +439,15 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// Add command names for command trigger prevention in safe outputs
 	if len(data.Command) > 0 {
 		if commandsJSON, err := json.Marshal(data.Command); err == nil {
-			fmt.Fprintf(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
+			writeFormattedYAML(yaml, "          GH_AW_COMMANDS: %q\n", string(commandsJSON))
 		}
 		if data.CommandPlaceholder != "" {
-			fmt.Fprintf(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
+			writeFormattedYAML(yaml, "          GH_AW_COMMAND_PLACEHOLDER: %q\n", data.CommandPlaceholder)
 		}
 	}
 	if len(data.LabelCommand) > 0 {
 		if labelCommandsJSON, err := json.Marshal(data.LabelCommand); err == nil {
-			fmt.Fprintf(yaml, "          GH_AW_LABEL_COMMANDS: %q\n", string(labelCommandsJSON))
+			writeFormattedYAML(yaml, "          GH_AW_LABEL_COMMANDS: %q\n", string(labelCommandsJSON))
 		}
 	}
 

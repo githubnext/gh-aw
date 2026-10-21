@@ -1,0 +1,2 @@
+{"_schema":"model-routing/v0.28.70","timestamp":"2026-10-21T00:08:55.071Z","event":"model_routing","stage":"request","request_id":"local-req-5","outcome":"failed","status":400,"error_code":"invalid_reasoning_effort","error_source":"upstream"}
+{"_schema":"model-routing/v0.28.70","timestamp":"2026-10-21T00:08:55.072Z","event":"model_routing","stage":"request","request_id":"request-1","outcome":"failed","status":400,"error_code":"unsupported_reasoning_effort","error_type":"invalid_request_error","error_source":"awf"}
