@@ -1555,3 +1555,94 @@ describe("applyClaudeSettingsEnv", () => {
     expect(applyClaudeSettingsEnv(["--settings={}"], { GH_AW_CLAUDE_SETTINGS: settings })).toEqual(["--settings={}"]);
   });
 });
+
+describe("Claude sub-agent models before spawn (github/gh-aw#70667)", () => {
+  const runs = require("./fixtures/claude_codex_subagent_runs.cjs");
+  const { writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
+  const typistAgent = () => fs.readFileSync(path.join(runs.typistAgentsDir, "duplicate-type-finder.md"), "utf8");
+  // The stub records the agent files Claude Code would load from the project and whether
+  // the model-resolution record already existed when the CLI started.
+  const stubScript = `
+    const fs = require("fs");
+    const path = require("path");
+    const dir = path.join(process.env.GITHUB_WORKSPACE, ".claude", "agents");
+    const agents = fs.existsSync(dir) ? Object.fromEntries(fs.readdirSync(dir).map(name => [name, fs.readFileSync(path.join(dir, name), "utf8")])) : {};
+    const recordPath = path.join(process.env.GH_AW_TMP_DIR, "agent", "model-resolution.json");
+    const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+    fs.appendFileSync(process.env.CLAUDE_HARNESS_STUB_CALLS, JSON.stringify({ agents, records }) + "\\n");
+    process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "done" }) + "\\n");
+  `;
+
+  function runWithStagedAgent({ agentContent, reflectData = runs.typistReflect(), env = {} }) {
+    const dir = makeHarnessTempDir("claude-subagents-");
+    const ostmp = path.join(dir, "ostmp");
+    const workspace = path.join(dir, "workspace");
+    const recordsDir = path.join(dir, "records");
+    // Activation staging plus restore_inline_sub_agents.sh.
+    writeInlineSubAgents(`# Typist\n\n## agent: \`duplicate-type-finder\`\n${agentContent}`, workspace, path.join(ostmp, "gh-aw"), "claude");
+    fs.mkdirSync(path.join(workspace, ".claude/agents"), { recursive: true });
+    fs.copyFileSync(path.join(ostmp, "gh-aw/.claude/agents/duplicate-type-finder.md"), path.join(workspace, ".claude/agents/duplicate-type-finder.md"));
+    try {
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        reflectData,
+        extraEnv: {
+          TMPDIR: ostmp,
+          GITHUB_WORKSPACE: workspace,
+          GH_AW_ENGINE_CWD: "",
+          GH_AW_TMP_DIR: recordsDir,
+          GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"),
+          GH_AW_LLM_PROVIDER: "anthropic",
+          GH_AW_SAFE_OUTPUTS: "",
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+          GH_AW_PHASE: "",
+          ...env,
+        },
+      });
+      const recordPath = path.join(recordsDir, "agent", "model-resolution.json");
+      const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+      const workspaceAgent = fs.readFileSync(path.join(workspace, ".claude/agents/duplicate-type-finder.md"), "utf8");
+      return { result, calls, records, workspaceAgent };
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("claude_declared_small_resolves_before_spawn", () => {
+    const { result, calls, records } = runWithStagedAgent({ agentContent: typistAgent() });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    const loaded = calls[0].agents["duplicate-type-finder.md"];
+    expect(loaded).toMatch(/^---\nname: "duplicate-type-finder"\n/);
+    expect(loaded).toContain('model: "claude-haiku-5-5"');
+    const resolved = { engine: "claude", role: "duplicate-type-finder", configured_model: "small", resolved_model: "claude-haiku-5-5", provider: "anthropic", status: "resolved", cause: null };
+    expect(calls[0].records).toContainEqual(resolved);
+    expect(records).toContainEqual(resolved);
+  });
+
+  it("claude_declared_dead_or_unknown_model_fails_before_spawn", () => {
+    // Fixture mutation: the recorded catalogue without claude-haiku-5-5, requested explicitly.
+    const reflectData = runs.typistReflect();
+    reflectData.endpoints.forEach(endpoint => endpoint.models && (endpoint.models = endpoint.models.filter(model => model !== "claude-haiku-5-5")));
+    const { result, calls, records, workspaceAgent } = runWithStagedAgent({ agentContent: typistAgent().replace("model: small", "model: claude-haiku-5-5"), reflectData });
+
+    expect(result.status).toBe(1);
+    expect(calls).toEqual([]);
+    expect(result.stderr).toContain("claude sub-agent 'duplicate-type-finder': The requested model is not supported: 'claude-haiku-5-5' is not available in the workflow's live model catalog.");
+    expect(records).toContainEqual({ engine: "claude", role: "duplicate-type-finder", configured_model: "claude-haiku-5-5", resolved_model: null, provider: "anthropic", status: "failed", cause: "model_unavailable" });
+    expect(workspaceAgent).toContain("model: claude-haiku-5-5");
+  });
+
+  it("claude_codex_detection_skips_subagent_resolution (Claude)", () => {
+    // Fixture mutation: an unknown model that would fail closed outside detection.
+    const agentContent = typistAgent().replace("model: small", "model: claude-nonexistent-9");
+    const { result, calls, records, workspaceAgent } = runWithStagedAgent({ agentContent, env: { GH_AW_PHASE: "detection" } });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(records).toEqual([]);
+    expect(workspaceAgent).toContain("model: claude-nonexistent-9");
+    expect(result.stderr).not.toContain("sub-agent");
+  });
+});

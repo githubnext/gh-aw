@@ -2347,3 +2347,64 @@ process.exit(1);`,
     });
   });
 });
+
+describe("Codex sub-agent declarations before spawn (github/gh-aw#70667)", () => {
+  const runs = require("./fixtures/claude_codex_subagent_runs.cjs");
+
+  function runWithArxivAgents({ reflectData = runs.arxivReflect(), env = {} } = {}) {
+    const dir = makeHarnessTempDir("codex-subagents-");
+    const ostmp = path.join(dir, "ostmp");
+    const recordsDir = path.join(dir, "records");
+    const staged = path.join(ostmp, "gh-aw", ".codex", "agents");
+    fs.mkdirSync(staged, { recursive: true });
+    for (const name of fs.readdirSync(runs.arxivAgentsDir)) fs.copyFileSync(path.join(runs.arxivAgentsDir, name), path.join(staged, name));
+    const { result, calls } = runHarnessFixture("", {
+      reflectData,
+      env: { TMPDIR: ostmp, AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai", GH_AW_TMP_DIR: recordsDir, GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"), GH_AW_PHASE: "", ...env },
+    });
+    const recordPath = path.join(recordsDir, "agent", "model-resolution.json");
+    const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+    const stagedAfter = Object.fromEntries(fs.readdirSync(staged).map(name => [name, fs.readFileSync(path.join(staged, name), "utf8")]));
+    return { result, calls, records, stagedAfter };
+  }
+
+  const recordedAgents = () => Object.fromEntries(fs.readdirSync(runs.arxivAgentsDir).map(name => [name, fs.readFileSync(path.join(runs.arxivAgentsDir, name), "utf8")]));
+
+  it("codex_markdown_agents_are_not_loaded_and_warn: records exact resolutions, warns and starts Codex", () => {
+    const { result, calls, records, stagedAfter } = runWithArxivAgents();
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(result.stderr).toContain("warning: Codex discovers custom agents only from TOML role files (verified for Codex 0.163.0); the 4 workflow-declared Markdown sub-agent(s)");
+    expect(records.filter(record => record.role !== "main")).toEqual(
+      ["opportunity-extractor", "paper-screener", "preliminary-investigator", "relevance-ranker"].map(role => {
+        const configured = role === "opportunity-extractor" ? "openai/gpt-5.6-sol" : "openai/gpt-5.4-mini";
+        return { engine: "codex", role, configured_model: configured, resolved_model: configured.slice("openai/".length), provider: "openai", status: "exact", cause: null };
+      })
+    );
+    expect(stagedAfter).toEqual(recordedAgents());
+  });
+
+  it("codex_dead_model_fails_closed_when_native_agent_is_active: declare-and-warn branch continues", () => {
+    // Fixture mutation: the recorded catalogue with gpt-5.6-sol removed.
+    const reflectData = runs.arxivReflect();
+    reflectData.endpoints.forEach(endpoint => endpoint.models && (endpoint.models = endpoint.models.filter(model => model !== "gpt-5.6-sol")));
+    const { result, calls, records } = runWithArxivAgents({ reflectData });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(records).toContainEqual({ engine: "codex", role: "opportunity-extractor", configured_model: "openai/gpt-5.6-sol", resolved_model: null, provider: "openai", status: "failed", cause: "model_unavailable" });
+    expect(result.stderr).toContain("warning: workflow sub-agent 'opportunity-extractor'");
+    expect(result.stderr).not.toContain("The requested model is not supported");
+  });
+
+  it("claude_codex_detection_skips_subagent_resolution (Codex)", () => {
+    const { result, calls, records, stagedAfter } = runWithArxivAgents({ env: { GH_AW_PHASE: "detection" } });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(records.filter(record => record.role !== "main")).toEqual([]);
+    expect(result.stderr).not.toContain("TOML role files");
+    expect(stagedAfter).toEqual(recordedAgents());
+  });
+});

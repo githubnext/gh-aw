@@ -266,23 +266,30 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 }
 
 func writeSubagentModelDeclarations(yaml *strings.Builder, data *WorkflowData, engineID string) {
-	if len(data.SubAgentModels) == 0 || (engineID != "pi" && engineID != "copilot") {
+	if len(data.SubAgentModels) == 0 || (engineID != "pi" && engineID != "copilot" && engineID != "claude" && engineID != "codex") {
 		return
 	}
 	declarations := make([]map[string]any, 0, len(data.SubAgentModels))
 	provider := "github-copilot"
-	if engineID == "pi" {
+	switch engineID {
+	case "pi":
 		provider = piSubagentProvider(piConfiguredProvider(data))
 		if provider == "copilot" {
 			provider = "github-copilot"
 		}
+	case "claude", "codex":
+		provider = claudeCodexSubagentProvider(data, engineID)
 	}
 	for _, agent := range data.SubAgentModels {
 		model := RewriteExperimentsReferenceForDownstreamJobs(agent.Model, data.Experiments)
 		model = RewriteActivationOutputsToLocalStepOutputs(model, data.Experiments)
+		patterns := expandSubagentModelPatterns(agent.Model, data, provider)
+		if engineID == "claude" || engineID == "codex" {
+			patterns = providerScopedSubagentPatterns(agent.Model, patterns, provider)
+		}
 		declarations = append(declarations, map[string]any{
 			"name": agent.Name, "model": model,
-			"patterns": expandSubagentModelPatterns(agent.Model, data, provider),
+			"patterns": patterns,
 		})
 	}
 	encoded, err := json.Marshal(declarations)
@@ -290,6 +297,36 @@ func writeSubagentModelDeclarations(yaml *strings.Builder, data *WorkflowData, e
 		panic(fmt.Sprintf("BUG: cannot encode sub-agent model declarations: %v", err))
 	}
 	yaml.WriteString(formatYAMLEnv("          ", "GH_AW_INFO_SUB_AGENT_MODELS", string(encoded)))
+}
+
+// claudeCodexSubagentProvider returns the pattern provider for Claude and Codex sub-agent
+// declarations: the provider the engine is provisioned for, since their sub-agents never
+// open another credential route.
+func claudeCodexSubagentProvider(data *WorkflowData, engineID string) string {
+	defaultProvider := LLMProviderAnthropic
+	if engineID == "codex" {
+		defaultProvider = LLMProviderOpenAI
+	}
+	provider := string(resolveEngineLLMProviderFromModel(data, defaultProvider))
+	if provider == string(LLMProviderGitHub) || provider == "copilot" {
+		return "github-copilot"
+	}
+	return provider
+}
+
+// providerScopedSubagentPatterns keeps only the patterns of the engine's provider. Claude's
+// `inherit` is an inheritance instruction, not a model, so it declares no patterns.
+func providerScopedSubagentPatterns(model string, patterns []string, provider string) []string {
+	scoped := []string{}
+	if strings.EqualFold(strings.TrimSpace(model), "inherit") {
+		return scoped
+	}
+	for _, pattern := range patterns {
+		if prefix, _, ok := strings.Cut(pattern, "/"); ok && prefix == provider {
+			scoped = append(scoped, pattern)
+		}
+	}
+	return scoped
 }
 
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) error { //nolint:largefunc // Existing artifact collection keeps related output paths and ordering together.

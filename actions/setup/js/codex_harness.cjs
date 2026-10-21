@@ -61,6 +61,7 @@ const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const { applyModelFallback, injectModelFlagAfterExec, normalizeCodexModel, normalizeCodexModelArgs } = require("./model_fallback.cjs");
 const { resolveEngineModel } = require("./resolve_model_alias.cjs");
+const { declareCodexSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 const { resolveAWFModelRoutingSelection, mapAWFRoutingEffort, recordAWFModelRoutingOutcome, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
@@ -964,6 +965,23 @@ async function main() {
   if (codexModelEnvVar && resolvedModel) {
     process.env[codexModelEnvVar] = resolvedModel;
     codexChildEnv[codexModelEnvVar] = resolvedModel;
+  }
+
+  // Declare and warn only: Codex does not load the staged Markdown sub-agents, so their
+  // models are resolved and recorded for audits, never applied and never fatal. Threat
+  // detection uses no sub-agents.
+  if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
+    await declareCodexSubagentModels({
+      reflectData,
+      refetchReflectData: async () => {
+        if (process.env.AWF_REFLECT_ENABLED !== "1") return null;
+        const refreshed = await fetchAWFReflect({ logger: log });
+        return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+      },
+      provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+      env: process.env,
+      logger: log,
+    });
   }
 
   // Prompts remain on stdin; use a placeholder in the argument diagnostic.

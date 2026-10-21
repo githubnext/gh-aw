@@ -13,7 +13,16 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter, resolveSubAgentExperimentReferences, closeUnterminatedSubAgentMarkers, loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
+const {
+  extractInlineSubAgents,
+  writeInlineSubAgents,
+  preserveSubAgentFrontmatter,
+  resolveSubAgentExperimentReferences,
+  closeUnterminatedSubAgentMarkers,
+  loadCopilotSDKCustomAgents,
+  ensureClaudeSubAgentName,
+} = require("./extract_inline_sub_agents.cjs");
+const { typistAgentsDir, typistAgentToolUse, typistAgentToolResult, typistInit } = require("./fixtures/claude_codex_subagent_runs.cjs");
 
 // Helper: returns a ## agent: `name` start marker line.
 const agentMarker = name => `## agent: \`${name}\``;
@@ -433,5 +442,59 @@ describe("resolveSubAgentExperimentReferences", () => {
 
   it.each(["small\nmodel: other", "a b", "${{ secrets.TOKEN }}", "-dash"])("rejects selected variant %j that is not a plain scalar", value => {
     expect(() => resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.subagent_model }}\n---\nBody", { GH_AW_EXPERIMENTS_SUBAGENT_MODEL: value })).toThrow("is not a plain model or alias value");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Claude staged copies must be native-loadable (github/gh-aw#70667)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Claude staged sub-agent identity", () => {
+  let tmpDir;
+  const parseFrontmatter = content => {
+    const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+    const { parseDocument } = require("./work_queue_yaml.cjs");
+    return parseDocument(extractFrontmatterAndBody(content).frontmatterText).toJS() || {};
+  };
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(process.cwd(), ".inline-agents-claude-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  // Typist run 39415087125 staged this file without `name`; Claude Code 2.1.296 did not
+  // register it (init agents) and rejected the named delegation.
+  it("claude_missing_name_fixture_is_registered", () => {
+    const fixturePath = path.join(typistAgentsDir, "duplicate-type-finder.md");
+    const recorded = fs.readFileSync(fixturePath, "utf8");
+    expect(parseFrontmatter(recorded).name).toBeUndefined();
+    expect(typistInit.agents).not.toContain(typistAgentToolUse.input.subagent_type);
+    expect(typistAgentToolResult.content).toContain(`Agent type '${typistAgentToolUse.input.subagent_type}' not found`);
+
+    const workflow = `# Typist\n\nAnalyze types.\n\n${agentMarker("duplicate-type-finder")}\n${recorded}`;
+    writeInlineSubAgents(workflow, tmpDir, tmpDir, "claude");
+
+    const written = fs.readFileSync(path.join(tmpDir, ".claude", "agents", "duplicate-type-finder.md"), "utf8");
+    const frontmatter = parseFrontmatter(written);
+    expect(frontmatter.name).toBe(typistAgentToolUse.input.subagent_type);
+    expect(frontmatter.description).toBe(parseFrontmatter(recorded).description);
+    expect(frontmatter.model).toBe("small");
+    expect(written).toBe(recorded.replace("---\n", '---\nname: "duplicate-type-finder"\n'));
+    expect(fs.readFileSync(fixturePath, "utf8")).toBe(recorded);
+  });
+
+  it("keeps an authored name and leaves other engines' copies unchanged", () => {
+    expect(ensureClaudeSubAgentName("persona-evaluator", "---\nname: persona-evaluator\nmodel: inherit\n---\nBody\n")).toBe("---\nname: persona-evaluator\nmodel: inherit\n---\nBody\n");
+    expect(ensureClaudeSubAgentName("helper", "Body only\n")).toBe('---\nname: "helper"\n---\nBody only\n');
+    expect(ensureClaudeSubAgentName("helper", "---\n---\nBody\n")).toBe('---\nname: "helper"\n---\nBody\n');
+
+    const workflow = `Main.\n\n${agentMarker("helper")}\n---\nmodel: small\n---\nHelp.`;
+    writeInlineSubAgents(workflow, tmpDir, tmpDir, "codex");
+    writeInlineSubAgents(workflow, tmpDir, tmpDir, "copilot");
+    expect(fs.readFileSync(path.join(tmpDir, ".codex", "agents", "helper.md"), "utf8")).toBe("---\nmodel: small\n---\nHelp.\n");
+    expect(fs.readFileSync(path.join(tmpDir, ".github", "agents", "helper.agent.md"), "utf8")).toBe("---\nmodel: small\n---\nHelp.\n");
   });
 });

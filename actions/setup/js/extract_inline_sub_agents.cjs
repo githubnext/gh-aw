@@ -132,6 +132,25 @@ function resolveSubAgentExperimentReferences(agentName, content, env = process.e
 }
 
 /**
+ * Claude Code skips a project agent file without a frontmatter `name`, so the
+ * generated Claude copy gets the declared block name when the author omitted it.
+ * An authored `name` is kept.
+ *
+ * @param {string} agentName - Declared sub-agent name from the `## agent:` marker.
+ * @param {string} content - Agent block content (frontmatter + prompt).
+ * @returns {string} Content with a top-level `name:` in its frontmatter.
+ */
+function ensureClaudeSubAgentName(agentName, content) {
+  const nameLine = `name: ${JSON.stringify(agentName)}`;
+  const match = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*\r?(?=\n|$)/.exec(content);
+  if (!match) return `---\n${nameLine}\n---\n${content}`;
+  const frontmatter = match[1] ?? "";
+  if (/^name[ \t]*:/m.test(frontmatter)) return content;
+  const start = content.indexOf("\n") + 1;
+  return content.slice(0, start) + nameLine + "\n" + content.slice(start);
+}
+
+/**
  * Extracts inline sub-agents from markdown content.
  *
  * Returns the reassembled main content (with agent blocks removed) and an
@@ -383,7 +402,8 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
-    const filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
+    let filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
+    if ((engineId || "").toLowerCase() === "claude") filteredContent = ensureClaudeSubAgentName(agent.name, filteredContent);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     try {
       fs.writeFileSync(agentPath, agentContent, "utf8");
@@ -461,6 +481,7 @@ module.exports = {
   getEngineSubAgentTarget,
   preserveSubAgentFrontmatter,
   resolveSubAgentExperimentReferences,
+  ensureClaudeSubAgentName,
   closeUnterminatedSubAgentMarkers,
   loadCopilotSDKCustomAgents,
 };
