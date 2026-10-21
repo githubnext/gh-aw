@@ -260,9 +260,9 @@ func dryRunReferencedOutputs(values ...any) map[string]map[string]string {
 				visit(value.Index(i))
 			}
 		case reflect.Struct:
-			for i := range value.NumField() {
-				if value.Field(i).CanInterface() {
-					visit(value.Field(i))
+			for _, field := range value.Fields() {
+				if field.CanInterface() {
+					visit(field)
 				}
 			}
 		}
