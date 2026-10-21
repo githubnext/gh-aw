@@ -20,6 +20,10 @@ func SecretLeakRule() Rule {
 			var result taint.Result
 			var err error
 			rule := taint.SecretLeakRule()
+			isSink := rule.IsSink
+			rule.IsSink = func(site taint.Site) bool {
+				return site.Kind != taint.OTLPAttribute && isSink(site)
+			}
 			if input.JavaScript != nil {
 				options := *input.JavaScript
 				options.Context = ctx

@@ -72,6 +72,9 @@ metadata:
 Keys must be 1–64 characters; values are string-only, up to 1024 characters.
 `metadata.docs`, when present, must be an absolute HTTPS URL. The compiler preserves
 it in generated lock-file metadata without fetching it or changing workflow execution.
+To explicitly reuse a metadata value in OTLP custom span or resource attributes, use
+a whole-value `${{ github.aw.metadata.<key> }}` reference; it resolves against this
+root workflow's metadata at compile time. Metadata is not exported automatically.
 
 ### Trigger Events (`on:`)
 

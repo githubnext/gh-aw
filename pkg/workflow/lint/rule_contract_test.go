@@ -12,18 +12,21 @@ import (
 )
 
 type ruleContract struct {
-	targets      ASTTargets
-	threatRuleID string
-	unsafe       string
-	safe         string
-	path         string
-	severity     Severity
-	strictPolicy bool
-	javaScript   bool
-	unsafePrompt string
-	safePrompt   string
-	unsafeShell  string
-	safeShell    string
+	targets       ASTTargets
+	threatRuleID  string
+	unsafe        string
+	safe          string
+	path          string
+	severity      Severity
+	strictPolicy  bool
+	javaScript    bool
+	unsafePrompt  string
+	safePrompt    string
+	unsafeShell   string
+	safeShell     string
+	actionsUnsafe string
+	actionsSafe   string
+	actionsPath   string
 }
 
 const contractJob = "jobs:\n  check:\n    runs-on: ubuntu-latest\n"
@@ -93,6 +96,18 @@ func builtInRuleContracts() map[string]ruleContract {
 			unsafe:       contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: echo \"$TOKEN\"\n",
 			safe:         contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: test -n \"$TOKEN\"\n",
 			path:         "jobs.check.steps[0].run",
+		},
+		"otlp-secret-leak": {
+			threatRuleID: "CTR-017",
+			targets:      ActionsAST | AWAST,
+			unsafe:       "observability:\n  otlp:\n    attributes: {account: '${{ secrets.CONTRACT_SECRET }}'}\n",
+			safe:         "observability:\n  otlp:\n    attributes: {account: '${{ github.repository }}'}\n",
+			path:         "observability.otlp.attributes.account",
+			actionsUnsafe: "env:\n  GH_AW_OTLP_ATTRIBUTES: '{\"account\":\"${{ secrets.CONTRACT_SECRET }}\"}'\n" +
+				contractJob + contractSafeSteps,
+			actionsSafe: "env:\n  GH_AW_OTLP_ATTRIBUTES: '{\"note\":\"${{ ''secrets.CONTRACT_SECRET'' }}\"}'\n" +
+				contractJob + contractSafeSteps,
+			actionsPath: "env.GH_AW_OTLP_ATTRIBUTES",
 		},
 		"action-pin": {
 			threatRuleID: "CTR-002",
@@ -286,8 +301,8 @@ func runRuleContractPair(t *testing.T, id string, contract ruleContract, target 
 		name, source, prompt string
 		finding              bool
 	}{
-		{"positive", contract.unsafe, contract.unsafePrompt, true},
-		{"negative", contract.safe, contract.safePrompt, false},
+		{"positive", contractSource(contract, target, true), contract.unsafePrompt, true},
+		{"negative", contractSource(contract, target, false), contract.safePrompt, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := ruleContractInput(t, test.source, target, nonstrict)
@@ -352,8 +367,13 @@ func assertRuleContractDiagnostics(t *testing.T, id string, contract ruleContrac
 		if contract.strictPolicy && (nonstrict || target == ActionsAST) {
 			severity = Warning
 		}
-		want[contract.path] = severity
+		path := contract.path
+		if target == ActionsAST && contract.actionsPath != "" {
+			path = contract.actionsPath
+		}
+		want[path] = severity
 	}
+
 	require.Len(t, diagnostics, len(want), "positive cases must detect the violation; negative cases must reject false positives")
 	for _, diagnostic := range diagnostics {
 		severity, expected := want[diagnostic.Path]
@@ -368,4 +388,17 @@ func assertRuleContractDiagnostics(t *testing.T, id string, contract ruleContrac
 		delete(want, diagnostic.Path)
 	}
 	assert.Empty(t, want, "every expected diagnostic must be emitted")
+}
+
+func contractSource(contract ruleContract, target ASTTargets, positive bool) string {
+	if target == ActionsAST && contract.actionsUnsafe != "" {
+		if positive {
+			return contract.actionsUnsafe
+		}
+		return contract.actionsSafe
+	}
+	if positive {
+		return contract.unsafe
+	}
+	return contract.safe
 }
