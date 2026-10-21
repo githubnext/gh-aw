@@ -472,7 +472,7 @@ func webhookFilterValues(raw any, spec WebhookFilter) ([]any, error) {
 		case "integer":
 			switch number := value.(type) {
 			case int:
-				valid = number >= -9007199254740991 && number <= 9007199254740991
+				valid = int64(number) >= -9007199254740991 && int64(number) <= 9007199254740991
 			case int64:
 				valid = number >= -9007199254740991 && number <= 9007199254740991
 			case uint64:
