@@ -36,6 +36,7 @@ func TestSafeOutputMissingReportsCodemod(t *testing.T) {
 			assert.NotEmpty(t, codemod.Name)
 			assert.NotEmpty(t, codemod.Description)
 			assert.Equal(t, "1.5.0", codemod.IntroducedIn)
+			assert.True(t, codemod.Guided)
 			require.NotNil(t, codemod.Apply)
 			for _, tc := range []struct{ name, input, expected string }{
 				{"block", "safe-outputs:\n  missing-" + kind + ":\n    max: 2", "safe-outputs:\n  " + target + ":\n    max: 2"},
@@ -96,6 +97,8 @@ func TestSafeOutputMissingReportsCodemodPluralAndConflicts(t *testing.T) {
 	for _, keys := range []string{
 		"  missing-tool: {}\n  report-missing-tool: false",
 		"  missing-tools: {}\n  missing-tool: false",
+		"  missing-tool: {}\n  report-missing-tool: null",
+		"  missing-tools: null\n  missing-tool: null",
 	} {
 		content := "---\nsafe-outputs:\n" + keys + "\n---\n"
 		result, applied, err := codemod.Apply(content, missingReportFrontmatter(t, content))
@@ -103,7 +106,56 @@ func TestSafeOutputMissingReportsCodemodPluralAndConflicts(t *testing.T) {
 		assert.False(t, applied)
 		assert.Equal(t, content, result)
 	}
+}
 
+func TestSafeOutputMissingReportsCodemodAuthoredAST(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, expected string
+		mod                   Codemod
+	}{
+		{
+			name:     "escaped tool key",
+			input:    `safe-outputs: {"missing-\u0074ool": false} # keep`,
+			expected: `safe-outputs: {"report-missing-tool": false} # keep`,
+			mod:      getSafeOutputMissingToolCodemod(),
+		},
+		{
+			name:     "escaped data key",
+			input:    `safe-outputs: {"missing-\u0064ata": {max: 2}}`,
+			expected: `safe-outputs: {"report-missing-data": {max: 2}}`,
+			mod:      getSafeOutputMissingDataCodemod(),
+		},
+		{
+			name:     "plural flow key",
+			input:    `safe-outputs: {'missing-tools': null, noop: {}}`,
+			expected: `safe-outputs: {'report-missing-tool': null, noop: {}}`,
+			mod:      getSafeOutputMissingToolCodemod(),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := "---\r\n" + tc.input + "\r\n---\r\n\r\n# Body\r\nmissing-tool: unchanged\r\n"
+			expected := "---\r\n" + tc.expected + "\r\n---\r\n\r\n# Body\r\nmissing-tool: unchanged\r\n"
+			actual, applied, err := tc.mod.Apply(input, nil)
+			require.NoError(t, err)
+			assert.True(t, applied)
+			assert.Equal(t, expected, actual)
+			again, applied, err := tc.mod.Apply(actual, nil)
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, actual, again)
+		})
+	}
+}
+
+func TestSafeOutputMissingReportsCodemodAuthoredConflict(t *testing.T) {
+	t.Parallel()
+	input := "---\nsafe-outputs: {missing-data: {}, report-missing-data: null}\n---\n"
+	mod := getSafeOutputMissingDataCodemod()
+	actual, applied, err := mod.Apply(input, nil)
+	require.ErrorContains(t, err, "conflicting")
+	assert.False(t, applied)
+	assert.Equal(t, input, actual)
 }
 
 func TestFixMissingReportsFrontmatter(t *testing.T) {
