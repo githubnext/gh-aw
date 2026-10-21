@@ -5,6 +5,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const { buildModelPinReport, collectModelPins, main, renderModelPinReport, renderModelPinSummary } = require("./model_pin_check.cjs");
@@ -395,9 +396,10 @@ describe("model_pin_check collection and rules", () => {
 describe("repository-pins-reflection-regression", () => {
   // Recorded byte-exact /reflect from smoke-copilot run 39506475007 (36 Copilot models);
   // see test_data/awf_reflect/README.md for provenance.
-  const REFLECT_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), "test_data", "awf_reflect", "run-39506475007-awf-reflect.json");
+  const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+  const REFLECT_FILE = path.join(TEST_DIR, "test_data", "awf_reflect", "run-39506475007-awf-reflect.json");
   const REFLECT_SHA256 = "3d9fa7af7e07e93100bb614e45eb85abafbd16a3bbb2cb62a687a04cb5fff9b3";
-  const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..");
+  const REPO_ROOT = path.resolve(TEST_DIR, "..", "..", "..");
 
   // Pins that did not resolve against this catalogue before github/gh-aw#70649, by workflow and field.
   const FIXED_PINS = [
@@ -415,7 +417,7 @@ describe("repository-pins-reflection-regression", () => {
     [".github/workflows/smoke-copilot-sdk-routed-claude.md", "## agent: 'mini-whoami' model"],
     [".github/workflows/smoke-copilot-sdk.md", "engine.fallback-models[1]"],
     [".github/workflows/smoke-copilot-sub-agents.md", "## agent: 'gpt5-whoami' model"],
-    [".github/workflows/smoke-copilot-sub-agents.md", "## agent: 'luna-whoami' model"],
+    [".github/workflows/smoke-copilot-sub-agents.md", "## agent: 'terra-whoami' model"],
     [".github/workflows/smoke-copilot.md", "engine.fallback-models[0]"],
     [".github/workflows/smoke-goose.md", "model"],
     [".github/workflows/smoke-pi-routed.md", "## agent: 'mini-whoami' model"],
@@ -465,7 +467,10 @@ describe("repository-pins-reflection-regression", () => {
     const report = repositoryReport();
     const row = (/** @type {string} */ workflow, /** @type {string} */ field) => report.pins.find(result => result.workflow === `.github/workflows/${workflow}` && result.field === field);
     expect(row("smoke-copilot-sub-agents.md", "## agent: 'gpt5-whoami' model")).toMatchObject({ configured: "gpt-5", status: "alias", resolved: "gpt-5.6-luna" });
-    expect(row("smoke-copilot-sub-agents.md", "## agent: 'luna-whoami' model")).toMatchObject({ configured: "gpt-5.6-luna", status: "exact", resolved: "gpt-5.6-luna" });
+    expect(row("smoke-copilot-sub-agents.md", "## agent: 'terra-whoami' model")).toMatchObject({ configured: "gpt-5.6-terra", status: "exact", resolved: "gpt-5.6-terra" });
+    // The GPT sub-agents must serve distinct models, neither the main model, so proxy requests identify each one.
+    const subAgentModels = ["gpt5-whoami", "terra-whoami"].map(agent => row("smoke-copilot-sub-agents.md", `## agent: '${agent}' model`)?.resolved);
+    expect(new Set([...subAgentModels, "gpt-5.3-codex"]).size).toBe(3);
     expect(row("smoke-copilot-sdk-routed-claude.md", "## agent: 'mini-whoami' model")).toMatchObject({ status: "exact", resolved: "gpt-5.6-luna" });
     expect(row("smoke-pi-routed.md", "## agent: 'mini-whoami' model")).toMatchObject({ status: "exact", resolved: "copilot/gpt-5.3-codex" });
     expect(row("smoke-pi-sub-agents.md", "## agent: 'luna-whoami' model")).toMatchObject({ status: "exact", resolved: "copilot/gpt-5.6-luna" });
