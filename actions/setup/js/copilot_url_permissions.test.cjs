@@ -28,6 +28,10 @@ describe("Copilot URL permissions", () => {
     expect(domainURLPatterns([domain])).toEqual(["http://github.com", "http://*.github.com", "https://github.com", "https://*.github.com"]);
   });
 
+  it.each(["localhost", "foo"])("preserves valid single-label AWF hosts: %s", domain => {
+    expect(domainURLPatterns([domain])).toEqual([`http://${domain}`, `http://*.${domain}`, `https://${domain}`, `https://*.${domain}`]);
+  });
+
   it.each([
     ["https://example.com", ["https://example.com", "https://*.example.com"]],
     ["http://example.com:8080", ["http://example.com:8080", "http://*.example.com:8080"]],
@@ -40,10 +44,14 @@ describe("Copilot URL permissions", () => {
     expect(domainURLPatterns([domain])).toEqual(expected);
   });
 
-  it("deduplicates without granting a global wildcard", () => {
-    expect(domainURLPatterns(["*", "https://*", "https://example.com", "https://*.example.com"])).toEqual(["https://example.com", "https://*.example.com"]);
+  it("deduplicates scoped approvals", () => {
+    expect(domainURLPatterns(["https://example.com", "https://*.example.com"])).toEqual(["https://example.com", "https://*.example.com"]);
     expect(domainURLPatterns([])).toEqual([]);
     expect(domainURLPatterns(undefined)).toEqual([]);
+  });
+
+  it.each(["*", "http://*", "https://*"])("rejects global allows instead of silently dropping them: %s", domain => {
+    expect(() => domainURLPatterns([domain])).toThrow("Global AWF domain allows");
   });
 
   it.each(["*", "http://*", "https://*"])("fails explicitly rather than dropping a global block: %s", domain => {
@@ -120,11 +128,11 @@ describe("Copilot URL permissions", () => {
   });
 
   it("fails explicitly for unreadable or malformed sandbox config", () => {
-    expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath: "/missing" })).toThrow("Cannot read AWF config");
+    expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath: "/missing" })).toThrow(/Cannot read AWF config.*ENOENT/);
     const configPath = writeConfig({ network: null });
     expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath })).toThrow("Invalid AWF network config");
     fs.writeFileSync(configPath, '{"secret":"value",');
-    expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath })).toThrow("Cannot read AWF config");
+    expect(() => addCopilotURLPermissions([], { env: { AWF_REFLECT_ENABLED: "1" }, configPath })).toThrow(/Cannot parse AWF config.*JSON/);
   });
 
   it("falls back only when the implicit config file is missing", () => {
@@ -137,7 +145,7 @@ describe("Copilot URL permissions", () => {
 
     expect(addCopilotURLPermissions([], options)).toContain("https://shared.example.test");
     fs.writeFileSync(configPath, "{");
-    expect(() => addCopilotURLPermissions([], options)).toThrow("Cannot read AWF config");
+    expect(() => addCopilotURLPermissions([], options)).toThrow(/Cannot parse AWF config.*JSON/);
   });
 
   it("uses caller-added domains and ecosystems from the finalized runtime config", async () => {

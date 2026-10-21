@@ -31,7 +31,7 @@ function domainURLPatterns(domains, { block = false } = {}) {
     // A global wildcard must never become an unrestricted URL approval.
     if (authority === "*") {
       if (block) throw new Error("Global AWF domain blocks cannot be translated to scoped Copilot URL permissions");
-      continue;
+      throw new Error("Global AWF domain allows cannot be translated to scoped Copilot URL permissions");
     }
     let host = authority;
     let port = "";
@@ -77,19 +77,22 @@ function addCopilotURLPermissions(args, { env = process.env, sdkMode = false, co
   } catch (err) {
     const errAny = /** @type {any} */ err;
     if (!fallbackConfigPath || errAny?.code !== "ENOENT") {
-      throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
+      const readError = /** @type {Error} */ err;
+      throw new Error(`Cannot read AWF config for Copilot URL approvals (${readError.message}); check the generated awf-config.json`);
     }
     try {
       configContents = fs.readFileSync(fallbackConfigPath, "utf8");
-    } catch {
-      throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
+    } catch (fallbackErr) {
+      const fallbackError = /** @type {Error} */ fallbackErr;
+      throw new Error(`Cannot read AWF config for Copilot URL approvals (${fallbackError.message}); check the generated awf-config.json`);
     }
   }
   let config;
   try {
     config = JSON.parse(configContents);
-  } catch {
-    throw new Error("Cannot read AWF config for Copilot URL approvals; check the generated awf-config.json");
+  } catch (err) {
+    const parseError = /** @type {Error} */ err;
+    throw new Error(`Cannot parse AWF config for Copilot URL approvals (${parseError.message}); check the generated awf-config.json`);
   }
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Invalid AWF config for Copilot URL approvals");
   const network = config.network;

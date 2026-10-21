@@ -1737,7 +1737,8 @@ async function main() {
   } else {
     const resolvedPrompt = resolvePromptFileInput(args);
     const fallbackConfigPath = !process.env.GH_AW_AWF_CONFIG_PATH && process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "gh-aw", "awf-config.json") : undefined;
-    resolvedArgs = addCopilotURLPermissions(resolvedPrompt.args, { sdkMode: copilotSDKMode, configPath: AWF_CONFIG_PATH, fallbackConfigPath });
+    const configPath = process.env.GH_AW_AWF_CONFIG_PATH || AWF_CONFIG_PATH;
+    resolvedArgs = addCopilotURLPermissions(resolvedPrompt.args, { sdkMode: copilotSDKMode, configPath, fallbackConfigPath });
     promptStdin = resolvedPrompt.stdin;
   }
 
