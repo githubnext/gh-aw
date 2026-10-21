@@ -25,9 +25,25 @@ const spans = [
   <div slot="intro" class="aw-copy">
     <p>Bring your own <a href={`${base}/reference/self-hosted-runners/`}>Linux self-hosted runners</a>, or scale on Kubernetes with <a href={`${base}/reference/arc-dind-copilot-agent/`}>ARC and Docker-in-Docker</a>.</p>
     <p>Choose Docker isolation or preview Cloud Hypervisor and NVX microVMs on compatible hosts. Apply <a href={`${base}/reference/integrity/`}>integrity policies</a> to filter GitHub content by author trust and merge status before it reaches the agent.</p>
+    <p>Monitor runs, costs and outcomes across repositories from one control repository with <a href="https://github.com/githubnext/gh-cao">Central Agentic Ops</a>, a research prototype.</p>
     <a class="aw-link" href={`${base}/reference/agent-runtimes/`}>Explore agent runtimes <span aria-hidden="true">→</span></a>
   </div>
-  <figure slot="aside" class="aw-infra" aria-label="Runner and isolation options with integrity filtering">
+  <figure slot="aside" class="aw-infra" aria-label="Central Agentic Ops control plane, runner and isolation options, and integrity filtering">
+    <a class="aw-cao aw-card" href="https://github.com/githubnext/gh-cao">
+      <div class="aw-panel-heading">
+        <Octicon name="organization" size={22} />
+        <strong>Central Agentic Ops</strong>
+        <span class="aw-badge">Research prototype</span>
+        <Octicon name="arrow-up-right" />
+      </div>
+      <span class="aw-cao-subtitle">One control repository. Across your fleet.</span>
+      <div class="aw-cao-signals">
+        <span><Octicon name="workflow" />Runs</span>
+        <span><Octicon name="graph" />Costs</span>
+        <span><Octicon name="check-circle" />Outcomes</span>
+      </div>
+    </a>
+    <div class="aw-flow aw-flow-short" aria-hidden="true" />
     <div class="aw-runner-deck aw-card">
       <div class="aw-panel-heading"><Octicon name="server" /><span>Your GitHub Actions runners</span><span class="aw-live" aria-hidden="true" /></div>
       <div class="aw-runner-options">
@@ -134,6 +150,47 @@ const spans = [
   }
   .aw-runner-deck {
     border-radius: var(--aw-radius-lg);
+  }
+  .aw-cao {
+    display: block;
+    border-radius: var(--aw-radius-lg);
+    text-decoration: none;
+    color: var(--aw-color-text);
+  }
+  .aw-cao:hover,
+  .aw-cao:focus-visible {
+    border-color: var(--aw-color-accent);
+  }
+  .aw-cao .aw-panel-heading {
+    flex-wrap: wrap;
+    color: var(--aw-color-accent-text);
+    padding-bottom: 0.625rem;
+  }
+  .aw-cao .aw-badge {
+    margin-left: auto;
+  }
+  .aw-cao-subtitle {
+    display: block;
+    padding-inline: 1.25rem;
+    color: var(--aw-color-text-muted);
+  }
+  .aw-cao-signals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 1.25rem;
+  }
+  .aw-cao-signals > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 0.375rem;
+    border: 1px solid var(--aw-color-border);
+    border-radius: var(--aw-radius-md);
+    background: var(--aw-color-bg-subtle);
+    color: var(--aw-color-text-secondary);
   }
   .aw-runner-options {
     display: flex;
