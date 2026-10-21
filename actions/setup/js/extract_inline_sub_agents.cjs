@@ -390,7 +390,10 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   }
 
   const baseDir = agentsBaseDir || workspaceDir;
-  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(engineId));
+  // Normalise once so the target directory and the Claude `name:` injection always agree:
+  // every id that stages into .claude/agents also gets the name Claude Code registers by.
+  const normalizedEngineId = (engineId || "").trim().toLowerCase();
+  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(normalizedEngineId));
   const agentsDir = path.join(baseDir, dir);
   core.info(`[extractInlineSubAgents] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
   core.info(`[extractInlineSubAgents] Writing ${agents.length} sub-agent(s) to: ${agentsDir}`);
@@ -403,7 +406,7 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
     let filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
-    if ((engineId || "").toLowerCase() === "claude") filteredContent = ensureClaudeSubAgentName(agent.name, filteredContent);
+    if (normalizedEngineId === "claude") filteredContent = ensureClaudeSubAgentName(agent.name, filteredContent);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     try {
       fs.writeFileSync(agentPath, agentContent, "utf8");

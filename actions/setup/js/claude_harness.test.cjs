@@ -1634,6 +1634,44 @@ describe("Claude sub-agent models before spawn (github/gh-aw#70667)", () => {
     expect(workspaceAgent).toContain("model: claude-haiku-5-5");
   });
 
+  it("fails closed before spawn when a staged workflow sub-agent file cannot be parsed", () => {
+    // Fixture mutation: malformed frontmatter in the staged inline agent.
+    const { result, calls, records } = runWithStagedAgent({ agentContent: "---\nname: [unterminated\nmodel: small\n---\nBody.\n" });
+
+    expect(result.status).toBe(1);
+    expect(calls).toEqual([]);
+    expect(records).toEqual([]);
+    expect(result.stderr).toContain("cannot read or parse the staged workflow sub-agent");
+    expect(result.stderr).toContain("Refusing to start Claude");
+  });
+
+  it("cleans up and exits with a clear message when sub-agent resolution throws unexpectedly", () => {
+    const dir = makeHarnessTempDir("claude-subagents-throw-");
+    try {
+      const cleanupLog = path.join(dir, "cleanup.log");
+      const preload = path.join(dir, "throwing-subagents.cjs");
+      fs.writeFileSync(
+        preload,
+        `
+        const fs = require("fs");
+        require(${JSON.stringify(require.resolve("./engine_subagent_models.cjs"))}).applyClaudeSubagentModels = async () => { throw new Error("injected sub-agent failure"); };
+        const runtime = require(${JSON.stringify(require.resolve("./claude_runtime.cjs"))});
+        const remove = runtime.removeClaudePlugin;
+        runtime.removeClaudePlugin = pluginDir => { fs.appendFileSync(${JSON.stringify(cleanupLog)}, "removed\\n"); return remove(pluginDir); };
+      `,
+        "utf8"
+      );
+      const { result, calls } = runWithStagedAgent({ agentContent: typistAgent(), env: { NODE_OPTIONS: `--require=${JSON.stringify(preload)}` } });
+
+      expect(result.status).toBe(1);
+      expect(calls).toEqual([]);
+      expect(result.stderr).toContain("fatal: unexpected error while resolving Claude sub-agent models: injected sub-agent failure");
+      expect(fs.readFileSync(cleanupLog, "utf8")).toBe("removed\n");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("claude_codex_detection_skips_subagent_resolution (Claude)", () => {
     // Fixture mutation: an unknown model that would fail closed outside detection.
     const agentContent = typistAgent().replace("model: small", "model: claude-nonexistent-9");

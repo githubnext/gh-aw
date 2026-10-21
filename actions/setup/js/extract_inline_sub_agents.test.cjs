@@ -497,4 +497,15 @@ describe("Claude staged sub-agent identity", () => {
     expect(fs.readFileSync(path.join(tmpDir, ".codex", "agents", "helper.md"), "utf8")).toBe("---\nmodel: small\n---\nHelp.\n");
     expect(fs.readFileSync(path.join(tmpDir, ".github", "agents", "helper.agent.md"), "utf8")).toBe("---\nmodel: small\n---\nHelp.\n");
   });
+
+  it("injects the name for any engine id that stages into .claude/agents", () => {
+    // interpolate_prompt.cjs passes GH_AW_ENGINE_ID, which the compiler emits as the canonical
+    // "claude"; differently cased or padded ids still stage and register the same way.
+    const workflow = `Main.\n\n${agentMarker("helper")}\n---\nmodel: small\n---\nHelp.`;
+    for (const engineId of ["Claude", " CLAUDE "]) {
+      const dir = fs.mkdtempSync(path.join(tmpDir, "engine-"));
+      writeInlineSubAgents(workflow, dir, dir, engineId);
+      expect(fs.readFileSync(path.join(dir, ".claude", "agents", "helper.md"), "utf8")).toBe('---\nname: "helper"\nmodel: small\n---\nHelp.\n');
+    }
+  });
 });

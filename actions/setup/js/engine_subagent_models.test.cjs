@@ -114,6 +114,62 @@ describe("Claude sub-agent models (Typist run 39415087125)", () => {
     expect(run.records()).toEqual([expect.objectContaining({ role: "duplicate-type-finder", status: "failed", cause: "catalog_unavailable" })]);
   });
 
+  it("records every agent as catalog_unavailable when the /reflect refresh rejects", async () => {
+    const run = layout();
+    stageInline(run, "claude", { "first-worker": typistAgent().replace("model: small", "model: claude-haiku-5-5"), "second-worker": typistAgent().replace("model: small", "model: claude-sonnet-5-5") });
+    // Fixture mutation: model discovery incomplete, and the refresh fails.
+    const reflectData = runs.typistReflect();
+    reflectData.models_fetch_complete = false;
+    reflectData.endpoints.forEach(endpoint => (endpoint.models = null));
+    let refreshes = 0;
+
+    const outcome = await applyClaudeSubagentModels({
+      reflectData,
+      refetchReflectData: async () => {
+        refreshes++;
+        throw new Error("connect ECONNREFUSED");
+      },
+      provider: "anthropic",
+      workspaceDir: run.workspaceDir,
+      agentsBaseDir: run.agentsBaseDir,
+      env: run.env,
+      logger: run.logger,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(refreshes).toBe(1);
+    expect(run.records()).toEqual([expect.objectContaining({ role: "first-worker", status: "failed", cause: "catalog_unavailable" }), expect.objectContaining({ role: "second-worker", status: "failed", cause: "catalog_unavailable" })]);
+    expect(run.logs).toContainEqual(expect.stringContaining("cannot refresh the awf-reflect catalogue: connect ECONNREFUSED"));
+  });
+
+  it("fails closed when a staged workflow sub-agent file cannot be parsed", async () => {
+    const run = layout();
+    stageInline(run, "claude", { "duplicate-type-finder": typistAgent() });
+    // Fixture mutation: a second staged agent with malformed frontmatter.
+    fs.writeFileSync(path.join(run.agentsBaseDir, ".claude/agents/broken-worker.md"), "---\nname: [unterminated\nmodel: small\n---\nBody.\n");
+    const before = fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/duplicate-type-finder.md"), "utf8");
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome).toEqual({ ok: false, resolutions: [] });
+    expect(run.logs).toContainEqual(expect.stringContaining(`claude sub-agent file ${path.join(run.agentsBaseDir, ".claude/agents/broken-worker.md")}: cannot read or parse the staged workflow sub-agent`));
+    expect(run.logs).toContainEqual(expect.stringContaining("Refusing to start Claude: 1 workflow-declared sub-agent file(s) cannot be read or parsed"));
+    expect(fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/duplicate-type-finder.md"), "utf8")).toBe(before);
+  });
+
+  it("keeps a malformed repository agent file lenient", async () => {
+    const run = layout();
+    stageInline(run, "claude", { "duplicate-type-finder": typistAgent() });
+    // Fixture mutation: a repository agent with malformed frontmatter.
+    const repositoryPath = path.join(run.workspaceDir, ".claude/agents/broken-repo.md");
+    fs.writeFileSync(repositoryPath, "---\nname: [unterminated\n---\nBody.\n");
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome.ok).toBe(true);
+    expect(run.logs).toContainEqual(expect.stringContaining(`warning: cannot read custom agent ${repositoryPath}`));
+  });
+
   it("claude_inherit_uses_main_without_subagent_record", async () => {
     const run = layout();
     const source = fs.readFileSync(path.join(repoRoot, ".github/workflows/agent-persona-explorer.md"), "utf8");

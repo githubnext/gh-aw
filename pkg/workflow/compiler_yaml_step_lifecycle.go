@@ -307,8 +307,10 @@ func claudeCodexSubagentProvider(data *WorkflowData, engineID string) string {
 	if engineID == "codex" {
 		defaultProvider = LLMProviderOpenAI
 	}
+	// resolveEngineLLMProviderFromModel returns a normalized LLMProvider (aliases such as
+	// "copilot" already map to LLMProviderGitHub), whose pattern provider is "github-copilot".
 	provider := string(resolveEngineLLMProviderFromModel(data, defaultProvider))
-	if provider == string(LLMProviderGitHub) || provider == "copilot" {
+	if provider == string(LLMProviderGitHub) {
 		return "github-copilot"
 	}
 	return provider

@@ -564,13 +564,19 @@ async function main() {
   // make startup depend on sub-agent model availability. Threat detection uses no
   // sub-agents, so it neither reads, resolves, records nor writes agent files.
   if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
-    const subagents = await applyClaudeSubagentModels({
-      reflectData: reflection.reflectData,
-      refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
-      provider: normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"),
-      env: process.env,
-      logger: log,
-    });
+    let subagents;
+    try {
+      subagents = await applyClaudeSubagentModels({
+        reflectData: reflection.reflectData,
+        refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
+        provider: normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"),
+        env: process.env,
+        logger: log,
+      });
+    } catch (error) {
+      log(`fatal: unexpected error while resolving Claude sub-agent models: ${getErrorMessage(error)}. Refusing to start Claude with unresolved sub-agent models.`);
+      subagents = { ok: false };
+    }
     if (!subagents.ok) {
       removeClaudePlugin(pluginDir);
       process.exit(1);

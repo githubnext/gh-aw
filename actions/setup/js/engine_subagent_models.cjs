@@ -76,16 +76,21 @@ function parseAgentFrontmatter(content) {
  * Read the Markdown agent files (`*.md`) in one directory.
  * `name` is the trimmed frontmatter `name` string, or null when absent;
  * `model` is the trimmed frontmatter `model` string, when declared.
+ * A directory or file that cannot be read or parsed is skipped with a warning, unless
+ * `onInvalid` is given: it then receives the path and error instead, so the caller can
+ * fail closed.
  * @param {string} directory
  * @param {(msg: string) => void} logger
+ * @param {{ onInvalid?: (filePath: string, error: unknown) => void }} [options]
  * @returns {Array<{ fileName: string, path: string, name: string | null, model?: string }>}
  */
-function listMarkdownAgentFiles(directory, logger) {
+function listMarkdownAgentFiles(directory, logger, options = {}) {
+  const invalid = options.onInvalid || ((/** @type {string} */ filePath, /** @type {unknown} */ error) => logger(`warning: cannot read custom agent ${filePath}: ${getErrorMessage(error)}`));
   let entries;
   try {
     entries = fs.readdirSync(directory, { withFileTypes: true });
   } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) logger(`warning: cannot read custom agents in ${directory}: ${getErrorMessage(error)}`);
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) invalid(directory, error);
     return [];
   }
   const agents = [];
@@ -97,7 +102,7 @@ function listMarkdownAgentFiles(directory, logger) {
       const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : null;
       agents.push({ fileName: entry.name, path: agentPath, name, ...(typeof frontmatter.model === "string" ? { model: frontmatter.model.trim() } : {}) });
     } catch (error) {
-      logger(`warning: cannot read custom agent ${agentPath}: ${getErrorMessage(error)}`);
+      invalid(agentPath, error);
     }
   }
   return agents;
@@ -184,10 +189,20 @@ async function resolveEngineSubagentModels(options) {
   /** @type {Promise<any> | null} */
   let refresh = null;
   const refreshOnce = () => {
-    refresh ??= (options.refetchReflectData ? options.refetchReflectData() : Promise.resolve(null)).then(refreshed => {
-      if (refreshed) reflectData = refreshed;
-      return refreshed || null;
-    });
+    // A failed refresh counts as no refreshed catalogue, so every agent is still resolved,
+    // recorded and classified (catalog_unavailable when the catalogue stays incomplete).
+    refresh ??= Promise.resolve()
+      .then(() => (options.refetchReflectData ? options.refetchReflectData() : null))
+      .then(
+        refreshed => {
+          if (refreshed) reflectData = refreshed;
+          return refreshed || null;
+        },
+        error => {
+          logger(`warning: ${engine} sub-agent model resolution: cannot refresh the awf-reflect catalogue: ${getErrorMessage(error)}`);
+          return null;
+        }
+      );
     return refresh;
   };
   const liveCheck = env.AWF_REFLECT_ENABLED === "1" || Boolean(options.reflectData);
@@ -247,7 +262,9 @@ async function resolveEngineSubagentModels(options) {
       const initialReason = classifyUnlistedModel(reflectData, providers);
       const refreshed = await refreshOnce();
       if (!refreshed || !isModelAvailableInReflectData(model, refreshed, providers)) {
-        const reason = initialReason === "model_unavailable" || !refreshed ? initialReason : classifyUnlistedModel(refreshed, providers);
+        // A complete catalogue without the model already proves model_unavailable; only an
+        // incomplete one is reclassified, and only when a refreshed catalogue exists.
+        const reason = initialReason === "catalog_unavailable" && refreshed ? classifyUnlistedModel(refreshed, providers) : initialReason;
         fail(new ModelAliasResolutionError(configuredModel, reason, { provider: result.provider || options.provider }), `Sub-agent model '${configuredModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints.`);
         continue;
       }
@@ -265,7 +282,7 @@ async function resolveEngineSubagentModels(options) {
  * starts. Workflow-declared inline agents are the files staged by the activation job in
  * `<agentsBaseDir>/.claude/agents`; their generated workspace copy (restored by
  * `restore_inline_sub_agents.sh`) is rewritten with the resolved concrete id. When one of them
- * cannot be resolved or written, `ok` is false and Claude must not start. Repository agents
+ * cannot be read, parsed, resolved or written, `ok` is false and Claude must not start. Repository agents
  * in `<workingDirectory>/.claude/agents` are resolved and recorded, but their files are left
  * unchanged: Claude Code ranks project agents above user agents, so no file-based override
  * exists without editing tracked content. Agent files without a `name` are skipped because
@@ -292,11 +309,22 @@ async function applyClaudeSubagentModels(options) {
   const workingDirectory = options.workingDirectory || path.resolve(workspaceDir, env.GH_AW_ENGINE_CWD || ".");
   const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
   const target = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("claude"));
-  const declared = listMarkdownAgentFiles(path.resolve(agentsBaseDir, target.dir), logger).map(agent => ({
+  /** @type {string[]} */
+  const invalidDeclared = [];
+  const declared = listMarkdownAgentFiles(path.resolve(agentsBaseDir, target.dir), logger, {
+    onInvalid: (filePath, error) => {
+      invalidDeclared.push(filePath);
+      logger(`claude sub-agent file ${filePath}: cannot read or parse the staged workflow sub-agent: ${getErrorMessage(error)}.`);
+    },
+  }).map(agent => ({
     ...agent,
     name: agent.name || agent.fileName.slice(0, -".md".length),
     workspacePath: path.resolve(workspaceDir, target.dir, agent.fileName),
   }));
+  if (invalidDeclared.length > 0) {
+    logger(`Refusing to start Claude: ${invalidDeclared.length} workflow-declared sub-agent file(s) cannot be read or parsed, so their models cannot be resolved.`);
+    return { ok: false, resolutions: [] };
+  }
   const declaredPaths = new Set(declared.map(agent => agent.workspacePath));
   const declaredNames = new Set(declared.map(agent => agent.name));
   const repository = [];
