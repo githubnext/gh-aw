@@ -14,6 +14,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -339,6 +340,81 @@ func TestScannerSourceUnmappedLocationsRemainConservative(t *testing.T) {
 	}
 }
 
+func TestScannerSourceQuotedScalarBounds(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	content := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    env:\n      TOKEN: 'x'\n      EMPTY: ''\n    steps:\n      - run: echo safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+
+	for _, test := range []struct{ scalar, path string }{
+		{"'x'", "$.jobs.agent.env.TOKEN"},
+		{"''", "$.jobs.agent.env.EMPTY"},
+	} {
+		offset := strings.Index(content, test.scalar)
+		require.NotEqual(t, -1, offset)
+		line := strings.Count(content[:offset], "\n") + 1
+		lineStart := strings.LastIndex(content[:offset], "\n") + 1
+		column := offset - lineStart + 1
+		for position := column; position < column+len([]rune(test.scalar)); position++ {
+			location := source.locate(line, position)
+			require.NotNil(t, location, "quoted scalar character at column %d should be included", position)
+			assert.Equal(t, test.path, location.path)
+		}
+		assert.Nil(t, source.locate(line, column+len([]rune(test.scalar))), "the exclusive endpoint must not be part of the scalar")
+	}
+}
+
+func TestScannerSourceDoesNotExtendPlainScalarsAcrossComments(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	content := "jobs:\n  agent:\n    env:\n      TOKEN: value\n      # comment\n      NEXT: safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+	commentLine := strings.Count(content[:strings.Index(content, "# comment")], "\n") + 1
+	assert.Nil(t, source.locate(commentLine, 0), "a comment after a plain scalar must not inherit its location")
+}
+
+func TestScannerSourceFallsBackForUnsortedNeeds(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	before := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo a\n  y:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo y\n  z:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo z\n  agent:\n    needs: [z, a]\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	document, err := actions.Parse([]byte(before))
+	require.NoError(t, err)
+	_, err = actions.Lower(document)
+	require.NoError(t, err)
+	source := make(scannerSources).load(path)
+	require.NotNil(t, source)
+	assert.Empty(t, source.locations, "lowered needs reordered from source must fall back rather than mispair anchors")
+	finding := scanfindings.Finding{File: path, Line: 15, Column: 13, RuleID: "test", Severity: scanfindings.SeverityHigh}
+	beforeIdentity := scannerFindingIdentity(finding)
+
+	after := strings.Replace(before, "needs: [z, a]", "needs: [y, a]", 1)
+	require.NoError(t, os.WriteFile(path, []byte(after), 0600))
+	assert.NotEqual(t, beforeIdentity, scannerFindingIdentity(finding), "changing the first dependency must not retain its old identity")
+}
+
+func TestScannerSourceAmbiguityUsesBestCandidateSet(t *testing.T) {
+	t.Parallel()
+	source := scannerSource{
+		lines: []string{"  one two three"},
+		locations: []scannerSourceLocation{
+			{path: "$.first", line: 1, column: 1, endLine: 1, endColumn: 8},
+			{path: "$.second", line: 1, column: 1, endLine: 1, endColumn: 8},
+			{path: "$.specific", line: 1, column: 4, endLine: 1, endColumn: 8},
+		},
+	}
+	location := source.locate(1, 0)
+	require.NotNil(t, location)
+	assert.Equal(t, "$.specific", location.path)
+
+	source.locations = source.locations[:2]
+	assert.Nil(t, source.locate(1, 0), "equally specific candidates with different paths remain ambiguous")
+}
+
 func TestActionlintShellcheckIdentityKeepsDiagnosticText(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "workflow.yml")
@@ -354,6 +430,42 @@ func TestActionlintShellcheckIdentityKeepsDiagnosticText(t *testing.T) {
 		_, _, _, _, ok := parseActionlintShellcheckMessage(message)
 		assert.False(t, ok)
 	}
+}
+
+func TestActionlintShellcheckIdentityWithActionlintPrefix(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "workflow.yml")
+	before := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps:\n      - id: check\n        run: |\n          echo \"$value\"\n"
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	lineFor := func(content, text string) int {
+		offset := strings.Index(content, text)
+		require.NotEqual(t, -1, offset)
+		return strings.Count(content[:offset], "\n") + 1
+	}
+	resultIdentity := func(content string, issue actionlintError) string {
+		require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+		stableIdentity, ok := make(scannerSources).shellcheckIdentity(issue)
+		require.True(t, ok, "prefixed ShellCheck message should produce a structural identity")
+		output, err := json.Marshal([]actionlintError{issue})
+		require.NoError(t, err)
+		result := withActionlintFindings(errors.New("actionlint findings"), string(output))
+		var findings *scannerFindingsError
+		require.ErrorAs(t, result, &findings)
+		require.Len(t, findings.diagnostics, 1)
+		assert.Equal(t, stableIdentity, findings.diagnostics[0].Identity)
+		return findings.diagnostics[0].Identity
+	}
+	issue := actionlintError{
+		Kind: "shellcheck", Filepath: path, Line: lineFor(before, `echo "$value"`), Column: 9,
+		Message: actionlintShellcheckMessagePrefix + "SC2086:warning:1:6: quote this",
+	}
+	beforeIdentity := resultIdentity(before, issue)
+
+	after := strings.Replace(before, "          echo", "          # harmless comment\n          echo", 1)
+	issue.Line = lineFor(after, `echo "$value"`)
+	issue.Message = actionlintShellcheckMessagePrefix + "SC2086:warning:2:6: quote this"
+	afterIdentity := resultIdentity(after, issue)
+	assert.Equal(t, beforeIdentity, afterIdentity)
 }
 
 func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {

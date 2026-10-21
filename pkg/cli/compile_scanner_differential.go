@@ -226,6 +226,8 @@ func collectDryRunBaselineInputs(files []string, config *CompileConfig, compiler
 
 var scannerShellcheckRulePattern = regexp.MustCompile(`^SC\d+$`)
 
+const actionlintShellcheckMessagePrefix = "shellcheck reported issue in this script: "
+
 func normalizeScannerFile(file string) string {
 	file = filepath.Clean(file)
 	if isScannerWorkflowFile(file) {
@@ -287,7 +289,8 @@ func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {
 }
 
 func (sources scannerSources) shellcheckIdentity(issue actionlintError) (string, bool) {
-	rule, severity, line, column, ok := parseActionlintShellcheckMessage(issue.Message)
+	message := strings.TrimPrefix(issue.Message, actionlintShellcheckMessagePrefix)
+	rule, severity, line, column, ok := parseActionlintShellcheckMessage(message)
 	if !ok {
 		return "", false
 	}
@@ -321,7 +324,6 @@ func (sources scannerSources) shellcheckIdentity(issue actionlintError) (string,
 	if !found {
 		return "", false
 	}
-	message := issue.Message
 	for range 4 {
 		_, message, _ = strings.Cut(message, ":")
 	}
@@ -333,6 +335,7 @@ func (sources scannerSources) shellcheckIdentity(issue actionlintError) (string,
 }
 
 func parseActionlintShellcheckMessage(message string) (rule, severity, line, column string, ok bool) {
+	message = strings.TrimPrefix(message, actionlintShellcheckMessagePrefix)
 	rule, message, ok = strings.Cut(message, ":")
 	if !ok || !scannerShellcheckRulePattern.MatchString(rule) {
 		return "", "", "", "", false

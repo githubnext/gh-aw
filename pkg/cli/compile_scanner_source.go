@@ -226,6 +226,11 @@ func (source *scannerSource) indexNode(node ast.Node, path string, semantic any)
 		}
 		return source.indexNode(value.Value, child, field)
 	case *ast.SequenceNode:
+		if strings.HasSuffix(path, ".needs") {
+			if err := scannerValidateNeedsSourceOrder(value, semantic); err != nil {
+				return err
+			}
+		}
 		for index, child := range value.Values {
 			item, err := scannerSourceItem(semantic, index)
 			if err != nil {
@@ -241,6 +246,24 @@ func (source *scannerSource) indexNode(node ast.Node, path string, semantic any)
 		return source.indexNode(value.Value, path, semantic)
 	case ast.ScalarNode, *ast.AliasNode:
 		return source.addLocation(node, semantic, path, false)
+	}
+	return nil
+}
+
+func scannerValidateNeedsSourceOrder(node *ast.SequenceNode, semantic any) error {
+	for index, child := range node.Values {
+		scalar, ok := child.(ast.ScalarNode)
+		if !ok {
+			return errors.New("scanner Actions needs sequence cannot be matched to source order")
+		}
+		item, err := scannerSourceItem(semantic, index)
+		if err != nil {
+			return err
+		}
+		resolved, ok := item.(string)
+		if !ok || scalar.GetValue() != resolved {
+			return errors.New("scanner Actions needs sequence cannot be matched to source order")
+		}
 	}
 	return nil
 }
@@ -290,6 +313,13 @@ func (source *scannerSource) addLocation(position ast.Node, value any, path stri
 		path: path, value: value, digest: scannerValueDigest(string(content)), line: tk.Position.Line, column: tk.Position.Column,
 		endLine: tk.Position.Line, endColumn: tk.Position.Column + len([]rune(tk.Value)),
 	}
+	origin := strings.TrimSpace(tk.Origin)
+	if origin != "" {
+		location.endColumn = scannerTokenEndColumn(origin, location.column)
+		if !key {
+			location.endLine += strings.Count(origin, "\n")
+		}
+	}
 	if stepPath, ok := strings.CutSuffix(path, ".run"); ok {
 		_, location.run = source.steps[stepPath]
 	}
@@ -314,11 +344,20 @@ func (source *scannerSource) addLocation(position ast.Node, value any, path stri
 			}
 			location.endLine = index + 1
 		}
-	} else if !key {
-		location.endLine += strings.Count(strings.TrimRight(tk.Origin, "\r\n"), "\n")
 	}
 	source.locations = append(source.locations, location)
 	return nil
+}
+
+func scannerTokenEndColumn(origin string, startColumn int) int {
+	if !strings.Contains(origin, "\n") {
+		return startColumn + len([]rune(origin))
+	}
+	endColumn := 1
+	for line := range strings.SplitSeq(origin, "\n") {
+		endColumn = len([]rune(line)) + 1
+	}
+	return endColumn
 }
 
 func (source *scannerSource) locate(line, column int) *scannerSourceLocation {
@@ -328,6 +367,7 @@ func (source *scannerSource) locate(line, column int) *scannerSourceLocation {
 		return nil
 	}
 	var found *scannerSourceLocation
+	ambiguous := false
 	for index := range source.locations {
 		location := &source.locations[index]
 		if line < location.line || line > location.endLine {
@@ -336,12 +376,17 @@ func (source *scannerSource) locate(line, column int) *scannerSourceLocation {
 		if line == location.line && column > 0 && (column < location.column || line == location.endLine && column >= location.endColumn) {
 			continue
 		}
-		if found != nil && column <= 0 && found.path != location.path {
-			return nil
-		}
 		if found == nil || location.line > found.line || location.line == found.line && location.column > found.column {
 			found = location
+			ambiguous = false
+			continue
 		}
+		if column <= 0 && location.line == found.line && location.column == found.column && found.path != location.path {
+			ambiguous = true
+		}
+	}
+	if ambiguous {
+		return nil
 	}
 	return found
 }

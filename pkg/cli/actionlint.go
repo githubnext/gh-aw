@@ -296,6 +296,7 @@ func withActionlintFindings(err error, output string) error {
 		return fmt.Errorf("actionlint output could not be parsed: %w", decodeErr)
 	}
 	diagnostics := make([]scannerDiagnostic, 0, len(native))
+	sources := make(scannerSources)
 	for _, issue := range native {
 		severity := scanfindings.SeverityHigh
 		if !isHighSeverityActionlintError(issue) {
@@ -305,9 +306,9 @@ func withActionlintFindings(err error, output string) error {
 			RuleID: issue.Kind, Severity: severity, Message: issue.Message,
 			File: issue.Filepath, Line: issue.Line, Column: issue.Column,
 		}
-		identity := scannerFindingIdentity(finding)
+		identity := sources.findingIdentity(finding)
 		if issue.Kind == "shellcheck" {
-			if stableIdentity, ok := actionlintShellcheckIdentity(issue); ok {
+			if stableIdentity, ok := sources.shellcheckIdentity(issue); ok {
 				identity = stableIdentity
 			}
 		}

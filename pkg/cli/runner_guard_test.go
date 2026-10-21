@@ -426,3 +426,12 @@ func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "must stay within git root")
 }
+
+func TestRunnerGuardFindingsKeepUnknownColumn(t *testing.T) {
+	shared := runnerGuardFindingsToShared([]runnerGuardFinding{
+		{RuleID: "rule", Severity: "warning", File: "workflow.yml", Line: 5},
+	}, nil)
+	if len(shared) != 1 || shared[0].Column != 0 {
+		t.Fatalf("expected unknown column 0, got %#v", shared)
+	}
+}
