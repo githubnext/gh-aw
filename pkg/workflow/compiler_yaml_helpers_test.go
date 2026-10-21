@@ -113,6 +113,8 @@ func TestBuildJobsAndValidate(t *testing.T) {
 						ID: "copilot",
 					},
 					MarkdownContent: "Test content",
+					FrontmatterHash: strings.Repeat("a", 64),
+					BodyHash:        strings.Repeat("b", 64),
 				}
 			},
 			shouldError: false,
