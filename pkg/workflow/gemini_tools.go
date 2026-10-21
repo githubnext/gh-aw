@@ -21,12 +21,17 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var geminiToolsLog = logger.New("workflow:gemini_tools")
+
+var geminiSensitiveEnvName = regexp.MustCompile(`(?i)token|secret|password|passwd|key|auth|credential|creds|private|cert`)
 
 // computeGeminiToolsCore maps neutral tool names to Gemini CLI built-in tool names
 // for use in the tools.core allowlist in .gemini/settings.json.
@@ -57,38 +62,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 
 	// Map bash neutral tool to run_shell_command
 	if bashConfig, hasBash := tools["bash"]; hasBash {
-		bashCommands, ok := bashConfig.([]any)
-		if !ok || len(bashCommands) == 0 {
-			// bash with no specific commands - allow all shell commands
-			geminiToolsLog.Print("bash (no specific commands) → run_shell_command")
-			toolsCore = append(toolsCore, "run_shell_command")
-		} else {
-			// Check for wildcard (* or :*)
-			hasWildcard := false
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
-					hasWildcard = true
-					break
-				}
-			}
-			if hasWildcard {
-				geminiToolsLog.Print("bash wildcard → run_shell_command")
-				toolsCore = append(toolsCore, "run_shell_command")
-			} else {
-				// Add an entry for each specific command: run_shell_command(cmd)
-				for _, cmd := range bashCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-						// all engines emit the canonical prefix form (run_shell_command(jq))
-						// regardless of whether the command was written with or without the wildcard.
-						normalized, _ := normalizeBashCommand(cmdStr)
-						entry := fmt.Sprintf("run_shell_command(%s)", normalized)
-						geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
-						toolsCore = append(toolsCore, entry)
-					}
-				}
-			}
-		}
+		toolsCore = append(toolsCore, computeGeminiShellTools(bashConfig)...)
 	}
 
 	// Map edit neutral tool to write_file and replace (Gemini's file write tools)
@@ -109,6 +83,32 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 	return toolsCore
 }
 
+func computeGeminiShellTools(bashConfig any) []string {
+	bashCommands, ok := bashConfig.([]any)
+	if !ok || len(bashCommands) == 0 {
+		return []string{"run_shell_command"}
+	}
+	hasWildcard := slices.ContainsFunc(bashCommands, func(cmd any) bool {
+		cmdStr, ok := cmd.(string)
+		return ok && (cmdStr == "*" || cmdStr == ":*")
+	})
+	if hasWildcard {
+		geminiToolsLog.Print("unrestricted bash → run_shell_command")
+		return []string{"run_shell_command"}
+	}
+	var tools []string
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok {
+			// Normalize trailing wildcards to the engine-neutral command prefix.
+			normalized, _ := normalizeBashCommand(cmdStr)
+			entry := fmt.Sprintf("run_shell_command(%s)", normalized)
+			geminiToolsLog.Printf("bash %q → %s", cmdStr, entry)
+			tools = append(tools, entry)
+		}
+	}
+	return tools
+}
+
 // generateGeminiSettingsStep creates a GitHub Actions step that writes the
 // Gemini CLI project settings file (.gemini/settings.json) before execution.
 //
@@ -125,13 +125,7 @@ func computeGeminiToolsCore(tools map[string]any) []string {
 func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) GitHubActionStep {
 	geminiToolsLog.Printf("Generating Gemini settings step for: %s", workflowData.Name)
 
-	tools := workflowData.Tools
-	if tools == nil {
-		tools = make(map[string]any)
-	}
-	workflowDataWithEffectiveTools := *workflowData
-	workflowDataWithEffectiveTools.Tools = tools
-	tools = withMountedCLIShellCommandsInRestrictedBash(&workflowDataWithEffectiveTools)
+	tools := withMountedCLIShellCommandsInRestrictedBash(workflowData)
 
 	// Compute tools.core from neutral tool configuration
 	toolsCore := computeGeminiToolsCore(tools)
@@ -145,6 +139,11 @@ func (e *GeminiEngine) generateGeminiSettingsStep(workflowData *WorkflowData) Gi
 		"tools": map[string]any{
 			"core": toolsCore,
 		},
+	}
+	if allowed := e.geminiShellEnvironment(workflowData); len(allowed) > 0 {
+		config["security"] = map[string]any{
+			"environmentVariableRedaction": map[string]any{"enabled": true, "allowed": allowed},
+		}
 	}
 
 	configJSON, err := json.Marshal(config)
@@ -182,4 +181,21 @@ fi`
 	}
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 	return GitHubActionStep(stepLines)
+}
+
+// Gemini strictly filters shell environments in GitHub Actions. Preserve
+// explicit literal engine settings, never credentials or runtime expressions.
+func (e *GeminiEngine) geminiShellEnvironment(data *WorkflowData) []string {
+	if data.EngineConfig == nil {
+		return nil
+	}
+	excluded := ComputeAWFExcludeEnvVarNames(data, e.GetRequiredSecretNames(data))
+	var allowed []string
+	for name, value := range data.EngineConfig.Env {
+		if !slices.Contains(excluded, name) && !geminiSensitiveEnvName.MatchString(name) && !strings.Contains(value, "${{") {
+			allowed = append(allowed, name)
+		}
+	}
+	sort.Strings(allowed)
+	return allowed
 }

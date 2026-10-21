@@ -53,15 +53,19 @@ func TestSerenaGoRuntimeExposure(t *testing.T) {
 			var compiled struct {
 				Jobs map[string]struct {
 					Steps []struct {
-						Name           string `yaml:"name"`
-						Run            string `yaml:"run"`
-						TimeoutMinutes string `yaml:"timeout-minutes"`
+						Name           string            `yaml:"name"`
+						Run            string            `yaml:"run"`
+						TimeoutMinutes string            `yaml:"timeout-minutes"`
+						With           map[string]string `yaml:"with"`
 					} `yaml:"steps"`
 				} `yaml:"jobs"`
 			}
 			require.NoError(t, yaml.Unmarshal(content, &compiled))
 			var exposure, healthCheck string
 			for _, step := range compiled.Jobs["agent"].Steps {
+				if step.Name == "Setup Node.js" {
+					require.Equal(t, "24", step.With["node-version"])
+				}
 				if step.Name == "Expose Go to Serena container" {
 					exposure = step.Run
 				}
@@ -72,6 +76,9 @@ func TestSerenaGoRuntimeExposure(t *testing.T) {
 			}
 			require.NotEmpty(t, exposure)
 			require.NotEmpty(t, healthCheck)
+			nodeSetup := strings.Index(lock, "- name: Setup Node.js")
+			require.GreaterOrEqual(t, nodeSetup, 0)
+			require.Less(t, nodeSetup, strings.Index(lock, "- name: Expose Go to Serena container"))
 			require.Less(t, strings.Index(lock, "- name: Expose Go to Serena container"), strings.Index(lock, "- name: Start MCP Gateway"))
 			require.Less(t, strings.Index(lock, "- name: Check Serena Go semantic analysis"), strings.Index(lock, "- name: Start MCP Gateway"))
 			testSerenaGoExposureScript(t, exposure, serverPath)
