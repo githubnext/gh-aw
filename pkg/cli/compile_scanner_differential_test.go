@@ -487,8 +487,9 @@ func TestShellcheckDifferentialUsesScriptLocations(t *testing.T) {
 	step.Script = "# added line\n" + step.Script
 	after := withShellcheckFindings(errors.New("findings"), step, "script:2:6: warning: quote this [SC2086]\n")
 	diff, err := baseline.filter("shellcheck", after)
-	require.NoError(t, err)
-	assert.Equal(t, 1, diff.Existing)
+	require.ErrorContains(t, err, "1 existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, diff,
+		"shifting script lines must preserve finding identity without waiving existing findings")
 	for _, output := range []string{"unparseable", "script:999:1: warning: quote this [SC2086]\n"} {
 		_, err := baseline.filter("shellcheck", withShellcheckFindings(errors.New("bad output"), step, output))
 		require.Error(t, err)
@@ -567,6 +568,8 @@ func TestShellcheckDifferentialNativeFindings(t *testing.T) {
 	step.Script = "#!/bin/bash\n# leading comment\necho \"$missing\"\n"
 	_, currentErr := runShellcheckOnScript(step, nil, false)
 	diff, err := baseline.filter("shellcheck", currentErr)
-	require.NoError(t, err)
-	assert.Positive(t, diff.Existing)
+	require.ErrorContains(t, err, "existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{
+		Baseline: len(findings.diagnostics), Existing: len(findings.diagnostics),
+	}, diff, "native findings must retain their identity and remain blocking")
 }
