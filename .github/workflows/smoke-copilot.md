@@ -25,6 +25,13 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
+  args:
+    - --allow-url
+    - https://github.com
+    - --allow-url
+    - https://api.github.com
+    - --allow-url
+    - http://host.docker.internal:4173
   fallback-models:
     - copilot/gpt-5.6-luna
     - copilot/claude-sonnet-5
@@ -55,13 +62,26 @@ tools:
   comment-memory: true
   edit:
   bash:
-    - "*"
+    - cd
+    - cat
+    - cp
+    - curl
+    - date
+    - echo
+    - grep
+    - head
+    - ls
+    - make
+    - mkdir
+    - serena
+    - tail
   github:
     mode: gh-proxy
     min-integrity: approved
     trusted-users:
       - pelikhan
   playwright:
+    browsers: [firefox]
 lsp:
   typescript:
     command: typescript-language-server
@@ -223,10 +243,12 @@ Your first action in this run must be a `task` tool call to the `file-summarizer
 
 Run these checks and mark each as ✅/❌:
 
+Use `--browser=firefox` for every `playwright-cli open` command in this workflow.
+
 1. `github` tool (configured with `mode: gh-proxy`): review 2 merged PRs in `${{ github.repository }}`.
 2. `mcpscripts-gh`: query 2 PRs using `pr list --repo ${{ github.repository }} --limit 2 --json number,title,author`.
 3. Serena CLI (bash only): run `serena activate_project --path ${{ github.workspace }}`, then `serena find_symbol --name_path <symbol>` and confirm at least 3 symbols.
-4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.
+4. Playwright CLI (bash only): run `playwright-cli open --browser=firefox https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.
 5. Bash: fetch `https://github.com` with `curl` and confirm response contains `GitHub`.
 6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
 7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then call `add_comment` with `item_number` set to that discussion number (do NOT use `target=discussion`; pass only `item_number` and `body`).
