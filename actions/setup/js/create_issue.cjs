@@ -31,6 +31,7 @@ const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -285,7 +286,7 @@ function createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowS
   // Add expiration to footer if configured using ephemerals helper
   const footerWithExpiration = addExpirationToFooter(footer, expiresHours, "Parent Issue");
 
-  body = `${body}${footerWithExpiration}`;
+  body = `${body}${footerWithExpiration}\n\n${generateIssueClusteringHint("tracking", ["issue-group"])}`;
 
   return { title, body };
 }

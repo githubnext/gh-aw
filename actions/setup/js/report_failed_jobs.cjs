@@ -12,6 +12,7 @@ const { generateXMLMarker } = require("./messages.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const GITHUB_API_VERSION = "2022-11-28";
 const FAILED_JOBS_ISSUE_EXPIRES_HOURS = 24 * 7; // 1 week
@@ -266,7 +267,7 @@ async function main() {
         owner,
         repo,
         title: issueTitle,
-        body: issueBody,
+        body: `${issueBody}\n\n${generateIssueClusteringHint("runtime-failure", ["failed_jobs"])}`,
         labels: ["agentic-workflows"],
         headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
       });

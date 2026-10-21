@@ -7,6 +7,7 @@ const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs")
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const WIP_TITLE_MARKER = "[WIP] ";
 const MAX_ISSUE_TITLE_LENGTH = 256;
@@ -30,7 +31,7 @@ async function main() {
     triggeringPRNumber: context.payload?.pull_request?.number,
     triggeringDiscussionNumber: context.payload?.discussion?.number,
   });
-  const body = `${steeringBody}\n\n${footer}`;
+  const body = `${steeringBody}\n\n${footer}\n\n${generateIssueClusteringHint("tracking", ["steering"])}`;
 
   const { data: issue } = await createReportIssue(github, {
     owner: context.repo.owner,

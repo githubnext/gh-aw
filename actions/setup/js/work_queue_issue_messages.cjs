@@ -5,6 +5,7 @@ const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs")
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 function presentationText(value, limit, singleLine = false, maskedValues = []) {
   if (typeof value !== "string") return "";
@@ -86,7 +87,7 @@ function issueBody(state, work, origin, config, branch, maskedValues = []) {
   if (!admission) throw new Error("work_queue_admission_provenance_missing");
   const ledgerUrl = `https://github.com/${state.repository}/blob/${branch}/work-queue.jsonl`;
   const description = presentationText(work.payload?.description, 4096, false, maskedValues);
-  return renderWorkQueueMessage(
+  const body = renderWorkQueueMessage(
     "work_queue_issue_body.md",
     {
       work_id: work.work_id.slice(0, 12),
@@ -100,6 +101,7 @@ function issueBody(state, work, origin, config, branch, maskedValues = []) {
     },
     origin
   );
+  return `${body}\n\n${generateIssueClusteringHint("tracking", ["work-queue"])}`;
 }
 
 function renderSummary(values, run, status) {

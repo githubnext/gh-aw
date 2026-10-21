@@ -2,6 +2,7 @@
 
 const { getFooterAgentFailureIssueTemplate, getAgenticWorkflowMetadata } = require("./messages_footer.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
+const { buildIssueClusteringHint } = require("./issue_clustering.cjs");
 
 /**
  * @param {import("./messages_footer.cjs").AgentFailureContext} ctx
@@ -30,7 +31,16 @@ function buildFailureReportFooter(ctx, { expiresHours, failureFields, now = new 
   const footer = {
     type: "footer",
     agentTainted: false,
-    children: parseReportMarkdown(template, { context, agentTainted: false }),
+    children: [
+      ...parseReportMarkdown(template, { context, agentTainted: false }),
+      buildIssueClusteringHint(
+        "runtime-failure",
+        failureFields
+          .find(field => field.key === "failure_categories")
+          ?.value.split("|")
+          .filter(Boolean) ?? []
+      ),
+    ],
     markers: [
       { type: "xml_marker", name: "gh-aw-agentic-workflow", value: workflow.value, fields, agentTainted: false },
       { type: "xml_marker", name: "gh-aw-failure-issue", value: "true", fields: failureFields, agentTainted: false },

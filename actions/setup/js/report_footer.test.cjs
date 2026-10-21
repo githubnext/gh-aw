@@ -10,6 +10,7 @@ const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { getFooterAgentFailureIssueTemplate, getFooterAgentFailureIssueMessage } = require("./messages_footer.cjs");
 const { extractExpirationDate } = require("./ephemerals.cjs");
 const { parseHTMLCommentMetadata, isReusableFailureIssue } = require("./handle_agent_failure.cjs");
+const { buildIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const ctx = {
   workflowName: "Smoke Copilot",
@@ -49,6 +50,7 @@ describe("structured report footer", () => {
     expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")).toMatchObject({ "gh-aw-agentic-workflow": "Smoke Copilot", workflow_id: "smoke-copilot", id: "123", engine: "copilot" });
     expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue")).toMatchObject({ workflow_id: "smoke-copilot", branch: "main", failure_categories: "missing_tool|report_incomplete" });
     expect(isReusableFailureIssue(body, { workflowId: "smoke-copilot", failureCategories: ["missing_tool", "report_incomplete"] })).toBe(true);
+    expect(JSON.parse(body.match(/<!-- gh-aw-clustering-hint: (.+) -->/)[1])).toMatchObject({ version: 1, kind: "runtime-failure", categories: ["missing_tool", "report_incomplete"] });
     expect(body.indexOf("Generated from")).toBeGreaterThan(body.indexOf("What happened"));
     expect(body.indexOf("gh-aw-failure-issue")).toBeGreaterThan(body.indexOf("gh-aw-expires"));
   });
@@ -85,6 +87,7 @@ describe("structured report footer", () => {
         ],
       },
       { type: "paragraph", children: [{ type: "text", value: "{unknown_block}", agentTainted: false }], agentTainted: false },
+      buildIssueClusteringHint("runtime-failure", ["missing_tool", "report_incomplete"]),
     ]);
     expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")?.workflow_id).toBe("smoke-copilot");
     expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue")?.failure_categories).toBe("missing_tool|report_incomplete");
@@ -95,7 +98,10 @@ describe("structured report footer", () => {
     vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> Name: {workflow_name} {triggering_number}" }));
     const workflowName = "{history_link} **injected** [bad](https://evil.example) <!-- injected -->";
     const footer = buildFailureReportFooter({ ...ctx, workflowName }, { expiresHours: 0, failureFields: fields });
-    expect(footer.children).toEqual([{ type: "quote", children: [{ type: "paragraph", children: [{ type: "text", value: `Name: ${workflowName} {triggering_number}`, agentTainted: false }], agentTainted: false }], agentTainted: false }]);
+    expect(footer.children).toEqual([
+      { type: "quote", children: [{ type: "paragraph", children: [{ type: "text", value: `Name: ${workflowName} {triggering_number}`, agentTainted: false }], agentTainted: false }], agentTainted: false },
+      buildIssueClusteringHint("runtime-failure", ["missing_tool", "report_incomplete"]),
+    ]);
     const { body } = renderReport(document(footer));
     expect(body).not.toContain("<!-- injected -->");
     expect(body.split("\n\n<!-- gh-aw-agentic-workflow:")[0]).not.toContain("[bad](https://evil.example)");

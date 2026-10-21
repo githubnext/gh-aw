@@ -9,6 +9,7 @@ const { generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { appendConfiguredBodyFooter } = require("./body_footer.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 /**
  * @typedef {import('./types/handler-factory').HandlerFactoryFunction} HandlerFactoryFunction
@@ -150,7 +151,7 @@ function buildMissingIssueHandler(options) {
             owner,
             repo,
             title: issueTitle,
-            body: issueBody,
+            body: `${issueBody}\n\n${generateIssueClusteringHint("runtime-failure", [handlerType])}`,
             labels: envLabels,
           });
 

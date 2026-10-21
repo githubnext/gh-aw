@@ -13,6 +13,7 @@ const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { normalizeReportText } = require("./report_ast.cjs");
 const { renderSizedReport } = require("./report_size.cjs");
 const { redactReport } = require("./report_redaction.cjs");
+const { buildIssueClusteringHint } = require("./issue_clustering.cjs");
 
 /**
  * @typedef {{repo: {owner: string, repo: string}, footer?: boolean, bodyFooter?: string, expiresHours?: number, closeOlderKey?: string, allowedMentions?: string[], redact?: import("./report_redaction.cjs").ReportRedactionPolicy}} IssueBodyOptions
@@ -47,7 +48,7 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const trackerIDComment = getTrackerID("markdown");
-  const bodyNodes = parseReportMarkdown(stripExecutionProvenance(body), { minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted: true });
+  const bodyNodes = parseReportMarkdown(stripExecutionProvenance(body), { minimumHeadingLevel: 2, allowMetadata: true, omitMetadata: ["gh-aw-clustering-hint"], allowedMentions, agentTainted: true });
   /** @type {(import("./messages_footer.cjs").FooterPart | {type: "body_slot", children: import("./report_ast.cjs").ReportBlock[]})[]} */
   const parts = [[detectionCaution, disclosureHeader, bodyHeader].filter(Boolean).join("\n\n"), "\n\n", { type: "body_slot", children: bodyNodes }, "\n\n", trackerIDComment];
 
@@ -103,6 +104,7 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   if (Object.keys(blockSlots).some(key => !consumedSlots.has(key))) throw new TypeError("Issue body wrappers must preserve report content slots; check bodyHeader and bodyFooter for code fences");
 
   children.push(...parseReportMarkdown(appendExecutionProvenance("", workflowName, runUrl), { minimumHeadingLevel: 2, allowMetadata: true, agentTainted: false }));
+  children.push(buildIssueClusteringHint("agent-output"));
   /** @type {import("./report_ast.cjs").Report} */
   const report = { type: "report", title, agentTainted: true, children };
   return redact ? redactReport(report, redact) : report;

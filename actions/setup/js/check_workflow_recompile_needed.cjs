@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue } = require("./issue_report.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
@@ -426,7 +427,7 @@ async function main() {
       owner,
       repo,
       title: RECOMPILE_ISSUE_TITLE,
-      body: issueBody,
+      body: `${issueBody}\n\n${generateIssueClusteringHint("maintenance", ["workflow-recompile"])}`,
       labels: ["agentic-workflows", "maintenance"],
     });
 

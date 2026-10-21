@@ -236,6 +236,7 @@ describe("getFailedNonBuiltinJobs", () => {
     expect(body).toContain("**Failure boundary:** Non-agent job.");
     expect(body).toContain("A failure boundary identifies where failure was observed, not its cause: either the engine driver process or a non-agent job.");
     expect(body).toContain("does not establish a provider outage");
+    expect(JSON.parse(body.match(/<!-- gh-aw-clustering-hint: (.+) -->/)[1])).toMatchObject({ kind: "runtime-failure", categories: ["failed_jobs"] });
     expect(body).not.toMatch(/private|unbounded error payload/);
     expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
   });

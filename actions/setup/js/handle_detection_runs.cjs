@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue } = require("./issue_report.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -98,7 +99,7 @@ async function ensureDetectionRunsIssue() {
     owner,
     repo,
     title: parentTitle,
-    body: parentBody,
+    body: `${parentBody}\n\n${generateIssueClusteringHint("tracking", ["detection-runs"])}`,
     labels: [parentLabel],
   });
 

@@ -13,6 +13,7 @@ const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList }
 const { buildFailureReport } = require("./failure_report.cjs");
 const { normalizeReportTitle } = require("./report_ast.cjs");
 const { buildFailureReportFooter } = require("./report_footer.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, extractExpirationDate, generateFooterWithExpiration } = require("./ephemerals.cjs");
@@ -933,7 +934,7 @@ gh aw audit <run-id>
       owner,
       repo,
       title: parentTitle,
-      body: parentBody,
+      body: `${parentBody}\n\n${generateIssueClusteringHint("tracking", ["runtime-failures"])}`,
       labels: [parentLabel],
       headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
@@ -3824,7 +3825,7 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
       owner,
       repo,
       title: DAILY_CAP_ROLLUP_TITLE,
-      body,
+      body: `${body}\n\n${generateIssueClusteringHint("tracking", ["failure-daily-cap"])}`,
       labels: ["agentic-workflows", DAILY_CAP_ROLLUP_LABEL],
       headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
     });
@@ -3871,27 +3872,28 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
     // Build rollup body
     const affectedList = recentIssues.map(i => `- [#${i.number}](${i.html_url}) — ${i.title}`).join("\n");
     const windowStart = new Date(Date.now() - CASCADE_WINDOW_MS);
-    const rollupBody = [
-      `## ⚠️ Failure Cascade Detected`,
-      ``,
-      `**${issueNumbers.size} \`[aw] * failed\` issues** were filed within the last **${CASCADE_WINDOW_MINUTES} minutes** (since ${windowStart.toUTCString()}).`,
-      ``,
-      `This volume suggests a common root cause (e.g., lockfile drift, provider outage, infrastructure change) rather than isolated workflow failures.`,
-      ``,
-      `### Affected Workflows`,
-      ``,
-      affectedList || `_(none indexed yet — search indexing may lag)_`,
-      ``,
-      `### What to Do`,
-      ``,
-      `1. Identify the common root cause (check recent infra changes, provider status, lockfile drift).`,
-      `2. Once the root cause is resolved, batch-close the \`${CASCADE_LABEL}\`-labeled issues.`,
-      `3. Close this rollup issue when the cascade is resolved.`,
-      ``,
-      `### Labels`,
-      ``,
-      `Each individual failure issue in the cascade window has been labeled \`${CASCADE_LABEL}\` so you can filter and batch-close them once the root cause is patched.`,
-    ].join("\n");
+    const rollupBody =
+      [
+        `## ⚠️ Failure Cascade Detected`,
+        ``,
+        `**${issueNumbers.size} \`[aw] * failed\` issues** were filed within the last **${CASCADE_WINDOW_MINUTES} minutes** (since ${windowStart.toUTCString()}).`,
+        ``,
+        `This volume suggests a common root cause (e.g., lockfile drift, provider outage, infrastructure change) rather than isolated workflow failures.`,
+        ``,
+        `### Affected Workflows`,
+        ``,
+        affectedList || `_(none indexed yet — search indexing may lag)_`,
+        ``,
+        `### What to Do`,
+        ``,
+        `1. Identify the common root cause (check recent infra changes, provider status, lockfile drift).`,
+        `2. Once the root cause is resolved, batch-close the \`${CASCADE_LABEL}\`-labeled issues.`,
+        `3. Close this rollup issue when the cascade is resolved.`,
+        ``,
+        `### Labels`,
+        ``,
+        `Each individual failure issue in the cascade window has been labeled \`${CASCADE_LABEL}\` so you can filter and batch-close them once the root cause is patched.`,
+      ].join("\n") + `\n\n${generateIssueClusteringHint("tracking", ["failure-cascade"])}`;
 
     // Create or update the cascade rollup issue
     const existing = await findExistingCascadeRollupIssue(owner, repo);

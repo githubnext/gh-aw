@@ -473,6 +473,8 @@ describe("missing_issue_helpers.cjs - buildMissingIssueHandler", () => {
       await handler(defaultMessage);
 
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("Configured footer") }));
+      const body = mockGithub.rest.issues.create.mock.calls[0][0].body;
+      expect(JSON.parse(body.match(/<!-- gh-aw-clustering-hint: (.+) -->/)[1])).toMatchObject({ kind: "runtime-failure", categories: [makeOptions().handlerType] });
     });
 
     it("appends the configured footer to the existing issue comment", async () => {

@@ -38,6 +38,15 @@ describe("bounded Work queue Issue payload rendering", () => {
     vi.unstubAllEnvs();
   });
 
+  it("identifies Work queue projections as tracking containers rather than independent findings", () => {
+    const state = { repository: origin.repository, workCreators: new Map([[workId, origin]]) };
+    const body = issueBody(state, { work_id: workId, payload: {} }, origin, config, "work-queue");
+    const hint = JSON.parse(body.match(/<!-- gh-aw-clustering-hint: (.+) -->/)[1]);
+    assert.equal(hint.kind, "tracking");
+    assert.deepEqual(hint.categories, ["work-queue"]);
+    assert.match(hint.guidance, /Inspect the linked work or child issues/);
+  });
+
   for (const [field, limit] of [
     ["title", 128],
     ["description", 4096],

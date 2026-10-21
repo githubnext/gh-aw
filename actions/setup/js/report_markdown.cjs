@@ -170,10 +170,10 @@ function bareURL(source) {
  * Inline slots do not enable scalar template substitution in surrounding Markdown.
  * onBlockSlot observes actual typed insertions, not literal placeholder text.
  * @param {string} markdown
- * @param {{context?: ReportContext, inlineSlots?: Record<string, ReportInline[]>, blockSlots?: Record<string, ReportBlock[]>, onBlockSlot?: (key: string) => void, agentTainted?: boolean, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
+ * @param {{context?: ReportContext, inlineSlots?: Record<string, ReportInline[]>, blockSlots?: Record<string, ReportBlock[]>, onBlockSlot?: (key: string) => void, agentTainted?: boolean, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, omitMetadata?: string[], allowedMentions?: string[]}} [options]
  * @returns {ReportBlock[]}
  */
-function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
+function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, omitMetadata = [], allowedMentions = [] } = {}) {
   if (depth > 16) throw new TypeError("Report template nesting exceeds the maximum depth");
   if (agentTainted !== undefined && typeof agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
   const allowedReferences = agentTainted === false ? null : buildAllowedGitHubReferences();
@@ -327,7 +327,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   let index = 0;
   const nested = source =>
-    parseReportMarkdown(source, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
+    parseReportMarkdown(source, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, omitMetadata, allowedMentions });
   const blockSlot = line => /^\{(\w+)\}$/.exec(line.trim())?.[1];
   const isBlockSlot = line => blockSlots && Object.hasOwn(blockSlots, blockSlot(line) ?? "");
   const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim()) && (!inlineSlots || [...line.matchAll(/\{(\w+)\}/g)].some(field => !Object.hasOwn(inlineSlots, field[1])));
@@ -376,7 +376,11 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
         nodes.push(fromSource({ type: "expiration", expiresAt: match[1].trim() }));
         index++;
       } else if (allowMetadata && (match = /^<!-- ([a-zA-Z][a-zA-Z0-9_-]*)(?:: ([\s\S]*))? -->$/.exec(line.trim()))) {
-        if (["gh-aw-execution", "aw-essential-meta"].includes(match[1])) {
+        if (omitMetadata.includes(match[1])) {
+          index++;
+          continue;
+        }
+        if (["gh-aw-execution", "gh-aw-clustering-hint", "aw-essential-meta"].includes(match[1])) {
           if (match[2] === undefined) throw new TypeError("JSON report metadata requires a value");
           nodes.push(fromSource({ type: "json_marker", name: match[1], data: JSON.parse(match[2]) }));
         } else if (["gh-aw-agentic-workflow", "gh-aw-failure-issue"].includes(match[1]) && match[2] !== undefined) {

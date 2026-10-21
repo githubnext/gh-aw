@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue } = require("./issue_report.cjs");
+const { generateIssueClusteringHint } = require("./issue_clustering.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateXMLMarker } = require("./messages_footer.cjs");
@@ -194,7 +195,7 @@ ${xmlMarker}
       owner,
       repo,
       title: issueTitle,
-      body: issueBody,
+      body: `${issueBody}\n\n${generateIssueClusteringHint("maintenance", ["workflow-validation"])}`,
       labels: ["agentic-workflows", "maintenance"],
     });
 

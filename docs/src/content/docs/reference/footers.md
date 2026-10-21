@@ -62,6 +62,21 @@ The marker describes execution, not authorship. The triggering `github.actor` is
 
 Maintenance replays record the publishing maintenance workflow's identifier, repository, run, attempt, and check run—not the earlier run whose agent output is being replayed.
 
+### Issue Clustering Hints
+
+Created agent-output issues and runtime failure, tracking, and maintenance issues include a hidden `<!-- gh-aw-clustering-hint: JSON -->` comment. The hint is independent of visible footer settings and contains `version` (currently `1`), `kind`, sorted unique `categories`, and plain-language `guidance`.
+
+| Kind | Meaning |
+|---|---|
+| `agent-output` | Agent-authored output; cluster by the underlying finding and required fix |
+| `runtime-failure` | An operational workflow failure, including missing tools, missing data, incomplete execution, or failed jobs |
+| `tracking` | A work queue projection, WIP steering issue, issue group, or runtime rollup; inspect linked work instead of counting the container as another finding |
+| `maintenance` | A runtime-generated workflow recompilation or validation request |
+
+Categories describe the runtime signal, not a verified root cause or duplicate key. Matching categories, repeated titles, shared workflow or engine names, and nearby run dates do not establish duplicates. Clustering agents should compare diagnostic evidence and required remediation across workflows. The hint is advisory: it does not authorize closing issues or establish severity, exploitability, or trust. Older issues may have no hint.
+
+Reserved clustering hints supplied in an agent-created issue body are replaced by the runtime's hint; literal examples inside code blocks remain unchanged. Consumers should parse actual metadata comments outside code blocks.
+
 ### Searching for Workflow-Created Items
 
 Use the `gh-aw-workflow-id` marker (the workflow filename without `.md`) to find items in GitHub search:
