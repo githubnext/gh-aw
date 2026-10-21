@@ -387,6 +387,8 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 
 The optional `trustedBots` field in the gateway configuration passes an additional list of GitHub bot identity strings to the gateway. The gateway merges this list with its own built-in trusted identity list to form the effective set of identities it recognizes.
 
+Workflow frontmatter accepts only the kebab-case `sandbox.mcp.trusted-bots` key. The compiler translates it into camelCase `gateway.trustedBots` in the generated gateway JSON; `trustedBots` is not a frontmatter alias.
+
 > **Important**: `trustedBots` is **additive**. The gateway maintains its own internal list of trusted bot identities. The `trustedBots` field extends that internal list with additional identities; it cannot remove or override the gateway's built-in trusted identities.
 
 **Configuration Example**:
@@ -430,6 +432,7 @@ Summarize the open issues in this repository.
 **Requirements**:
 - `trustedBots` MUST be a non-empty array of strings when present
 - Each entry MUST be a non-empty string (typically a GitHub username such as `github-actions[bot]`)
+- When configured through workflow frontmatter, entries MUST contain only ASCII letters, digits, hyphens, or underscores, optionally followed by `[bot]`. The compiler also validates these characters before rendering the gateway configuration to prevent shell expansion.
 - `trustedBots` entries are **merged** with the gateway's internal built-in trusted identities to form the effective list passed to the gateway
 - `trustedBots` MUST NOT be used to remove or override entries in the gateway's internal built-in trusted identity list
 

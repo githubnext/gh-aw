@@ -4656,9 +4656,10 @@
                   "minItems": 1,
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]+(\\[bot\\])?$"
                   },
-                  "description": "Additional GitHub bot identities merged with the MCP gateway's built-in trusted identities. Cannot remove or override built-in identities.",
+                  "description": "Additional GitHub bot identities merged with the MCP gateway's built-in trusted identities. Use only ASCII letters, digits, hyphens, or underscores, optionally followed by [bot]. Cannot remove or override built-in identities. Compiled to gateway.trustedBots in the gateway JSON configuration.",
                   "examples": [["github-actions[bot]", "copilot-swe-agent[bot]"]]
                 }
               },

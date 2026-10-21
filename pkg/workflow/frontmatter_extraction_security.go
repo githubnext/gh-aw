@@ -622,18 +622,13 @@ func (c *Compiler) extractMCPGatewayConfig(mcpVal any) *MCPGatewayRuntimeConfig 
 		}
 	}
 
-	// Extract trustedBots / trusted-bots (additional bot identities to pass to the gateway)
-	for _, key := range []string{"trustedBots", "trusted-bots"} {
-		if trustedBotsVal, hasTrustedBots := mcpObj[key]; hasTrustedBots {
-			if trustedBotsSlice, ok := trustedBotsVal.([]any); ok {
-				for _, bot := range trustedBotsSlice {
-					if botStr, ok := bot.(string); ok {
-						mcpConfig.TrustedBots = append(mcpConfig.TrustedBots, botStr)
-					}
+	// Frontmatter uses trusted-bots; trustedBots is the generated gateway JSON field.
+	if trustedBotsVal, hasTrustedBots := mcpObj["trusted-bots"]; hasTrustedBots {
+		if trustedBotsSlice, ok := trustedBotsVal.([]any); ok {
+			for _, bot := range trustedBotsSlice {
+				if botStr, ok := bot.(string); ok {
+					mcpConfig.TrustedBots = append(mcpConfig.TrustedBots, botStr)
 				}
-			}
-			if len(mcpConfig.TrustedBots) > 0 {
-				break
 			}
 		}
 	}
