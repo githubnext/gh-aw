@@ -61,6 +61,38 @@ function isTransientError(error) {
 }
 
 /**
+ * Restart a complete read-only accounting phase, never just the failed page.
+ * Quota deferral is separate from transient read retries and grants no startup
+ * authorization. Allow at most one minute of timer scheduling tolerance.
+ */
+async function withQuotaResetRecovery(operation, { now = Date.now, sleep = delay => new Promise(resolve => setTimeout(resolve, delay)), runAttempt = process.env.GITHUB_RUN_ATTEMPT, maxWaitMs = 10 * 60 * 1000 } = {}) {
+  const startedAt = now();
+  try {
+    return await operation();
+  } catch (error) {
+    const diagnostic = getGitHubAPIDiagnostic(error, now());
+    if (!isQuotaError(error) || ["authentication_failed", "permission_denied"].includes(diagnostic?.classification || "")) throw error;
+    const retryAt = retryNotBefore(error?.response?.headers, now(), true);
+    const retryAtMs = Date.parse(retryAt);
+    const delayMs = retryAtMs + 1000 - now();
+    const remainingMs = maxWaitMs - (now() - startedAt);
+    const reason = String(runAttempt) !== "1" ? "not_original_attempt" : !Number.isFinite(retryAtMs) || delayMs <= 0 ? "unknown_reset" : delayMs > remainingMs ? "reset_exceeds_budget" : "";
+    if (reason) {
+      core.info(`[daily-workflow-aic] Quota reset recovery unavailable: ${JSON.stringify({ reason, retryNotBefore: retryAt || null, maxWaitMs })}. Accounting remains unverified; agent startup is blocked.`);
+      throw error;
+    }
+    core.info(`[daily-workflow-aic] Deferring complete accounting phase until quota reset: ${JSON.stringify({ retryNotBefore: retryAt, delayMs, maxWaitMs })}`);
+    await sleep(delayMs);
+    if (!Number.isFinite(retryAtMs) || now() < retryAtMs || now() - startedAt > maxWaitMs + 60000) {
+      core.info("[daily-workflow-aic] Quota reset recovery missed its time budget. Accounting remains unverified; agent startup is blocked.");
+      throw error;
+    }
+    // Deliberately outside the catch: renewed exhaustion cannot defer again.
+    return operation();
+  }
+}
+
+/**
  * Observe business responses, including native-fetch artifact requests. Do not use
  * /rate_limit as the authority for a different request's quota or retry deadline.
  * Retry transient reads only; shared quota and server retry restrictions stop immediately.
@@ -136,4 +168,4 @@ function createAPIBudget(reserve = 100) {
   return budget;
 }
 
-module.exports = { API_READ_OPERATIONS, safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError, getAPIReadFailure };
+module.exports = { API_READ_OPERATIONS, safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError, getAPIReadFailure, withQuotaResetRecovery };

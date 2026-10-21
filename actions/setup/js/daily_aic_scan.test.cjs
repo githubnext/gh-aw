@@ -35,6 +35,7 @@ beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "aic-scan-test-"));
   cachePath = path.join(directory, "scan.jsonl");
   global.core = { info: vi.fn(), warning: vi.fn() };
+  vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -97,6 +98,135 @@ function fixture(runs = [run(1), run(2), run(3)]) {
 function writeEntries(entries) {
   fs.writeFileSync(cachePath, entries.map(entry => JSON.stringify(entry)).join("\n"));
 }
+
+describe("complete daily AIC phase recovery", () => {
+  function recoveryClock() {
+    let current = now;
+    vi.spyOn(Date, "now").mockImplementation(() => current);
+    return {
+      now: () => current,
+      runAttempt: "1",
+      sleep: vi.fn(async delay => {
+        current += delay;
+      }),
+    };
+  }
+
+  function quotaFailure() {
+    return apiError(403, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(now / 1000 + 60) }, "API rate limit exceeded");
+  }
+
+  it("recovers first-read exhaustion before restoring or doing any accounting", async () => {
+    const recovery = recoveryClock();
+    const f = fixture([run(1)]);
+    f.github.rest.actions.getWorkflowRun.mockRejectedValueOnce(quotaFailure());
+    const listWorkflowRuns = vi.fn(async () => response({ workflow_runs: [] }));
+    f.github.rest.actions.listWorkflowRuns = listWorkflowRuns;
+    global.github = f.github;
+    global.context = { ...f.context, payload: { repository: { default_branch: "main" } } };
+    await restore(cachePath, { recovery });
+    expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(listWorkflowRuns).toHaveBeenCalledOnce();
+    expect(f.getRunAIC).not.toHaveBeenCalled();
+    const result = await scanDailyAIC({ ...f, recovery });
+    expect(result.countedRuns).toMatchObject([{ id: 1, aic: 2 }]);
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(3);
+    expect(f.listPage).toHaveBeenCalledOnce();
+  });
+
+  it("restarts the authoritative listing and counts new runs after partial-scan exhaustion", async () => {
+    const recovery = recoveryClock();
+    const f = fixture([run(1), run(2)]);
+    delete f.now;
+    f.pageRead.mockResolvedValueOnce({ response: response({ workflow_runs: [run(1), run(2)] }), sourceRunCount: 2, lookupMode: "workflow_id" }).mockResolvedValue({
+      response: response({ workflow_runs: [run(1), run(2), run(3)] }),
+      sourceRunCount: 3,
+      lookupMode: "workflow_id",
+    });
+    f.getRunAIC.mockResolvedValueOnce(2).mockRejectedValueOnce(quotaFailure()).mockResolvedValueOnce(4).mockResolvedValueOnce(6);
+    const result = await scanDailyAIC({ ...f, recovery });
+    expect(recovery.sleep).toHaveBeenCalledOnce();
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(f.listPage).toHaveBeenCalledTimes(2);
+    expect(f.listPage.mock.calls[1][1].created).toBe(`>=${new Date(now + 61000 - 86400000).toISOString()}`);
+    expect(result.countedRuns.map(({ id, aic }) => [id, aic])).toEqual([
+      [1, 2],
+      [2, 4],
+      [3, 6],
+    ]);
+    expect(result.cacheHits).toBe(1);
+    expect(f.getRunAIC.mock.calls.map(([, id]) => id)).toEqual([1, 2, 2, 3]);
+  });
+
+  it("recovers the authoritative scan's first read before counting its entire fresh window", async () => {
+    const recovery = recoveryClock();
+    const f = fixture([run(1), run(2), run(3)]);
+    f.github.rest.actions.getWorkflowRun.mockRejectedValueOnce(quotaFailure());
+    const result = await scanDailyAIC({ ...f, recovery });
+    expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(f.listPage).toHaveBeenCalledOnce();
+    expect(f.getRunAIC).toHaveBeenCalledTimes(3);
+    expect(result.countedRuns.map(({ id }) => id)).toEqual([1, 2, 3]);
+  });
+
+  it("does not reuse a recorded observation if the run attempt changes during deferral", async () => {
+    const recovery = recoveryClock();
+    const f = fixture([run(1), run(2)]);
+    f.pageRead.mockResolvedValueOnce({ response: response({ workflow_runs: [run(1), run(2)] }), sourceRunCount: 2, lookupMode: "workflow_id" }).mockResolvedValue({
+      response: response({ workflow_runs: [run(1, { run_attempt: 2 }), run(2)] }),
+      sourceRunCount: 2,
+      lookupMode: "workflow_id",
+    });
+    f.getRunAIC.mockResolvedValueOnce(2).mockRejectedValueOnce(quotaFailure()).mockResolvedValueOnce(20).mockResolvedValueOnce(4);
+    const result = await scanDailyAIC({ ...f, recovery });
+    expect(result.countedRuns.map(({ id, aic }) => [id, aic])).toEqual([
+      [1, 20],
+      [2, 4],
+    ]);
+    expect(result.cacheHits).toBe(0);
+    expect(f.getRunAIC.mock.calls.map(([, id]) => id)).toEqual([1, 2, 1, 2]);
+  });
+
+  it("fails closed on renewed first-read exhaustion without listing history", async () => {
+    const recovery = recoveryClock();
+    const f = fixture([]);
+    f.github.rest.actions.getWorkflowRun.mockRejectedValue(quotaFailure());
+    await expect(scanDailyAIC({ ...f, recovery })).rejects.toMatchObject({ code: "DAILY_AIC_QUOTA_STOP" });
+    expect(recovery.sleep).toHaveBeenCalledOnce();
+    expect(f.github.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(2);
+    expect(f.listPage).not.toHaveBeenCalled();
+    expect(f.getRunAIC).not.toHaveBeenCalled();
+  });
+
+  it("bounds snapshot misses on normal workflow history before a fresh full scan", async () => {
+    recoveryClock();
+    const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
+    const producer = { ...current, event: "schedule", head_branch: "main", repository: { full_name: repository }, head_repository: { full_name: repository } };
+    const listWorkflowRunArtifacts = vi.fn(async () => response({ artifacts: [] }));
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
+    global.github = {
+      auth: vi.fn(async () => ({ token: "synthetic" })),
+      rest: {
+        actions: {
+          getWorkflowRun: vi.fn(async () => response(current)),
+          listWorkflowRuns: vi.fn(async () => response({ workflow_runs: Array.from({ length: 10 }, (_, id) => ({ ...producer, id })) })),
+          listWorkflowRunArtifacts,
+        },
+      },
+    };
+    await restore(cachePath);
+    expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(2);
+    expect(fs.existsSync(cachePath)).toBe(false);
+    const f = fixture([run(1), run(2), run(3)]);
+    const result = await scanDailyAIC(f);
+    expect(result.countedRuns).toHaveLength(3);
+    expect(result.cacheHits).toBe(0);
+    expect(f.getRunAIC).toHaveBeenCalledTimes(3);
+    expect(f.listPage).toHaveBeenCalledOnce();
+  });
+});
 
 describe("daily AIC confirmed-zero diagnostics", () => {
   const notStarted = {
@@ -1044,11 +1174,11 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       return { downloadPath: options.path };
     });
     await restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) });
-    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, per_page: 10 });
+    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, status: "completed", created: ">=2025-02-01T12:00:00.000Z", per_page: 2 });
     expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(2);
     expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":1,"listedRuns":100,"trustedCandidates":0}');
     expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":2,"listedRuns":3,"trustedCandidates":1}');
-    expect(listWorkflowRunsForRepo).toHaveBeenCalledWith({ owner: "example", repo: "project", status: "completed", created: ">=2025-02-02T12:00:00.000Z", per_page: 100, page: 1 });
+    expect(listWorkflowRunsForRepo).toHaveBeenCalledWith({ owner: "example", repo: "project", status: "completed", created: ">=2025-02-01T12:00:00.000Z", per_page: 100, page: 1 });
     expect(listWorkflowRunArtifacts).toHaveBeenCalledOnce();
     expect(listWorkflowRunArtifacts).toHaveBeenCalledWith({ owner: "example", repo: "project", run_id: 50, per_page: 100 });
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("GitHub API rate limit level:"));
@@ -1086,9 +1216,9 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       },
     };
     await restore(cachePath);
-    expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(trustedPerPage ? 2 : 25);
+    expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(trustedPerPage ? 1 : 2);
     expect(global.github.auth).toHaveBeenCalledTimes(trustedPerPage ? 1 : 0);
-    expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(trustedPerPage ? 10 : 0);
+    expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(trustedPerPage ? 2 : 0);
     expect(fs.existsSync(cachePath)).toBe(false);
   });
 

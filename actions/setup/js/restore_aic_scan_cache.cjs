@@ -4,11 +4,15 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { MAX_RESTORE_RUNS, MAX_RESTORE_PAGES, SCAN_WINDOW_MS } = require("./constants.cjs");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
-const { AIC_SCAN_CACHE_FILE_PATH, AIC_SCAN_CACHE_ARTIFACT_NAME, readScanCache } = require("./daily_aic_cache_helpers.cjs");
-const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, isQuotaError, safeResponseHeaders, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { AIC_SCAN_CACHE_FILE_PATH, AIC_SCAN_CACHE_ARTIFACT_NAME, CACHE_RETENTION_MS, readScanCache } = require("./daily_aic_cache_helpers.cjs");
+const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, isQuotaError, safeResponseHeaders, getAPIReadFailure, withQuotaResetRecovery } = require("./daily_aic_api_budget.cjs");
 const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
+
+// Snapshot discovery is only an optimization; the guardrail still scans the
+// complete authoritative window after a miss.
+const MAX_SNAPSHOT_PRODUCERS = 2;
+const MAX_SNAPSHOT_HISTORY_PAGES = 2;
 
 function isTrustedProducer(run, current, repository, defaultBranch) {
   if (run.workflow_id !== current.workflow_id || run.path !== current.path || run.repository?.full_name !== repository) return false;
@@ -21,15 +25,15 @@ function isTrustedProducer(run, current, repository, defaultBranch) {
 
 async function* listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget) {
   let candidates = 0;
-  const created = `>=${new Date(Date.now() - SCAN_WINDOW_MS).toISOString()}`;
-  for (let page = 1; page <= MAX_RESTORE_PAGES && candidates < MAX_RESTORE_RUNS; page++) {
+  const created = `>=${new Date(Date.now() - CACHE_RETENTION_MS).toISOString()}`;
+  for (let page = 1; page <= MAX_SNAPSHOT_HISTORY_PAGES && candidates < MAX_SNAPSHOT_PRODUCERS; page++) {
     const response = await budget.request(() => github.rest.actions.listWorkflowRunsForRepo({ owner, repo, status: "completed", created, per_page: 100, page }), true, API_READ_OPERATIONS.REPOSITORY_HISTORY);
     const pageRuns = response.data.workflow_runs || [];
     const trustedRuns = pageRuns.filter(run => run.id !== context.runId && isTrustedProducer(run, current, repository, defaultBranch));
     core.info(`[daily-aic-cache] Evaluated repository history page: ${JSON.stringify({ page, listedRuns: pageRuns.length, trustedCandidates: trustedRuns.length })}`);
     // Inspect each page before spending quota on older history. A verified
     // snapshot ends restoration; the guardrail still lists its complete window.
-    for (const run of trustedRuns.slice(0, MAX_RESTORE_RUNS - candidates)) {
+    for (const run of trustedRuns.slice(0, MAX_SNAPSHOT_PRODUCERS - candidates)) {
       candidates++;
       yield run;
     }
@@ -41,7 +45,11 @@ async function* listRecentWorkflowRuns(owner, repo, current, repository, default
   let response;
   core.info(`[daily-aic-cache] Querying workflow-specific run history: ${JSON.stringify({ workflowId: current.workflow_id })}`);
   try {
-    response = await budget.request(() => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, per_page: 10 }), true, API_READ_OPERATIONS.WORKFLOW_HISTORY);
+    response = await budget.request(
+      () => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, status: "completed", created: `>=${new Date(Date.now() - CACHE_RETENTION_MS).toISOString()}`, per_page: MAX_SNAPSHOT_PRODUCERS }),
+      true,
+      API_READ_OPERATIONS.WORKFLOW_HISTORY
+    );
   } catch (error) {
     if (error?.status !== 404 || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) throw error;
     core.info("[daily-aic-cache] Workflow-specific history unavailable; searching repository history for required workflow runs.");
@@ -62,6 +70,7 @@ async function restoreWithBudget(cachePath, options, budget) {
   const defaultBranch = context.payload.repository?.default_branch;
   const runs = listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
   let token;
+  let candidates = 0;
   for await (const run of runs) {
     const isCurrentRun = run.id === context.runId;
     const trusted = isTrustedProducer(run, current, repository, defaultBranch);
@@ -78,6 +87,7 @@ async function restoreWithBudget(cachePath, options, budget) {
       })}`
     );
     if (isCurrentRun || !trusted) continue;
+    if (candidates++ >= MAX_SNAPSHOT_PRODUCERS) break;
     if (!token) {
       const auth = await github.auth({ type: "token" });
       if (!auth || typeof auth !== "object" || !("token" in auth) || typeof auth.token !== "string" || !auth.token) {
@@ -121,7 +131,7 @@ async function restoreWithBudget(cachePath, options, budget) {
 async function mainWithPaths(cachePath = AIC_SCAN_CACHE_FILE_PATH, options = {}) {
   const budget = createAPIBudget();
   try {
-    await restoreWithBudget(cachePath, options, budget);
+    await withQuotaResetRecovery(() => restoreWithBudget(cachePath, options, budget), options.recovery);
   } catch (error) {
     const diagnostic = getGitHubAPIDiagnostic(error);
     const failure = getAPIReadFailure(error);
