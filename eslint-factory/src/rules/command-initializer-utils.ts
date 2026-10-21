@@ -5,7 +5,7 @@ import { AST_NODE_TYPES, TSESLint, TSESTree } from "@typescript-eslint/utils";
  * destructuring pattern (for example `const [cmd] = [command]`). Returns null
  * when the binding cannot be resolved precisely — a non-literal right-hand
  * side, a rest element before the binding, a spread element in the array
- * literal, a hole, or a default value.
+ * literal, a missing element, a hole, or a default value.
  */
 function resolveArrayPatternElement(pattern: TSESTree.ArrayPattern, init: TSESTree.Expression, name: string): TSESTree.Expression | null {
   if (init.type !== AST_NODE_TYPES.ArrayExpression) return null;
@@ -18,7 +18,7 @@ function resolveArrayPatternElement(pattern: TSESTree.ArrayPattern, init: TSESTr
     // A spread element at or before this position shifts the value positions.
     if (init.elements.slice(0, index + 1).some(value => value !== null && value.type === AST_NODE_TYPES.SpreadElement)) return null;
     const value = init.elements[index];
-    if (value === null || value.type === AST_NODE_TYPES.SpreadElement) return null;
+    if (value === null || value === undefined || value.type === AST_NODE_TYPES.SpreadElement) return null;
     return value;
   }
   return null;

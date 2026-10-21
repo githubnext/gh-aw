@@ -22,6 +22,8 @@ describe("no-exec-interpolated-command", () => {
           "const cmd = `git checkout ${branch}`; function run() { const cmd = 'git'; exec.exec(cmd, []); }",
           "const cmd = `git checkout ${branch}`; function outer() { let cmd; function run() { exec.exec(cmd, []); } }",
           "const [cmd = 'git'] = []; function run() { exec.exec(cmd, []); }",
+          "const [cmd] = []; function run() { exec.exec(cmd, []); }",
+          "const [first, cmd] = [`git checkout ${branch}`]; function run() { exec.exec(cmd, []); }",
           "const { cmd } = commands; function run() { exec.exec(cmd, []); }",
           "var cmd = `git checkout ${branch}`; var cmd; function run() { exec.exec(cmd, []); }",
           "const branch = 'main'; const cmd = `git checkout ${branch}`; function run() { exec.exec(cmd, []); }",
