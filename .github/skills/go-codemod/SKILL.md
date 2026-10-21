@@ -15,7 +15,7 @@ Use this skill when adding or updating codemods used by `gh aw fix`.
    - frontmatter is re-parsed before each codemod
    - codemods must return `(newContent, applied, error)` and be safe for no-op input
 2. Review the codemod registry in `pkg/cli/fix_codemods.go`.
-3. Review helper utilities in `pkg/cli/yaml_frontmatter_utils.go` and reusable codemod helper constructors in `pkg/cli/codemod_factory.go`.
+3. Review `pkg/workflow/codemod/frontmatter.go` and reusable constructors in `pkg/cli/codemod_factory.go`. Codemods and workflow linters share the authored `aw.Document` AST.
 
 ## Implementation steps
 
@@ -29,13 +29,16 @@ Use this skill when adding or updating codemods used by `gh aw fix`.
 4. In `Apply`:
    - check frontmatter preconditions first
    - return unchanged content and `applied=false` when migration is not needed
-   - transform only frontmatter using `applyFrontmatterLineTransform` from `pkg/cli/yaml_frontmatter_utils.go`
+   - transform frontmatter with `codemod.Apply(content, func(f *codemod.Frontmatter) error { ... })`
+   - inspect authored configuration through `f.Document` or `f.Lookup`
+   - use `Rename`, `Set`, `Remove`, and `PruneEmpty` for exact mapping paths; use `Edit` for arbitrary semantic transformations of the AW document
    - preserve comments/formatting/markdown body
-   - avoid lossy rewrites and avoid touching unrelated keys
+   - avoid indentation scanners and whole-document YAML serialization; the helper preserves key tokens for renames and shares the Actions AST source merger for structural edits
+   - return errors from the callback; failed transformations return the original content atomically
 5. Prefer existing helpers before writing custom parsing logic:
-   - `findAndReplaceInLine`
-   - `removeFieldFromBlock`
-   - `removeParentBlockIfTrulyEmpty`
+   - `codemod.Frontmatter.Lookup`
+   - `codemod.Frontmatter.Rename` (existing destination fields are authoritative, including null)
+   - `codemod.Frontmatter.Remove` and `PruneEmpty` (comment-bearing parents are retained)
    - `newFieldRemovalCodemod`
    - `newMoveTopLevelKeyToOnBlockCodemod`
 6. If the codemod depends on external data or side effects, inject dependencies through a `...WithDeps` constructor so tests can mock behavior.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/token"
 	"github.com/stretchr/testify/assert"
@@ -243,6 +244,101 @@ func TestSourceMappingEdits(t *testing.T) {
 			emitted, err := Emit(input)
 			require.NoError(t, err)
 			assert.Equal(t, sourceComments(t, content), sourceComments(t, emitted))
+		})
+	}
+}
+
+func TestSourceEditSequenceMappingScalar(t *testing.T) {
+	t.Parallel()
+	for _, content := range []string{
+		"on:\n  schedule:\n    - schedule: daily at noon # frequency\n",
+		"on:\n  schedule:\n    - schedule: daily at noon # frequency\n      timezone: UTC # timezone\n",
+		"on: {schedule: [{schedule: daily at noon, timezone: UTC}]} # trigger\n",
+	} {
+		t.Run(content, func(t *testing.T) {
+			t.Parallel()
+			var before, after map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(content), &before))
+			require.NoError(t, yaml.Unmarshal([]byte(content), &after))
+			schedule := after["on"].(map[string]any)["schedule"].([]any)[0].(map[string]any)
+			schedule["schedule"] = "daily around noon"
+			result, err := EditSource(content, before, after)
+			require.NoError(t, err)
+			var actual map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(result), &actual))
+			assert.Equal(t, after, actual)
+			assert.Equal(t, sourceComments(t, content), sourceComments(t, result))
+		})
+	}
+}
+
+func TestSourceEditSequenceMappingKeys(t *testing.T) {
+	t.Parallel()
+	for _, content := range []string{
+		"checkout:\n  - repository: org/repo # repository\n    github-app:\n      app-id: old\n      private-key: secret # private key\n",
+		"checkout:\n  - repository: org/repo\n    github-app:\n      'app-id': old # identifier\n      private-key: secret # private key\n",
+		"checkout:\n  - github-app: {app-id: old, private-key: secret} # credentials\n    repository: org/repo\n",
+		"checkout: [{repository: org/repo, github-app: {app-id: old, private-key: secret}}] # checkout\n",
+	} {
+		t.Run(content, func(t *testing.T) {
+			t.Parallel()
+			var before, after map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(content), &before))
+			require.NoError(t, yaml.Unmarshal([]byte(content), &after))
+			checkout := after["checkout"].([]any)[0].(map[string]any)
+			app := checkout["github-app"].(map[string]any)
+			app["client-id"] = app["app-id"]
+			delete(app, "app-id")
+			result, err := EditSource(content, before, after)
+			require.NoError(t, err)
+			var actual map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(result), &actual))
+			assert.Equal(t, after, actual)
+			assert.Equal(t, sourceComments(t, content), sourceComments(t, result))
+		})
+	}
+}
+
+func TestSourceEditMappingRenameConflicts(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name    string
+		source  string
+		after   map[string]any
+		comment string
+	}{
+		{
+			name:    "ambiguous removed keys",
+			source:  "old-a: same # removed a\nold-b: same # removed b\n",
+			after:   map[string]any{"new": "same"},
+			comment: "# removed",
+		},
+		{
+			name:    "ambiguous added keys",
+			source:  "old: same # removed\n",
+			after:   map[string]any{"new-a": "same", "new-b": "same"},
+			comment: "# removed",
+		},
+		{
+			name:    "existing destination",
+			source:  "old: same # removed\nnew: null # destination\n",
+			after:   map[string]any{"new": nil},
+			comment: "# removed",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var before map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(tt.source), &before))
+			result, err := EditSource(tt.source, before, tt.after)
+			require.NoError(t, err)
+			var actual map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(result), &actual))
+			assert.Equal(t, tt.after, actual)
+			assert.NotContains(t, result, tt.comment, "unrelated removals must not be treated as renames")
+			if tt.name == "existing destination" {
+				assert.Contains(t, result, "# destination")
+			}
 		})
 	}
 }

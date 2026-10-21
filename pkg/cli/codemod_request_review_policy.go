@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var requestReviewPolicyCodemodLog = logger.New("cli:codemod_request_review_policy")
@@ -19,7 +18,20 @@ func getRequestReviewPolicyCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, normalizeRequestReviewPolicy)
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				for _, handler := range []string{"create-pull-request", "push-to-pull-request-branch"} {
+					for _, suffix := range [][]string{{"protected-files"}, {"protected-files-policy"}, {"protected-files", "policy"}} {
+						path := append([]string{"safe-outputs", handler}, suffix...)
+						value, _ := f.Lookup(path...)
+						if policy, ok := value.(string); ok && policy == "request_review" {
+							if err := f.Set(path, "request-review"); err != nil {
+								return err
+							}
+						}
+					}
+				}
+				return nil
+			})
 			if applied {
 				requestReviewPolicyCodemodLog.Print("Normalized request_review protected-file policy")
 			}
@@ -53,67 +65,4 @@ func requestReviewPolicyNeedsMigration(frontmatter map[string]any) bool {
 		}
 	}
 	return false
-}
-
-func normalizeRequestReviewPolicy(lines []string) ([]string, bool) {
-	result := make([]string, 0, len(lines))
-	modified := false
-	state := requestReviewPolicyState{}
-
-	for _, line := range lines {
-		newLine, lineModified := normalizeRequestReviewPolicyLine(line, &state)
-		result = append(result, newLine)
-		modified = modified || lineModified
-	}
-
-	return result, modified
-}
-
-type requestReviewPolicyState struct {
-	inSafeOutputs        bool
-	safeOutputsIndent    string
-	inPullRequest        bool
-	handlerIndent        string
-	inProtectedFiles     bool
-	protectedFilesIndent string
-}
-
-func normalizeRequestReviewPolicyLine(line string, state *requestReviewPolicyState) (string, bool) {
-	trimmed := strings.TrimSpace(line)
-	indent := getIndentation(line)
-	if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-		switch {
-		case state.inSafeOutputs && hasExitedBlock(line, state.safeOutputsIndent):
-			state.inSafeOutputs, state.inPullRequest, state.inProtectedFiles = false, false, false
-		case state.inPullRequest && hasExitedBlock(line, state.handlerIndent):
-			state.inPullRequest, state.inProtectedFiles = false, false
-		case state.inProtectedFiles && hasExitedBlock(line, state.protectedFilesIndent):
-			state.inProtectedFiles = false
-		}
-	}
-
-	if strings.HasPrefix(trimmed, "safe-outputs:") {
-		state.inSafeOutputs, state.inPullRequest, state.inProtectedFiles = true, false, false
-		state.safeOutputsIndent = indent
-		return line, false
-	}
-	if state.inSafeOutputs && isDescendant(indent, state.safeOutputsIndent) &&
-		(strings.HasPrefix(trimmed, "create-pull-request:") || strings.HasPrefix(trimmed, "push-to-pull-request-branch:")) {
-		state.inPullRequest, state.inProtectedFiles = true, false
-		state.handlerIndent = indent
-		return line, false
-	}
-	if state.inPullRequest && isDescendant(indent, state.handlerIndent) &&
-		(strings.HasPrefix(trimmed, "protected-files:") || strings.HasPrefix(trimmed, "protected-files-policy:")) {
-		newLine := strings.Replace(line, "request_review", "request-review", 1)
-		state.inProtectedFiles = strings.HasPrefix(trimmed, "protected-files:") &&
-			strings.HasSuffix(strings.TrimSpace(newLine), ":")
-		state.protectedFilesIndent = indent
-		return newLine, newLine != line
-	}
-	if state.inProtectedFiles && isDescendant(indent, state.protectedFilesIndent) && strings.HasPrefix(trimmed, "policy:") {
-		newLine := strings.Replace(line, "request_review", "request-review", 1)
-		return newLine, newLine != line
-	}
-	return line, false
 }

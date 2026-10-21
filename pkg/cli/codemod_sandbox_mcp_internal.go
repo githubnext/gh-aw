@@ -1,6 +1,9 @@
 package cli
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
+)
 
 var sandboxMCPInternalCodemodLog = logger.New("cli:codemod_sandbox_mcp_internal")
 
@@ -20,14 +23,14 @@ func getSandboxMCPContainerRemovalCodemod() Codemod {
 			if !hasSandboxMCPField(frontmatter, "container") {
 				return content, false, nil
 			}
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := removeFieldFromBlock(lines, "container", "mcp")
-				if modified {
-					// If mcp: became empty and was removed, also clean up sandbox: if it
-					// is now empty to avoid leaving a dangling "sandbox: null" key.
-					result = removeParentBlockIfTrulyEmpty(result, "sandbox")
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := f.Remove("sandbox", "mcp", "container"); err != nil {
+					return err
 				}
-				return result, modified
+				if err := f.PruneEmpty("sandbox", "mcp"); err != nil {
+					return err
+				}
+				return f.PruneEmpty("sandbox")
 			})
 			if applied {
 				sandboxMCPInternalCodemodLog.Print("Removed deprecated sandbox.mcp.container")
@@ -53,14 +56,14 @@ func getSandboxMCPVersionRemovalCodemod() Codemod {
 			if !hasSandboxMCPField(frontmatter, "version") {
 				return content, false, nil
 			}
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := removeFieldFromBlock(lines, "version", "mcp")
-				if modified {
-					// If mcp: became empty and was removed, also clean up sandbox: if it
-					// is now empty to avoid leaving a dangling "sandbox: null" key.
-					result = removeParentBlockIfTrulyEmpty(result, "sandbox")
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := f.Remove("sandbox", "mcp", "version"); err != nil {
+					return err
 				}
-				return result, modified
+				if err := f.PruneEmpty("sandbox", "mcp"); err != nil {
+					return err
+				}
+				return f.PruneEmpty("sandbox")
 			})
 			if applied {
 				sandboxMCPInternalCodemodLog.Print("Removed deprecated sandbox.mcp.version")

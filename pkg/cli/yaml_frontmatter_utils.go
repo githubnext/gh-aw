@@ -82,13 +82,12 @@ func findAndReplaceInLine(line, oldKey, newKey string) (string, bool) {
 	leadingSpace := getIndentation(line)
 
 	// Extract the value and any trailing comment
-	parts := strings.SplitN(line, ":", 2)
-	if len(parts) < 2 {
+	_, valueAndComment, found := strings.Cut(line, ":")
+	if !found {
 		return line, false
 	}
 
 	yamlUtilsLog.Printf("Replacing frontmatter key %q with %q", oldKey, newKey)
-	valueAndComment := parts[1]
 	return fmt.Sprintf("%s%s:%s", leadingSpace, newKey, valueAndComment), true
 }
 
@@ -140,12 +139,12 @@ func removeParentBlockIfTrulyEmpty(lines []string, parentBlock string) []string 
 
 		blockIndent := getIndentation(line)
 		hasAnyNested := false
-		for j := i + 1; j < len(lines); j++ {
-			nextTrimmed := strings.TrimSpace(lines[j])
+		for _, next := range lines[i+1:] {
+			nextTrimmed := strings.TrimSpace(next)
 			if nextTrimmed == "" {
 				continue // skip blank lines
 			}
-			if len(getIndentation(lines[j])) > len(blockIndent) {
+			if len(getIndentation(next)) > len(blockIndent) {
 				hasAnyNested = true
 			}
 			break
@@ -242,11 +241,4 @@ func removeFieldFromBlock(lines []string, fieldName string, parentBlock string) 
 	}
 
 	return result, modified
-}
-
-// isDescendant returns true if childIndent is deeper (more indented) than parentIndent.
-// It is used as a "belongs to this block" check — any line more indented than the parent
-// is treated as being within the parent's scope.
-func isDescendant(childIndent, parentIndent string) bool {
-	return len(childIndent) > len(parentIndent)
 }

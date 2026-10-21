@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var playwrightCLIModeCodemodLog = logger.New("cli:codemod_playwright_cli_mode")
@@ -51,12 +52,8 @@ func getPlaywrightCLIModeRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := removeFieldFromPlaywright(lines, "mode")
-				if !modified {
-					return lines, false
-				}
-				return result, true
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return f.Remove("tools", "playwright", "mode")
 			})
 			if applied {
 				playwrightCLIModeCodemodLog.Print("Removed redundant tools.playwright.mode: cli")

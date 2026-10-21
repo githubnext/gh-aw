@@ -5,9 +5,26 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMaxRunsToMaxTurnsCodemod_AWASTConflict(t *testing.T) {
+	t.Parallel()
+	content := "---\n{'max-runs': {nested: 42}, 'max-turns': null, nested: {max-runs: 12}} # keep\n---\n\n# Body\n"
+	result, applied, err := getMaxRunsToMaxTurnsCodemod().Apply(content, nil)
+	require.NoError(t, err)
+	require.True(t, applied)
+	document, err := aw.Parse(result)
+	require.NoError(t, err)
+	assert.NotContains(t, document.Frontmatter, "max-runs")
+	assert.Contains(t, document.Frontmatter, "max-turns")
+	assert.Nil(t, document.Frontmatter["max-turns"])
+	assert.Equal(t, map[string]any{"max-runs": uint64(12)}, document.Frontmatter["nested"])
+	assert.Contains(t, result, "# keep")
+	assert.Contains(t, result, "\n---\n\n# Body\n")
+}
 
 func TestMaxRunsToMaxTurnsCodemod_Metadata(t *testing.T) {
 	t.Parallel()

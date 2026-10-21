@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var engineEnvSecretsCodemodLog = logger.New("cli:codemod_engine_env_secrets")
@@ -49,13 +50,13 @@ func getEngineEnvSecretsCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				updated, modified := removeUnsafeEngineEnvKeys(lines, unsafeKeys)
-				if !modified {
-					return lines, false
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				for _, key := range sliceutil.SortedKeys(unsafeKeys) {
+					if err := f.Remove("engine", "env", key); err != nil {
+						return err
+					}
 				}
-				cleaned := removeEmptyEngineEnvBlock(updated)
-				return cleaned, true
+				return f.PruneEmpty("engine", "env")
 			})
 			if applied {
 				engineEnvSecretsCodemodLog.Printf("Removed unsafe engine.env secret keys: %v", sliceutil.MapKeys(unsafeKeys))
@@ -150,8 +151,7 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]str
 	return unsafe
 }
 
-func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
-}) ([]string, bool) {
+func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct{}) ([]string, bool) { //nolint:largefunc // Retain the existing pure compatibility parser and its tested block-boundary behavior.
 	result := make([]string, 0, len(lines))
 	modified := false
 
@@ -221,35 +221,6 @@ func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
 	}
 
 	return result, modified
-}
-
-func removeEmptyEngineEnvBlock(lines []string) []string {
-	result := make([]string, 0, len(lines))
-	for i := range lines {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "env:" {
-			envIndent := getIndentation(line)
-			hasValues := false
-			j := i + 1
-			for ; j < len(lines); j++ {
-				t := strings.TrimSpace(lines[j])
-				if t == "" {
-					continue
-				}
-				if len(getIndentation(lines[j])) <= len(envIndent) {
-					break
-				}
-				hasValues = true
-				break
-			}
-			if !hasValues {
-				continue
-			}
-		}
-		result = append(result, line)
-	}
-	return result
 }
 
 // getTopLevelEnvSecretsGuidedErrorCodemod creates a codemod that emits a guided error

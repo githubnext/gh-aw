@@ -35,7 +35,7 @@ description: Review PR metadata
 		require.NoError(t, err, "codemod should not return an error")
 		assert.True(t, applied, "codemod should apply when checkout is missing")
 		assert.Contains(t, result, "checkout: false", "codemod should add checkout: false")
-		assert.Contains(t, result, "pull_request_target:\ncheckout: false\ndescription:", "checkout should be inserted after on block")
+		assert.Contains(t, result, "pull_request_target:\ndescription:", "existing on and description order should be preserved")
 	})
 
 	t.Run("normalizes checkout true to false", func(t *testing.T) {

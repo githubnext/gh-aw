@@ -3,8 +3,10 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,8 +52,8 @@ on:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "- agentic workflows")
-	assert.Contains(t, result, "types: [general]")
+	assertPolicyCodemodValue(t, result, []any{"agentic workflows"}, "on", "discussion", "types")
+	assertPolicyCodemodValue(t, result, []any{"general"}, "on", "discussion_comment", "types")
 	assert.NotContains(t, result, "- Agentic Workflows")
 	assert.NotContains(t, result, "types: [General]")
 }
@@ -119,8 +121,8 @@ func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "- agentic workflows")
-	assert.Contains(t, result, "types: [general]")
+	assertPolicyCodemodValue(t, result, []any{"agentic workflows"}, "on", "discussion", "types")
+	assertPolicyCodemodValue(t, result, []any{"general"}, "on", "discussion_comment", "types")
 	assert.NotContains(t, result, "- Agentic Workflows")
 	assert.NotContains(t, result, "types: [General]")
 }
@@ -363,7 +365,15 @@ func TestLowercaseDiscussionTriggerTypesInLines(t *testing.T) {
 			}
 			gotLines, gotModified := lowercaseDiscussionTriggerTypesInLines(tt.lines)
 			assert.Equal(t, tt.wantModified, gotModified)
-			assert.Equal(t, tt.wantLines, gotLines)
+			if gotModified {
+				want, err := aw.Parse("---\n" + strings.Join(tt.wantLines, "\n") + "\n---\n")
+				require.NoError(t, err)
+				got, err := aw.Parse("---\n" + strings.Join(gotLines, "\n") + "\n---\n")
+				require.NoError(t, err)
+				assert.Equal(t, want.Frontmatter, got.Frontmatter)
+			} else {
+				assert.Equal(t, tt.wantLines, gotLines)
+			}
 			assert.Equal(t, inputLines, tt.lines)
 		})
 	}

@@ -1,101 +1,78 @@
 package cli
 
 import (
+	"fmt"
+	"maps"
 	"slices"
-	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/aw"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
-var githubAppClientIDCodemodLog = logger.New("cli:codemod_github_app_client_id")
-
-// getGitHubAppClientIDCodemod creates a codemod that migrates github-app.app-id to github-app.client-id.
+// getGitHubAppClientIDCodemod migrates github-app.app-id to github-app.client-id.
 func getGitHubAppClientIDCodemod() Codemod {
 	return Codemod{
 		ID:           "github-app-app-id-to-client-id",
 		Name:         "Rename 'github-app.app-id' to 'github-app.client-id'",
 		Description:  "Renames deprecated 'app-id:' to 'client-id:' inside github-app blocks.",
 		IntroducedIn: "0.68.4",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			if !hasDeprecatedGitHubAppIDField(frontmatter) {
-				return content, false, nil
-			}
-			newContent, applied, err := applyFrontmatterLineTransform(content, renameGitHubAppIDToClientID)
-			if applied {
-				githubAppClientIDCodemodLog.Print("Renamed github-app app-id to client-id")
-			}
-			return newContent, applied, err
+		Apply: func(content string, _ map[string]any) (string, bool, error) {
+			return codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return migrateGitHubAppClientIDs(f, nil)
+			})
 		},
 	}
 }
 
-// hasDeprecatedGitHubAppIDField returns true when any github-app object contains app-id.
-func hasDeprecatedGitHubAppIDField(frontmatter map[string]any) bool {
-	return containsDeprecatedGitHubAppID(frontmatter)
-}
-
-func containsDeprecatedGitHubAppID(value any) bool {
-	switch v := value.(type) {
+func migrateGitHubAppClientIDs(f *codemod.Frontmatter, path []string) error {
+	value, _ := f.Lookup(path...)
+	switch value := value.(type) {
 	case map[string]any:
-		for key, child := range v {
+		for _, key := range slices.Sorted(maps.Keys(value)) {
+			childPath := append(slices.Clone(path), key)
 			if key == "github-app" {
-				if appMap, ok := child.(map[string]any); ok {
-					if _, hasAppID := appMap["app-id"]; hasAppID {
-						return true
-					}
+				if err := f.Rename(append(slices.Clone(childPath), "app-id"), "client-id"); err != nil {
+					return err
 				}
 			}
-			if containsDeprecatedGitHubAppID(child) {
-				return true
+			if err := migrateGitHubAppClientIDs(f, childPath); err != nil {
+				return err
 			}
 		}
 	case []any:
-		return slices.ContainsFunc(v, containsDeprecatedGitHubAppID)
+		// Sequence indices are not mapping paths, so mutate these subtrees through Edit.
+		return f.Edit(func(document *aw.Document) error {
+			var subtree any = document.Frontmatter
+			for _, key := range path {
+				mapping, ok := subtree.(map[string]any)
+				if !ok {
+					return fmt.Errorf("cannot migrate github-app client IDs: path %q is not a mapping", path)
+				}
+				subtree = mapping[key]
+			}
+			renameGitHubAppClientIDsInValue(subtree)
+			return nil
+		})
 	}
-	return false
+	return nil
 }
 
-func renameGitHubAppIDToClientID(lines []string) ([]string, bool) {
-	result := make([]string, 0, len(lines))
-	modified := false
-
-	inGitHubApp := false
-	var githubAppIndent string
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "" {
-			result = append(result, line)
-			continue
-		}
-
-		if !strings.HasPrefix(trimmed, "#") && inGitHubApp && hasExitedBlock(line, githubAppIndent) {
-			inGitHubApp = false
-		}
-
-		if strings.HasPrefix(trimmed, "github-app:") {
-			inGitHubApp = true
-			githubAppIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		if inGitHubApp {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, githubAppIndent) && strings.HasPrefix(trimmed, "app-id:") {
-				newLine, replaced := findAndReplaceInLine(line, "app-id", "client-id")
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					githubAppClientIDCodemodLog.Printf("Renamed github-app app-id on line %d", i+1)
-					continue
-				}
+func renameGitHubAppClientIDsInValue(value any) {
+	switch value := value.(type) {
+	case map[string]any:
+		if app, ok := value["github-app"].(map[string]any); ok {
+			id, exists := app["app-id"]
+			if _, conflict := app["client-id"]; exists && !conflict {
+				app["client-id"] = id
+				delete(app, "app-id")
 			}
 		}
-
-		result = append(result, line)
+		for _, child := range value {
+			renameGitHubAppClientIDsInValue(child)
+		}
+	case []any:
+		for _, child := range value {
+			renameGitHubAppClientIDsInValue(child)
+		}
 	}
-
-	return result, modified
 }
