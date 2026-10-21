@@ -98,7 +98,7 @@ func loadHealthRunSummary(run WorkflowRun, config HealthConfig) (*RunSummary, st
 		// usage, classification, or sub-agent metrics from another producer.
 		status = "version_mismatch_raw_jobs_only"
 		summary = &RunSummary{CLIVersion: summary.CLIVersion, RunID: summary.RunID,
-			RunAnalysis: RunAnalysis{Run: run, JobDetails: summary.JobDetails}}
+			Run: run, JobDetails: summary.JobDetails}
 		healthLog.Printf("Health run %d reuses raw jobs only: cached=%s current=%s", run.DatabaseID, summary.CLIVersion, GetVersion())
 	}
 	recordHealthCacheEvidence(run, producer, status, config.collection)

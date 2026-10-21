@@ -112,7 +112,7 @@ func TestHealthRepresentativeJobErrorsPreservePresenceEvidence(t *testing.T) {
 			collection := &HealthCollection{Host: "github.com",
 				APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
 				jobs: map[healthRunAttempt]*healthJobs{key: {total: &total, details: []JobInfoWithDuration{
-					{JobInfo: JobInfo{Name: "activation", Conclusion: "failure"}},
+					{Name: "activation", Conclusion: "failure"},
 				}}}}
 			healthRunGH = func(context.Context, string, ...string) ([]byte, error) {
 				if response == "api-error" {

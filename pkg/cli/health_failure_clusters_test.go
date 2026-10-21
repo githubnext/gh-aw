@@ -77,13 +77,13 @@ func TestHealthReusesCrossVersionRawJobsNotDerivedMetrics(t *testing.T) {
 	run := WorkflowRun{DatabaseID: 123, Status: "completed", Conclusion: "failure",
 		WorkflowName: "example", WorkflowPath: ".github/workflows/example.lock.yml",
 		URL: "https://github.com/org/repo/actions/runs/123", Repository: "org/repo", Attempt: 1}
-	summary := &RunSummary{CLIVersion: "v0.92.6", RunID: 123, RunAnalysis: RunAnalysis{
-		Run: run, JobDetails: []JobInfoWithDuration{{JobInfo: JobInfo{
+	summary := &RunSummary{CLIVersion: "v0.92.6", RunID: 123,
+		Run: run, JobDetails: []JobInfoWithDuration{{
 			Name: "activation", Conclusion: "failure",
 			Steps: []JobStep{{Name: "Restore daily AIC scan observations", Conclusion: "failure"}},
-		}}},
+		}},
 		MCPFailures: []MCPFailureReport{{ServerName: "untrusted-derived-diagnostic"}},
-	}}
+	}
 	summary.Run.TurnsAvailable = true
 	dir := filepath.Join(t.TempDir(), "run-123")
 	require.NoError(t, os.MkdirAll(dir, 0o700))
