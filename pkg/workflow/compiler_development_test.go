@@ -92,11 +92,9 @@ permissions:
   contents: read
 tools:
   github: false
-pre-steps:
-  - uses: actions/cache@v5
-    with:
-      key: dependencies
-      path: node_modules
+cache:
+  key: dependencies
+  path: node_modules
 jobs:
   custom:
     runs-on: ubuntu-latest
@@ -130,7 +128,17 @@ Test dry-run cache isolation.
 				} else {
 					assert.NotContains(t, compiled, "cache-mode")
 				}
-				assert.Contains(t, string(content), "actions/cache@")
+				if dryRun {
+					assert.Contains(t, string(content), "actions/cache/restore@")
+					assert.NotContains(t, string(content), "actions/cache@")
+					jobs, ok := compiled["jobs"].(map[string]any)
+					require.True(t, ok)
+					custom, ok := jobs["custom"].(map[string]any)
+					require.True(t, ok)
+					assert.Equal(t, "${{ !always() }}", custom["if"])
+				} else {
+					assert.Contains(t, string(content), "actions/cache@")
+				}
 				assert.Contains(t, compiled["jobs"], "custom")
 			}
 		})

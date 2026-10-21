@@ -584,7 +584,8 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 				require.Contains(t, compiled, expected, "compiled %s is missing %s", id, expected)
 			}
 			require.NotContains(t, compiled, "github.aw.import-inputs", "import inputs must be resolved")
-			require.Contains(t, compiled, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`, "safe outputs must not publish test issues")
+			require.NotContains(t, compiled, `GH_AW_SAFE_OUTPUTS_STAGED: "true"`, "queue workers must keep Claim settlement live")
+			require.Contains(t, compiled, `\"noop\":{\"max\":2,\"report-as-issue\":\"false\"}`, "the conformance noop must not publish test issues")
 		})
 	}
 }

@@ -350,7 +350,7 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					case "admission":
 						allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 					case "safe_outputs":
-						allowedPermissions = map[string]string{"actions": "write", "contents": "write"}
+						allowedPermissions = map[string]string{"actions": "write", "contents": "write", "issues": "write"}
 					}
 					if name == "activation" || name == "safe_outputs" {
 						assert.Equal(t, allowedPermissions, config.Permissions, "%s must have only its required queue permissions", name)
@@ -402,7 +402,14 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))
 			assert.Contains(t, string(lock), `GH_AW_ADMISSION_MAX_AI_CREDITS`)
 			assert.Contains(t, string(lock), `\"maxCacheMisses\":12`)
-			assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
+			if entry.id == "engine-conformance-agy" {
+				assert.NotContains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`,
+					"queue workers must settle Claims without workflow-wide staging")
+				assert.Contains(t, string(lock), `\"noop\":{\"max\":2,\"report-as-issue\":\"false\"}`,
+					"the conformance noop must remain probe-only")
+			} else {
+				assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
+			}
 			assert.Contains(t, string(lock), `"threat_detection":{"mode":"disabled"}`)
 			assert.NotContains(t, callee.Jobs, "detection")
 			assertAgyConformanceProbes(t, callee, false)
@@ -430,6 +437,10 @@ func TestAgyConformanceEntryPointsShareConfiguration(t *testing.T) {
 	delete(canonical, "max-ai-credits")
 	delete(canonical, "imports")
 	delete(canonical, "tools")
+	safeOutputs, ok := canonical["safe-outputs"].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, safeOutputs, "staged", "queue workers must keep Claim settlement live")
+	safeOutputs["staged"] = true
 	for _, entry := range []struct {
 		id, trigger string
 		credits     int

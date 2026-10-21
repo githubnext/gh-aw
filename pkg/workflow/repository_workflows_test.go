@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepositoryWorkflowsCompileDryRun(t *testing.T) {
+func TestRepositoryWorkflowsCompileWithoutEmitting(t *testing.T) {
 	// Resolve remote imports from the checked-in repository cache, not pkg/workflow.
 	t.Chdir(filepath.Join("..", ".."))
 	sources, err := filepath.Glob(filepath.Join(".github", "workflows", "*.md"))
@@ -25,10 +25,9 @@ func TestRepositoryWorkflowsCompileDryRun(t *testing.T) {
 				WithWorkflowIdentifier(name),
 				WithNoEmit(true),
 			)
-			compiler.SetDryRun(true)
 			compiler.SetQuiet(true)
 
-			require.NoError(t, compiler.CompileWorkflow(source), "repository workflow should compile in dry-run mode")
+			require.NoError(t, compiler.CompileWorkflow(source), "repository workflow should compile without emitting lock files")
 		})
 	}
 }

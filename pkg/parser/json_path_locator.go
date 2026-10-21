@@ -115,7 +115,7 @@ func additionalPropertyNamesFor(info JSONPathInfo) []string {
 			return ap.Properties
 		}
 		switch info.ErrorKind.(type) {
-		case *kind.OneOf, *kind.AnyOf, *kind.AllOf, *kind.Group:
+		case *kind.OneOf, *kind.AnyOf, *kind.AllOf, *kind.Group, *kind.Reference:
 			return additionalPropertyNamesFromCauses(info.Causes)
 		default:
 			return nil
@@ -193,7 +193,7 @@ func matchesPathAtLevel(line string, pathSegments []PathSegment, level int, arra
 	// This is a simplified version - in a full implementation we'd need to track
 	// the complete path context as we traverse the YAML
 
-	if level < len(pathSegments) {
+	if level >= 0 && level < len(pathSegments) {
 		segment := pathSegments[level]
 
 		switch segment.Type {
@@ -266,12 +266,12 @@ func extractAdditionalPropertyNames(errorMessage string) []string {
 	}
 
 	// Extract all quoted property names from the matched string
-	propMatches := quotedPropertyPattern.FindAllStringSubmatch(match[1], -1)
+	propMatches := quotedPropertyPattern.FindAllStringSubmatch(match[1], -1) //nolint:uncheckedsliceindex // Capture group length is checked above.
 
 	var properties []string
 	for _, propMatch := range propMatches {
 		if len(propMatch) > 1 {
-			prop := strings.TrimSpace(propMatch[1])
+			prop := strings.TrimSpace(propMatch[1]) //nolint:uncheckedsliceindex // Capture group length is checked above.
 			if prop != "" {
 				properties = append(properties, prop)
 			}
@@ -343,10 +343,8 @@ func extractNestedSubYAML(yamlContent string, nestedSection NestedSection) (stri
 	lines := strings.Split(yamlContent, "\n")
 	subYAMLLines := make([]string, 0, nestedSection.endLine-nestedSection.startLine+1)
 	var baseIndent = -1
-	for lineNum := nestedSection.startLine; lineNum <= nestedSection.endLine && lineNum < len(lines); lineNum++ {
-		line := lines[lineNum]
-
-		if lineNum == nestedSection.startLine {
+	for lineNum, line := range lines {
+		if lineNum <= nestedSection.startLine || lineNum > nestedSection.endLine {
 			continue
 		}
 
@@ -409,7 +407,7 @@ func findNestedSectionStart(lines []string, pathSegments []PathSegment) (int, in
 			continue
 		}
 		lineLevel := (len(line) - len(strings.TrimLeft(line, " \t"))) / 2
-		if currentLevel >= len(pathSegments) {
+		if currentLevel < 0 || currentLevel >= len(pathSegments) {
 			continue
 		}
 		segment := pathSegments[currentLevel]
@@ -436,8 +434,10 @@ func findNestedSectionEnd(lines []string, foundLine, baseIndentLevel int) int {
 	endLine := len(lines) - 1          // Default to end of file
 	targetLevel := baseIndentLevel - 1 // The level of the key we found
 
-	for lineNum := foundLine + 1; lineNum < len(lines); lineNum++ {
-		line := lines[lineNum]
+	for lineNum, line := range lines {
+		if lineNum <= foundLine {
+			continue
+		}
 		trimmedLine := strings.TrimSpace(line)
 
 		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {

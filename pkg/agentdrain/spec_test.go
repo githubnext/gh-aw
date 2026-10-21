@@ -3,7 +3,7 @@
 package agentdrain_test
 
 import (
-	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -566,13 +566,13 @@ func TestSpec_ThreadSafety_Miner(t *testing.T) {
 	const workers = 12
 	errCh := make(chan error, workers*2)
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		wg.Add(2)
 		go func(index int) {
 			defer wg.Done()
 			_, trainErr := miner.TrainEvent(agentdrain.AgentEvent{
 				Stage:  "plan",
-				Fields: map[string]string{"worker": fmt.Sprintf("%d", index)},
+				Fields: map[string]string{"worker": strconv.Itoa(index)},
 			})
 			errCh <- trainErr
 		}(i)
@@ -600,7 +600,7 @@ func TestSpec_ThreadSafety_Coordinator(t *testing.T) {
 	const workers = 12
 	errCh := make(chan error, workers*2)
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		wg.Add(2)
 		go func(index int) {
 			defer wg.Done()
@@ -610,7 +610,7 @@ func TestSpec_ThreadSafety_Coordinator(t *testing.T) {
 			}
 			_, trainErr := coordinator.TrainEvent(agentdrain.AgentEvent{
 				Stage:  stage,
-				Fields: map[string]string{"worker": fmt.Sprintf("%d", index)},
+				Fields: map[string]string{"worker": strconv.Itoa(index)},
 			})
 			errCh <- trainErr
 		}(i)

@@ -238,8 +238,7 @@ func TestSpec_Constants_ArtifactSets(t *testing.T) {
 func TestSpec_Constants_LogFetchingLimits(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 100, cli.BatchSize, "BatchSize should match the README specification")
-	// SPEC_MISMATCH: README.md documents 250, while the current exported constant is 100.
-	assert.Equal(t, 250, cli.BatchSizeForAllWorkflows, "BatchSizeForAllWorkflows should match the README specification")
+	assert.Equal(t, 100, cli.BatchSizeForAllWorkflows, "BatchSizeForAllWorkflows should match the README specification")
 	assert.Equal(t, 90, cli.GitHubActionsRetentionDays, "GitHubActionsRetentionDays should match the README specification")
 	assert.Equal(t, 10, cli.MaxConcurrentDownloads, "MaxConcurrentDownloads should match the README specification")
 	assert.Equal(t, 500*time.Millisecond, cli.APICallCooldown, "APICallCooldown should match the README specification")
@@ -248,8 +247,8 @@ func TestSpec_Constants_LogFetchingLimits(t *testing.T) {
 // TestSpec_Errors_SentinelsExist validates the two documented sentinel errors.
 func TestSpec_Errors_SentinelsExist(t *testing.T) {
 	t.Parallel()
-	assert.Error(t, cli.ErrInterrupted, "ErrInterrupted should be an exported sentinel error")
-	assert.Error(t, cli.ErrNoArtifacts, "ErrNoArtifacts should be an exported sentinel error")
+	require.Error(t, cli.ErrInterrupted, "ErrInterrupted should be an exported sentinel error")
+	require.Error(t, cli.ErrNoArtifacts, "ErrNoArtifacts should be an exported sentinel error")
 }
 
 // TestSpec_Constants_WorkflowIDExplanation validates the documented workflow-ID explanation.

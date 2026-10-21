@@ -106,7 +106,7 @@ func compileDiagnosticChild(scenario string) execCmdFunc {
 	}
 }
 
-func TestCompileToolAgentJobHealthStrictDryRun(t *testing.T) {
+func TestCompileToolAgentJobHealthStrictDryRunRejectsHostSteps(t *testing.T) {
 	t.Parallel()
 	if _, err := exec.LookPath("shellcheck"); err != nil {
 		t.Skip("shellcheck is required for strict dry-run compilation")
@@ -137,7 +137,9 @@ func TestCompileToolAgentJobHealthStrictDryRun(t *testing.T) {
 	session := connectInMemory(t, server)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	var previousLock []byte
+	lockPath := filepath.Join(workflowsDir, "agent-job-health.lock.yml")
+	originalLock, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
 	for range 2 {
 		result, err := session.CallTool(ctx, &mcp.CallToolParams{
 			Name: "compile", Arguments: map[string]any{
@@ -151,24 +153,27 @@ func TestCompileToolAgentJobHealthStrictDryRun(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(output), &results), output)
 		require.NotEmpty(t, results)
 		var report *DryRunCompileReport
+		rejected := false
 		for _, validation := range results {
-			require.True(t, validation.Valid, output)
+			require.False(t, validation.Valid, output)
 			if validation.DryRun != nil {
 				report = validation.DryRun
+			} else {
+				require.NotEmpty(t, validation.Errors, output)
+				assert.Contains(t, validation.Errors[0].Message, "--dry-run cannot safely execute steps")
+				rejected = true
 			}
 			for _, warning := range validation.Warnings {
 				assert.NotContains(t, warning.Message, "workflow:prompts")
 				assert.NotContains(t, warning.Message, "workflow_dispatch: null")
 			}
 		}
+		require.True(t, rejected, output)
 		require.NotNil(t, report, output)
-		assert.Equal(t, "passed", report.Gate, output)
-		lock, err := os.ReadFile(filepath.Join(workflowsDir, "agent-job-health.lock.yml"))
+		assert.Equal(t, "failed", report.Gate, output)
+		lock, err := os.ReadFile(lockPath)
 		require.NoError(t, err)
-		if previousLock != nil {
-			assert.Equal(t, previousLock, lock, "repeated strict dry-run compiles must be deterministic")
-		}
-		previousLock = lock
+		assert.Equal(t, originalLock, lock, "rejected dry-run compiles must preserve the existing lock file")
 	}
 }
 

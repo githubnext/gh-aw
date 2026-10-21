@@ -138,9 +138,9 @@ func TestScannerFindingsToShared(t *testing.T) {
 				return poutineFindingsToShared(output.Findings, output.Rules, "fallback.yml", fileLines)
 			},
 			want: []scanfindings.Finding{
-				{RuleID: "known", Severity: scanfindings.SeverityHigh, Message: "[error] known: Rule title - extra detail", File: "native.yml", Line: 3, Column: 1, Context: lines},
-				{RuleID: "missing", Severity: scanfindings.SeverityMedium, Message: "[warning] missing: missing", File: "fallback.yml", Line: 1, Column: 1, Context: []string{"one"}},
-				{RuleID: "note", Severity: scanfindings.SeverityInfo, Message: "[note] note: note", File: "note.yml", Line: -1, Column: 1},
+				{RuleID: "known", Severity: scanfindings.SeverityHigh, Message: "[error] known: Rule title - extra detail", File: "native.yml", Line: 3, Column: 0, Context: lines},
+				{RuleID: "missing", Severity: scanfindings.SeverityMedium, Message: "[warning] missing: missing", File: "fallback.yml", Line: 1, Column: 0, Context: []string{"one"}},
+				{RuleID: "note", Severity: scanfindings.SeverityInfo, Message: "[note] note: note", File: "note.yml", Line: -1, Column: 0},
 			},
 			edges: []scannerFindingTestCase{
 				{name: "nil input", fixture: `{"findings":null}`, want: []scanfindings.Finding{}},
@@ -148,7 +148,7 @@ func TestScannerFindingsToShared(t *testing.T) {
 				{
 					name:    "partial finding and null rules use defaults",
 					fixture: `{"findings":[{}],"rules":null}`,
-					want:    []scanfindings.Finding{{Severity: scanfindings.SeverityMedium, Message: "[warning]", File: "fallback.yml", Line: 1, Column: 1, Context: []string{"one"}}},
+					want:    []scanfindings.Finding{{Severity: scanfindings.SeverityMedium, Message: "[warning]", File: "fallback.yml", Line: 1, Column: 0, Context: []string{"one"}}},
 				},
 				{
 					name: "invalid lines and unknown rule severity",
@@ -156,14 +156,14 @@ func TestScannerFindingsToShared(t *testing.T) {
 						{"rule_id":"future","meta":{"path":"second.yml","line":6}}],
 						"rules":{"negative":{},"future":{"level":"future"}}}`,
 					want: []scanfindings.Finding{
-						{RuleID: "negative", Severity: scanfindings.SeverityMedium, Message: "[warning] negative: negative", File: "first.yml", Line: -2, Column: 1},
-						{RuleID: "future", Severity: scanfindings.SeverityUnknown, Message: "[future] future: future", File: "second.yml", Line: 6, Column: 1},
+						{RuleID: "negative", Severity: scanfindings.SeverityMedium, Message: "[warning] negative: negative", File: "first.yml", Line: -2, Column: 0},
+						{RuleID: "future", Severity: scanfindings.SeverityUnknown, Message: "[future] future: future", File: "second.yml", Line: 6, Column: 0},
 					},
 				},
 				{
 					name:    "valid location without source",
 					fixture: `{"findings":[{"meta":{"line":3}}]}`, noSource: true,
-					want: []scanfindings.Finding{{Severity: scanfindings.SeverityMedium, Message: "[warning]", File: "fallback.yml", Line: 3, Column: 1}},
+					want: []scanfindings.Finding{{Severity: scanfindings.SeverityMedium, Message: "[warning]", File: "fallback.yml", Line: 3, Column: 0}},
 				},
 				{
 					name: "input order paths and duplicates are preserved",
@@ -171,9 +171,9 @@ func TestScannerFindingsToShared(t *testing.T) {
 						{"rule_id":"a","meta":{"path":"second.yml"}},{"rule_id":"z","meta":{"path":"first.yml"}}],
 						"rules":{"a":{"level":"error"}}}`,
 					want: []scanfindings.Finding{
-						{RuleID: "z", Severity: scanfindings.SeverityMedium, Message: "[warning] z: z", File: "first.yml", Line: 1, Column: 1, Context: []string{"one"}},
-						{RuleID: "a", Severity: scanfindings.SeverityHigh, Message: "[error] a: a", File: "second.yml", Line: 1, Column: 1, Context: []string{"one"}},
-						{RuleID: "z", Severity: scanfindings.SeverityMedium, Message: "[warning] z: z", File: "first.yml", Line: 1, Column: 1, Context: []string{"one"}},
+						{RuleID: "z", Severity: scanfindings.SeverityMedium, Message: "[warning] z: z", File: "first.yml", Line: 1, Column: 0, Context: []string{"one"}},
+						{RuleID: "a", Severity: scanfindings.SeverityHigh, Message: "[error] a: a", File: "second.yml", Line: 1, Column: 0, Context: []string{"one"}},
+						{RuleID: "z", Severity: scanfindings.SeverityMedium, Message: "[warning] z: z", File: "first.yml", Line: 1, Column: 0, Context: []string{"one"}},
 					},
 				},
 			},
@@ -224,9 +224,9 @@ func TestScannerFindingsToShared(t *testing.T) {
 				return runnerGuardFindingsToShared(output.Findings, fileLines)
 			},
 			want: []scanfindings.Finding{
-				{RuleID: "RGS-001", Severity: scanfindings.SeverityHigh, Message: "[HIGH] RGS-001: Rule name - extra detail", File: "native.yml", Line: 3, Column: 1, Context: lines},
-				{RuleID: "RGS-002", Severity: scanfindings.SeverityUnknown, Message: "RGS-002: Unnamed severity", File: "default.yml", Line: 1, Column: 1, Context: []string{"one"}},
-				{RuleID: "RGS-003", Severity: scanfindings.SeverityLow, Message: "[low] RGS-003", File: "negative.yml", Line: -1, Column: 1},
+				{RuleID: "RGS-001", Severity: scanfindings.SeverityHigh, Message: "[HIGH] RGS-001: Rule name - extra detail", File: "native.yml", Line: 3, Column: 0, Context: lines},
+				{RuleID: "RGS-002", Severity: scanfindings.SeverityUnknown, Message: "RGS-002: Unnamed severity", File: "default.yml", Line: 1, Column: 0, Context: []string{"one"}},
+				{RuleID: "RGS-003", Severity: scanfindings.SeverityLow, Message: "[low] RGS-003", File: "negative.yml", Line: -1, Column: 0},
 			},
 			edges: []scannerFindingTestCase{
 				{name: "nil input", fixture: `{"findings":null}`, want: []scanfindings.Finding{}},
@@ -234,30 +234,30 @@ func TestScannerFindingsToShared(t *testing.T) {
 				{
 					name:    "partial finding does not invent a file",
 					fixture: `{"findings":[{}]}`,
-					want:    []scanfindings.Finding{{Severity: scanfindings.SeverityUnknown, Line: 1, Column: 1, Context: []string{"one"}}},
+					want:    []scanfindings.Finding{{Severity: scanfindings.SeverityUnknown, Line: 1, Column: 0, Context: []string{"one"}}},
 				},
 				{
 					name: "invalid lines and unknown severity",
 					fixture: `{"findings":[{"rule_id":"negative","file":"first.yml","line":-2},
 						{"rule_id":"future","file":"second.yml","line":6,"severity":"future"}]}`,
 					want: []scanfindings.Finding{
-						{RuleID: "negative", Severity: scanfindings.SeverityUnknown, Message: "negative", File: "first.yml", Line: -2, Column: 1},
-						{RuleID: "future", Severity: scanfindings.SeverityUnknown, Message: "[future] future", File: "second.yml", Line: 6, Column: 1},
+						{RuleID: "negative", Severity: scanfindings.SeverityUnknown, Message: "negative", File: "first.yml", Line: -2, Column: 0},
+						{RuleID: "future", Severity: scanfindings.SeverityUnknown, Message: "[future] future", File: "second.yml", Line: 6, Column: 0},
 					},
 				},
 				{
 					name:    "valid location without source",
 					fixture: `{"findings":[{"file":"native.yml","line":3}]}`, noSource: true,
-					want: []scanfindings.Finding{{Severity: scanfindings.SeverityUnknown, File: "native.yml", Line: 3, Column: 1}},
+					want: []scanfindings.Finding{{Severity: scanfindings.SeverityUnknown, File: "native.yml", Line: 3, Column: 0}},
 				},
 				{
 					name: "input order paths and duplicates are preserved",
 					fixture: `{"findings":[{"rule_id":"z","file":"first.yml"},
 						{"rule_id":"a","file":"second.yml","severity":"HIGH"},{"rule_id":"z","file":"first.yml"}]}`,
 					want: []scanfindings.Finding{
-						{RuleID: "z", Severity: scanfindings.SeverityUnknown, Message: "z", File: "first.yml", Line: 1, Column: 1, Context: []string{"one"}},
-						{RuleID: "a", Severity: scanfindings.SeverityHigh, Message: "[HIGH] a", File: "second.yml", Line: 1, Column: 1, Context: []string{"one"}},
-						{RuleID: "z", Severity: scanfindings.SeverityUnknown, Message: "z", File: "first.yml", Line: 1, Column: 1, Context: []string{"one"}},
+						{RuleID: "z", Severity: scanfindings.SeverityUnknown, Message: "z", File: "first.yml", Line: 1, Column: 0, Context: []string{"one"}},
+						{RuleID: "a", Severity: scanfindings.SeverityHigh, Message: "[HIGH] a", File: "second.yml", Line: 1, Column: 0, Context: []string{"one"}},
+						{RuleID: "z", Severity: scanfindings.SeverityUnknown, Message: "z", File: "first.yml", Line: 1, Column: 0, Context: []string{"one"}},
 					},
 				},
 			},
