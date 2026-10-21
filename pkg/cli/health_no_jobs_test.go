@@ -86,8 +86,11 @@ func TestHealthRunHasJobsRequiresConfirmedEvidence(t *testing.T) {
 	}{
 		{name: "no jobs", response: `{"jobs":[]}`},
 		{name: "executed failure", response: `{"jobs":[{"id":42}]}`, wantJobs: true},
+		{name: "unrecognized job fields", response: `{"total_count":"unknown","jobs":[{"id":"new-format","steps":"unknown"}]}`, wantJobs: true},
+		{name: "unrecognized step fields", response: `{"jobs":[{"steps":[{"number":"three","completed_at":{}}]}]}`, wantJobs: true},
 		{name: "API unavailable", apiError: errors.New("HTTP 502"), wantErr: "failed to check jobs"},
 		{name: "invalid JSON", response: `{`, wantErr: "failed to parse jobs"},
+		{name: "null payload", response: `null`, wantErr: "missing jobs array"},
 		{name: "missing jobs", response: `{}`, wantErr: "missing jobs array"},
 		{name: "null jobs", response: `{"jobs":null}`, wantErr: "missing jobs array"},
 		{name: "malformed jobs", response: `{"jobs":{}}`, wantErr: "failed to parse jobs"},
@@ -110,6 +113,7 @@ func TestHealthRunHasJobsRequiresConfirmedEvidence(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantJobs, hasJobs)
+				assert.Empty(t, collection.jobs, "presence observations must not become typed failure evidence")
 			}
 			assert.Equal(t, 1, collection.APIRequests)
 			if tc.wantErr != "" {

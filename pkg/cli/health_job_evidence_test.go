@@ -100,12 +100,20 @@ func TestHealthRepresentativeJobPaginationIsBounded(t *testing.T) {
 	assert.Len(t, collection.jobs[key].details, 300)
 	assert.False(t, collection.JobEvidence[42].Complete)
 	assert.Equal(t, 300, collection.JobEvidence[42].Jobs)
+	assert.True(t, collection.Partial)
+	assert.Equal(t, "job_evidence_incomplete", collection.Reason)
+	assert.Contains(t, collection.Warning, "run 42")
+	clusters, plan := buildHealthFailureClusters([]WorkflowRun{{DatabaseID: 42, Attempt: 2, Conclusion: "failure"}},
+		HealthConfig{RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection})
+	require.Len(t, clusters, 1)
+	assert.Equal(t, "metadata_only", clusters[0].Evidence)
+	assert.Equal(t, 1, plan.MetadataOnlyRuns)
 }
 
 func TestHealthRepresentativeJobErrorsPreservePresenceEvidence(t *testing.T) {
 	original := healthRunGH
 	t.Cleanup(func() { healthRunGH = original })
-	for _, response := range []string{"api-error", "{", `{}`, `{"jobs":null}`} {
+	for _, response := range []string{"api-error", "{", `{}`, `{"jobs":null}`, `{"jobs":[{"steps":"unknown"}]}`} {
 		t.Run(response, func(t *testing.T) {
 			total := 2
 			key := healthRunAttempt{id: 42, attempt: 1}
@@ -126,6 +134,100 @@ func TestHealthRepresentativeJobErrorsPreservePresenceEvidence(t *testing.T) {
 			require.Len(t, collection.jobs[key].details, 1)
 			assert.Equal(t, "activation", collection.jobs[key].details[0].Name)
 			assert.False(t, collection.JobEvidence[42].Complete)
+			assert.True(t, collection.Partial)
+			assert.Contains(t, collection.Warning, err.Error())
 		})
 	}
+}
+
+func TestHealthRepresentativeJobsFindFailureOnLaterPage(t *testing.T) {
+	original := healthRunGH
+	t.Cleanup(func() { healthRunGH = original })
+	for _, lastPage := range []string{"complete", "HTTP 502", "malformed steps", "request budget", "rate limit"} {
+		t.Run(lastPage, func(t *testing.T) {
+			collection := &HealthCollection{Host: "github.com", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000}}
+			run := WorkflowRun{DatabaseID: 42, Attempt: 1, Conclusion: "failure"}
+			calls := 0
+			healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				calls++
+				endpoint := args[3]
+				if strings.HasSuffix(endpoint, "?per_page=1") {
+					return []byte(`{"jobs":[{"name":"activation","conclusion":"success","steps":"unknown"}]}`), nil
+				}
+				if strings.HasSuffix(endpoint, "page=1") {
+					jobs := make([]JobInfoWithDuration, 100)
+					jobs[0] = JobInfoWithDuration{Name: "activation", Conclusion: "success"}
+					if lastPage != "complete" {
+						jobs[0].Conclusion = "failure"
+						jobs[0].Steps = []JobStep{{Name: "Earlier failed step", Conclusion: "failure"}}
+					}
+					out, err := json.Marshal(map[string]any{"total_count": 101, "jobs": jobs})
+					require.NoError(t, err)
+					if lastPage == "request budget" {
+						collection.APIRequests = healthMaximumAPIRequests
+					}
+					return out, nil
+				}
+				switch lastPage {
+				case "HTTP 502":
+					return nil, errors.New("HTTP 502")
+				case "malformed steps":
+					return []byte(`{"jobs":[{"steps":"unknown"}]}`), nil
+				case "rate limit":
+					return []byte("API rate limit exceeded"), errors.New("HTTP 403")
+				}
+				return []byte(`{"total_count":101,"jobs":[{"name":"agent","conclusion":"failure","steps":[{"name":"Later failed step","conclusion":"failure"}]}]}`), nil
+			}
+			hasJobs, err := healthRunHasJobs(run, collection)
+			require.NoError(t, err)
+			require.True(t, hasJobs)
+			err = collectHealthRepresentativeJobs(run, collection)
+			config := HealthConfig{RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection}
+			clusters, plan := buildHealthFailureClusters([]WorkflowRun{run}, config)
+			require.NotNil(t, plan)
+			if lastPage == "complete" {
+				require.NoError(t, err)
+				assert.True(t, collection.JobEvidence[42].Complete)
+				assert.Equal(t, 101, collection.JobEvidence[42].Jobs)
+				assert.Zero(t, plan.MetadataOnlyRuns)
+				found := false
+				for _, cluster := range clusters {
+					found = found || cluster.Signal.Step == "Later failed step"
+				}
+				assert.True(t, found, "include failed jobs beyond the first 100")
+				assert.False(t, collection.Partial)
+			} else {
+				require.Error(t, err)
+				assert.False(t, collection.JobEvidence[42].Complete)
+				assert.Equal(t, 100, collection.JobEvidence[42].Jobs)
+				require.Len(t, clusters, 1)
+				assert.Equal(t, "metadata_only", clusters[0].Evidence, "discard partial typed signals, even observed failures")
+				assert.Equal(t, 1, plan.MetadataOnlyRuns)
+				assert.True(t, collection.Partial)
+				if lastPage == "request budget" || lastPage == "rate limit" {
+					assert.True(t, collection.stopped)
+					assert.Contains(t, []string{"request_budget", "rate_limit"}, collection.Reason)
+				} else {
+					assert.False(t, collection.stopped)
+					assert.Equal(t, "job_evidence_incomplete", collection.Reason)
+				}
+			}
+
+			assert.LessOrEqual(t, calls, 3, "never retry requests or credentials")
+			assert.True(t, collection.jobPresence[healthRunAttempt{id: 42, attempt: 1}])
+		})
+	}
+}
+
+func TestHealthShortJobPageDoesNotOverrideKnownTotal(t *testing.T) {
+	original := healthRunGH
+	t.Cleanup(func() { healthRunGH = original })
+	healthRunGH = func(context.Context, string, ...string) ([]byte, error) {
+		return []byte(`{"total_count":2,"jobs":[{"name":"activation","conclusion":"success"}]}`), nil
+	}
+	collection := &HealthCollection{Host: "github.com", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000}}
+	jobs := &healthJobs{}
+	require.NoError(t, appendHealthJobPage("repos/org/repo/actions/runs/42", 1, jobs, collection))
+	assert.False(t, jobs.complete, "a short page is not complete when the server reports more jobs")
+	assert.Len(t, jobs.details, 1)
 }

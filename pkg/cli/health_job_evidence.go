@@ -23,12 +23,16 @@ type HealthJobEvidence struct {
 	UpdatedAt time.Time `json:"updated_at,omitzero"`
 }
 
-// Only failure-first representatives expand the inexpensive presence lookup.
-func collectHealthRepresentativeJobs(run WorkflowRun, collection *HealthCollection) error {
+// Only failure-first representatives collect typed jobs beyond the presence lookup.
+func collectHealthRepresentativeJobs(run WorkflowRun, collection *HealthCollection) (err error) {
 	key := healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}
+	if collection.jobs == nil {
+		collection.jobs = make(map[healthRunAttempt]*healthJobs)
+	}
 	jobs := collection.jobs[key]
 	if jobs == nil {
-		return nil
+		jobs = &healthJobs{}
+		collection.jobs[key] = jobs
 	}
 	if collection.JobEvidence == nil {
 		collection.JobEvidence = make(map[int64]HealthJobEvidence)
@@ -38,8 +42,23 @@ func collectHealthRepresentativeJobs(run WorkflowRun, collection *HealthCollecti
 			Source: "jobs_api", Jobs: len(jobs.details), Complete: jobs.complete,
 			Attempt: run.Attempt, UpdatedAt: run.UpdatedAt,
 		}
+		if !jobs.complete && !collection.stopped {
+			collection.Partial = true
+			if collection.Reason == "" {
+				collection.Reason = "job_evidence_incomplete"
+			}
+			warning := fmt.Sprintf("Health job evidence for run %d is incomplete after %d jobs; continuing with available run evidence", run.DatabaseID, len(jobs.details))
+			if err != nil {
+				warning += ": " + err.Error()
+			}
+			if collection.Warning != "" {
+				collection.Warning += "; "
+			}
+			collection.Warning += warning
+			healthLog.Printf("%s", warning)
+		}
 	}()
-	if jobs.total != nil && *jobs.total > len(jobs.details) {
+	if !jobs.complete {
 		endpoint := fmt.Sprintf("%s/actions/runs/%d", healthRepositoryEndpoint(collection.repoOverride), run.DatabaseID)
 		if run.Attempt > 0 {
 			endpoint += fmt.Sprintf("/attempts/%d", run.Attempt)
@@ -77,6 +96,9 @@ func appendHealthJobPage(endpoint string, page int, jobs *healthJobs, collection
 	}
 	jobs.details = append(jobs.details, data.Jobs...)
 	jobs.total = data.TotalCount
-	jobs.complete = len(data.Jobs) < 100 || (data.TotalCount != nil && len(jobs.details) >= *data.TotalCount)
+	jobs.complete = len(data.Jobs) < 100
+	if data.TotalCount != nil {
+		jobs.complete = len(jobs.details) >= *data.TotalCount
+	}
 	return nil
 }

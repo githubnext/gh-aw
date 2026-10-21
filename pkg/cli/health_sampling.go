@@ -150,8 +150,7 @@ func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, erro
 		return false, fmt.Errorf("failed to check jobs for health run %d: %w", run.DatabaseID, err)
 	}
 	var data struct {
-		Jobs       []JobInfoWithDuration `json:"jobs"`
-		TotalCount *int                  `json:"total_count"`
+		Jobs []json.RawMessage `json:"jobs"`
 	}
 	if err := json.Unmarshal(out, &data); err != nil {
 		return false, fmt.Errorf("failed to parse jobs for health run %d: %w", run.DatabaseID, err)
@@ -164,12 +163,6 @@ func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, erro
 	}
 	hasJobs := len(data.Jobs) > 0
 	collection.jobPresence[key] = hasJobs
-	if collection.jobs == nil {
-		collection.jobs = make(map[healthRunAttempt]*healthJobs)
-	}
-	jobs := &healthJobs{details: data.Jobs, total: data.TotalCount}
-	jobs.complete = data.TotalCount != nil && len(data.Jobs) >= *data.TotalCount
-	collection.jobs[key] = jobs
 	return hasJobs, nil
 }
 

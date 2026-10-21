@@ -33,7 +33,7 @@ func buildHealthFailureClusters(runs []WorkflowRun, config HealthConfig) ([]Fail
 		}
 		enrichHealthFailureFromCache(&data, run, config)
 		if config.collection != nil {
-			if jobs := config.collection.jobs[healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}]; jobs != nil {
+			if jobs := config.collection.jobs[healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}]; jobs != nil && jobs.complete {
 				pr := ProcessedRun{Run: run, JobDetails: jobs.details}
 				data.FailureSignals = append(data.FailureSignals, failureSignalsForRun(pr)...)
 			}

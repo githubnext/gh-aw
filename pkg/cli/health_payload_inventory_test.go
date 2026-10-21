@@ -132,7 +132,7 @@ func TestHealthJoblessCandidateDoesNotHideExecutedRepresentative(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, runs, 1)
 	assert.Equal(t, int64(2), runs[0].DatabaseID)
-	assert.Equal(t, 2, jobs)
+	assert.Equal(t, 3, jobs, "two presence probes and one typed representative inventory")
 	assert.Equal(t, "jobless", collection.PotentialIssues[0].RepresentativeStatus)
 	assert.Equal(t, 2, collection.FailureCandidates)
 }

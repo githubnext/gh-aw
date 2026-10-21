@@ -27,11 +27,16 @@ func TestHealthFailureClustersReuseCacheAndRejectStaleEvidence(t *testing.T) {
 	}}
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "run-123"), 0755))
 	require.NoError(t, saveRunSummary(filepath.Join(root, "run-123"), summary, false))
-	config := HealthConfig{RepoOverride: "org/repo", LogsDir: root}
+	config := HealthConfig{RepoOverride: "org/repo", LogsDir: root, collection: &HealthCollection{
+		jobs: map[healthRunAttempt]*healthJobs{{id: 123, attempt: 1}: {
+			details: []JobInfoWithDuration{{Name: "partial live job", Conclusion: "failure"}},
+		}},
+	}}
 	clusters, plan := buildHealthFailureClusters([]WorkflowRun{run}, config)
 	require.Len(t, clusters, 1)
 	assert.Equal(t, "failure_boundary", clusters[0].SignalRole)
 	assert.Equal(t, "Start MCP Gateway", clusters[0].Signal.Step)
+	assert.Equal(t, 1, plan.ObservedEvidenceRuns, "usable cached evidence survives incomplete live inventory")
 	require.Len(t, plan.SelectedRuns, 1)
 	assert.Equal(t, filepath.Join(root, "run-123"), plan.SelectedRuns[0].LogsPath)
 	run.Attempt++
@@ -39,6 +44,18 @@ func TestHealthFailureClustersReuseCacheAndRejectStaleEvidence(t *testing.T) {
 	require.Len(t, clusters, 1)
 	assert.Equal(t, "metadata_only", clusters[0].Evidence)
 	assert.Equal(t, 1, plan.MetadataOnlyRuns)
+}
+
+func TestHealthPresenceOnlyRunsRemainMetadataOnly(t *testing.T) {
+	run := WorkflowRun{DatabaseID: 42, Attempt: 1, Conclusion: "failure"}
+	collection := &HealthCollection{jobPresence: map[healthRunAttempt]bool{{id: 42, attempt: 1}: true}}
+	clusters, plan := buildHealthFailureClusters([]WorkflowRun{run},
+		HealthConfig{RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection})
+	require.Len(t, clusters, 1)
+	assert.Equal(t, "metadata_only", clusters[0].Evidence)
+	assert.Equal(t, 1, plan.MetadataOnlyRuns)
+	assert.Zero(t, plan.ObservedEvidenceRuns)
+	assert.Empty(t, collection.JobEvidence)
 }
 
 func TestHealthFailureClusterOutput(t *testing.T) {

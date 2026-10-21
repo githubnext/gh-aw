@@ -196,7 +196,7 @@ func TestHealthFailurePassSkipsSupersededScopes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, runs, 1, "the run that proves a source boundary is not current failure evidence")
 	assert.Equal(t, int64(2), runs[0].DatabaseID)
-	assert.Equal(t, 2, jobs, "stop superseded main evidence while retaining current feature evidence")
+	assert.Equal(t, 3, jobs, "only the current feature representative adds a typed job request")
 	assert.True(t, collection.FailurePassComplete)
 	require.Len(t, collection.PotentialIssues, 1)
 	assert.Equal(t, "superseded", collection.PotentialIssues[0].RepresentativeStatus)
@@ -211,6 +211,85 @@ func TestHealthFailureListingErrorIsNotSuccess(t *testing.T) {
 	_, err := fetchWorkflowRuns("", "", "", false, collection)
 	require.ErrorContains(t, err, "failure listing unavailable")
 	assert.False(t, collection.FailurePassComplete)
+}
+
+func TestHealthOptionalJobEnrichmentContinuesUnlessBudgetStops(t *testing.T) {
+	originalGH, originalList, originalFailures := healthRunGH, healthListWorkflowRuns, healthListFailureCandidates
+	t.Cleanup(func() {
+		healthRunGH, healthListWorkflowRuns, healthListFailureCandidates = originalGH, originalList, originalFailures
+	})
+	for _, response := range []string{"HTTP 502", "malformed JSON", "malformed steps", "request budget", "rate limit"} {
+		t.Run(response, func(t *testing.T) {
+			path := ".github/workflows/example.lock.yml"
+			collection := &HealthCollection{Host: "github.com",
+				APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
+				workflows:    []GitHubWorkflow{{ID: 1, Path: path}}}
+			healthListFailureCandidates = func(ListWorkflowRunsOptions, int, string, *HealthCollection) ([]workflowRunAPIResponse, time.Time, error) {
+				return []workflowRunAPIResponse{
+					{ID: 1, Path: path, Conclusion: "failure", HeadBranch: "main", RunAttempt: 1},
+					{ID: 2, Path: path, Conclusion: "failure", HeadBranch: "feature", RunAttempt: 1},
+				}, time.Time{}, nil
+			}
+			var endpoints []string
+			healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				endpoint := args[3]
+				endpoints = append(endpoints, endpoint)
+				switch {
+				case strings.HasSuffix(endpoint, "?per_page=1"):
+					if response == "request budget" {
+						collection.APIRequests = healthMaximumAPIRequests
+					}
+					return []byte(`{"jobs":[{"steps":"unknown"}]}`), nil
+				case strings.Contains(endpoint, "/runs/1/"):
+					switch response {
+					case "malformed JSON":
+						return []byte(`{`), nil
+					case "malformed steps":
+						return []byte(`{"jobs":[{"steps":"unknown"}]}`), nil
+					case "rate limit":
+						return []byte("API rate limit exceeded"), errors.New("HTTP 403")
+					default:
+						return nil, errors.New("HTTP 502")
+					}
+				default:
+					return []byte(`{"total_count":1,"jobs":[{"name":"agent","conclusion":"failure"}]}`), nil
+				}
+			}
+			chronologicalCalls := 0
+			healthListWorkflowRuns = func(ListWorkflowRunsOptions, int, *HealthCollection) ([]WorkflowRun, int, error) {
+				chronologicalCalls++
+				return []WorkflowRun{{DatabaseID: 3, WorkflowPath: path, Conclusion: "success"}}, 1, nil
+			}
+			runs, err := fetchWorkflowRuns("", "", "org/repo", false, collection)
+			require.NoError(t, err)
+			assert.True(t, collection.Partial)
+			assert.False(t, collection.JobEvidence[1].Complete)
+			assert.True(t, collection.jobPresence[healthRunAttempt{id: 1, attempt: 1}])
+			if response == "rate limit" || response == "request budget" {
+				assert.True(t, collection.stopped)
+				assert.Contains(t, []string{"rate_limit", "request_budget"}, collection.Reason)
+				assert.False(t, collection.FailurePassComplete)
+				require.Len(t, runs, 1, "retain the observed run at the stopping boundary")
+				assert.Zero(t, chronologicalCalls)
+				assert.LessOrEqual(t, len(endpoints), 2)
+			} else {
+				assert.False(t, collection.stopped)
+				assert.True(t, collection.FailurePassComplete)
+				assert.True(t, collection.JobEvidence[2].Complete)
+				assert.Equal(t, "job_evidence_incomplete", collection.Reason)
+				assert.Contains(t, collection.Warning, "run 1")
+				assert.Contains(t, collection.Warning, "continuing")
+				assert.Len(t, runs, 3, "retain both failure scopes and continue chronological sampling")
+				assert.Equal(t, 1, chronologicalCalls)
+				assert.Len(t, endpoints, 4, "one presence and one typed request per scope, with no retries")
+			}
+			clusters, plan := buildHealthFailureClusters(runs,
+				HealthConfig{RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection})
+			assert.NotEmpty(t, clusters)
+			require.NotNil(t, plan)
+			assert.Equal(t, 1, plan.MetadataOnlyRuns)
+		})
+	}
 }
 
 func TestHealthFailurePassIsBoundedAndKeepsHealthyChronologicalSample(t *testing.T) {
@@ -247,7 +326,7 @@ func TestHealthFailurePassIsBoundedAndKeepsHealthyChronologicalSample(t *testing
 	}
 	collected, err := fetchWorkflowRuns("", "", "org/repo", false, collection)
 	require.NoError(t, err)
-	assert.Equal(t, 1, jobs, "one representative per scope is enough for initial detection")
+	assert.Equal(t, 2, jobs, "one presence probe and one typed inventory per representative")
 	config := HealthConfig{Threshold: 80, RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection}
 	health := calculateCurrentWorkflowHealth("Example", collected, config)
 	assert.Equal(t, "healthy", health.Status)

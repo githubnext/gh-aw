@@ -59,6 +59,10 @@ Health compares each workflow's Markdown source with its pushed branch version,
 stops at source changes, and excludes superseded failures from investigation.
 An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
+Job-presence checks do not decode job/step details. Optional representative Jobs
+enrichment is best-effort: incomplete inventories warn and remain metadata-only
+unless compatible cached evidence is available. API quota and request limits
+still stop collection; primary inventory and presence errors remain errors.
 
 `
 
