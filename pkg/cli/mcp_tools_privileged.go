@@ -228,8 +228,11 @@ const logsToolDescription = `Download workflow logs. Returns JSON file_path; err
 
 Read the returned file_path first; it contains the complete report JSON. Use jq
 against that file to project summary, failure_investigation and continuation before runs.
-For partial results ("partial": true), follow every continuation parameter, including
-updated end_date and before_run_id. State incomplete coverage until collection finishes.
+For partial results ("partial": true), follow continuation or every per-target entry
+in continuations, preserving repository, updated end_date and before_run_id.
+Partial episode evidence may have no cursor. coverage_status is partial or unknown,
+never proof of complete episode membership. Read coverage_reasons and the report.
+State incomplete coverage until collection finishes.
 
 Start with failure_investigation.selected_runs: a deduplicated initial audit plan.
 Prioritize failure_boundary over generic aftermath. Read failure_clusters for selected
