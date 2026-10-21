@@ -8,41 +8,15 @@ const runtimes = [
   { name: 'Cloud Hypervisor', icon: 'shield-lock', badge: 'Preview', host: 'GitHub-hosted Ubuntu · KVM' },
   { name: 'NVX', icon: 'cpu', badge: 'Preview', host: 'Linux x86_64 · KVM' },
 ] as const;
-const jobs = [
-  { name: 'Your actions', icon: 'code', detail: 'Prepare', agent: false },
-  { name: 'Agent', icon: 'copilot', detail: 'Reason & act', agent: true },
-  { name: 'Your jobs', icon: 'check-circle', detail: 'Build & verify', agent: false },
-] as const;
-const actions = [
-  { name: 'actions/setup-node', detail: 'Keep your toolchain', icon: 'code' },
-  { name: 'actions/cache', detail: 'Keep your dependency cache', icon: 'database' },
-  { name: 'actions/upload-artifact', detail: 'Keep your build artifacts', icon: 'package' },
-] as const;
 ---
 
 <LandingSection id="enterprise" title="Enterprise ready" lede="Your infrastructure. Your trust policies. Agents that fit both.">
   <div slot="intro" class="aw-copy">
     <p>Bring your own <a href={`${base}/reference/self-hosted-runners/`}>Linux self-hosted runners</a>, or scale on Kubernetes with <a href={`${base}/reference/arc-dind-copilot-agent/`}>ARC and Docker-in-Docker</a>.</p>
     <p>Choose Docker isolation or preview Cloud Hypervisor and NVX microVMs on compatible hosts. Apply <a href={`${base}/reference/integrity/`}>integrity policies</a> to filter GitHub content by author trust and merge status before it reaches the agent.</p>
-    <p>Monitor runs, costs and outcomes across repositories from one control repository with <a href="https://github.com/githubnext/gh-cao">Central Agentic Ops</a>, a research prototype.</p>
     <a class="aw-link" href={`${base}/reference/agent-runtimes/`}>Explore agent runtimes <span aria-hidden="true">→</span></a>
   </div>
-  <figure slot="aside" class="aw-infra" aria-label="Central Agentic Ops control plane, runners, firewall-protected isolation and integrity filtering, and OpenTelemetry export">
-    <a class="aw-cao aw-card" href="https://github.com/githubnext/gh-cao">
-      <div class="aw-panel-heading">
-        <Octicon name="organization" size={22} />
-        <strong>Central Agentic Ops</strong>
-        <span class="aw-badge">Research prototype</span>
-        <Octicon name="arrow-up-right" />
-      </div>
-      <span class="aw-cao-subtitle">One control repository. Across your fleet.</span>
-      <div class="aw-cao-signals">
-        <span><Octicon name="workflow" />Runs</span>
-        <span><Octicon name="graph" />Costs</span>
-        <span><Octicon name="check-circle" />Outcomes</span>
-      </div>
-    </a>
-    <div class="aw-flow aw-flow-short" aria-hidden="true" />
+  <figure slot="aside" class="aw-infra" aria-label="Runners, firewall-protected isolation and integrity filtering, and OpenTelemetry export">
     <div class="aw-runner-deck aw-card">
       <div class="aw-panel-heading"><Octicon name="server" /><span>Your GitHub Actions runners</span><span class="aw-live" aria-hidden="true" /></div>
       <div class="aw-runner-options">
@@ -86,39 +60,6 @@ const actions = [
     <figcaption>Runtime eligibility varies by host. Cloud Hypervisor and NVX are preview runtimes; ARC DinD uses Docker.</figcaption>
   </figure>
 </LandingSection>
-<LandingSection id="integrations" title="Fits your existing stack" lede="Keep your GitHub Actions. Add agentic steps.">
-  <div slot="intro" class="aw-copy">
-    <p><strong>Backward compatible with your existing actions.</strong> Reuse the actions and shell scripts you already rely on before and after agent execution. Keep your toolchain setup, dependency caches and artifact uploads.</p>
-    <p>Compiled workflows run as standard GitHub Actions YAML, with familiar events and runners. Add custom steps and jobs alongside agents without replacing your existing automation.</p>
-    <a class="aw-link" href={`${base}/reference/steps-jobs/`}>Keep your actions. Add an agent. <span aria-hidden="true">→</span></a>
-  </div>
-  <figure slot="aside" class="aw-integration aw-card" aria-label="Existing GitHub Actions reused before and after agent execution">
-    <div class="aw-panel-heading"><Octicon name="file-code" /><span class="aw-mono">workflow.md → workflow.lock.yml</span></div>
-    <div class="aw-pipeline">
-      {jobs.map((job) => (
-        <div class:list={['aw-job', job.agent && 'aw-job-agent']}>
-          <Octicon name={job.icon} size={24} />
-          <strong>{job.name}</strong>
-          <span>{job.detail}</span>
-        </div>
-      ))}
-    </div>
-    <div class="aw-reuse">
-      <div class="aw-reuse-heading"><Octicon name="check-circle" size={20} /><strong>The actions you already use</strong><span class="aw-badge">Reusable</span></div>
-      <div class="aw-action-list">
-        {actions.map((action) => (
-          <div class="aw-action">
-            <Octicon name={action.icon} size={22} />
-            <span><strong class="aw-mono">{action.name}</strong><span class="aw-host">{action.detail}</span></span>
-            <Octicon name="check" class="aw-action-check" />
-          </div>
-        ))}
-      </div>
-      <div class="aw-existing"><span><Octicon name="workflow" />Same events</span><span><Octicon name="server" />Same runners</span><span><Octicon name="code" />Standard YAML</span></div>
-    </div>
-    <figcaption>Illustrative pipeline. Reuse actions through custom steps and jobs, with your existing versions and configuration.</figcaption>
-  </figure>
-</LandingSection>
 
 <style>
   .aw-copy {
@@ -136,8 +77,7 @@ const actions = [
     color: var(--aw-color-accent-text);
     text-underline-offset: 0.2em;
   }
-  .aw-infra,
-  .aw-integration {
+  .aw-infra {
     margin: 0;
     min-width: 0;
     font-size: var(--aw-step--1);
@@ -148,9 +88,6 @@ const actions = [
     gap: 0.625rem;
     padding: 1rem 1.25rem;
     color: var(--aw-color-text-secondary);
-  }
-  .aw-mono {
-    font-family: var(--aw-font-mono);
   }
   .aw-live {
     flex: none;
@@ -196,47 +133,6 @@ const actions = [
   }
   .aw-otel .aw-export {
     padding: 0 1.25rem 1.25rem;
-  }
-  .aw-cao {
-    display: block;
-    border-radius: var(--aw-radius-lg);
-    text-decoration: none;
-    color: var(--aw-color-text);
-  }
-  .aw-cao:hover,
-  .aw-cao:focus-visible {
-    border-color: var(--aw-color-accent);
-  }
-  .aw-cao .aw-panel-heading {
-    flex-wrap: wrap;
-    color: var(--aw-color-accent-text);
-    padding-bottom: 0.625rem;
-  }
-  .aw-cao .aw-badge {
-    margin-left: auto;
-  }
-  .aw-cao-subtitle {
-    display: block;
-    padding-inline: 1.25rem;
-    color: var(--aw-color-text-muted);
-  }
-  .aw-cao-signals {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.5rem;
-    padding: 1.25rem;
-  }
-  .aw-cao-signals > span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.75rem 0.375rem;
-    border: 1px solid var(--aw-color-border);
-    border-radius: var(--aw-radius-md);
-    background: var(--aw-color-bg-subtle);
-    color: var(--aw-color-text-secondary);
   }
   .aw-runner-options {
     display: flex;
@@ -344,95 +240,6 @@ const actions = [
     line-height: 1.5;
     text-wrap: pretty;
   }
-  .aw-integration {
-    overflow: hidden;
-    border-radius: var(--aw-radius-lg);
-  }
-  .aw-integration > .aw-panel-heading {
-    border-bottom: 1px solid var(--aw-color-border);
-    overflow-wrap: anywhere;
-  }
-  .aw-pipeline {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.25rem;
-    padding: 2rem 1.25rem;
-  }
-  .aw-job {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 1rem 0.375rem;
-    border: 1px solid var(--aw-color-border-strong);
-    border-radius: var(--aw-radius-md);
-    color: var(--aw-color-text-secondary);
-    background: var(--aw-color-bg-subtle);
-    text-align: center;
-  }
-  .aw-job + .aw-job::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 100%;
-    width: 1.25rem;
-    border-top: 1px solid var(--aw-color-border-strong);
-  }
-  .aw-job-agent {
-    color: var(--aw-color-accent-text);
-    border-color: var(--aw-color-accent);
-    background: var(--aw-color-accent-low);
-    box-shadow: 0 0 2rem color-mix(in oklab, var(--aw-color-accent) 12%, transparent);
-  }
-  .aw-reuse {
-    border-top: 1px solid var(--aw-color-border);
-    padding: 1.25rem;
-  }
-  .aw-reuse-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--aw-color-text-secondary);
-  }
-  .aw-reuse-heading .aw-badge {
-    margin-left: auto;
-  }
-  .aw-action-list {
-    display: grid;
-    gap: 0.875rem;
-    margin-block: 1.5rem;
-  }
-  .aw-action {
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
-    padding: 0.875rem;
-    border: 1px solid var(--aw-color-border);
-    background: var(--aw-color-bg-subtle);
-    border-radius: var(--aw-radius-md);
-    color: var(--aw-color-text-secondary);
-  }
-  .aw-action > span {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .aw-action-check {
-    margin-left: auto;
-    color: var(--aw-color-success);
-  }
-  .aw-existing {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1.25rem;
-    color: var(--aw-color-text-secondary);
-  }
-  .aw-existing > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
   .aw-export {
     display: flex;
     flex-wrap: wrap;
@@ -444,10 +251,6 @@ const actions = [
     flex: 1;
     min-width: 1rem;
     border-top: 1px dashed var(--aw-color-accent);
-  }
-  .aw-integration figcaption {
-    margin: 0;
-    padding: 0 1.25rem 1.25rem;
   }
   @media (max-width: 29.99rem) {
     .aw-runtime-grid {
@@ -462,13 +265,6 @@ const actions = [
     }
     .aw-runtime .aw-host {
       grid-column: 2 / -1;
-    }
-    .aw-pipeline {
-      gap: 0.75rem;
-      padding-inline: 0.75rem;
-    }
-    .aw-job + .aw-job::before {
-      width: 0.75rem;
     }
   }
   @media (prefers-reduced-motion: no-preference) {
