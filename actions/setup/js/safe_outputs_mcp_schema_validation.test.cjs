@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import Ajv from "ajv";
 
 /**
  * Tests for MCP tool schema validation
@@ -21,6 +22,27 @@ describe("Safe Outputs MCP Schema Validation", () => {
   const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
   const toolsContent = fs.readFileSync(toolsPath, "utf8");
   tools = JSON.parse(toolsContent);
+
+  describe("Discussion temporary IDs", () => {
+    const schema = tools.find(tool => tool.name === "create_discussion").inputSchema;
+    const validate = new Ajv({ strict: false }).compile(schema);
+
+    it.each(["aw_discuss", "#aw_Discuss", "aw_disc_123"])("accepts %s in the strict discussion schema", temporaryId => {
+      expect(validate({ title: "Discussion", body: "Report", temporary_id: temporaryId })).toBe(true);
+    });
+
+    it.each(["aw_ab", "aw_has-hyphen", "aw_1234567890123", "", 42])("rejects malformed discussion ID %s", temporaryId => {
+      expect(validate({ title: "Discussion", body: "Report", temporary_id: temporaryId })).toBe(false);
+    });
+
+    it("uses the shared ID pattern and camel-case alias without relaxing the schema", () => {
+      const issueSchema = tools.find(tool => tool.name === "create_issue").inputSchema;
+      expect(schema.properties.temporary_id.pattern).toBe(issueSchema.properties.temporary_id.pattern);
+      expect(schema.properties.temporary_id["x-synonyms"]).toEqual(["temporaryId"]);
+      expect(schema.additionalProperties).toBe(false);
+      expect(validate({ title: "Discussion", body: "Report" })).toBe(true);
+    });
+  });
 
   function resolveSchemaProperty(property) {
     if (!property || !property.$ref || typeof property.$ref !== "string") {

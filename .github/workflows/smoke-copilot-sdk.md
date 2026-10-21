@@ -21,7 +21,7 @@ engine:
   id: copilot
   fallback-models:
     - copilot/claude-sonnet-5
-    - copilot/gpt-5.4-mini
+    - copilot/gpt-5.3-codex
   copilot-sdk: true
   bare: true
 imports:

@@ -26,7 +26,7 @@ name: Smoke Copilot
 engine:
   id: copilot
   fallback-models:
-    - copilot/gpt-5.4
+    - copilot/gpt-5.6-luna
     - copilot/claude-sonnet-5
   max-continuations: 2
   bare: true
@@ -95,6 +95,7 @@ safe-outputs:
       skip-archive: true
     add-comment:
       allowed-repos: ["github/gh-aw"]
+      target: "*"
       hide-older-comments: true
       max: 2
       discussions: true

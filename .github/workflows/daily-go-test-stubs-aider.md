@@ -67,13 +67,23 @@ For each selected package, create a `<package>_test.go` stub with a *SEARCH/REPL
 - Imports `"testing"`
 - Contains one `TestPlaceholder_TODO` function with `t.Skip("not yet implemented")`
 
+Read a source file to determine the actual package declaration; do not infer it from
+the directory name (command packages commonly declare `package main`). Create the
+test file **inside** the selected package directory, not alongside that directory.
+For example, a stub for `cmd/example` belongs at `cmd/example/example_test.go`,
+with the actual package name read from `cmd/example/*.go`. Follow the exact
+filename, single code fence, and seven-character SEARCH/REPLACE marker format
+in the Aider execution constraints above.
+
+Do not repeat discovery after choosing packages. If an edit cannot be applied within
+the reflection budget, report the blocker rather than claiming the files were created.
+
 ## Step 3 — Commit and create the pull request
 
 If any stubs were created, run these commands (one per line):
 
 ```bash
-make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs noop --message "Could not build or commit the generated test stubs — no pull request created."
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make fmt-go && GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, build, commit, or submit the generated test stubs — no pull request confirmed."
 ```
 
 If no packages needed stubs (all packages already had tests), run instead:
@@ -85,3 +95,5 @@ safeoutputs noop --message "All Go packages already have test files — no stubs
 ## Step 4 — Exit rule
 
 **Always** invoke exactly one `safeoutputs` CLI command before finishing.
+Use `report_incomplete` for failed or unfinished work; `noop` is only for a confirmed
+absence of packages needing stubs.

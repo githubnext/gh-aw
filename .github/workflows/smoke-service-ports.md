@@ -19,8 +19,8 @@ name: Smoke Service Ports
 engine:
   id: pi
   fallback-models:
-    - copilot/gpt-5.4
-    - copilot/gpt-5.4-mini
+    - copilot/gpt-5.6-luna
+    - copilot/claude-haiku-5.5
 model: copilot/gpt-5.3-codex
 strict: true
 sandbox:

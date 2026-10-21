@@ -1,9 +1,11 @@
 // @ts-check
 import { afterEach, describe, expect, it } from "vitest";
+import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const { buildModelPinReport, collectModelPins, main, renderModelPinReport, renderModelPinSummary } = require("./model_pin_check.cjs");
@@ -388,5 +390,90 @@ describe("model_pin_check collection and rules", () => {
     expect(json.counts.unresolvable).toBe(1);
     expect(fs.readFileSync(path.join(outDir, "model-pins.md"), "utf8")).toContain("### All Workflow Model Pins");
     expect(fs.readFileSync(path.join(outDir, "model-pins-summary.md"), "utf8")).toBe(printed.join(""));
+  });
+});
+
+describe("repository-pins-reflection-regression", () => {
+  // Recorded byte-exact /reflect from smoke-copilot run 39506475007 (36 Copilot models);
+  // see test_data/awf_reflect/README.md for provenance.
+  const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
+  const REFLECT_FILE = path.join(TEST_DIR, "test_data", "awf_reflect", "run-39506475007-awf-reflect.json");
+  const REFLECT_SHA256 = "3d9fa7af7e07e93100bb614e45eb85abafbd16a3bbb2cb62a687a04cb5fff9b3";
+  const REPO_ROOT = path.resolve(TEST_DIR, "..", "..", "..");
+
+  // Pins that did not resolve against this catalogue before github/gh-aw#70649, by workflow and field.
+  const FIXED_PINS = [
+    [".github/workflows/daily-model-resolution.md", "## agent: 'run-analyzer' model"],
+    [".github/workflows/engine-conformance-aider.md", "model"],
+    [".github/workflows/engine-conformance-crush.md", "model"],
+    [".github/workflows/engine-conformance-deepseek-harness.md", "model"],
+    [".github/workflows/engine-conformance-goose.md", "model"],
+    [".github/workflows/engine-conformance-opencode.md", "model"],
+    [".github/workflows/engine-conformance-pi.md", "model"],
+    [".github/workflows/engine-conformance-pydantic-ai.md", "model"],
+    [".github/workflows/smoke-aider.md", "model"],
+    [".github/workflows/smoke-copilot-arm.md", "engine.fallback-models[0]"],
+    [".github/workflows/smoke-copilot-routed.md", "engine.model-routing.allowed-models[0]"],
+    [".github/workflows/smoke-copilot-sdk-routed-claude.md", "## agent: 'mini-whoami' model"],
+    [".github/workflows/smoke-copilot-sdk.md", "engine.fallback-models[1]"],
+    [".github/workflows/smoke-copilot-sub-agents.md", "## agent: 'gpt5-whoami' model"],
+    [".github/workflows/smoke-copilot-sub-agents.md", "## agent: 'terra-whoami' model"],
+    [".github/workflows/smoke-copilot.md", "engine.fallback-models[0]"],
+    [".github/workflows/smoke-goose.md", "model"],
+    [".github/workflows/smoke-pi-routed.md", "## agent: 'mini-whoami' model"],
+    [".github/workflows/smoke-pi-sub-agents.md", "## agent: 'luna-whoami' model"],
+    [".github/workflows/smoke-pi.md", "engine.fallback-models[0]"],
+    [".github/workflows/smoke-service-ports.md", "engine.fallback-models[0]"],
+    [".github/workflows/smoke-service-ports.md", "engine.fallback-models[1]"],
+    [".github/workflows/smoke-work-queue.md", "engine.fallback-models[0]"],
+    [".github/workflows/smoke-work-queue.md", "engine.fallback-models[1]"],
+  ];
+
+  // Known unresolvable pins on main, by exact identity; any other unresolvable pin fails.
+  const KNOWN_MAIN_FAILURES = [{ workflow: ".github/workflows/video-analyzer.md", field: "model", configured: "copilot/gemini-3.7-flash", cause: "model_unavailable" }];
+
+  function repositoryReport() {
+    const bytes = fs.readFileSync(REFLECT_FILE);
+    expect(crypto.createHash("sha256").update(bytes).digest("hex")).toBe(REFLECT_SHA256);
+    const collected = collectModelPins({ repoRoot: REPO_ROOT });
+    return buildModelPinReport({ ...collected, reflectData: JSON.parse(bytes.toString("utf8")) });
+  }
+
+  it("classifies the repository's workflow pins against the run 39506475007 catalogue", () => {
+    const report = repositoryReport();
+    expect(report.catalogue).toEqual({ available: true, model_count: 36, error: null });
+    expect(report.errors).toEqual([]);
+
+    const fixedWorkflows = [...new Set(FIXED_PINS.map(([workflow]) => workflow))];
+    expect(fixedWorkflows).toHaveLength(21);
+    for (const workflow of fixedWorkflows) {
+      expect(report.workflows).toContain(workflow);
+      const unresolved = report.pins.filter(result => result.workflow === workflow && result.status === "unresolvable");
+      expect(unresolved, `${workflow} has unresolvable pins`).toEqual([]);
+    }
+    for (const [workflow, field] of FIXED_PINS) {
+      const rows = report.pins.filter(result => result.workflow === workflow && result.field === field);
+      expect(rows, `${workflow} ${field}`).toHaveLength(1);
+      expect(["exact", "alias"], `${workflow} ${field} is ${rows[0].status} (${rows[0].configured})`).toContain(rows[0].status);
+      expect(rows[0].resolved, `${workflow} ${field}`).toBeTruthy();
+    }
+
+    const unresolvable = report.action_required.map(({ workflow, field, configured, cause }) => ({ workflow, field, configured, cause }));
+    expect(unresolvable).toEqual(KNOWN_MAIN_FAILURES);
+    expect(report.counts.unresolvable).toBe(KNOWN_MAIN_FAILURES.length);
+  });
+
+  it("resolves the sub-agent aliases and keeps the GPT sub-agents on GPT models", () => {
+    const report = repositoryReport();
+    const row = (/** @type {string} */ workflow, /** @type {string} */ field) => report.pins.find(result => result.workflow === `.github/workflows/${workflow}` && result.field === field);
+    expect(row("smoke-copilot-sub-agents.md", "## agent: 'gpt5-whoami' model")).toMatchObject({ configured: "gpt-5", status: "alias", resolved: "gpt-5.6-luna" });
+    expect(row("smoke-copilot-sub-agents.md", "## agent: 'terra-whoami' model")).toMatchObject({ configured: "gpt-5.6-terra", status: "exact", resolved: "gpt-5.6-terra" });
+    // The GPT sub-agents must serve distinct models, neither the main model, so proxy requests identify each one.
+    const subAgentModels = ["gpt5-whoami", "terra-whoami"].map(agent => row("smoke-copilot-sub-agents.md", `## agent: '${agent}' model`)?.resolved);
+    expect(new Set([...subAgentModels, "gpt-5.3-codex"]).size).toBe(3);
+    expect(row("smoke-copilot-sdk-routed-claude.md", "## agent: 'mini-whoami' model")).toMatchObject({ status: "exact", resolved: "gpt-5.6-luna" });
+    expect(row("smoke-pi-routed.md", "## agent: 'mini-whoami' model")).toMatchObject({ status: "exact", resolved: "copilot/gpt-5.3-codex" });
+    expect(row("smoke-pi-sub-agents.md", "## agent: 'luna-whoami' model")).toMatchObject({ status: "exact", resolved: "copilot/gpt-5.6-luna" });
+    expect(row("daily-model-resolution.md", "## agent: 'run-analyzer' model")).toMatchObject({ configured: "mini", status: "alias", resolved: "claude-haiku-5.5" });
   });
 });

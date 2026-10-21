@@ -13,7 +13,7 @@ max-turns: 30
 max-ai-credits: 5
 features:
   gh-aw-detection: false
-model: copilot/gpt-5.4
+model: copilot/claude-haiku-5.5
 engine:
   id: goose
   env:
