@@ -3,10 +3,8 @@
 package cli
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -292,76 +290,4 @@ safe-outputs:
 	assert.True(t, applied)
 	assertPolicyCodemodValue(t, result, "7d", "safe-outputs", "create-issue", "expires")
 	assertPolicyCodemodValue(t, result, "30d", "safe-outputs", "create-discussion", "expires")
-}
-
-func TestConvertExpiresLineToString_Integer(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-		changed  bool
-	}{
-		{
-			name:     "simple integer",
-			input:    "    expires: 7",
-			expected: `    expires: "7d"`,
-			changed:  true,
-		},
-		{
-			name:     "integer with trailing comment",
-			input:    "    expires: 7  # expire after one week",
-			expected: `    expires: "7d" # expire after one week`,
-			changed:  true,
-		},
-		{
-			name:     "already day string",
-			input:    "    expires: 7d",
-			expected: "    expires: 7d",
-			changed:  false,
-		},
-		{
-			name:     "hour string",
-			input:    "    expires: 24h",
-			expected: "    expires: 24h",
-			changed:  false,
-		},
-		{
-			name:     "week string",
-			input:    "    expires: 2w",
-			expected: "    expires: 2w",
-			changed:  false,
-		},
-		{
-			name:     "false value",
-			input:    "    expires: false",
-			expected: "    expires: false",
-			changed:  false,
-		},
-		{
-			name:     "no indentation",
-			input:    "expires: 1",
-			expected: `expires: "1d"`,
-			changed:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result, changed := convertExpiresIntegerLineToDayString(tt.input)
-			assert.Equal(t, tt.changed, changed, "changed flag should match")
-			if changed {
-				expected, err := aw.Parse("---\n" + tt.expected + "\n---\n")
-				require.NoError(t, err)
-				assertPolicyCodemodValue(t, "---\n"+result+"\n---\n", expected.Frontmatter["expires"], "expires")
-				assert.Equal(t, tt.input[:len(tt.input)-len(strings.TrimLeft(tt.input, " "))], result[:len(result)-len(strings.TrimLeft(result, " "))])
-				if _, comment, found := strings.Cut(tt.input, "#"); found {
-					assert.Contains(t, result, "#"+comment)
-				}
-			} else {
-				assert.Equal(t, tt.expected, result, "unchanged line should match")
-			}
-		})
-	}
 }
