@@ -569,6 +569,20 @@ Pass this object directly as arguments to `noop`; do not wrap it in a tool-name 
 Before emitting a clean completion, discover and call the native mcpscripts function for `concurrency-audit-state` with `analyzed_tool` set to the selected tool name. It queries the generic records projection at `/tmp/gh-aw/ledgers/concurrency-audits/ledger.db` with fixed, parameterized SQL and a read-only connection. Use `current_run` to check for a record for this run ID and `latest_tool` for the most recent audit of the selected tool. Do not run SQLite through Bash or supply SQL.
 
 If absent, call the exposed `ledger_append` safe-output tool directly with `ledger: concurrency-audits` and a `record` containing `record_type: mcp_concurrency_audit`. Include only the run ID, analyzed tool, status, and issue number if one was created; do not store code or raw analysis notes. Submit at most once: queued records are not visible in this run's read-only projection and become durable only after the trusted ledger persistence job succeeds. Do not edit ledger branches directly.
+
+Use these exact field names and types, replacing `SELECTED_TOOL` with the tool
+you analyzed and `clean` with `issues_found` when applicable:
+
+```json
+{"ledger":"concurrency-audits","record":{"record_type":"mcp_concurrency_audit","run_id":"${{ github.run_id }}","analyzed_tool":"SELECTED_TOOL","status":"clean"}}
+```
+
+The field is `analyzed_tool`, not `tool`; `additionalProperties: false` rejects
+aliases. Keep `run_id` a string and omit `issue_number` unless it is a known
+positive integer. Check the record against the declared ledger schema before
+submitting it; an accepted queued call is not proof that downstream validation
+or persistence succeeded.
+
 If the read-only query fails, report the concrete blocker with `report_incomplete`; do not bypass it with shell commands or direct ledger edits.
 
 Complete the cache read-back and ledger query/submission before calling `noop`. If cache editing, the MCP script, or `ledger_append` is unavailable or denied, call native `report_incomplete` with the exact missing function or blocked path and the completed analysis steps; do not emit a clean `noop` or claim persistence. If `report_incomplete` itself is unavailable, state explicitly in the final response that no terminal safe output was emitted.
