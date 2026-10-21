@@ -1,4 +1,6 @@
 // @ts-check
+"use strict";
+
 const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 /**
@@ -10,8 +12,6 @@ const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
  * appends.  This survives read-only teardown states (EROFS) where direct
  * appends would silently drop structured failure signals.
  */
-
-("use strict");
 
 const childProcess = require("child_process");
 const fs = require("fs");

@@ -1,6 +1,6 @@
 // @ts-check
-import { describe, expect, it } from "vitest";
-import { normalizeAssignment, normalizeClaimScope, assertClaimAuthorized, withClaimExecution, claimArtifactPath, scopedArtifactFilename } from "./work_queue_claim_scope.cjs";
+import { describe, expect, it, vi } from "vitest";
+import { normalizeAssignment, normalizeClaimScope, normalizeRuntimeMessage, assertClaimAuthorized, withClaimExecution, claimArtifactPath, scopedArtifactFilename } from "./work_queue_claim_scope.cjs";
 import sharedChecks from "./work_queue_claim_scope_checks.cjs";
 
 const assignment = count => ({
@@ -15,6 +15,25 @@ const assignment = count => ({
 });
 
 describe("immutable Claim scope", () => {
+  it("preserves unscoped message identity unless normalizing a historical alias", () => {
+    vi.stubEnv("GH_AW_WORK_QUEUE_ENABLED", "false");
+    try {
+      for (const type of ["report_missing_tool", "report_missing_data", "report_incomplete", "create_issue", "custom_output"]) {
+        const message = Object.freeze({ type, body: "unchanged" });
+        expect(normalizeRuntimeMessage(message)).toBe(message);
+      }
+      for (const type of ["missing_tool", "missing_data"]) {
+        const message = Object.freeze({ type, body: "unchanged" });
+        const normalized = normalizeRuntimeMessage(message);
+        expect(normalized).not.toBe(message);
+        expect(normalized).toEqual({ type: `report_${type}`, body: "unchanged" });
+        expect(message.type).toBe(type);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("matches the canonical shared identity fixtures and preserves opaque domain values", sharedChecks.checkSharedIdentityFixtures);
 
   it("defaults every output type only for an original singleton", () => {

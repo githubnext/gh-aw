@@ -3,11 +3,19 @@ import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { compileFunction } from "node:vm";
 
 const require = createRequire(import.meta.url);
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 
 describe("safeoutputs_cli.cjs", () => {
+  it("executes the CommonJS module in strict mode", () => {
+    const source = fs.readFileSync(require.resolve("./safeoutputs_cli.cjs"), "utf8");
+    const execute = compileFunction(`${source}\nreturn (function () { return this; })();`, ["require", "module", "exports"]);
+    const module = { exports: {} };
+    expect(execute(require, module, module.exports)).toBeUndefined();
+  });
+
   describe("runSafeOutputsCLI", () => {
     it("throws when an argument key contains invalid characters", () => {
       process.env.GH_AW_SAFEOUTPUTS_CLI = "true"; // 'true' exits 0, accepts any args
