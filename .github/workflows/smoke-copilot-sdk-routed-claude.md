@@ -58,11 +58,11 @@ post-steps:
           executionOutcome: process.env.SMOKE_EXECUTION,
           allowedModels: ["claude-haiku-4.5"],
           mainEndpoint: "/chat/completions",
-          subAgents: [{ name: "mini-whoami", model: "gpt-5.4-mini", endpoint: "/responses" }],
+          subAgents: [{ name: "mini-whoami", model: "gpt-5.6-luna", endpoint: "/responses" }],
           requireDeclaredAgentNames: true,
           expectModelInventory: true,
           copilotInventory: true,
-          resolutionRoles: [],
+          resolutionRoles: ["mini-whoami"],
         });
 ---
 
@@ -89,7 +89,7 @@ The routing and sub-agent verdict comes from the post-step, which checks runner-
 ## agent: `mini-whoami`
 ---
 description: Returns a fixed reply for model-routing smoke testing
-model: gpt-5.4-mini
+model: gpt-5.6-luna
 ---
 When asked `who am i?`, reply with exactly:
 

@@ -20,7 +20,7 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Aider
-model: copilot/gpt-5.4
+model: copilot/claude-haiku-5.5
 engine:
   id: aider
 strict: true

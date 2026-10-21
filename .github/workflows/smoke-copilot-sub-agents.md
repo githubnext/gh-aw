@@ -86,16 +86,28 @@ post-steps:
         const proxyFile = proxyPaths.map(file => path.join(root, file)).find(file => fs.existsSync(file));
         assert.ok(proxyFile, "Missing api-proxy token usage evidence");
         const requests = readJsonl(proxyFile);
+        // [agent, configured model, expected model.resolution status, endpoint]
         const expected = [
-          ["haiku-whoami", "claude-haiku-4.5", "/chat/completions"],
-          ["mini-whoami", "gpt-5-mini", "/responses"],
-          ["mini54-whoami", "gpt-5.4-mini", "/responses"],
+          ["haiku-whoami", "claude-haiku-4.5", "exact", "/chat/completions"],
+          ["gpt5-whoami", "gpt-5", "resolved", "/responses"],
+          ["terra-whoami", "gpt-5.6-terra", "exact", "/responses"],
         ];
         const servedModel = model => String(model || "")
           .replace(/^copilot(?:-(?:responses|completions))?(?:-\d+)?\//, "")
           .replace(/-[0-9]{4}(?:-[0-9]{2}-[0-9]{2}|[0-9]{4})$/, "")
           .replace(/^(claude-.+)-([0-9]+)-([0-9]+)$/, "$1-$2.$3");
-        for (const [agentName, model, endpoint] of expected) {
+        const servedModels = new Set();
+        for (const [agentName, configuredModel, status, endpoint] of expected) {
+          const resolutions = events.filter(event => event.type === "model.resolution" && event.data?.engine === "copilot" && event.data?.role === agentName);
+          assert.equal(resolutions.length, 1, `${agentName} must have exactly one model.resolution record`);
+          const resolution = resolutions[0].data;
+          assert.equal(resolution.configured_model, configuredModel, `${agentName} model.resolution is for ${resolution.configured_model}, expected ${configuredModel}`);
+          assert.equal(resolution.status, status, `${agentName} model.resolution status is ${resolution.status}, expected ${status}`);
+          const model = servedModel(resolution.resolved_model);
+          assert.ok(model, `${agentName} has no resolved model`);
+          assert.ok(!servedModels.has(model), `${agentName} resolved to ${model}, which another sub-agent also uses, so its proxy requests are indistinguishable`);
+          servedModels.add(model);
+          if (status === "exact") assert.equal(model, configuredModel, `${agentName} resolved to ${model}, expected ${configuredModel}`);
           const invocations = started.filter(event => event.data.agentName === agentName);
           assert.equal(invocations.length, 1, `${agentName} must actually run exactly once`);
           const invocation = invocations[0];
@@ -131,22 +143,22 @@ post-steps:
 4. Do not use unnecessary tool calls.
 {{/if}}
 {{#if experiments.sub_agent_strategy == 'delegated_sequential' }}
-1. Call `haiku-whoami`, `mini-whoami`, and `mini54-whoami` exactly once each.
+1. Call `haiku-whoami`, `gpt5-whoami`, and `terra-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
-   - `mini-whoami` → `gpt-5-mini`
-   - `mini54-whoami` → `gpt-5.4-mini`
+   - `gpt5-whoami` → `gpt-5`
+   - `terra-whoami` → `gpt-5.6-terra`
 4. Execute and validate each sub-agent one at a time before moving to the next.
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
 {{#if experiments.sub_agent_strategy == 'inline_strict' }}
-1. Call `haiku-whoami`, `mini-whoami`, and `mini54-whoami` exactly once each.
+1. Call `haiku-whoami`, `gpt5-whoami`, and `terra-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
-   - `mini-whoami` → `gpt-5-mini`
-   - `mini54-whoami` → `gpt-5.4-mini`
+   - `gpt5-whoami` → `gpt-5`
+   - `terra-whoami` → `gpt-5.6-terra`
 4. Validate all three results and keep the current inline orchestration behavior.
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
@@ -170,24 +182,24 @@ When asked `who am i?`, reply with exactly:
 
 No extra words, punctuation, or formatting.
 
-## agent: `mini-whoami`
+## agent: `gpt5-whoami`
 ---
-description: Returns the GPT-5 mini model identity for smoke testing
-model: gpt-5-mini
+description: Returns the gpt-5 alias identity for smoke testing
+model: gpt-5
 ---
 When asked `who am i?`, reply with exactly:
 
-`gpt-5-mini`
+`gpt-5`
 
 No extra words, punctuation, or formatting.
 
-## agent: `mini54-whoami`
+## agent: `terra-whoami`
 ---
-description: Returns the GPT-5.4 mini model identity for smoke testing
-model: gpt-5.4-mini
+description: Returns the GPT-5.6 Terra model identity for smoke testing
+model: gpt-5.6-terra
 ---
 When asked `who am i?`, reply with exactly:
 
-`gpt-5.4-mini`
+`gpt-5.6-terra`
 
 No extra words, punctuation, or formatting.

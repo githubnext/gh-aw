@@ -13,8 +13,8 @@ engine:
   id: copilot
   model: copilot/gpt-5.3-codex
   fallback-models:
-    - copilot/gpt-5.4
-    - copilot/gpt-5.4-mini
+    - copilot/gpt-5.6-luna
+    - copilot/claude-haiku-5.5
 sandbox:
   agent:
     id: awf
