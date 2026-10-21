@@ -91,9 +91,12 @@ post-steps:
         assert.ok(activity.some(event => event.type === "subagent.completed"), `${worker} did not complete`);
         assert.ok(!activity.some(event => event.type === "subagent.failed"), `${worker} failed`);
 
-        // The worker's own messages were served by the resolved model through the proxy.
-        const child = stream.filter(record => record.type === "assistant" && record.parent_tool_use_id === first.id);
-        assert.ok(child.length > 0 && child.every(record => record.message?.model === model), `${worker} messages were not served by ${model}`);
+        // Served-model evidence comes from the proxy. Claude Code's stream does not include the
+        // worker's own assistant messages, only its prompt. Detection and routing are off in this
+        // smoke, so a request on the resolved model can only come from the worker, as long as the
+        // main agent never used that model.
+        const mainModels = stream.filter(record => record.type === "assistant" && !record.parent_tool_use_id).map(record => record.message?.model);
+        assert.ok(!mainModels.includes(model), `main agent also used ${model}; served-model evidence is ambiguous`);
         const proxyPaths = [
           "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
           "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
@@ -101,9 +104,13 @@ post-steps:
         ];
         const proxyFile = proxyPaths.map(file => path.join(root, file)).find(file => fs.existsSync(file));
         assert.ok(proxyFile, "Missing api-proxy token usage evidence");
-        const served = readJsonl(proxyFile).filter(request => request.model === model && Number(request.status) === 200).length;
-        const childMessages = new Set(child.map(record => record.message?.id)).size;
-        assert.ok(served >= childMessages, `${worker} sent ${childMessages} message(s) on ${model}, but the proxy served ${served}`);
+        const onModel = readJsonl(proxyFile).filter(request => request.model === model);
+        assert.ok(onModel.length > 0, `${worker}: the proxy served no request on ${model}`);
+        // token-usage.jsonl records only 2xx responses; AWF writes failed requests to the sibling
+        // upstream-errors.jsonl, which exists only when a request failed.
+        const errorFile = path.join(path.dirname(proxyFile), "upstream-errors.jsonl");
+        const failed = fs.existsSync(errorFile) ? readJsonl(errorFile).filter(record => record.model === model) : [];
+        assert.equal(failed.length, 0, `${worker}: a request on ${model} failed: ${JSON.stringify(failed.map(record => record.status))}`);
 ---
 
 # Smoke Test: Claude Inline Sub-Agents

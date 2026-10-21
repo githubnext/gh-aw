@@ -16,8 +16,9 @@ const clone = value => JSON.parse(JSON.stringify(value));
 /**
  * Passing evidence derived from the Typist run 39415087125 record shapes (fixture mutation:
  * the worker is registered, the first `Agent` call names it in the foreground, and the
- * started/configured/completed records and child messages belong to it on the resolved id).
- * No historical run produced these values.
+ * started/configured/completed records belong to it on the resolved id). The worker's prompt
+ * record follows smoke-claude-sub-agents run 39536972987 (Claude Code 2.1.296): the stream
+ * carries the worker's `user` prompt with `parent_tool_use_id`, but none of its assistant messages.
  */
 function passingEvidence() {
   const model = "claude-haiku-5-5";
@@ -37,28 +38,30 @@ function passingEvidence() {
     stream: [
       { ...clone(runs.typistInit), agents: [...runs.typistInit.agents, "marker-worker"] },
       { type: "assistant", parent_tool_use_id: null, message: { id: "msg_parent", model: "claude-sonnet-5", content: [toolUse] } },
-      { type: "assistant", parent_tool_use_id: toolUse.id, message: { id: "msg_child", model, content: [{ type: "text", text: MARKER }] } },
+      { type: "user", parent_tool_use_id: toolUse.id, message: { role: "user", content: [{ type: "text", text: "marker?" }] } },
       { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: toolUse.id, content: [{ type: "text", text: MARKER }] }] } },
     ],
     requests: [
       { provider: "anthropic", model: "claude-sonnet-5", path: "/v1/messages?beta=true", status: 200 },
       { provider: "anthropic", model, path: "/v1/messages?beta=true", status: 200 },
     ],
+    upstreamErrors: null,
     definition: `---\nname: "marker-worker"\ndescription: Returns a fixed marker\nmodel: "${model}"\n---\nReply.\n`,
   };
 }
 
-async function assertEvidence({ events, stream, requests, definition }) {
+async function assertEvidence({ events, stream, requests, upstreamErrors, definition }) {
   const files = {
     "aw_session.jsonl": events,
     "agent-stdio.log": stream,
     "token-usage.jsonl": requests,
+    "upstream-errors.jsonl": upstreamErrors,
   };
   const mockRequire = name => {
     if (name.endsWith("unified_session.cjs")) return { writeUnifiedSession() {} };
     if (name === "node:fs") {
       return {
-        existsSync: () => true,
+        existsSync: file => !file.endsWith("upstream-errors.jsonl") || files["upstream-errors.jsonl"] !== null,
         readFileSync: file => {
           if (file.endsWith("marker-worker.md")) return definition;
           const key = Object.keys(files).find(suffix => file.endsWith(suffix));
@@ -109,14 +112,26 @@ describe("claude_small_subagent_smoke_runs_resolved_model_first (post-step check
     configured.events[2].data.model = "claude-sonnet-5";
     await expect(assertEvidence(configured)).rejects.toThrow("was not configured on claude-haiku-5-5");
 
-    const child = passingEvidence();
-    child.stream[2].message.model = "claude-sonnet-5";
-    await expect(assertEvidence(child)).rejects.toThrow("messages were not served by claude-haiku-5-5");
+    // The main agent on the worker's model makes the proxy evidence ambiguous.
+    const ambiguous = passingEvidence();
+    ambiguous.stream[1].message.model = ambiguous.model;
+    await expect(assertEvidence(ambiguous)).rejects.toThrow("main agent also used claude-haiku-5-5");
 
-    // Unrelated Haiku traffic is not attribution: the proxy must serve the worker's messages.
     const proxy = passingEvidence();
     proxy.requests = proxy.requests.filter(request => request.model !== proxy.model);
-    await expect(assertEvidence(proxy)).rejects.toThrow("but the proxy served 0");
+    await expect(assertEvidence(proxy)).rejects.toThrow("the proxy served no request on claude-haiku-5-5");
+
+    // AWF logs failed requests to upstream-errors.jsonl, not token-usage.jsonl (record fields as
+    // in gh-aw-firewall's upstream-log.test.js capture of run 38327292581). A failure on the
+    // worker's model fails the check even when a retry succeeded.
+    const rejected = passingEvidence();
+    rejected.upstreamErrors = [{ request_id: "req-1", provider: "anthropic", model: rejected.model, status: 400, path: "/v1/messages?beta=true" }];
+    await expect(assertEvidence(rejected)).rejects.toThrow("a request on claude-haiku-5-5 failed");
+
+    // A failure on another model is not the worker's.
+    const unrelated = passingEvidence();
+    unrelated.upstreamErrors = [{ request_id: "req-2", provider: "anthropic", model: "claude-sonnet-5", status: 529, path: "/v1/messages?beta=true" }];
+    await expect(assertEvidence(unrelated)).resolves.toBeUndefined();
 
     const staged = passingEvidence();
     staged.definition = "---\ndescription: Returns a fixed marker\nmodel: small\n---\nReply.\n";
