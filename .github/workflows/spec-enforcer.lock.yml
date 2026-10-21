@@ -185,6 +185,7 @@ jobs:
           GH_AW_INFO_FRONTMATTER_EMOJI: "📋"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_MODEL_COSTS: '{"providers":{"openai":{"models":{"gpt-5.6-sol":{"cost":{"cache_read":"4e-07","cache_write":"5e-06","input":"4e-06","output":"2e-05"}}}}}}'
+          GH_AW_INFO_SUB_AGENT_MODELS: "[{\"model\":\"small\",\"name\":\"rotation-state-recoverer\",\"patterns\":[\"openai/gpt-5*mini*\",\"openai/gpt-5*nano*\"]},{\"model\":\"small\",\"name\":\"readme-spec-extractor\",\"patterns\":[\"openai/gpt-5*mini*\",\"openai/gpt-5*nano*\"]},{\"model\":\"small\",\"name\":\"test-output-classifier\",\"patterns\":[\"openai/gpt-5*mini*\",\"openai/gpt-5*nano*\"]}]"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -2583,10 +2584,14 @@ jobs:
       - name: Collect evals token usage
         if: always()
         run: |
-          for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
-            source="$root/api-proxy-logs/token-usage.jsonl"
-            if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
-          done
+          if [ -n "${AWF_TOKEN_USAGE_LOG:-}" ] && [ -f "$AWF_TOKEN_USAGE_LOG" ]; then
+            cp "$AWF_TOKEN_USAGE_LOG" /tmp/gh-aw/evals_token_usage.jsonl
+          else
+            for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
+              source="$root/api-proxy-logs/token-usage.jsonl"
+              if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
+            done
+          fi
       - name: Upload evals results
         if: always() && steps.redact_evals_results.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
