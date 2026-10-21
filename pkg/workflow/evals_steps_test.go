@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -186,6 +188,105 @@ func TestDailyAICEvalsCollectorTopology(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDailyAICEvalsCollectorExportedLog(t *testing.T) {
+	for _, topology := range []string{"default", "arc-dind"} {
+		for _, tt := range []struct {
+			name     string
+			exported string
+			files    map[string]string
+			want     string
+			missing  bool
+		}{
+			{
+				name:     "exported log takes precedence",
+				exported: "preserved logs/token-usage.jsonl",
+				files: map[string]string{
+					"preserved logs/token-usage.jsonl":                        `{"ai_credits_this_response":2}`,
+					"sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl": `{"ai_credits_this_response":9}`,
+					"sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl":  `{"ai_credits_this_response":10}`,
+				},
+				want: `{"ai_credits_this_response":2}`,
+			},
+			{
+				name:     "empty exported log does not revive stale usage",
+				exported: "preserved/token-usage.jsonl",
+				files: map[string]string{
+					"preserved/token-usage.jsonl":                            "",
+					"sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl": `{"ai_credits_this_response":10}`,
+				},
+			},
+			{
+				name:  "legacy audit log",
+				files: map[string]string{"sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl": `{"ai_credits_this_response":3}`},
+				want:  `{"ai_credits_this_response":3}`,
+			},
+			{
+				name:  "legacy proxy log",
+				files: map[string]string{"sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl": `{"ai_credits_this_response":4}`},
+				want:  `{"ai_credits_this_response":4}`,
+			},
+			{
+				name:     "missing exported log falls back",
+				exported: "missing/token-usage.jsonl",
+				files:    map[string]string{"sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl": `{"ai_credits_this_response":4}`},
+				want:     `{"ai_credits_this_response":4}`,
+			},
+			{name: "missing accounting stays missing", missing: true},
+			{
+				name:    "empty legacy log stays unresolved",
+				files:   map[string]string{"sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl": ""},
+				missing: true,
+			},
+		} {
+			t.Run(topology+"/"+tt.name, func(t *testing.T) {
+				data := &WorkflowData{}
+				if topology == "arc-dind" {
+					data.RunnerConfig = &RunnerConfig{Topology: RunnerTopologyArcDind}
+				}
+				var steps []struct {
+					Name string `yaml:"name"`
+					Run  string `yaml:"run"`
+				}
+				if err := yaml.Unmarshal([]byte(strings.Join(NewCompiler().buildUploadEvalsArtifactStep(data), "")), &steps); err != nil {
+					t.Fatal(err)
+				}
+				if len(steps) == 0 || steps[0].Name != "Collect evals token usage" || steps[0].Run == "" {
+					t.Fatal("missing evals accounting collector")
+				}
+				directory := t.TempDir()
+				for name, content := range tt.files {
+					file := filepath.Join(directory, name)
+					if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(file, []byte(content), 0o600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				exported := ""
+				if tt.exported != "" {
+					exported = filepath.Join(directory, tt.exported)
+				}
+				t.Setenv("AWF_TOKEN_USAGE_LOG", exported)
+				t.Setenv("RUNNER_TEMP", directory)
+				script := strings.NewReplacer("${RUNNER_TEMP}/gh-aw", directory, "/tmp/gh-aw", directory).Replace(steps[0].Run)
+				output, err := exec.Command("bash", "-e", "-u", "-c", script).CombinedOutput()
+				if err != nil {
+					t.Fatalf("collector failed: %v\n%s", err, output)
+				}
+				content, err := os.ReadFile(filepath.Join(directory, "evals_token_usage.jsonl"))
+				if tt.missing {
+					if !os.IsNotExist(err) {
+						t.Fatalf("unresolved accounting must not create a placeholder: %q, %v", content, err)
+					}
+				} else if err != nil || string(content) != tt.want {
+					t.Fatalf("unexpected accounting: got %q, %v; want %q", content, err, tt.want)
+				}
+			})
+		}
 	}
 }
 

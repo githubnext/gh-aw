@@ -723,6 +723,10 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "title": {
                     "required": true,
                     "type": "string",
@@ -2485,10 +2489,14 @@ jobs:
       - name: Collect evals token usage
         if: always()
         run: |
-          for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
-            source="$root/api-proxy-logs/token-usage.jsonl"
-            if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
-          done
+          if [ -n "${AWF_TOKEN_USAGE_LOG:-}" ] && [ -f "$AWF_TOKEN_USAGE_LOG" ]; then
+            cp "$AWF_TOKEN_USAGE_LOG" /tmp/gh-aw/evals_token_usage.jsonl
+          else
+            for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
+              source="$root/api-proxy-logs/token-usage.jsonl"
+              if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
+            done
+          fi
       - name: Upload evals results
         if: always() && steps.redact_evals_results.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

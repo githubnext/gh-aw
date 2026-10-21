@@ -1115,7 +1115,7 @@ jobs:
           GH_AW_MODEL_ROUTING: 1
           GH_AW_PHASE: agent
           GH_AW_PI_BARE: true
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve","--exclude-tools","bash","--exclude-tools","edit,write","--no-context-files","--no-skills","--no-prompt-templates","--no-extensions","--no-themes"]'
           GH_AW_PI_SYSTEM_PROMPT: /tmp/gh-aw/aw-prompts/system.txt
           GH_AW_PI_TOOL_BUDGET_DIR: /tmp/gh-aw/pi-agent-dir/tool-budget

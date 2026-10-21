@@ -28,7 +28,7 @@ func TestBuildSafeOutputsSectionsCodeCoverage(t *testing.T) {
 				NoOp:               &NoOpConfig{},
 				UploadCodeCoverage: tt.config,
 			}
-			sections := buildSafeOutputsSections(config, nil)
+			sections := buildSafeOutputsSections(config, nil, nil)
 			require.NotEmpty(t, sections)
 			_, enabled := computeEnabledToolNames(&WorkflowData{SafeOutputs: config})["upload_code_coverage"]
 			assert.Equal(t, tt.config != nil, enabled)
@@ -223,7 +223,7 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sections := buildSafeOutputsSections(tt.safeOutputs, nil)
+			sections := buildSafeOutputsSections(tt.safeOutputs, nil, nil)
 
 			if tt.expectNil {
 				assert.Nil(t, sections, "Expected nil sections for empty/nil config")
@@ -253,7 +253,7 @@ func TestBuildSafeOutputsSectionsWorkflowBudgetsAreShared(t *testing.T) {
 			Workflows:            []string{"first-call", "second-call"},
 		},
 		NoOp: &NoOpConfig{},
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections)
 	content := sections[0].Content
@@ -292,7 +292,7 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		},
 	}
 
-	sections := buildSafeOutputsSections(config, nil)
+	sections := buildSafeOutputsSections(config, nil, nil)
 	require.NotNil(t, sections, "Expected non-nil sections")
 
 	actualToolNames := extractToolNamesFromSections(t, sections)
@@ -361,7 +361,7 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 			},
 		},
 		NoOp: &NoOpConfig{},
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -398,7 +398,7 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 }
 
 func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) {
-	sections := buildSafeOutputsSections(nil, &CommentMemoryConfig{})
+	sections := buildSafeOutputsSections(nil, &CommentMemoryConfig{}, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -422,7 +422,7 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	sections := buildSafeOutputsSections(&SafeOutputsConfig{
 		Steer: true,
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -435,6 +435,35 @@ func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	}
 
 	assert.True(t, found, "Expected steering issue guidance file to be included when steering is enabled")
+}
+
+func TestBuildSafeOutputsSectionsLedgerTools(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		ledgers  []LedgerConfig
+		expected []string
+	}{
+		{name: "table", ledgers: []LedgerConfig{{Name: "history", Type: "table", Key: "run_id"}}, expected: []string{"ledger_append"}},
+		{name: "log", ledgers: []LedgerConfig{{Name: "history", Type: "log"}}, expected: []string{"ledger_append"}},
+		{name: "set", ledgers: []LedgerConfig{{Name: "history", Type: "set"}}, expected: []string{"ledger_append"}},
+		{name: "counter", ledgers: []LedgerConfig{{Name: "history", Type: "counter"}}, expected: []string{"ledger_append"}},
+		{name: "map", ledgers: []LedgerConfig{{Name: "cache", Type: "map"}}, expected: []string{"ledger_map_delete", "ledger_map_put"}},
+		{name: "notes", ledgers: []LedgerConfig{{Name: "notes", Type: "notes"}}, expected: []string{"ledger_note_add", "ledger_note_vote"}},
+		{name: "mixed", ledgers: []LedgerConfig{{Name: "history"}, {Name: "cache", Type: "map"}, {Name: "other-cache", Type: "map"}}, expected: []string{"ledger_append", "ledger_map_delete", "ledger_map_put"}},
+		{name: "compaction enabled", ledgers: []LedgerConfig{{Name: "history", Compaction: &LedgerCompactionConfig{}}}, expected: []string{"ledger_append", "ledger_request_compaction"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &LedgerToolConfig{Ledgers: tt.ledgers}
+			sections := buildSafeOutputsSections(nil, nil, config)
+			require.Equal(t, tt.expected, extractToolNamesFromSections(t, sections))
+
+			for _, safeOutputs := range []*SafeOutputsConfig{nil, {NoOp: &NoOpConfig{}}} {
+				data := &WorkflowData{SafeOutputs: safeOutputs, LedgerConfig: config}
+				names := extractToolNamesFromSections(t, NewCompiler().collectPromptSections(data))
+				require.Subset(t, names, tt.expected)
+			}
+		})
+	}
 }
 
 // the list of tool names in the order they appear, stripping any max-budget annotations

@@ -23,6 +23,7 @@ name: Smoke Pi
 model: copilot/auto
 engine:
   id: pi
+  config: '{"mcp":{"exposure":"direct"}}'
   fallback-models:
     - copilot/gpt-5.6-luna
     - copilot/claude-sonnet-5
@@ -109,6 +110,11 @@ Execute the following tests sequentially in a single turn:
 
 ## Output
 
+Call the native safe-output tools directly: `create_issue`, `add_comment`, and
+`add_labels`. Never use `gh issue create`, `gh pr comment`, or other `gh` write
+commands: the GitHub proxy is read-only. `noop` and `report_incomplete` are tool
+calls, not shell commands or JSON to print. A fenced JSON example is not a tool call.
+
 **ALWAYS create an issue** with a summary of the smoke test run:
 - Title: "Smoke Test: Pi - ${{ github.run_id }}"
 - Body should include:
@@ -123,8 +129,6 @@ Execute the following tests sequentially in a single turn:
 
 If all tests pass and this workflow was triggered by a pull_request event, use the `add_labels` safe-output tool to add the label `smoke-pi` to the pull request (omit the `item_number` parameter to auto-target the triggering PR).
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Pass arguments directly to the tool. Do **NOT** wrap them under a `noop` key. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"message": "No action needed: [brief explanation of what was analyzed and why]"}
-```
+Record failed tests in the issue too; a failed test does not remove the reporting
+requirement. If you cannot submit the required summary, call `report_incomplete`
+with the actual blocker. Do not substitute `noop` for a missing report.
