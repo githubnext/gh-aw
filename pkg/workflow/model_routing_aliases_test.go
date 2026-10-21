@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -321,4 +322,79 @@ process.stdout.write(JSON.stringify({ modelConfig, projected: projectModelConfig
 	require.Equal(t, []any{"gpt-5.6-luna", "small", "sonnet"}, projectedRouting["allowedModels"])
 	require.Equal(t, toAnySlice(emitted), projectedRouting["candidateModels"])
 	require.NotContains(t, projectedRouting, "candidate_models")
+}
+
+func TestRoutingAllowedModelsPrefixedIdStaysExact(t *testing.T) {
+	for _, models := range []string{"[github-copilot/gemini-3.8-flash]", "[copilot/gemini-3.8-flash]"} {
+		compiled := compileRoutedAliasWorkflow(t, "copilot", "", models, "")
+		require.Equal(t, []string{"github-copilot/gemini-3.8-flash"}, compiled.candidates(t), models)
+	}
+}
+
+func TestRoutingAllowedModelsKnownCopilotIdStaysExact(t *testing.T) {
+	// Each name is both a bundled GitHub Copilot model id and a gh-aw alias; like
+	// resolveConfiguredModel, the model id wins.
+	for _, model := range []string{"gpt-5.4", "gpt-5-mini", "gemini-3.8-flash"} {
+		require.Contains(t, BuiltinModelAliases(), model)
+		require.True(t, isBundledCopilotModelID(model))
+		compiled := compileRoutedAliasWorkflow(t, "copilot", "", "["+model+"]", "")
+		require.Equal(t, []string{"github-copilot/" + model}, compiled.candidates(t), model)
+	}
+	// An alias that is not a bundled model id still expands.
+	compiled := compileRoutedAliasWorkflow(t, "copilot", "", "[gpt-5.6]", "")
+	require.Equal(t, []string{"github-copilot/gpt-5.6*"}, compiled.candidates(t))
+}
+
+func TestRoutingAllowedModelsNoInventedFamilyPatterns(t *testing.T) {
+	for _, alias := range []string{"grok", "computer-use"} {
+		_, err := expandModelRoutingAlias(alias, BuiltinModelAliases(), "codex")
+		require.ErrorContains(t, err, "no models compatible with Codex's Responses API", alias)
+	}
+	patterns, err := expandModelRoutingAlias("sonnet", BuiltinModelAliases(), "claude")
+	require.NoError(t, err)
+	require.Equal(t, []string{"github-copilot/claude-*sonnet*"}, patterns)
+}
+
+func TestRoutingAllowedModelsIntersectsLeadingWildcardWithFamily(t *testing.T) {
+	aliases := map[string][]string{"my-claude": {"copilot/*claude-sonnet*", "anthropic/*sonnet*"}}
+	patterns, err := expandModelRoutingAlias("my-claude", aliases, "claude")
+	require.NoError(t, err)
+	require.Equal(t, []string{"github-copilot/claude-sonnet*"}, patterns)
+	matched, _ := path.Match(strings.TrimPrefix(patterns[0], "github-copilot/"), "claude-sonnet-5")
+	require.True(t, matched, "claude-sonnet-5 matches the authored pattern and the Claude family")
+
+	require.Equal(t, []string{"claude-sonnet*", "claude-*claude-sonnet*"}, intersectModelPatternWithFamily("*claude-sonnet*", "claude-"))
+	require.Equal(t, []string{"claude-*sonnet*"}, intersectModelPatternWithFamily("*sonnet*", "claude-"))
+	require.Equal(t, []string{"gpt-5*mini*"}, intersectModelPatternWithFamily("gpt-5*mini*", "gpt-"))
+	require.Empty(t, intersectModelPatternWithFamily("gemini-*", "gpt-"))
+}
+
+func TestExpandModelPatternsKeepsEmptyKeyDefaultAlias(t *testing.T) {
+	aliases := map[string][]string{"": {"copilot/*sonnet*", "anthropic/*sonnet*"}}
+	require.Equal(t, []string{"github-copilot/*sonnet*", "anthropic/*sonnet*"}, expandModelPatterns("", aliases, "github-copilot"))
+	require.Empty(t, expandModelPatterns("*sonnet*", aliases, "github-copilot"), "a literal glob request is still rejected")
+}
+
+func TestRoutingAllowedModelsPolicyProviderAliasesAndCase(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		models string
+		policy string
+		want   []string
+	}{
+		{name: "github/ allow rule", models: "[small]", policy: "models:\n  allowed: [github/gpt-5.4-mini]\n", want: []string{"github-copilot/gpt-5.4-mini"}},
+		{name: "mixed-case provider allow rule", models: "[small]", policy: "models:\n  allowed: [GitHub-Copilot/claude-haiku-4.5]\n", want: []string{"github-copilot/claude-haiku-4.5"}},
+		{name: "github/ block rule", models: "[small, sonnet]", policy: "models:\n  blocked: [\"github/*haiku*\"]\n", want: []string{"github-copilot/gpt-5*mini*", "github-copilot/gpt-5*nano*", "github-copilot/gemini-*flash*lite*", "github-copilot/*sonnet*"}},
+		{name: "mixed-case allow rule", models: "[small]", policy: "models:\n  allowed: [\"GPT-5*\"]\n", want: []string{"github-copilot/*haiku*", "github-copilot/gpt-5*mini*", "github-copilot/gpt-5*nano*"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			compiled := compileRoutedAliasWorkflow(t, "copilot", "", tc.models, tc.policy)
+			require.Equal(t, tc.want, compiled.candidates(t))
+		})
+	}
+
+	t.Run("mixed-case fully blocked alias", func(t *testing.T) {
+		compiled := compileRoutedAliasWorkflow(t, "copilot", "", "[mai-code]", "models:\n  blocked: [\"mai-code*\"]\n")
+		require.ErrorContains(t, compiled.err, "excluded: mai-code")
+	})
 }

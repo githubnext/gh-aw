@@ -151,6 +151,8 @@ engine:
 
 The compiler expands each alias into the GitHub Copilot model patterns it stands for, here `github-copilot/*haiku*`, `github-copilot/gpt-5*mini*`, `github-copilot/gpt-5*nano*`, `github-copilot/gemini-*flash*lite*`, and `github-copilot/*sonnet*`, and the router chooses among the available models that match. Routing always uses GitHub Copilot inference, so only an alias's `copilot/` patterns are used, whichever engine runs the workflow. Exact names stay exact, and you can mix them with aliases, as in `[gpt-5.6-luna, small]`.
 
+Some names are both an alias and a GitHub Copilot model id, such as `gpt-5.4` and `gpt-5-mini`. When a name is a GitHub Copilot model id in gh-aw's bundled model catalogue, it stays exact, just as `engine.model` uses a model id over an alias with the same name. A `github-copilot/` or `copilot/` prefix, as in `github-copilot/gemini-3.8-flash`, always makes an entry exact. To route over an alias's models instead, list another alias that covers them, or define an alias with a different name under `models`.
+
 An entry that is neither an alias nor an exact model name, such as the typo `smal`, fails to compile, and the error lists the valid aliases. Exact names aren't checked against the models currently available.
 
 ### A policy and a shortlist together
@@ -170,7 +172,7 @@ engine:
 
 Here the router chooses `gpt-5.4-mini` or `gpt-5.6-sol`, and the compiler warns that `claude-sonnet-5` won't be selected. If the policy excludes every entry, compilation fails and the error names the excluded entries.
 
-An alias is narrowed by the policy in the same way. A pattern that a `models.blocked` rule fully covers is dropped, and a pattern outside `models.allowed` is narrowed to the `models.allowed` entries it includes: with `models.allowed: [claude-haiku-4.5, gpt-5.4-mini]`, `allowed-models: [small]` becomes `claude-haiku-4.5` and `gpt-5.4-mini`. When a block or allow pattern only partly overlaps an alias pattern, such as `models.blocked: [claude-sonnet-4.5]` with `sonnet`, the alias pattern stays in the shortlist and the firewall applies the policy to each available model, so the router never selects a blocked model. The compiler warns about aliases that the policy excludes entirely.
+An alias is narrowed by the policy in the same way. A pattern that a `models.blocked` rule fully covers is dropped, and a pattern outside `models.allowed` is narrowed to the `models.allowed` entries it includes: with `models.allowed: [claude-haiku-4.5, gpt-5.4-mini]`, `allowed-models: [small]` becomes `claude-haiku-4.5` and `gpt-5.4-mini`. When a block or allow pattern only partly overlaps an alias pattern, such as `models.blocked: [claude-sonnet-4.5]` with `sonnet`, the alias pattern stays in the shortlist and the firewall applies the policy to each available model, so the router never selects a blocked model. The compiler warns about aliases that the policy excludes entirely. As in the firewall, policy rules match model names case-insensitively, and the `copilot/`, `github-copilot/`, and `github/` providers all match GitHub Copilot models.
 
 `allowed-models` entries can be GitHub Actions expressions, such as `${{ vars.ROUTING_MODEL }}`, but only when the workflow sets neither `models.allowed` nor `models.blocked`, because the compiler can't check an expression against the policy.
 
@@ -277,7 +279,7 @@ engine:
 
 Without `allowed-models`, Claude and Codex choose from every model in their family that the policy allows. The compiler rejects other engines and providers, and `allowed-models` entries from another family.
 
-Aliases are limited to the engine's family as well. With Claude, `allowed-models: [small]` keeps only the alias's Claude models (`claude-*haiku*`), and with Codex, only its GPT models (`gpt-5*mini*` and `gpt-5*nano*`). An alias with no models in the engine's family, such as `sonnet` with Codex, fails to compile.
+Aliases are limited to the engine's family as well. With Claude, `allowed-models: [small]` keeps only the alias's Claude models (`claude-*haiku*`), and with Codex, only its GPT models (`gpt-5*mini*` and `gpt-5*nano*`). An alias pattern that doesn't start with the family name is narrowed to the family only when the alias also lists the engine's own provider, as `sonnet` lists `anthropic/*sonnet*`, and the narrowed pattern matches a GitHub Copilot model in gh-aw's bundled catalogue. An alias with no models in the engine's family, such as `sonnet` or `grok` with Codex, fails to compile.
 
 Routing also has these requirements:
 

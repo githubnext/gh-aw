@@ -92,10 +92,11 @@ func expandModelPatterns(request string, aliases map[string][]string, defaultPro
 }
 
 // walkModelPatterns visits each provider-qualified pattern that request expands to,
-// together with the alias whose entry produced it ("" for a literal request).
+// together with the alias whose entry produced it ("" for a literal request; "" is
+// also a valid alias name, the default policy).
 func walkModelPatterns(request string, aliases map[string][]string, defaultProvider string, visit func(pattern, alias string)) {
-	var expand func(string, string, map[string]bool)
-	expand = func(model, source string, visited map[string]bool) {
+	var expand func(string, string, bool, map[string]bool)
+	expand = func(model, source string, fromAlias bool, visited map[string]bool) {
 		model, _, _ = strings.Cut(model, "?")
 		if entries, ok := aliases[model]; ok {
 			if visited[model] {
@@ -103,12 +104,12 @@ func walkModelPatterns(request string, aliases map[string][]string, defaultProvi
 			}
 			visited[model] = true
 			for _, entry := range entries {
-				expand(entry, model, visited)
+				expand(entry, model, true, visited)
 			}
 			delete(visited, model)
 			return
 		}
-		if source == "" && strings.ContainsAny(model, "*[]") {
+		if !fromAlias && strings.ContainsAny(model, "*[]") {
 			return
 		}
 		if suffix, ok := strings.CutPrefix(model, "copilot/"); ok {
@@ -123,7 +124,7 @@ func walkModelPatterns(request string, aliases map[string][]string, defaultProvi
 			visit(model, source)
 		}
 	}
-	expand(request, "", make(map[string]bool))
+	expand(request, "", false, make(map[string]bool))
 }
 
 func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {

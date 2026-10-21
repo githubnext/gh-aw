@@ -5,11 +5,15 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
 	"slices"
 	"strings"
+	"sync"
+
+	clidata "github.com/github/gh-aw/pkg/cli/data"
 )
 
 // modelRoutingCandidateGroup is one authored allowed-models entry and the
@@ -37,11 +41,47 @@ func modelRoutingAliasMap(data *WorkflowData) map[string][]string {
 	return getBuiltinOnlyAliasMap()
 }
 
+// bundledCopilotModelIDs returns the lower-cased github-copilot model ids of gh-aw's
+// bundled model catalogue (pkg/cli/data/models.json).
+var bundledCopilotModelIDs = sync.OnceValue(func() map[string]struct{} {
+	var catalog struct {
+		Providers map[string]struct {
+			Models map[string]json.RawMessage `json:"models"`
+		} `json:"providers"`
+	}
+	ids := make(map[string]struct{})
+	if err := json.Unmarshal(clidata.ModelsJSON, &catalog); err != nil {
+		return ids
+	}
+	for id := range catalog.Providers["github-copilot"].Models {
+		ids[strings.ToLower(id)] = struct{}{}
+	}
+	return ids
+})
+
+func isBundledCopilotModelID(model string) bool {
+	_, ok := bundledCopilotModelIDs()[strings.ToLower(model)]
+	return ok
+}
+
+func bundledCopilotModelMatches(pattern string) bool {
+	pattern = strings.ToLower(pattern)
+	for id := range bundledCopilotModelIDs() {
+		if matched, err := path.Match(pattern, id); err == nil && matched {
+			return true
+		}
+	}
+	return false
+}
+
 // resolveModelRoutingCandidateGroups resolves each engine.model-routing.allowed-models
-// entry. Aliases expand through the workflow's alias map to GitHub Copilot patterns,
-// limited to the engine's model family for Claude and Codex. Other entries must be
-// GitHub Actions expressions or plausible exact model ids; they are not checked against
-// a live catalogue.
+// entry. An entry with a github-copilot/ or copilot/ prefix, or a GitHub Copilot model
+// id in the bundled catalogue, is exact, even when an alias has the same name; this
+// matches resolveConfiguredModel, where a live model id wins over an alias. Other
+// aliases expand through the workflow's alias map to GitHub Copilot patterns, limited
+// to the engine's model family for Claude and Codex. Remaining entries must be GitHub
+// Actions expressions or plausible exact model ids; they are not checked against a
+// live catalogue.
 func resolveModelRoutingCandidateGroups(data *WorkflowData, engineName string) ([]modelRoutingCandidateGroup, error) {
 	if !isModelRoutingEnabled(data) {
 		return nil, nil
@@ -58,18 +98,25 @@ func resolveModelRoutingCandidateGroups(data *WorkflowData, engineName string) (
 	seen := make(map[string]struct{}, len(routing.AllowedModels))
 	for _, model := range routing.AllowedModels {
 		model = strings.TrimSpace(model)
-		model = strings.TrimPrefix(model, "github-copilot/")
-		model = strings.TrimPrefix(model, "copilot/")
+		unprefixed := strings.TrimPrefix(model, "github-copilot/")
+		unprefixed = strings.TrimPrefix(unprefixed, "copilot/")
+		prefixed := unprefixed != model
+		model = unprefixed
 		if !validModelRoutingCandidate(model) {
 			return nil, fmt.Errorf("engine.model-routing.allowed-models contains invalid Copilot model %q", model)
 		}
-		if _, ok := seen[model]; ok {
+		exact := prefixed || containsExpression(model) || isBundledCopilotModelID(model)
+		key := model
+		if !exact && aliases[model] != nil {
+			key = "alias:" + model
+		}
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[model] = struct{}{}
+		seen[key] = struct{}{}
 		group := modelRoutingCandidateGroup{Name: model}
 		switch {
-		case containsExpression(model):
+		case exact:
 			group.Patterns = []string{"github-copilot/" + model}
 		case aliases[model] != nil:
 			patterns, err := expandModelRoutingAlias(model, aliases, engineName)
@@ -101,9 +148,12 @@ func plausibleConcreteModelID(model string) bool {
 
 // expandModelRoutingAlias returns the github-copilot/ patterns of alias. Routing always
 // uses GitHub Copilot inference, so other providers' patterns are dropped. For Claude
-// and Codex, only patterns in the engine's model family are kept; a leading-wildcard
-// pattern from an alias that also lists the engine's native provider is narrowed to
-// that family (for example *sonnet* becomes claude-*sonnet*).
+// and Codex, only patterns in the engine's model family are kept. A pattern that does
+// not start with the family, from an alias that also lists the engine's native
+// provider, is intersected with the family (for example *sonnet* becomes
+// claude-*sonnet*, and *claude-sonnet* becomes claude-sonnet*); an intersection that
+// matches no GitHub Copilot model in the bundled catalogue is dropped rather than
+// emitted as a pattern that only fails at run time.
 func expandModelRoutingAlias(alias string, aliases map[string][]string, engineName string) ([]string, error) {
 	engineName = strings.ToLower(engineName)
 	familyPrefix, familyLimited := modelRoutingEngineFamilyPrefixes[engineName]
@@ -114,20 +164,19 @@ func expandModelRoutingAlias(alias string, aliases map[string][]string, engineNa
 		if !ok || name == "" {
 			return
 		}
-		if familyLimited {
-			switch {
-			case strings.HasPrefix(strings.ToLower(name), familyPrefix):
-			case strings.HasPrefix(name, "*") && slices.ContainsFunc(aliases[source], func(entry string) bool {
+		names := []string{name}
+		if familyLimited && !strings.HasPrefix(strings.ToLower(name), familyPrefix) {
+			if !slices.ContainsFunc(aliases[source], func(entry string) bool {
 				return strings.HasPrefix(entry, nativeProvider)
-			}):
-				name = familyPrefix + name
-			default:
+			}) {
 				return
 			}
+			names = slices.DeleteFunc(intersectModelPatternWithFamily(name, familyPrefix), func(narrowed string) bool {
+				return !bundledCopilotModelMatches(narrowed)
+			})
 		}
-		qualified := "github-copilot/" + name
-		if !slices.Contains(patterns, qualified) {
-			patterns = append(patterns, qualified)
+		for _, name := range names {
+			patterns = appendUnique(patterns, "github-copilot/"+name)
 		}
 	})
 	if len(patterns) > 0 {
@@ -141,6 +190,37 @@ func expandModelRoutingAlias(alias string, aliases map[string][]string, engineNa
 	default:
 		return nil, fmt.Errorf("alias %q has no GitHub Copilot models", alias)
 	}
+}
+
+// intersectModelPatternWithFamily returns path.Match patterns that together match the
+// model names that match pattern and start with the literal family prefix. Letters
+// are compared case-insensitively. Patterns with character classes or escapes yield
+// nothing.
+func intersectModelPatternWithFamily(pattern, family string) []string {
+	if strings.ContainsAny(pattern, "[\\") {
+		return nil
+	}
+	// rest returns the patterns that match r exactly when p matches s+r.
+	var rest func(p, s string) []string
+	rest = func(p, s string) []string {
+		switch {
+		case s == "":
+			return []string{p}
+		case p == "":
+			return nil
+		case strings.HasPrefix(p, "*"):
+			return append(rest(p[1:], s), rest(p, s[1:])...)
+		case strings.HasPrefix(p, "?") || strings.EqualFold(p[:1], s[:1]):
+			return rest(p[1:], s[1:])
+		default:
+			return nil
+		}
+	}
+	var narrowed []string
+	for _, suffix := range rest(pattern, family) {
+		narrowed = appendUnique(narrowed, family+suffix)
+	}
+	return narrowed
 }
 
 // intersectModelRoutingPolicy narrows the candidate groups by models.allowed and
@@ -215,11 +295,19 @@ func narrowModelRoutingCandidate(candidate string, allowed, blocked []string, ex
 	return narrowed
 }
 
+// copilotModelPolicyProviders are the provider names that AWF matches against GitHub
+// Copilot models (getProviderAliases in gh-aw-firewall).
+var copilotModelPolicyProviders = []string{"copilot", "github-copilot", "github"}
+
 // copilotQualifiedModelPolicyRule returns rule qualified with github-copilot/, or false
-// when its provider cannot match GitHub Copilot models.
+// when its provider cannot match GitHub Copilot models. Like AWF, the provider may be
+// any GitHub Copilot provider name, compared case-insensitively.
 func copilotQualifiedModelPolicyRule(rule string) (string, bool) {
 	provider, model := splitModelPolicyRule(rule)
-	if provider != "copilot" && !modelPolicyRuleProviderMatchesCopilot(provider) {
+	if provider != "" && !slices.ContainsFunc(copilotModelPolicyProviders, func(name string) bool {
+		matched, err := path.Match(strings.ToLower(provider), name)
+		return err == nil && matched
+	}) {
 		return "", false
 	}
 	return "github-copilot/" + model, true
@@ -236,9 +324,11 @@ func modelPolicyRulesCover(rules []string, candidate string) bool {
 }
 
 // modelPatternCovers reports whether every model matched by specific is matched by general.
-// Both are provider-qualified path.Match patterns. Only * wildcards in general are
-// compared against a wildcard specific; other wildcards conservatively do not cover it.
+// Both are provider-qualified path.Match patterns, compared case-insensitively as AWF does.
+// Only * wildcards in general are compared against a wildcard specific; other wildcards
+// conservatively do not cover it.
 func modelPatternCovers(general, specific string) bool {
+	general, specific = strings.ToLower(general), strings.ToLower(specific)
 	if general == specific {
 		return true
 	}
@@ -249,9 +339,11 @@ func modelPatternCovers(general, specific string) bool {
 	return err == nil && matched
 }
 
-// modelPatternsMayOverlap reports whether some model can match both path.Match patterns.
-// It is exact for * and ? wildcards and conservatively true for character classes and escapes.
+// modelPatternsMayOverlap reports whether some model can match both path.Match patterns,
+// compared case-insensitively. It is exact for * and ? wildcards and conservatively true
+// for character classes and escapes.
 func modelPatternsMayOverlap(a, b string) bool {
+	a, b = strings.ToLower(a), strings.ToLower(b)
 	if strings.ContainsAny(a, "[\\") || strings.ContainsAny(b, "[\\") {
 		return true
 	}
