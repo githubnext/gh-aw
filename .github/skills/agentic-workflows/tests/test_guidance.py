@@ -21,6 +21,44 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_docs_merged_mode_scopes_base_checkout_and_recursion(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        example = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)
+        condition = next(line for line in example.splitlines() if line.startswith("if: "))
+        for required in (
+            "github.event.pull_request.merged == true",
+            "github.event.pull_request.base.ref == github.event.repository.default_branch",
+            "!startsWith(github.event.pull_request.head.ref, 'automation/docs-pages/')",
+            "!startsWith(github.event.pull_request.head.ref, 'automation/docs-indexes')",
+        ):
+            with self.subTest(merged_condition=required):
+                self.assertIn(required, condition)
+        self.assertIn("branch-prefix: automation/docs-pages/", example)
+        self.assertIn("checkout:\n  ref: ${{ github.event.repository.default_branch }}\n  pull-request: false\n", example)
+        self.assertNotIn("branch-prefix: automation/docs-\n", example)
+
+    def test_docs_on_demand_narrows_fallback_and_documents_app_scopes(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "merged-mode `checkout` override (retain current-PR checkout)",
+            "`push-to-pull-request-branch.fallback-as-pull-request: false`",
+            "`add-comment.issues: false`",
+            "`report-incomplete.create-issue: false`",
+            "Keep branch-protection preflight enabled",
+        ):
+            with self.subTest(on_demand_config=required):
+                self.assertIn(required, variant)
+        for required in (
+            "Administration read for default push branch-protection preflight",
+            "Issues read for diagnostic handlers",
+            "no Issues write with `add-comment.issues: false`",
+            "Default `add-comment` otherwise requests Issues write even for PR events",
+            "Issues write for issue output/default create-PR fallback",
+        ):
+            with self.subTest(app_permissions=required):
+                self.assertIn(required, guide)
+
     def test_docs_on_demand_completion_requires_final_head_and_human_event(self):
         guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
         variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]

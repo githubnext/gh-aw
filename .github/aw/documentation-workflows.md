@@ -21,7 +21,7 @@ Use with [designer](designer.md), [creator](create-agentic-workflow.md), or [upd
 |---|---|---|
 | PR comment | `slash_command: { name: docs, events: [pull_request_comment] }` | `push-to-pull-request-branch`, triggering PR |
 | One-shot label | `label_command: { name: "docs:run", events: [pull_request] }` | Same PR branch output |
-| Merged source PR | `pull_request: { types: [closed] }` + `merged == true` | `create-pull-request`, default branch |
+| Merged source PR | `pull_request: { types: [closed] }` + merged into default branch | `create-pull-request`, default branch |
 
 - Explicit commands: no push/synchronize or bot command triggers. `/docs` must start comment; default authorization requires write access. Skipped activation is not inference.
 - Keep command/state labels separate; `label_command` removes command labels by default.
@@ -35,8 +35,11 @@ Same-repository example; best-effort duplicate avoidance only, not exactly-once.
 on:
   pull_request:
     types: [closed]
-if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'automation/docs-')
+if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == github.event.repository.default_branch && !startsWith(github.event.pull_request.head.ref, 'automation/docs-pages/') && !startsWith(github.event.pull_request.head.ref, 'automation/docs-indexes')
 
+checkout:
+  ref: ${{ github.event.repository.default_branch }}
+  pull-request: false
 permissions:
   contents: read
   pull-requests: read
@@ -51,7 +54,7 @@ safe-outputs:
     client-id: ${{ vars.DOCS_APP_CLIENT_ID }}
     private-key: ${{ secrets.DOCS_APP_PRIVATE_KEY }}
   create-pull-request:
-    branch-prefix: automation/docs-
+    branch-prefix: automation/docs-pages/
     allowed-files: ["docs/**"]
     draft: true
   create-issue:
@@ -68,6 +71,7 @@ Only docs:required:
 - Open docs-only PR against default branch; link source PR. No index rebuild.
 ```
 
+- `automation/docs-pages/` survives branch-prefix normalization unchanged; exclude it and the fixed index branch separately. Merged mode checks out default-branch content, not the retained pre-merge PR head.
 - Strict merged-run deduplication: add repository-owned trusted orchestration, not model instructions. Before inference/outputs, atomically create a durable claim keyed by repository + workflow purpose + source merge SHA; only the winning owner proceeds. Existing claim: stop, whether pending or complete. A read-then-write record is not atomic.
 - Persist completion + output PR URL using owner-checked compare-and-set; retain records after PR closure/branch deletion. Crash or uncertain output creation: fail closed; reconcile actual outputs before any explicit recovery. Never expire/reassign a claim blindly or retry an ambiguous creation. Claim + PR creation are not one transaction; this is not an exactly-once guarantee.
 - The example does not implement that ledger. `branch-prefix` only namespaces output branches; a model-chosen merge-SHA branch is not enforced idempotency. Do not substitute prompt checks or concurrency for the durable claim.
@@ -76,7 +80,7 @@ Only docs:required:
 
 ### On-demand rewrite
 
-- Configuration: choose command trigger; remove merged condition, `create-pull-request`, `create-issue`; declare `push-to-pull-request-branch` (scope: `allowed-files`) + `add-comment`.
+- Configuration: choose command trigger; remove merged condition, `create-pull-request`, `create-issue`, and the merged-mode `checkout` override (retain current-PR checkout); declare `push-to-pull-request-branch` (scope: `allowed-files`) + `add-comment`. Set `push-to-pull-request-branch.fallback-as-pull-request: false` (no new-PR fallback), `add-comment.issues: false` (PR comments only), and `report-incomplete.create-issue: false` (no diagnostic issue output). Keep branch-protection preflight enabled.
 - Prompt: read current triggering PR, not merged PR. docs:not-needed: no changes; stop. Missing/conflicting/unsafe: comment; stop. Only docs:required: edit allowed docs; push to current PR branch; summarize via comment.
 - Remove merged-PR reads, new-docs-PR creation, issue escalation. Never request undeclared outputs; retain extra outputs only if explicitly configured for this variant.
 - Completion owner: maintainer, not agent. After safe-output push and any CI-triggering empty commit finish, read live PR head; review pages, apply `docs:complete`, and replace the single `Docs-resolution:` line with that exact final SHA + explanation. A later commit requires renewed review/resolution; never reuse the pre-push SHA.
@@ -113,7 +117,7 @@ Merge queue: handle `merge_group`; evaluate constituent PR decisions against PR 
 - App/PAT mutation -> subscribed events can fire. Prefer repository-scoped App; no unnecessary bot triggers.
 - Safe-output branch update: use documented CI trigger, e.g. `github-token-for-extra-empty-commit: app`; renew resolution for new SHA.
 - Inference: `permissions.copilot-requests: write` uses Actions token with organizational access + centralized billing; no inference PAT in that mode.
-- Repository writes/CI: App, not inference credential. Install only intended repositories; Contents/Pull requests write; Issues write only for issue output. Keys only in token minting/safe outputs, never agent tools/generators.
+- Repository writes/CI: App, not inference credential. Install only intended repositories; Contents/Pull requests write; merged example also needs Issues write for issue output/default create-PR fallback and default incomplete-report issues. On-demand App: Administration read for default push branch-protection preflight + Issues read for diagnostic handlers; no Issues write with `add-comment.issues: false`, `report-incomplete.create-issue: false`, and no create-PR/issue output. Default `add-comment` otherwise requests Issues write even for PR events. Keys only in token minting/safe outputs, never agent tools/generators.
 
 References: [CI events](https://github.github.com/gh-aw/reference/triggering-ci/), [auth](https://github.github.com/gh-aw/reference/auth/), [triggers](triggers.md).
 
