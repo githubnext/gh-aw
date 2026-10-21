@@ -54,7 +54,7 @@ func TestDryRunZizmorDifferentialBindsSourceAndSink(t *testing.T) {
 			baseline := zizmorAdversarialSnapshot(t, path, before)
 			current := zizmorAdversarialSnapshot(t, path, test.after)
 			diff, err := (&dryRunScannerBaseline{results: map[string]error{"zizmor": baseline}}).filter("zizmor", current)
-			assert.Equal(t, test.added > 0, err != nil)
+			require.Error(t, err, "existing high findings remain blocking; the baseline only classifies them")
 			require.NotNil(t, diff)
 			assert.Equal(t, test.added, diff.Added)
 			assert.Equal(t, 1-test.added, diff.Existing)
@@ -215,7 +215,7 @@ func TestScannerStepLabelsCannotHideChangedConfiguration(t *testing.T) {
 }
 
 func TestDryRunZizmorRejectsPartialLocationLoss(t *testing.T) {
-	valid := `{"ident":"existing","determinations":{"severity":"High"},"locations":[{"symbolic":{"key":{"Local":{"verbatim_path":"missing.yml"}}},"concrete":{"location":{"start_point":{"row":1}}}}]}`
+	valid := `{"ident":"existing","determinations":{"severity":"Low"},"locations":[{"symbolic":{"key":{"Local":{"verbatim_path":"missing.yml"}}},"concrete":{"location":{"start_point":{"row":1}}}}]}`
 	for _, invalid := range []string{
 		`{"ident":"new","determinations":{"severity":"High"},"locations":[]}`,
 		`{"ident":"new","locations":[{"symbolic":{},"concrete":{"location":{"start_point":{"row":1}}}}]}`,

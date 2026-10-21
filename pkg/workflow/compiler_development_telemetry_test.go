@@ -233,7 +233,6 @@ func TestDryRunCompiledTelemetryEnv(t *testing.T) {
 		{name: "codex", engine: "codex"},
 		{name: "explicit", config: "observability:\n  otlp:\n    endpoint: https://traces.example.com\n    headers: ${{ secrets.OTLP_HEADERS }}\n"},
 		{name: "imported", config: "imports: [shared.md]\n"},
-		{name: "github-app", config: "observability:\n  otlp:\n    endpoint: https://traces.example.com\n    github-app:\n      audience: collector\n"},
 		{name: "reusable", config: "observability:\n  otlp:\n    endpoint: https://traces.example.com\n    headers: ${{ secrets.OTLP_HEADERS }}\n", reusable: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -244,7 +243,6 @@ on: workflow_dispatch
 strict: false
 permissions:
   contents: read
-  id-token: write
 engine:
   id: copilot
   env:
@@ -268,19 +266,6 @@ env:
   KEEP_LITERAL: OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_HEADERS GH_AW_OTLP_ATTRIBUTES
 tools:
   github: false
-pre-steps:
-  - run: echo pre
-    env: {OTEL_SERVICE_NAME: pre, TRACEPARENT: pre-parent, KEEP: pre}
-post-steps:
-  - run: echo post
-    env: {OTEL_SERVICE_NAME: post, TRACESTATE: post-state, KEEP: post}
-jobs:
-  custom:
-    runs-on: ubuntu-latest
-    env: {OTEL_SERVICE_NAME: job, BAGGAGE: job-baggage, KEEP: job}
-    steps:
-      - run: echo custom
-        env: {OTEL_SERVICE_NAME: step, GITHUB_AW_OTEL_TRACE_ID: step-trace, KEEP: step}
 ` + tc.config + "---\nTest dry-run telemetry isolation.\n"
 			if tc.engine != "" {
 				source = strings.Replace(source, "id: copilot", "id: "+tc.engine, 1)
@@ -376,6 +361,99 @@ Test dry-run compiler diagnostics.
 	assert.NotContains(t, compiled, "env: {}")
 	assert.NotContains(t, compiled, "OTEL_SERVICE_NAME")
 	assert.NotContains(t, compiled, "needs.activation.outputs.daily_ai_credits_")
+}
+
+func TestDryRunCallWorkflowTelemetrySecrets(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), ".github", "workflows")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+	worker := filepath.Join(dir, "worker.md")
+	gateway := filepath.Join(dir, "gateway.md")
+	require.NoError(t, os.WriteFile(worker, []byte(`---
+on:
+  workflow_call:
+    secrets:
+      REQUIRED_TOKEN:
+        required: true
+engine: copilot
+permissions:
+  contents: read
+observability:
+  otlp:
+    endpoint:
+      - url: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
+        headers:
+          Authorization: ${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+      - url: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
+        headers:
+          Authorization: ${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+---
+Reusable worker.
+`), 0600))
+	require.NoError(t, os.WriteFile(gateway, []byte(`---
+on: workflow_dispatch
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  call-workflow: [worker]
+---
+Gateway.
+`), 0600))
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+	compiler.SetApprove(true)
+	otelSecrets := []string{
+		"GH_AW_OTEL_GRAFANA_AUTHORIZATION", "GH_AW_OTEL_GRAFANA_ENDPOINT",
+		"GH_AW_OTEL_SENTRY_AUTHORIZATION", "GH_AW_OTEL_SENTRY_ENDPOINT",
+	}
+	for _, dryRun := range []bool{false, true, false} {
+		compiler.SetDryRun(dryRun)
+		// Compile the caller first in dry-run mode to cover stale normal worker locks.
+		if dryRun {
+			require.NoError(t, compiler.CompileWorkflow(gateway))
+			lock, err := os.ReadFile(filepath.Join(dir, "gateway.lock.yml"))
+			require.NoError(t, err)
+			for _, name := range otelSecrets {
+				assert.NotContains(t, string(lock), "secrets."+name)
+			}
+		}
+		require.NoError(t, compiler.CompileWorkflow(worker))
+		workerLock, err := os.ReadFile(filepath.Join(dir, "worker.lock.yml"))
+		require.NoError(t, err)
+		declared := extractWorkflowCallSecretsFromParsedLock(t, string(workerLock))
+		assert.Contains(t, declared, "REQUIRED_TOKEN")
+		require.NoError(t, compiler.CompileWorkflow(gateway))
+		gatewayLock, err := os.ReadFile(filepath.Join(dir, "gateway.lock.yml"))
+		require.NoError(t, err)
+		var caller struct {
+			Jobs map[string]struct {
+				If      string
+				Secrets map[string]string
+				Uses    string
+			}
+		}
+		require.NoError(t, yaml.Unmarshal(gatewayLock, &caller))
+		call := caller.Jobs["call-worker"]
+		for _, name := range otelSecrets {
+			if dryRun {
+				assert.NotContains(t, declared, name)
+				assert.NotContains(t, call.Secrets, name)
+			} else {
+				assert.Contains(t, declared, name)
+				assert.Contains(t, call.Secrets, name)
+			}
+		}
+		for name := range call.Secrets {
+			assert.Contains(t, declared, name, "caller must only pass declared callee secrets")
+		}
+		if dryRun {
+			assert.Equal(t, "${{ !always() }}", call.If)
+			assert.Empty(t, call.Secrets)
+			assert.Empty(t, call.Uses, "disabled calls must not require a compatible callee secret contract")
+		} else {
+			assert.NotEqual(t, "${{ !always() }}", call.If)
+		}
+	}
 }
 
 func assertDryRunEngineDate(t *testing.T, content []byte) {

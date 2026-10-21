@@ -89,6 +89,128 @@ jobs:
 	assert.Equal(t, content, repeated)
 }
 
+func TestRunsOnRoundTrip(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		value  any
+	}{
+		{"scalar", "ubuntu-latest", "ubuntu-latest"},
+		{"single quoted scalar", "'ubuntu-latest'", "ubuntu-latest"},
+		{"double quoted scalar", `"ubuntu-latest"`, "ubuntu-latest"},
+		{"quoted special characters", "'runner: linux # large'", "runner: linux # large"},
+		{"expression", "${{ matrix.runner }}", "${{ matrix.runner }}"},
+		{"quoted expression", `"${{ inputs.runner }}"`, "${{ inputs.runner }}"},
+		{"array expression", `${{ fromJSON('["self-hosted", "linux"]') }}`, `${{ fromJSON('["self-hosted", "linux"]') }}`},
+		{"folded expression", ">-\n      ${{ inputs.runner ||\n          'ubuntu-latest' }}", "${{ inputs.runner ||\n    'ubuntu-latest' }}"},
+		{"single label", "[self-hosted]", []any{"self-hosted"}},
+		{"single block label", "\n      - self-hosted", []any{"self-hosted"}},
+		{"flow labels", "[self-hosted, linux, x64, something]", []any{"self-hosted", "linux", "x64", "something"}},
+		{"multiline flow labels", "[\n      self-hosted,\n      linux,\n    ]", []any{"self-hosted", "linux"}},
+		{"block labels", "\n      - self-hosted\n      - linux\n      - x64", []any{"self-hosted", "linux", "x64"}},
+		{"indentless labels", "\n    - self-hosted\n    - linux", []any{"self-hosted", "linux"}},
+		{"group", "{group: my-runners}", map[string]any{"group": "my-runners"}},
+		{"block group", "\n      group: my-runners", map[string]any{"group": "my-runners"}},
+		{"label only", "{labels: linux}", map[string]any{"labels": "linux"}},
+		{"labels only", "{labels: [self-hosted, linux]}", map[string]any{"labels": []any{"self-hosted", "linux"}}},
+		{"group and label", "{group: my-runners, labels: linux}", map[string]any{"group": "my-runners", "labels": "linux"}},
+		{"flow group and labels", "{group: my-runners, labels: [linux, x64]}", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"group and labels", "\n      group: my-runners\n      labels:\n        - linux\n        - x64", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"group and indentless labels", "\n      group: my-runners\n      labels:\n      - linux\n      - x64", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"group expression", "{group: '${{ inputs.group }}'}", map[string]any{"group": "${{ inputs.group }}"}},
+		{"labels expression", "{labels: '${{ matrix.labels }}'}", map[string]any{"labels": "${{ matrix.labels }}"}},
+		{"group and label expressions", "{group: '${{ inputs.group }}', labels: [self-hosted, '${{ matrix.os }}']}", map[string]any{"group": "${{ inputs.group }}", "labels": []any{"self-hosted", "${{ matrix.os }}"}}},
+		{"expression label", "[self-hosted, '${{ matrix.os }}']", []any{"self-hosted", "${{ matrix.os }}"}},
+		{"anchored scalar", "&runner ubuntu-latest", "ubuntu-latest"},
+		{"anchored labels", "&runners [self-hosted, linux]", []any{"self-hosted", "linux"}},
+		{"anchored group", "&runners {group: my-runners, labels: [linux, x64]}", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"aliased label", "[&label self-hosted, *label]", []any{"self-hosted", "self-hosted"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "# Runner selection\njobs:\n  build:\n    runs-on: " + tt.source + "\n    steps:\n      - run: echo test\n"
+			input, err := Parse([]byte(source))
+			require.NoError(t, err)
+			assert.Equal(t, tt.value, input.Jobs[0].RunsOn)
+			emitted, err := Emit(input)
+			require.NoError(t, err)
+			assert.Equal(t, source, emitted, "unchanged runners must preserve source bytes")
+
+			input.Name = "Edited"
+			emitted, err = Emit(input)
+			require.NoError(t, err)
+			reparsed, err := Parse([]byte(emitted))
+			require.NoError(t, err)
+			assert.Equal(t, tt.value, reparsed.Jobs[0].RunsOn, "unrelated edits must preserve runners")
+
+			constructed := &Workflow{Jobs: []*Job{{
+				ID: "build", RunsOn: tt.value, Steps: []Step{RunStep{Run: "echo test"}},
+			}}}
+			emitted, err = Emit(constructed)
+			require.NoError(t, err)
+			reparsed, err = Parse([]byte(emitted))
+			require.NoError(t, err)
+			assert.Equal(t, tt.value, reparsed.Jobs[0].RunsOn, "new ASTs must preserve runner types and values")
+		})
+	}
+}
+
+func TestRunsOnEdits(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		value  any
+	}{
+		{"scalar to list", "ubuntu-latest", []any{"self-hosted", "linux"}},
+		{"scalar to mapping", "ubuntu-latest", map[string]any{"group": "my-runners"}},
+		{"list to scalar", "[self-hosted, linux]", "ubuntu-latest"},
+		{"block list to group mapping", "\n      - self-hosted\n      - linux\n      - x64", map[string]any{"group": "my-runners"}},
+		{"mapping to scalar", "{group: my-runners}", "ubuntu-latest"},
+		{"mapping to list", "{group: my-runners}", []any{"self-hosted", "linux"}},
+		{"nested label to labels", "{group: my-runners, labels: linux}", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"nested labels to label", "\n      group: my-runners\n      labels:\n        - linux\n        - x64", map[string]any{"group": "my-runners", "labels": "linux"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "# Runner selection\njobs:\n  build:\n    runs-on: " + tt.source + "\n    steps:\n      - run: echo test\n"
+			input, err := Parse([]byte(source))
+			require.NoError(t, err)
+			input.Jobs[0].RunsOn = tt.value
+			emitted, err := Emit(input)
+			require.NoError(t, err)
+			reparsed, err := Parse([]byte(emitted))
+			require.NoError(t, err)
+			assert.Equal(t, tt.value, reparsed.Jobs[0].RunsOn)
+			again, err := Emit(reparsed)
+			require.NoError(t, err)
+			assert.Equal(t, emitted, again, "edited runner emission must be stable")
+		})
+	}
+}
+
+func TestRunsOnAliasRoundTrip(t *testing.T) {
+	for _, runner := range []string{"ubuntu-latest", "[self-hosted, linux]", "{group: my-runners, labels: [linux, x64]}"} {
+		t.Run(runner, func(t *testing.T) {
+			source := "jobs:\n  build:\n    runs-on: &runners " + runner +
+				"\n    steps: [{run: echo build}]\n  test:\n    runs-on: *runners\n    steps: [{run: echo test}]\n"
+			input, err := Parse([]byte(source))
+			require.NoError(t, err)
+			expected := input.Jobs[1].RunsOn
+			emitted, err := Emit(input)
+			require.NoError(t, err)
+			assert.Equal(t, source, emitted)
+
+			input.Jobs[0].RunsOn = "windows-latest"
+			emitted, err = Emit(input)
+			require.NoError(t, err)
+			reparsed, err := Parse([]byte(emitted))
+			require.NoError(t, err)
+			assert.Equal(t, "windows-latest", reparsed.Jobs[0].RunsOn)
+			assert.Equal(t, expected, reparsed.Jobs[1].RunsOn, "editing an anchor must not change another job's runners")
+		})
+	}
+}
+
 func TestSameJobOutputsAndScopedIDs(t *testing.T) {
 	input := outputWorkflow()
 	input.Jobs[1].Steps = []Step{RunStep{

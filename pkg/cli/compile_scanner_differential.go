@@ -71,7 +71,7 @@ func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDi
 	for _, diagnostic := range baseline {
 		counts[diagnostic.Identity]++
 	}
-	var added []scanfindings.Finding
+	var actionable []scanfindings.Finding
 	for _, diagnostic := range current {
 		finding := diagnostic.Finding
 		if finding.Severity == scanfindings.SeverityLow || finding.Severity == scanfindings.SeverityInfo {
@@ -79,13 +79,14 @@ func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDi
 		} else if counts[diagnostic.Identity] > 0 {
 			counts[diagnostic.Identity]--
 			diff.Existing++
+			actionable = append(actionable, finding)
 		} else {
 			diff.Added++
-			added = append(added, finding)
+			actionable = append(actionable, finding)
 		}
 	}
-	if len(added) > 0 {
-		return diff, withScannerFindings(fmt.Errorf("%s found %d added medium-or-higher or unclassified finding(s)", tool, len(added)), added)
+	if len(actionable) > 0 {
+		return diff, withScannerFindings(fmt.Errorf("%s found %d medium-or-higher or unclassified finding(s) (%d existing, %d added)", tool, len(actionable), diff.Existing, diff.Added), actionable)
 	}
 	return diff, nil
 }

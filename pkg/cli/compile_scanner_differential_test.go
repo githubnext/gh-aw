@@ -55,7 +55,7 @@ func TestDryRunScannerDifferential(t *testing.T) {
 			t.Parallel()
 			baseline := &dryRunScannerBaseline{results: map[string]error{"zizmor": toError(test.before)}}
 			diff, err := baseline.filter("zizmor", toError(test.after))
-			assert.Equal(t, test.added > 0, err != nil)
+			assert.Equal(t, test.added+test.existing > 0, err != nil)
 			require.NotNil(t, diff)
 			assert.Equal(t, &DryRunScannerDifferential{
 				Baseline: len(test.before), Existing: test.existing, Added: test.added, Ignored: test.ignored,
@@ -457,8 +457,8 @@ Say Done.
 			MarkdownFiles: []string{source}, DryRun: true, Strict: true, Zizmor: true,
 			JSONOutput: true, activeModels: &activeModelInventory{},
 		})
-		require.NoError(t, err)
-		return err
+		require.ErrorContains(t, err, "1 existing, 0 added")
+		return nil
 	})
 	assert.Equal(t, 2, calls)
 	var results []ValidationResult
@@ -466,10 +466,10 @@ Say Done.
 	require.NotEmpty(t, results)
 	report := results[len(results)-1].DryRun
 	require.NotNil(t, report)
-	assert.Equal(t, "passed", report.Gate)
+	assert.Equal(t, "failed", report.Gate)
 	assert.Equal(t, "pre_compile_lock_files", report.WarningBaseline)
 	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, report.Scanners["zizmor"].Differential)
-	assert.Equal(t, "passed", report.Scanners["zizmor"].Status)
+	assert.Equal(t, "failed", report.Scanners["zizmor"].Status)
 }
 
 func TestCollectDryRunBaselineInputsSetsWorkflowIdentifierPerFile(t *testing.T) {
@@ -615,8 +615,9 @@ Check the workflow.
 		runStepInfo{Source: resource.Source, Name: resource.Name, Script: resource.Script},
 		"script:1:6: warning: quote this [SC2086]\n")
 	diff, err := config.dryRunBaseline.filter("shellcheck", current)
-	require.NoError(t, err)
-	assert.Equal(t, 1, diff.Existing)
+	require.ErrorContains(t, err, "1 existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, diff,
+		"resource findings must retain their baseline identity without waiving existing findings")
 }
 
 func TestPrepareDryRunScannerBaselineKeepsDirectoryScopeWithoutTargetLock(t *testing.T) {
@@ -690,8 +691,9 @@ func TestShellcheckDifferentialUsesScriptLocations(t *testing.T) {
 	step.Script = "# added line\n" + step.Script
 	after := withShellcheckFindings(errors.New("findings"), step, "script:2:6: warning: quote this [SC2086]\n")
 	diff, err := baseline.filter("shellcheck", after)
-	require.NoError(t, err)
-	assert.Equal(t, 1, diff.Existing)
+	require.ErrorContains(t, err, "1 existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, diff,
+		"shifting script lines must preserve finding identity without waiving existing findings")
 	for _, output := range []string{"unparseable", "script:999:1: warning: quote this [SC2086]\n"} {
 		_, err := baseline.filter("shellcheck", withShellcheckFindings(errors.New("bad output"), step, output))
 		require.Error(t, err)
@@ -770,6 +772,8 @@ func TestShellcheckDifferentialNativeFindings(t *testing.T) {
 	step.Script = "#!/bin/bash\n# leading comment\necho \"$missing\"\n"
 	_, currentErr := runShellcheckOnScript(step, nil, false)
 	diff, err := baseline.filter("shellcheck", currentErr)
-	require.NoError(t, err)
-	assert.Positive(t, diff.Existing)
+	require.ErrorContains(t, err, "existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{
+		Baseline: len(findings.diagnostics), Existing: len(findings.diagnostics),
+	}, diff, "native findings must retain their identity and remain blocking")
 }

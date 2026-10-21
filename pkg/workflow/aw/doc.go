@@ -9,6 +9,8 @@
 // Frontmatter retains the complete AW configuration, including engine, tools,
 // imports, safe outputs, triggers, and custom jobs. Schema validation, import
 // resolution, and typed configuration parsing remain the compiler's job.
+// Runner selections retain scalar, label-sequence, and group/labels mapping
+// values, including expression strings, at the root and in custom jobs.
 //
 // workflow.Compiler.ParseWorkflowDocument accepts this source AST, and
 // CompileDocument lowers it through the existing compiler to an actions.Workflow.

@@ -159,7 +159,7 @@ requirements. Run zizmor, actionlint and poutine when possible; report unavailab
 checks as unverified, not passed. Without Docker, use a native `shellcheck` binary
 for the required run-step linting. Enabled scanners scan the existing on-disk locks
 before compilation and compare finding identities and occurrence counts against
-the emitted diagnostic locks using the same result filters. Only added
+the emitted diagnostic locks using the same result filters. Existing and added
 medium-or-higher or unclassified findings fail. Low-severity/informational findings
 remain visible but nonblocking. Zizmor's `secrets-outside-env` is excluded from
 dry-run results because repository/organization secrets are common in agentic workflows;
@@ -186,11 +186,23 @@ rather than skipping them; review callees separately without the override.
 `--dry-run` stages safe outputs and disables compiler-managed GitHub mutations:
 push jobs, memory/cache persistence, reusable safe-output calls, work-queue
 operations, reactions, status/failure comments and issues, label removal, and
-issue locking. Diagnostics, summaries, and run artifacts remain available;
+issue locking. Authored custom jobs and custom safe-output jobs become disabled,
+credential-free placeholders; neither step-level staging overrides nor
+`secrets: inherit` can reactivate them. Their declared output names remain
+available, but their outputs are empty and dependent jobs may be skipped.
+Reusable output bindings and self-hosted runner policy remain valid without
+retaining original executable targets or matrix-dependent runner expressions.
+Host steps (`steps`, `pre-steps`, `pre-agent-steps`, `post-steps`, `on.steps`,
+safe-output/threat-detection/secret-masking steps, and unsafe built-in job
+overrides), custom MCP servers, `mcp-scripts`, custom safe-output scripts/actions,
+enabled Bash graders, and authored OIDC permissions (including safe-output
+permissions) are rejected, including declarations from imports. Compiler-owned
+pull-request stack gates remain enabled. Remove those declarations
+from a separate diagnostic workflow; there is no unsafe dry-run override.
+Diagnostics, summaries, and run artifacts remain available;
 `OTEL_*`, `GH_AW_OTLP_*`, `GITHUB_AW_OTEL_*`, `TRACEPARENT`, `TRACESTATE`,
 `BAGGAGE`, and `CLAUDE_CODE_ENABLE_TELEMETRY` environment variables and automatic telemetry
-configuration/authentication are omitted from dry-run locks. Custom scripts
-that configure their own exporters remain outside this control.
+configuration/authentication are omitted from dry-run locks.
 Review that emitted lock, not the previously published normal lock. If a live
 test is permitted, upload and dispatch the exact reviewed revision; restoring
 the normal lock before dispatch does not apply dry-run suppression to it.
@@ -213,9 +225,10 @@ The summary records `warning_baseline: "pre_compile_lock_files"`,
 gate. Check the exit status and all results; preflight failures may emit no
 summary. Passing coverage is not execution approval or per-image/script proof.
 
-This is not a sandbox for arbitrary code. Custom scripts/jobs, agent shell
-commands, external MCP servers, and custom credentials remain unverified.
-The runtime explicitly warns about this scope; review their side effects before
+This is not a sandbox for arbitrary code. Agent shell commands, custom engine
+execution, custom credentials, and compiler-managed OIDC integrations remain
+unverified. Rejected declarations are not evidence that all other code is safe.
+The runtime explicitly warns about this scope; review remaining side effects before
 live testing, even after a successful dry-run compilation.
 
 ## User-Visible Dry-Run Result

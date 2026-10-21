@@ -56,7 +56,9 @@ steps:
       git -C "$AGENTRX_HOME/src" fetch --depth 1 origin 7a18c79708e7671be15124460f4f7296107c2a55
       git -C "$AGENTRX_HOME/src" checkout --detach FETCH_HEAD
       uv venv --python 3.12 --python-preference only-managed "$AGENTRX_HOME/.venv"
-      uv pip install --python "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src"
+      # run.py imports AgentRx from the pinned checkout directly. Sync its complete
+      # dependency lock without executing a source build or resolving new versions.
+      uv pip sync --require-hashes --only-binary=:all: --python "$AGENTRX_HOME/.venv/bin/python" "${GITHUB_WORKSPACE}/.github/workflows/requirements-agentrx.txt"
       "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src/run.py" --help >/dev/null
 safe-outputs:
   mentions: false
