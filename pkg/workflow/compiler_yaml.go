@@ -91,6 +91,10 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("# Jobs receive only their explicitly declared permissions.\n")
 	yaml.WriteString("permissions: {}\n\n")
 
+	if data.DryRun && !data.GHES {
+		yaml.WriteString("cache-mode: read\n\n")
+	}
+
 	yaml.WriteString(data.Concurrency)
 	yaml.WriteString("\n\n")
 	yaml.WriteString(data.RunName)
