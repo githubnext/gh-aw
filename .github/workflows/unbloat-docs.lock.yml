@@ -1192,7 +1192,7 @@ jobs:
           GH_AW_MAX_TURNS: 90
           GH_AW_PHASE: agent
           GH_AW_PI_BARE: false
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_MODEL: copilot/claude-sonnet-5.5
           GH_AW_PI_NATIVE_PROVIDER: github-copilot
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve"]'
@@ -2484,7 +2484,7 @@ jobs:
           GH_AW_MAX_TURNS: 90
           GH_AW_PHASE: evals
           GH_AW_PI_BARE: false
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_MODEL: copilot/claude-sonnet-5.5
           GH_AW_PI_NATIVE_PROVIDER: github-copilot
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve"]'

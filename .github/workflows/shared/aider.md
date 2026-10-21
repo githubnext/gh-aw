@@ -228,6 +228,17 @@ engine:
                           "Do not stop or ask the user to supply files merely because the initial file list is empty. "
                           "Emit the appropriate safeoutputs command only after evaluating the actual task results."
                       )
+              if getattr(coder, "num_reflections", 0) == getattr(coder, "max_reflections", 3):
+                  messages.append({
+                      "role": "user",
+                      "content": (
+                          "This is your last available reflection. Do not repeat discovery or start more edits. "
+                          "Execute the required safeoutputs command in a fenced bash block now. "
+                          "If the task could not be completed, use safeoutputs report_incomplete --reason \"...\" "
+                          "with the actual blocker. Do not claim success or use noop for unfinished work, "
+                          "and do not repeat a safe output already recorded."
+                      ),
+                  })
               return messages
 
           def workflow_run_shell_commands(coder):
@@ -517,7 +528,10 @@ After shell commands, a bounded reflection loop lets you consume their results a
 Plan discovery, edits, verification, and the terminal safe output within that limit:
 
 - **Edit files with *SEARCH/REPLACE* blocks.** Aider applies them for you, including for new
-  files (empty `SEARCH` section). Do not write source files with `cat`/heredocs.
+  files (empty `SEARCH` section). Put the repository-relative filename on its own line
+  immediately before the opening code fence. Use exactly `<<<<<<< SEARCH`, `=======`,
+  and `>>>>>>> REPLACE` on separate lines inside that fence. Never nest code fences.
+  Do not write source files with `cat`/heredocs.
 - **Put shell commands in ```bash blocks, one complete command per line.** Aider executes each
   line separately, so multi-line commands, backslash continuations and heredocs do not work.
   Chain steps with `&&` or `;` on a single line instead.
@@ -525,6 +539,9 @@ Plan discovery, edits, verification, and the terminal safe output within that li
 - **Emit safe outputs through the `safeoutputs` MCP CLI**, for example
   `safeoutputs noop --message "..."`. Every `safeoutputs` command must be inside
   a ```bash block. Commands in prose or inline code are not executed.
+- **Reserve the final reflection for completion reporting.** If edits or verification
+  remain unfinished, call `safeoutputs report_incomplete --reason "..."` with the blocker.
+  Never use `noop` to represent failed or incomplete work.
 
 <!--
 # Aider CLI

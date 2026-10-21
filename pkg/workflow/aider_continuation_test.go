@@ -65,9 +65,12 @@ class Coder:
                 return
         while True:
             self.reflected_message = None
+            context = self.get_chat_files_messages()
             self.io.assistant_output("discovery" if self.num_reflections == 0 else "continuation")
             if self.num_reflections:
-                if os.environ["AIDER_TEST_SCENARIO"] == "existing":
+                if os.environ["AIDER_TEST_SCENARIO"] == "malformed":
+                    assert with_message == "native edit error"
+                elif os.environ["AIDER_TEST_SCENARIO"] == "existing":
                     assert with_message == "native retry"
                 else:
                     assert "Exit code:" in with_message
@@ -77,7 +80,17 @@ class Coder:
                 self.shell_commands = []
             if os.environ["AIDER_TEST_SCENARIO"] == "loop":
                 self.shell_commands = ["discover"]
-            output = self.run_shell_commands()
+            if os.environ["AIDER_TEST_SCENARIO"] in ("budget", "malformed"):
+                self.shell_commands = ["discover"]
+                if self.num_reflections == self.max_reflections:
+                    assert "This is your last available reflection." in context[-1]["content"]
+                    assert "safeoutputs report_incomplete" in context[-1]["content"]
+                    self.shell_commands = ["safeoutputs report_incomplete"]
+            if os.environ["AIDER_TEST_SCENARIO"] == "malformed" and self.num_reflections < self.max_reflections:
+                self.reflected_message = "native edit error"
+                output = ""
+            else:
+                output = self.run_shell_commands()
             if output:
                 self.cur_messages.extend([{"role": "user", "content": output}, {"role": "assistant", "content": "Ok"}])
             if not self.reflected_message or self.num_reflections >= self.max_reflections:
@@ -89,10 +102,14 @@ class Coder:
             if self.num_reflections == 2:
                 self.shell_commands = []
                 self.reflected_message = None
-                if os.environ["AIDER_TEST_SCENARIO"] != "loop":
+                if os.environ["AIDER_TEST_SCENARIO"] not in ("loop", "budget", "malformed"):
                     return
 
 def run_cmd(command, *args, **kwargs):
+    if command == "safeoutputs report_incomplete":
+        with open(os.environ["AIDER_TEST_TERMINAL"], "w") as record:
+            record.write("report_incomplete")
+        return 0, "incomplete recorded"
     if command == "safeoutputs noop":
         with open(os.environ["AIDER_TEST_TERMINAL"], "w") as record:
             record.write("noop")
@@ -123,13 +140,13 @@ def main():
     assert messages[1] == {"role": "assistant", "content": "Ok."}
     coder.run(with_message="perform workflow")
     assert coder.max_reflections == 3
-    if os.environ["AIDER_TEST_SCENARIO"] == "loop":
+    if os.environ["AIDER_TEST_SCENARIO"] in ("loop", "budget", "malformed"):
         assert coder.num_reflections == 3
     return 0
 `), 0o600))
 	prompt := filepath.Join(dir, "prompt.md")
 	require.NoError(t, os.WriteFile(prompt, []byte("perform workflow"), 0o600))
-	for _, scenario := range []string{"empty-context", "output", "empty", "failed", "existing", "no-shell", "loop", "exception"} {
+	for _, scenario := range []string{"empty-context", "output", "empty", "failed", "existing", "no-shell", "loop", "budget", "malformed", "exception"} {
 		t.Run(scenario, func(t *testing.T) {
 			terminal := filepath.Join(t.TempDir(), "terminal")
 			cmd := exec.Command("python3", loadAiderSample(t).Behaviors.Execution.Args...)
@@ -143,9 +160,14 @@ def main():
 				require.NoError(t, err, "%s", output)
 			}
 			record, readErr := os.ReadFile(terminal)
-			if scenario == "no-shell" || scenario == "loop" || scenario == "exception" {
+			switch scenario {
+			case "no-shell", "loop", "exception":
 				require.ErrorIs(t, readErr, os.ErrNotExist, "must not fabricate a terminal output")
-			} else {
+			case "budget", "malformed":
+				require.NoError(t, readErr, "%s", output)
+				assert.Equal(t, "report_incomplete", string(record))
+				assert.Contains(t, string(output), `"numTurns": 4`)
+			default:
 				require.NoError(t, readErr, "must consume discovery results and execute the next model command: %s", output)
 				assert.Equal(t, "noop", string(record))
 				assert.Contains(t, string(output), `"numTurns": 2`)

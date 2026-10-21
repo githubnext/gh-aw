@@ -181,8 +181,12 @@ Compatible provider catalogs, including classifier and image models, retain thei
 |---|---|
 | `settings` | Pi settings, including `defaultThinkingLevel`, `codemode`, compaction, retries, and cache warming. Project trust remains disabled. |
 | `model` | Model metadata overrides: API protocol, reasoning, input types, context/output limits, pricing, compatibility, and prompt-cache lifetimes. |
-| `mcp` | Default `exposure` (`deferred`, `direct`, `codemode`, or `hidden`) and per-server `toolExposure` patterns. Does not add servers or credentials. |
+| `mcp` | Default `exposure` (`direct`, `deferred`, `codemode`, or `hidden`) and per-server `toolExposure` patterns. Defaults to `direct`, making configured MCP tools available without tool search. Does not add servers or credentials. |
 | `session` | `enabled`, optional `id`, `resume` or `fork`, and `export`. |
+
+The compiler supplies `mcp.exposure: "direct"` when omitted, including when other
+configuration objects or per-tool overrides are present. Explicit exposure modes
+and per-tool overrides are preserved.
 
 ```yaml wrap
 engine:

@@ -911,7 +911,7 @@ jobs:
           GH_AW_PHASE: agent
           GH_AW_PI_AZURE_OIDC_AUTH: azure
           GH_AW_PI_BARE: false
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_MODEL: openai/o4-mini-aw
           GH_AW_PI_NATIVE_PROVIDER: openai
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve"]'

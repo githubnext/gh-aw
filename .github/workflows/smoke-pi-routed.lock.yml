@@ -1113,7 +1113,7 @@ jobs:
           GH_AW_MODEL_ROUTING: 1
           GH_AW_PHASE: agent
           GH_AW_PI_BARE: true
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve","--exclude-tools","bash","--exclude-tools","edit,write","--no-context-files","--no-skills","--no-prompt-templates","--no-extensions","--no-themes"]'
           GH_AW_PI_SYSTEM_PROMPT: /tmp/gh-aw/aw-prompts/system.txt
           GH_AW_PI_TOOL_BUDGET_DIR: /tmp/gh-aw/pi-agent-dir/tool-budget
@@ -1796,7 +1796,7 @@ jobs:
           GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
           GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
           GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
-          GH_AW_ADMISSION_WORKFLOW_HASH: "cb847307274a5c5de82904b2dc78ebb7bc58435958b964ae58d860fb0ff00b67:96f2f06cedaa8ac0160459530432f9093efd2b3f90da1a51abe4f76377e8d3da"
+          GH_AW_ADMISSION_WORKFLOW_HASH: "9d4fcd1c073e8bc30e4089a1b6608a434b57b07d958e1d3fca441f8ccaa2ea6d:373439043d833cc379e617796a55f6e8ad994ec987d6a97406db431a84ba4c62"
           GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}

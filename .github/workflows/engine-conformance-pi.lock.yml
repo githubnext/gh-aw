@@ -1109,7 +1109,7 @@ jobs:
           GH_AW_MAX_TURNS: 30
           GH_AW_PHASE: agent
           GH_AW_PI_BARE: false
-          GH_AW_PI_CONFIG: '{}'
+          GH_AW_PI_CONFIG: '{"mcp":{"exposure":"direct"}}'
           GH_AW_PI_MODEL: copilot/gpt-5
           GH_AW_PI_NATIVE_PROVIDER: github-copilot
           GH_AW_PI_SUBAGENT_ARGS: '["--print","--mode","json","--no-session","--no-approve"]'
@@ -1662,7 +1662,7 @@ jobs:
           GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
           GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
           GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
-          GH_AW_ADMISSION_WORKFLOW_HASH: "cd04453bda5e27af6a8f1b3abf37370d78886232d53b0d8b87f196edd1a5d57e:04b0d52490c754f6027c5fcb4aa7db9ac6ff754ac7c57059607cabab586ed7ee"
+          GH_AW_ADMISSION_WORKFLOW_HASH: "a07404947d6f082a4e4e2c87375957a4de34d18ee58956959af40e14fb5b7095:04b0d52490c754f6027c5fcb4aa7db9ac6ff754ac7c57059607cabab586ed7ee"
           GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}

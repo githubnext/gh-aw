@@ -269,6 +269,7 @@ async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo
         repo: issueResult.repo,
         number: issueResult.number,
         url: issueResult.url,
+        temporaryId: issueResult.temporaryId,
         body: issueResult.body,
         fallback: "issue", // Indicate this was a fallback
       };
@@ -738,6 +739,7 @@ async function main(config = {}) {
           repo: qualifiedItemRepo,
           number: discussion.number,
           url: discussion.url,
+          temporaryId,
           body,
         },
         message,
@@ -776,6 +778,7 @@ async function main(config = {}) {
             repo: qualifiedItemRepo,
             number: resolvedDiscussion.number,
             url: resolvedDiscussion.url,
+            temporaryId,
             body,
           },
           message,
