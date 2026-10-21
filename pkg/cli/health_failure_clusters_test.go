@@ -53,6 +53,7 @@ func TestHealthFailureClusterOutput(t *testing.T) {
 			} else {
 				require.NoError(t, displayHealthSummary(runs, config))
 			}
+
 		})
 		var data struct {
 			FailureClusters      []FailureCluster      `json:"failure_clusters"`
@@ -70,4 +71,62 @@ func TestHealthFailureClusterOutput(t *testing.T) {
 	})
 	assert.Contains(t, output, "[failure_clusters]")
 	assert.Contains(t, output, "[failure_investigation]")
+}
+
+func TestHealthReusesCrossVersionRawJobsNotDerivedMetrics(t *testing.T) {
+	run := WorkflowRun{DatabaseID: 123, Status: "completed", Conclusion: "failure",
+		WorkflowName: "example", WorkflowPath: ".github/workflows/example.lock.yml",
+		URL: "https://github.com/org/repo/actions/runs/123", Repository: "org/repo", Attempt: 1}
+	summary := &RunSummary{CLIVersion: "v0.92.6", RunID: 123, RunAnalysis: RunAnalysis{
+		Run: run, JobDetails: []JobInfoWithDuration{{JobInfo: JobInfo{
+			Name: "activation", Conclusion: "failure",
+			Steps: []JobStep{{Name: "Restore daily AIC scan observations", Conclusion: "failure"}},
+		}}},
+		MCPFailures: []MCPFailureReport{{ServerName: "untrusted-derived-diagnostic"}},
+	}}
+	summary.Run.TurnsAvailable = true
+	dir := filepath.Join(t.TempDir(), "run-123")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, saveRunSummary(dir, summary, false))
+	config := HealthConfig{RepoOverride: "org/repo", LogsDir: filepath.Dir(dir), collection: &HealthCollection{}}
+	clusters, plan := buildHealthFailureClusters([]WorkflowRun{run}, config)
+	require.Len(t, clusters, 1)
+	assert.Equal(t, "Restore daily AIC scan observations", clusters[0].Signal.Step)
+	assert.Empty(t, clusters[0].FailureKind, "foreign computed turn metrics must not classify this failure")
+	assert.Equal(t, "version_mismatch_raw_jobs_only", config.collection.CacheEvidence[123].Status)
+	assert.Equal(t, "v0.92.6", config.collection.CacheEvidence[123].ProducerVersion)
+	require.Len(t, plan.SelectedRuns, 1)
+	assert.Equal(t, dir, plan.SelectedRuns[0].LogsPath)
+	raw, reason := readHealthCache(dir)
+	require.Empty(t, reason)
+	assert.Equal(t, "v0.92.6", raw.CLIVersion, "health must not rewrite producer metadata")
+	_, ok := loadRunSummary(dir, false)
+	assert.False(t, ok, "other consumers still require current-version derived metrics")
+
+	run.Attempt++
+	config.collection = &HealthCollection{}
+	clusters, plan = buildHealthFailureClusters([]WorkflowRun{run}, config)
+	require.Len(t, clusters, 1)
+	assert.Equal(t, "metadata_only", clusters[0].Evidence)
+	assert.Equal(t, "stale", config.collection.CacheEvidence[123].Status)
+	assert.Equal(t, 1, plan.MetadataOnlyRuns)
+}
+
+func TestHealthCacheDiagnosticsAndMemoization(t *testing.T) {
+	run := WorkflowRun{DatabaseID: 42}
+	config := HealthConfig{LogsDir: t.TempDir(), collection: &HealthCollection{}}
+	summary, dir := loadHealthRunSummary(run, config)
+	assert.Nil(t, summary)
+	assert.Equal(t, "missing", config.collection.CacheEvidence[42].Status)
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, runSummaryFileName), []byte("{"), 0o600))
+	loadHealthRunSummary(run, config)
+	assert.Equal(t, "missing", config.collection.CacheEvidence[42].Status, "one cache observation per run attempt and report")
+	config.collection = &HealthCollection{}
+	loadHealthRunSummary(run, config)
+	assert.Equal(t, "invalid", config.collection.CacheEvidence[42].Status)
+	output := captureAuditGroupStderr(t, func() {
+		require.NoError(t, renderHealthCollection(os.Stderr, config.collection))
+	})
+	assert.Contains(t, output, "[health_cache] status=invalid runs=1")
 }

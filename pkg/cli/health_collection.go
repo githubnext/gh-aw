@@ -14,22 +14,29 @@ import (
 
 // HealthCollection describes a bounded sample, including any quota-related truncation.
 type HealthCollection struct {
-	Partial                   bool                     `json:"partial"`
-	Reason                    string                   `json:"reason,omitempty"`
-	Warning                   string                   `json:"warning,omitempty"`
-	Host                      string                   `json:"host"`
-	APIRateLimit              *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
-	RevisionLookups           int                      `json:"revision_lookups"`
-	APIRequests               int                      `json:"api_requests"`
-	MinimumRuns               int                      `json:"minimum_runs"`
-	MaximumDays               int                      `json:"maximum_days"`
-	StartDate                 string                   `json:"start_date,omitempty"`
-	EndDate                   string                   `json:"end_date,omitempty"`
-	FailurePassComplete       bool                     `json:"failure_pass_complete"`
-	FailureListingComplete    bool                     `json:"failure_listing_complete"`
-	FailureCandidates         int                      `json:"failure_candidates"`
-	FailureCandidateWorkflows int                      `json:"failure_candidate_workflows"`
-	PotentialIssues           []HealthPotentialIssue   `json:"potential_issues,omitempty"`
+	ProducerVersion           string                        `json:"producer_version,omitempty"`
+	ReportSchemaVersion       int                           `json:"report_schema_version,omitempty"`
+	ObservedAt                time.Time                     `json:"observed_at,omitzero"`
+	Capabilities              []string                      `json:"capabilities,omitempty"`
+	CacheEvidence             map[int64]HealthCacheEvidence `json:"cache_evidence,omitempty"`
+	JobEvidence               map[int64]HealthJobEvidence   `json:"job_evidence,omitempty"`
+	JobRequests               int                           `json:"job_requests"`
+	Partial                   bool                          `json:"partial"`
+	Reason                    string                        `json:"reason,omitempty"`
+	Warning                   string                        `json:"warning,omitempty"`
+	Host                      string                        `json:"host"`
+	APIRateLimit              *GitHubAPIRateLimitState      `json:"api_rate_limit,omitempty"`
+	RevisionLookups           int                           `json:"revision_lookups"`
+	APIRequests               int                           `json:"api_requests"`
+	MinimumRuns               int                           `json:"minimum_runs"`
+	MaximumDays               int                           `json:"maximum_days"`
+	StartDate                 string                        `json:"start_date,omitempty"`
+	EndDate                   string                        `json:"end_date,omitempty"`
+	FailurePassComplete       bool                          `json:"failure_pass_complete"`
+	FailureListingComplete    bool                          `json:"failure_listing_complete"`
+	FailureCandidates         int                           `json:"failure_candidates"`
+	FailureCandidateWorkflows int                           `json:"failure_candidate_workflows"`
+	PotentialIssues           []HealthPotentialIssue        `json:"potential_issues,omitempty"`
 	workflows                 []GitHubWorkflow
 	revisions                 map[string]*workflow.LockMetadata
 	headRevisions             map[string]*workflow.LockMetadata
@@ -44,6 +51,8 @@ type HealthCollection struct {
 	stopped                   bool
 	visited                   map[string]struct{}
 	jobPresence               map[healthRunAttempt]bool
+	jobs                      map[healthRunAttempt]*healthJobs
+	cacheSummaries            map[healthRunAttempt]*RunSummary
 	failureScopes             map[string]map[string]struct{}
 }
 
@@ -122,6 +131,14 @@ func (config HealthConfig) collectionWorkflows() []GitHubWorkflow {
 func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
 	if collection == nil {
 		return nil
+	}
+	if _, err := fmt.Fprintf(w, "\n[health_evidence] producer=%q schema=%d observed_at=%s api_requests=%d job_requests=%d; bounded sample, not a fleet failure rate\n",
+		collection.ProducerVersion, collection.ReportSchemaVersion, collection.ObservedAt.Format(time.RFC3339),
+		collection.APIRequests, collection.JobRequests); err != nil {
+		return err
+	}
+	if err := renderHealthCacheEvidence(w, collection.CacheEvidence); err != nil {
+		return err
 	}
 	if collection.FailureCandidates > 0 {
 		if _, err := fmt.Fprintf(w, "\n[health_candidates] failed_runs=%d workflows=%d listing_complete=%t; list-only signals may include jobless or superseded runs, not a fleet failure rate\n",

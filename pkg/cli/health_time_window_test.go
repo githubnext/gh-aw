@@ -130,6 +130,11 @@ func TestHealthTimeWindowReachesSamplingAndJSON(t *testing.T) {
 			require.NotNil(t, report.Collection)
 			assert.Equal(t, start, report.Collection.StartDate)
 			assert.Equal(t, end, report.Collection.EndDate)
+			assert.Equal(t, GetVersion(), report.Collection.ProducerVersion)
+			assert.Equal(t, 1, report.Collection.ReportSchemaVersion)
+			assert.False(t, report.Collection.ObservedAt.IsZero())
+			assert.Contains(t, report.Collection.Capabilities, "typed_job_steps")
+			assert.Contains(t, report.Collection.Capabilities, "cross_version_raw_jobs")
 			if !detailed {
 				assert.Contains(t, report.Period, start)
 				assert.Contains(t, report.Period, end)
