@@ -1,17 +1,8 @@
 {
-  "date": "2026-10-20",
-  "window_start": "2026-09-21",
-  "window_end": "2026-10-20",
-  "open_issues_sample": 100,
-  "human_open_issues": 10,
-  "open_prs": 13,
-  "merged_prs_sample": 50,
-  "commits_30d": 1125,
-  "commits_today_partial": 6,
-  "discussions": 50,
-  "changesets": 848,
+  "date": "2026-10-21",
   "latest_release": "v0.92.6",
-  "highlight_issue_numbers": [68481, 68503, 68043, 70402, 70297, 66926],
-  "highlight_pr_numbers": [70429, 70440, 70385, 69772, 70389, 70347],
-  "notes": "v0.92.6 shipped. Commit peak 81 on 2026-10-16. Today is a partial snapshot."
+  "commits_30d": 1161,
+  "commits_today_partial": 23,
+  "open_prs": 16,
+  "open_issues_sample": 100
 }

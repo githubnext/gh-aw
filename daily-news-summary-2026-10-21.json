@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-21",
+  "window_start": "2026-09-22",
+  "window_end": "2026-10-21",
+  "snapshot_utc": "2026-10-21T08:57:00Z",
+  "open_issues_sample": 100,
+  "human_open_issues": 3,
+  "closed_issues_sample": 100,
+  "open_prs": 16,
+  "merged_prs_sample": 50,
+  "closed_prs_sample": 30,
+  "commits_file_unique": 19010,
+  "commits_30d": 1161,
+  "commits_today_partial": 23,
+  "discussions": 50,
+  "discussions_today": 11,
+  "changesets": 860,
+  "issues_opened_in_sample_window": 199,
+  "issues_closed_in_sample_window": 100,
+  "prs_opened_in_sample_window": 95,
+  "prs_merged_in_sample_window": 50,
+  "latest_release": "v0.92.6",
+  "highlight_issue_numbers": [
+    70811,
+    70777,
+    70728,
+    67661,
+    68043,
+    70823,
+    70548
+  ],
+  "highlight_pr_numbers": [
+    70672,
+    70779,
+    70763,
+    70738,
+    70671,
+    70347,
+    56568
+  ],
+  "top_commit_authors_30d": [
+    [
+      "Copilot",
+      513
+    ],
+    [
+      "Peli de Halleux",
+      402
+    ],
+    [
+      "github-actions[bot]",
+      190
+    ],
+    [
+      "dependabot[bot]",
+      31
+    ]
+  ],
+  "notes": "v0.92.6 published 2026-10-20. Partial day through about 06:40 UTC with 23 commits. Issue close series is sample-capped on 2026-10-21."
+}
