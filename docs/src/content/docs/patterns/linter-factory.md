@@ -222,7 +222,7 @@ safe-outputs:
 Do not select Work IDs, workers, revisions, or targets from a queue snapshot.
 Read work_queue_read first and check queue_state. An uninitialized queue is
 empty; submit the trusted daily plan to provision it rather than reporting
-missing_data or producing noop.
+report_missing_data or producing noop.
 The trusted preparation step already stages the exact nodes with work_queue_submit.
 Repeated admissions of the same UTC date are idempotent.
 It then stages the trusted scheduler's fair prefix with work_queue_dispatch_next:

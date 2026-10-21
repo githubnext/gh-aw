@@ -1806,7 +1806,9 @@ safe-outputs:
 | `code_push_failures` | Failures pushing code to branches |
 | `assignment_errors` | Failures assigning issues or reviewers |
 
-When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`report_missing_tool` or `report_missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+
+The diagnostic tool names are `report_missing_tool` and `report_missing_data`. Legacy calls and recorded output types named `missing_tool` and `missing_data` remain supported. The YAML configuration keys (`missing-tool`, `missing-data`) and failure category names (`missing_tool`, `missing_data`) are unchanged.
 
 An observed `not_started` agent execution marker is classified as `agent_startup_failure`, not agent omission. Failure reports identify the failing startup step when available and direct investigation to setup and gateway logs. Missing, unreadable, invalid, or mismatched run evidence does not establish a startup failure; observed agent execution takes precedence over a stale marker.
 

@@ -264,7 +264,7 @@ describe("extractCommandName", () => {
   });
 
   it("extracts safeoutputs (CLI proxy command)", () => {
-    expect(extractCommandName("safeoutputs missing_data --help 2>/dev/null")).toBe("safeoutputs");
+    expect(extractCommandName("safeoutputs report_missing_data --help 2>/dev/null")).toBe("safeoutputs");
   });
 
   it("extracts printf (built-in)", () => {
@@ -320,7 +320,7 @@ describe("extractCommandNamesFromPipeline", () => {
   });
 
   it("handles the GEO optimizer failed command 2 (safeoutputs || echo)", () => {
-    const cmd = 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"';
+    const cmd = 'safeoutputs report_missing_data --help 2>/dev/null || echo "unavailable"';
     expect(extractCommandNamesFromPipeline(cmd)).toEqual(["safeoutputs", "echo"]);
   });
 
@@ -464,7 +464,7 @@ describe("extractCommandName – extensive vectors", () => {
     { id: "BP-EC-003", segment: "{ jq '.a' data.json; }", expected: "jq" },
     { id: "BP-EC-004", segment: "2>&1", expected: null },
     { id: "BP-EC-005", segment: ">out.txt", expected: null },
-    { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs missing_data", expected: "safeoutputs" },
+    { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs report_missing_data", expected: "safeoutputs" },
     { id: "BP-EC-007", segment: "then cat file", expected: "cat" },
     { id: "BP-EC-008", segment: "fi", expected: null },
     { id: "BP-EC-009", segment: "do", expected: null },
@@ -518,7 +518,7 @@ describe("extractCommandNamesFromPipeline – extensive vectors", () => {
     },
     {
       id: "BP-EP-008",
-      input: "safeoutputs --help || safeoutputs missing_data",
+      input: "safeoutputs --help || safeoutputs report_missing_data",
       expected: ["safeoutputs"],
     },
     {

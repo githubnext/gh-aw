@@ -20,7 +20,7 @@ const {
 const { digest, canonical, canonicalBytes } = require("./work_queue_codec.cjs");
 const { BUILTIN_EFFECT_FIELDS, builtinTargetNumber } = require("./work_queue_declared_verification.cjs");
 
-const NO_WRITE_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NO_WRITE_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "missing_tool", "missing_data", "report_incomplete"]);
 const controlInventories = new WeakMap();
 const deliveryReceipts = new WeakMap();
 const deliveryAttestations = new WeakMap();

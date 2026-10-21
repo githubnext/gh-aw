@@ -21,7 +21,7 @@ func TestSafeOutputsCLIPromptChecksToolAvailability(t *testing.T) {
 			assert.Contains(t, content, "command -v safeoutputs")
 			assert.Contains(t, strings.ToLower(content), "no supported transport is available")
 			assert.Contains(t, strings.ToLower(content), "do not claim the action was emitted")
-			assert.Contains(t, content, "`missing_tool`")
+			assert.Contains(t, content, "`report_missing_tool`")
 			assert.Contains(t, strings.ToLower(content), "reserve `report_incomplete`")
 		})
 	}

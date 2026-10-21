@@ -215,7 +215,7 @@ describe("fuzz_bash_command_parser – correctness: extractCommandNamesFromPipel
       desc: "GEO optimizer command 1",
     },
     {
-      input: 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"',
+      input: 'safeoutputs report_missing_data --help 2>/dev/null || echo "unavailable"',
       expected: ["safeoutputs", "echo"],
       desc: "GEO optimizer command 2",
     },

@@ -40,7 +40,7 @@ Try to create a pull request WITHOUT making any commits. This should trigger an 
 Expected behavior:
 - The tool should return an error response with a clear message
 - The error message should explain that no commits were found
-- The agent should NOT report this as a "missing_tool"
+- The agent should NOT report this as a "report_missing_tool"
 
 ## Steps
 

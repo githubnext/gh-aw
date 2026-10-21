@@ -195,7 +195,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       message: { required: true, type: "string", sanitize: true, maxLength: 65000 },
     },
   },
-  missing_tool: {
+  report_missing_tool: {
     defaultMax: 20,
     fields: {
       tool: { required: true, type: "string", sanitize: true, maxLength: 128 },

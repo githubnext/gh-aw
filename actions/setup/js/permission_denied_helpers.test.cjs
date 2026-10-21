@@ -30,10 +30,10 @@ describe("permission_denied_helpers.cjs", () => {
     expect(extractDeniedCommands(output)).toEqual(["shell(agenticworkflows --help 2>&1 | head -60)", "read"]);
   });
 
-  it("builds missing_tool payload with default denied commands", () => {
+  it("builds report_missing_tool payload with default denied commands", () => {
     const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
     expect(payload).toEqual({
-      type: "missing_tool",
+      type: "report_missing_tool",
       tool: "tool/permission",
       reason: "missing tool/permission issue: numerous permission denied errors detected",
       alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration.",

@@ -16,6 +16,7 @@ const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
 const { validateValueAgainstSchema } = require("./schema-validation.cjs");
 const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 const { isBlankOptionalField, normalizeBlankOptionalFields } = require("./optional_field_normalizer.cjs");
+const { normalizeSafeOutputName, normalizeSafeOutputConfig } = require("./safe_output_names.cjs");
 
 /**
  * Default max body length for GitHub content
@@ -262,7 +263,7 @@ function loadValidationConfig() {
   try {
     /** @type {Object.<string, TypeValidationConfig>} */
     const parsed = JSON.parse(configJson);
-    cachedValidationConfig = parsed || {};
+    cachedValidationConfig = normalizeSafeOutputConfig(parsed || {});
     return cachedValidationConfig;
   } catch (error) {
     const errorMsg = getErrorMessage(error);
@@ -289,6 +290,8 @@ function resetValidationConfigCache() {
  * @returns {number} The max allowed count
  */
 function getMaxAllowedForType(itemType, config) {
+  itemType = normalizeSafeOutputName(itemType);
+  if (config) config = normalizeSafeOutputConfig(config);
   const itemConfig = config?.[itemType];
   if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
     return itemConfig.max;
@@ -772,6 +775,7 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
  * @returns {{isValid: boolean, normalizedItem?: Object, error?: string}}
  */
 function validateItem(item, itemType, lineNum, options) {
+  itemType = normalizeSafeOutputName(itemType);
   const validationConfig = loadValidationConfig();
   const typeConfig = validationConfig[itemType];
 
@@ -909,7 +913,7 @@ function validateItem(item, itemType, lineNum, options) {
  */
 function hasValidationConfig(itemType) {
   const validationConfig = loadValidationConfig();
-  return itemType in validationConfig;
+  return normalizeSafeOutputName(itemType) in validationConfig;
 }
 
 /**
@@ -919,7 +923,7 @@ function hasValidationConfig(itemType) {
  */
 function getValidationConfig(itemType) {
   const validationConfig = loadValidationConfig();
-  return validationConfig[itemType];
+  return validationConfig[normalizeSafeOutputName(itemType)];
 }
 
 /**

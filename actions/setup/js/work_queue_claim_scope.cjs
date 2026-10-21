@@ -155,6 +155,9 @@ function readClaimScopeContext() {
 }
 
 function normalizeRuntimeMessage(message) {
+  if (message && typeof message.type === "string") {
+    message = { ...message, type: require("./safe_output_names.cjs").normalizeSafeOutputName(message.type) };
+  }
   const execution = claimExecution.getStore();
   const scope = execution || readClaimScopeContext();
   if (!scope) {

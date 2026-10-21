@@ -201,7 +201,7 @@ An implementation satisfying ALL normative requirements (MUST, SHALL, REQUIRED s
 An implementation satisfying ALL security-critical normative requirements but omitting support for optional safe output types. Partial conformance requires:
 
 - Complete security architecture (non-negotiable)
-- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`, `missing_tool`, `missing_data`, `report_incomplete`
+- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`, `report_missing_tool`, `report_missing_data`, `report_incomplete`
 - Clear documentation listing unsupported optional types
 - Warning messages when workflows attempt to use unsupported types
 
@@ -2444,8 +2444,8 @@ The following table defines the exact `createHandlers()` function used for each 
 | `autofix_code_scanning_alert` | `defaultHandler("autofix_code_scanning_alert")` |
 | `create_check_run` | `defaultHandler("create_check_run")` |
 | `create_agent_session` | `defaultHandler("create_agent_session")` |
-| `missing_tool` | `defaultHandler("missing_tool")` |
-| `missing_data` | `defaultHandler("missing_data")` |
+| `report_missing_tool` | `defaultHandler("report_missing_tool")` |
+| `report_missing_data` | `defaultHandler("report_missing_data")` |
 | `report_incomplete` | `defaultHandler("report_incomplete")` |
 
 ### 7.0.3 Declared Field Payload Construction
@@ -4920,9 +4920,11 @@ safe-outputs:
 
 ---
 
-#### Type: missing_tool
+#### Type: report_missing_tool
 
 **Purpose**: Report when AI requests unavailable functionality for feature discovery.
+
+The legacy tool and output type `missing_tool` remains accepted as an alias. The YAML configuration key remains `missing-tool`.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
@@ -4948,9 +4950,11 @@ safe-outputs:
 
 ---
 
-#### Type: missing_data
+#### Type: report_missing_data
 
 **Purpose**: Report when AI lacks required information to complete goals.
+
+The legacy tool and output type `missing_data` remains accepted as an alias. The YAML configuration key remains `missing-data`.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
@@ -4970,7 +4974,7 @@ safe-outputs:
 
 **Notes**:
 
-- Same permission model as `missing_tool`
+- Same permission model as `report_missing_tool`
 - Base functionality requires no permissions (logging only)
 - Optional issue creation requires `issues: write` when `create-issue: true`
 
@@ -5575,7 +5579,7 @@ Operations execute in:
 
 1. NDJSON file order
 2. Type grouping (same type together)
-3. System types last (noop, missing_tool, missing_data, report_incomplete)
+3. System types last (noop, report_missing_tool, report_missing_data, report_incomplete)
 
 ### 10.3 Idempotency
 
@@ -5669,8 +5673,8 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 | `create_code_scanning_alert` | Reviewable |
 | `autofix_code_scanning_alert` | Abort |
 | `create_agent_session` | Abort |
-| `missing_tool` | Reviewable |
-| `missing_data` | Reviewable |
+| `report_missing_tool` | Reviewable |
+| `report_missing_data` | Reviewable |
 | `report_incomplete` | Reviewable |
 
 **Compliance Testing**:
@@ -6084,7 +6088,7 @@ Operators SHOULD communicate this expected one-time cache miss to their teams to
   - [ ] Content sanitization pipeline
 
 - [ ] Safe Output Types
-  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop, missing_tool, missing_data, report_incomplete
+  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop, report_missing_tool, report_missing_data, report_incomplete
   - [ ] Optional types documented if unsupported
 
 - [ ] Protocol

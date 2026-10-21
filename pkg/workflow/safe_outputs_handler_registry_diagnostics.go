@@ -2,7 +2,7 @@ package workflow
 
 // diagnosticHandlerRegistry contains diagnostic, reporting, and no-op handler builders.
 var diagnosticHandlerRegistry = map[string]handlerBuilder{
-	"missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
+	"report_missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.MissingTool == nil {
 			return nil
 		}
@@ -13,7 +13,7 @@ var diagnosticHandlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	"missing_data": func(cfg *SafeOutputsConfig) map[string]any {
+	"report_missing_data": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.MissingData == nil {
 			return nil
 		}

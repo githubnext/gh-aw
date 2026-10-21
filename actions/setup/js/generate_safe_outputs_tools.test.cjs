@@ -45,7 +45,7 @@ describe("generate_safe_outputs_tools", () => {
       },
     },
     {
-      name: "missing_tool",
+      name: "report_missing_tool",
       description: "Reports a missing tool.",
       inputSchema: { type: "object", properties: {} },
     },
@@ -96,8 +96,8 @@ describe("generate_safe_outputs_tools", () => {
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     expect(result).toHaveLength(2);
     expect(result.map((/** @type {{name: string}} */ t) => t.name)).toEqual(expect.arrayContaining(["create_issue", "add_comment"]));
-    // missing_tool should NOT be included since it's not in config
-    expect(result.map((/** @type {{name: string}} */ t) => t.name)).not.toContain("missing_tool");
+    // report_missing_tool should NOT be included since it's not in config
+    expect(result.map((/** @type {{name: string}} */ t) => t.name)).not.toContain("report_missing_tool");
   });
 
   it("preserves invalid explicit Claim selectors through argument normalization", () => {

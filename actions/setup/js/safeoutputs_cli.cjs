@@ -1,16 +1,17 @@
 // @ts-check
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 /**
  * Shared safeoutputs CLI helpers for all agentic harnesses.
  *
  * Provides the low-level CLI invocation helper and the higher-level emit
- * functions so that missing_tool / report_incomplete diagnostics are emitted
+ * functions so that report_missing_tool / report_incomplete diagnostics are emitted
  * through the supported safeoutputs CLI channel rather than via direct file
  * appends.  This survives read-only teardown states (EROFS) where direct
  * appends would silently drop structured failure signals.
  */
 
-"use strict";
+("use strict");
 
 const childProcess = require("child_process");
 const fs = require("fs");
@@ -53,7 +54,7 @@ function runSafeOutputsCLI(toolName, args) {
 }
 
 /**
- * Build missing_tool alternatives text with optional denied-command diagnostics.
+ * Build report_missing_tool alternatives text with optional denied-command diagnostics.
  * @param {string} baseAlternatives
  * @param {string[]} deniedCommands
  * @returns {string}
@@ -94,7 +95,7 @@ function buildMissingToolAlternatives(baseAlternatives, deniedCommands) {
 }
 
 /**
- * Emit a structured missing_tool signal for repeated permission-denied failures.
+ * Emit a structured report_missing_tool signal for repeated permission-denied failures.
  * @param {{
  *   safeOutputsPath?: string,
  *   runSafeOutputsCLI?: RunSafeOutputsCLILike,
@@ -109,19 +110,19 @@ function emitMissingToolPermissionIssue(options) {
   const deniedCommands = options && options.deniedCommands ? options.deniedCommands : [];
 
   if (!safeOutputsPath) {
-    logger("missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
+    logger("report_missing_tool skipped: GH_AW_SAFE_OUTPUTS is not set");
     return;
   }
   try {
-    runSafeOutputs("missing_tool", {
+    runSafeOutputs("report_missing_tool", {
       tool: "tool/permission",
       reason: "missing tool/permission issue: numerous permission denied errors detected",
       alternatives: buildMissingToolAlternatives("Verify token scopes, repository permissions, and MCP/tool access configuration.", deniedCommands),
     });
-    logger(`missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
+    logger(`report_missing_tool emitted via safeoutputs CLI: ${safeOutputsPath}`);
   } catch (error) {
     const err = /** @type {Error} */ /** @type {unknown} */ error;
-    logger(`missing_tool emission failed: ${err.message}`);
+    logger(`report_missing_tool emission failed: ${err.message}`);
   }
 }
 
@@ -162,14 +163,14 @@ function emitInfrastructureIncomplete(details, options) {
  */
 // Expected-output checks look for task-level outputs only, so noop is diagnostic
 // there even though terminal-output checks treat noop as a completed result.
-// missing_data is not an infrastructure diagnostic for expected-output checks,
+// report_missing_data is not an infrastructure diagnostic for expected-output checks,
 // but it is non-terminal for shared harness checks by default. Engines with
-// legacy terminal semantics opt missing_data/report_incomplete in via flags.
+// legacy terminal semantics opt report_missing_data/report_incomplete in via flags.
 const TERMINAL_SAFE_OUTPUT_TYPES = new Set(["noop"]);
-const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "missing_tool", "report_incomplete"]);
+const DIAGNOSTIC_SAFE_OUTPUT_TYPES = new Set(["noop", "report_missing_tool", "report_incomplete"]);
 // Types in this set are excluded by the catch-all fallthrough; opt-in checks for
-// missing_data/report_incomplete must run before that fallthrough.
-const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["missing_tool", "missing_data", "report_incomplete"]);
+// report_missing_data/report_incomplete must run before that fallthrough.
+const NON_TERMINAL_SAFE_OUTPUT_TYPES = new Set(["report_missing_tool", "report_missing_data", "report_incomplete"]);
 
 /**
  * Read the safe-outputs JSONL file and check whether it contains at least one
@@ -201,7 +202,7 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
   }
 
   for (const parsed of iterateJsonl(content)) {
-    if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
+    if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(normalizeSafeOutputName(parsed.type))) {
       logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
       return true;
     }
@@ -259,13 +260,13 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
   }
 
   for (const parsed of iterateJsonl(content)) {
-    const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+    const type = parsed && typeof parsed.type === "string" ? normalizeSafeOutputName(parsed.type) : "";
     if (!type) continue;
     if (TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
       logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
       return true;
     }
-    if (type === "missing_data" && options?.includeMissingData) {
+    if (type === "report_missing_data" && options?.includeMissingData) {
       logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
       return true;
     }

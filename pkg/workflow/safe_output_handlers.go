@@ -634,13 +634,13 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	{
 		Key:         "missing-tool",
 		StructField: "MissingTool",
-		ToolName:    "missing_tool",
+		ToolName:    "report_missing_tool",
 		Builtin:     true,
 	},
 	{
 		Key:         "missing-data",
 		StructField: "MissingData",
-		ToolName:    "missing_data",
+		ToolName:    "report_missing_data",
 		Builtin:     true,
 	},
 	{

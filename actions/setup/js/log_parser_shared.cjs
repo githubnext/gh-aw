@@ -1123,7 +1123,7 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
         const bodyPreview = truncateString(bodyStr.replace(/\n/g, " "), 80);
         preview.push(`      Body: ${bodyPreview}`);
       }
-      // noop, missing_tool, and missing_data carry their primary content in
+      // noop, report_missing_tool, and report_missing_data carry their primary content in
       // "message"/"reason" rather than title/body — surface those too.
       if (entry.message) {
         const messageStr = typeof entry.message === "string" ? entry.message : String(entry.message);
@@ -1171,7 +1171,7 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
         preview.push("");
       }
 
-      // noop, missing_tool, and missing_data carry their primary content in
+      // noop, report_missing_tool, and report_missing_data carry their primary content in
       // "message"/"reason" rather than title/body — surface those too.
       if (entry.message) {
         const messageStr = typeof entry.message === "string" ? entry.message : String(entry.message);

@@ -1485,7 +1485,7 @@ echo "result=$INPUT_MY_INPUT" >> "$GITHUB_OUTPUT"
       const tools = {
         add_comment: {},
         add_name: {},
-        missing_tool: {},
+        report_missing_tool: {},
       };
 
       const similar = findSimilarTools("add_comentt", tools, 3);
@@ -1536,7 +1536,7 @@ echo "result=$INPUT_MY_INPUT" >> "$GITHUB_OUTPUT"
       const tools = {
         add_name: {},
         add_comment: {},
-        missing_tool: {},
+        report_missing_tool: {},
       };
 
       const similar = findSimilarTools("add_nam", tools, 3);

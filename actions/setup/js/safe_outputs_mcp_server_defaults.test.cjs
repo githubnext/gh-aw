@@ -46,7 +46,7 @@ const canWriteDefault = canWriteToDefaultPath();
       (tempConfigFile = path.join(tempOutputDir, "config.json")),
       fs.existsSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`) || fs.mkdirSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, { recursive: !0 }));
     const defaultConfigPath = path.join(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, "config.json");
-    fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
+    fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, report_missing_tool: !0 }));
     const toolsJsonPath = path.join(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, "tools.json"),
       toolsJsonContent = fs.readFileSync(path.join(__dirname, "safe_outputs_tools.json"), "utf8");
     fs.writeFileSync(toolsJsonPath, toolsJsonContent);
@@ -64,7 +64,7 @@ const canWriteDefault = canWriteToDefaultPath();
         delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH,
         fs.existsSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`) || fs.mkdirSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, { recursive: !0 }));
       const defaultConfigPath = path.join(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, "config.json");
-      fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
+      fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, report_missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -162,7 +162,7 @@ const canWriteDefault = canWriteToDefaultPath();
         fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }),
         fs.existsSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`) || fs.mkdirSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, { recursive: !0 }));
       const defaultConfigPath = path.join(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, "config.json");
-      fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
+      fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, report_missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
