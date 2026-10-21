@@ -6189,12 +6189,13 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.aic");
     });
 
-    it("includes detection-job token breakdown and cost attributes when detection writes agent_usage.json", async () => {
+    it.each(["0.125", "0"])("uses detection's own GH_AW_AIC=%s with namespaced usage evidence", async aic => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.INPUT_JOB_NAME = "detection";
       process.env.GH_AW_DETECTION_CONCLUSION = "success";
+      process.env.GH_AW_AIC = aic;
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
@@ -6202,7 +6203,7 @@ describe("sendJobConclusionSpan", () => {
 
       const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
-        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+        if (filePath === "/tmp/gh-aw/threat-detection/detection_usage.json") {
           return JSON.stringify(usage);
         }
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
@@ -6212,11 +6213,9 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(5000);
-      expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
-      expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
-      expect(attrs["gh-aw.aic"]).toBe(0.125);
+      expect(attrs["gen_ai.usage.input_tokens"]).toBeUndefined();
+      expect(attrs["gen_ai.usage.total_tokens"]).toBeUndefined();
+      expect(attrs["gh-aw.aic"]).toBe(Number(aic));
       expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
     });
 
@@ -6274,18 +6273,20 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.detection.reason"]).toBe("threat_detected");
     });
 
-    it("includes skipped detection result attribute on detection span when detection was not needed", async () => {
+    it.each(["skipped", "success"])("does not reuse inherited agent costs when detection is %s without its own AIC", async conclusion => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.INPUT_JOB_NAME = "detection";
-      process.env.GH_AW_DETECTION_CONCLUSION = "skipped";
+      process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
       readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") return JSON.stringify({ input_tokens: 5000, ai_credits: 0.125 });
+        if (filePath === "/tmp/gh-aw/agent-stdio.log") return '{"type":"result","usage":{"ai_credits":0.42}}\n';
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
@@ -6293,7 +6294,8 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.detection.conclusion"]).toBe("skipped");
+      expect(attrs["gh-aw.detection.conclusion"]).toBe(conclusion);
+      expect(attrs["gh-aw.aic"]).toBeUndefined();
     });
 
     it("omits gen_ai token breakdown when INPUT_JOB_NAME is empty", async () => {

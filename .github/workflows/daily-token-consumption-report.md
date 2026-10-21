@@ -92,7 +92,7 @@ If `search_events` is **not available** (the tool is absent from the available t
 - `organizationSlug`: the org discovered in Step 1
 - `dataset: spans`
 - Start with schema-valid span identity fields and inspect a representative raw gh-aw trace to discover custom fields. Do not restrict discovery to `span.op:ai*` or `span.op:gen_ai*`: gh-aw job spans carry cost, not individual model/tool spans.
-- `fields`: request the confirmed numeric `gh-aw.aic` field and canonical workflow/run fields (`gh-aw.workflow.name`, `gh-aw.run.id`, `github.run_id`, `github.workflow_ref`) using the backend's discovered field syntax. An `Unknown attribute` error proves only that the requested field is not queryable in this schema; it does not prove the producer omitted it. Record the exact rejected field and inspect raw spans before recommending instrumentation changes.
+- `fields`: explicitly include `timestamp` (required for `sort: -timestamp`), `id`, and `trace` for Step 4 mirror deduplication; also request the confirmed numeric `gh-aw.aic` field and canonical workflow/run fields (`gh-aw.workflow.name`, `gh-aw.run.id`, `github.run_id`, `github.workflow_ref`) using the backend's discovered field syntax. An `Unknown attribute` error proves only that the requested field is not queryable in this schema; it does not prove the producer omitted it. Record the exact rejected field and inspect raw spans before recommending instrumentation changes.
 - `sort`: `-timestamp`
 - Use pagination to cover the last 24 hours
 
@@ -100,7 +100,7 @@ If `dataset: spans` returns no usable records with either tool, retry with `data
 
 Treat "no usable records" as either:
 - zero events returned after pagination, or
-- events returned but none contain any recognized AIC fields.
+- events returned but none contain a finite non-negative numeric `gh-aw.aic` value (including explicit zero), or a legacy alias whose meaning and numeric type are confirmed in raw telemetry per Step 4.
 
 ### Step 3: Fetch Grafana/Tempo Telemetry
 
@@ -112,7 +112,7 @@ Use the Grafana MCP server in this workflow.
 4. If needed, call `tempo_get-trace` (datasource UID from step 1) on representative traces to verify whether AIC fields are present and numeric on spans.
 5. Record any query constraints or backend limitations (missing attributes, string-only values, fields not indexed, or inability to aggregate numerically).
 
-Treat Grafana data as "no usable AIC records" when traces exist but none expose recognized AIC fields in queryable numeric form.
+Treat Grafana data as "no usable AIC records" when traces exist but none expose a finite non-negative numeric `gh-aw.aic` value (including explicit zero), or a legacy alias whose meaning and numeric type are confirmed in raw telemetry per Step 4, in queryable numeric form.
 
 If `list_datasources` returns no Tempo datasource, or if `tempo_get-attribute-names` or `tempo_traceql-search` returns an error, treat this as "Grafana data unavailable" and record it as an observability gap in the Grafana AIC Findings section. Do not abort the workflow — continue to Step 4 with Sentry data only. Similarly, if the Grafana MCP server itself is unreachable (bad credentials, network error, or unconfigured secrets), record the failure reason and continue with Sentry-only data.
 

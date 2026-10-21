@@ -623,7 +623,7 @@ async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/cop
       cache_read_tokens: summary.totalCacheReadTokens,
       cache_write_tokens: summary.totalCacheWriteTokens,
       ambient_context: Math.round(summary.ambientContextTokens || 0),
-      ai_credits: summary.aiCreditsSource === "awf_reported" ? Number(summary.totalAIC.toFixed(6)) : Number((summary.totalAIC || 0).toFixed(3)),
+      ...(summary.aiCreditsAvailable ? { ai_credits: summary.aiCreditsSource === "awf_reported" ? Number(summary.totalAIC.toFixed(6)) : Number(summary.totalAIC.toFixed(3)) } : {}),
       ...(primaryModel ? { primary_model: primaryModel } : {}),
       ...(routedAttribution ? { model_routing: routedAttribution.routing } : {}),
     };
@@ -635,7 +635,7 @@ async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/cop
       core.info(`Primary model: ${primaryModel}`);
     }
     if (routedAttribution) core.setOutput("model", effectiveAttribution.model || "");
-    if (summary.aiCreditsSource === "awf_reported" || summary.totalAIC > 0) {
+    if (summary.aiCreditsAvailable && (summary.aiCreditsSource === "awf_reported" || summary.totalAIC > 0)) {
       const aic = formatAICForOutput(summary.totalAIC, summary.aiCreditsSource);
       core.exportVariable("GH_AW_AIC", aic);
       core.setOutput("aic", aic);

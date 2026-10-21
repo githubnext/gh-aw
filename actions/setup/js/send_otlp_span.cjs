@@ -2386,8 +2386,10 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Missing cost data must remain unknown, not a synthetic zero. Explicit zero
   // values remain numeric so consumers can distinguish them from absent data.
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
-  const aiCreditsFromFile = agentUsage.ai_credits;
-  const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
+  // Detection may download agent artifacts even when its own scan is skipped.
+  // Only its job-local env value can establish detection's cost.
+  const aiCreditsFromFile = jobName === "detection" ? undefined : agentUsage.ai_credits;
+  const aiCreditsFromMetrics = jobName === "detection" ? undefined : runtimeMetrics.tokenUsage?.ai_credits;
   const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
