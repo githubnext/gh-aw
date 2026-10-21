@@ -12,6 +12,7 @@ Use this skill to run a structured interview with users who know their goal but 
 - Use `.github/aw/create-agentic-workflow.md` once requirements are clear and ready for implementation.
 - Use `.github/aw/agentic-chat.md` when the user wants a specification/pseudo-code instead of a runnable workflow file.
 - Load `.github/aw/maintainer.md` when the goal is recurring repository maintenance, backlog reduction, owned-PR upkeep, or long-term code health.
+- Load [documentation-workflows.md](documentation-workflows.md) for documentation agents, required docs checks, or post-merge page/index upkeep.
 
 ## Interview Framework
 

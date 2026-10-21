@@ -21,6 +21,146 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_docs_merged_mode_scopes_base_checkout_and_recursion(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        example = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)
+        condition = next(line for line in example.splitlines() if line.startswith("if: "))
+        for required in (
+            "github.event.pull_request.merged == true",
+            "github.event.pull_request.base.ref == github.event.repository.default_branch",
+            "!startsWith(github.event.pull_request.head.ref, 'automation/docs-pages/')",
+            "!startsWith(github.event.pull_request.head.ref, 'automation/docs-indexes')",
+        ):
+            with self.subTest(merged_condition=required):
+                self.assertIn(required, condition)
+        self.assertIn("branch-prefix: automation/docs-pages/", example)
+        self.assertIn("checkout:\n  ref: ${{ github.event.repository.default_branch }}\n  pull-request: false\n", example)
+        self.assertNotIn("branch-prefix: automation/docs-\n", example)
+
+    def test_docs_on_demand_narrows_fallback_and_documents_app_scopes(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "merged-mode `checkout` override (retain current-PR checkout)",
+            "`push-to-pull-request-branch.fallback-as-pull-request: false`",
+            "`add-comment.issues: false`",
+            "`report-incomplete.create-issue: false`",
+            "Keep branch-protection preflight enabled",
+        ):
+            with self.subTest(on_demand_config=required):
+                self.assertIn(required, variant)
+        for required in (
+            "Administration read for default push branch-protection preflight",
+            "Issues read for diagnostic handlers",
+            "no Issues write with `add-comment.issues: false`",
+            "Default `add-comment` otherwise requests Issues write even for PR events",
+            "Issues write for issue output/default create-PR fallback",
+        ):
+            with self.subTest(app_permissions=required):
+                self.assertIn(required, guide)
+
+    def test_docs_on_demand_completion_requires_final_head_and_human_event(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]
+        scenarios = {
+            "safe_output_and_empty_commit_invalidate_prior_resolution": (
+                "After safe-output push and any CI-triggering empty commit finish",
+                "read live PR head",
+                "exact final SHA + explanation",
+                "A later commit requires renewed review/resolution",
+                "never reuse the pre-push SHA",
+            ),
+            "agent_cannot_complete_its_own_page_edits": (
+                "Completion owner: maintainer, not agent",
+                "review pages, apply `docs:complete`",
+                "Require maintainer follow-up in the agent summary",
+                "agent must not mark itself complete or write the completion resolution",
+            ),
+            "completion_requires_supported_event_and_current_head_check": (
+                "Human PR-body edit emits subscribed `edited` for the final head",
+                "verify the required gate ran and passed on that head",
+                "`GITHUB_TOKEN` metadata alone cannot refresh it",
+                "an old-event rerun or earlier green check is not completion",
+            ),
+        }
+        for scenario, requirements in scenarios.items():
+            with self.subTest(scenario=scenario):
+                for requirement in requirements:
+                    self.assertIn(requirement, variant)
+
+    def test_docs_index_builder_publishes_validated_final_head_through_app_event(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        indexes = guide.split("## Indexes: deterministic, post-merge\n", 1)[1].split("\n## ", 1)[0]
+        scenarios = {
+            "trusted_builder_owns_output_validation_not_page_review": (
+                "completion owner: trusted deterministic builder, not docs agent",
+                "ordinary Actions metadata step",
+                "scoped builder App token",
+                "require successful deterministic generation/validation",
+                "read live `automation/docs-indexes` PR/head",
+                "verify base is default branch",
+                "diff contains only allowed generated outputs from the trusted generation",
+                "not agent page review or human approval",
+            ),
+            "final_head_receives_one_decision_and_resolution": (
+                "After the PR writer finishes all pushes/empty commits",
+                "set `docs:required` + `docs:complete`, remove `docs:not-needed`",
+                "replace exactly one `Docs-resolution:` body line",
+                "preserve other body text",
+                "exact final head SHA + source-content digest + generation/validation explanation",
+            ),
+            "no_op_failure_or_head_race_cannot_complete_new_head": (
+                "No generated diff and no existing PR: no completion writes",
+                "unchanged existing PR: reconcile metadata without a new commit",
+                "If validation fails or head changes before publication",
+                "stop without marking the new head complete",
+                "regenerate/revalidate before renewal",
+            ),
+            "app_event_refreshes_normal_gate_without_bypass": (
+                "Write resolution last via App PR-body edit",
+                "subscribed `edited` reevaluates the normal gate against that head",
+                "Verify required check ran/passed for the same live SHA",
+                "stale checks or `GITHUB_TOKEN`-only metadata are not completion",
+                "same decision/current-head gate, no index-PR exception",
+            ),
+        }
+        for scenario, requirements in scenarios.items():
+            with self.subTest(scenario=scenario):
+                for requirement in requirements:
+                    self.assertIn(requirement, indexes)
+        self.assertLess(indexes.index("After the PR writer finishes"), indexes.index("After verification"))
+        self.assertLess(indexes.index("After verification"), indexes.index("Write resolution last"))
+
+    def test_docs_not_needed_stops_before_page_writes(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        prompt = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)
+        self.assertRegex(prompt, r"(?m)^docs:not-needed: no changes; stop\.$")
+        self.assertIn("Only docs:required:\n", prompt)
+        self.assertLess(prompt.index("docs:not-needed:"), prompt.index("Only docs:required:"))
+        required = prompt.split("Only docs:required:\n", 1)[1]
+        for action in ("Update required pages", "Open docs-only PR"):
+            with self.subTest(required_action=action):
+                self.assertNotIn(action, prompt.split("Only docs:required:\n", 1)[0])
+                self.assertIn(action, required)
+
+    def test_docs_on_demand_rewrites_prompt_and_outputs(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        self.assertIn("### On-demand rewrite\n", guide)
+        variant = guide.split("### On-demand rewrite\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "remove merged condition, `create-pull-request`, `create-issue`",
+            "`push-to-pull-request-branch` (scope: `allowed-files`) + `add-comment`",
+            "read current triggering PR, not merged PR",
+            "docs:not-needed: no changes; stop",
+            "Missing/conflicting/unsafe: comment; stop",
+            "Only docs:required: edit allowed docs; push to current PR branch",
+            "Remove merged-PR reads, new-docs-PR creation, issue escalation",
+            "Never request undeclared outputs",
+            "extra outputs only if explicitly configured",
+        ):
+            with self.subTest(on_demand_contract=required):
+                self.assertIn(required, variant)
+
     def test_live_test_branch_notification(self):
         for path in (
             DEBUG_GUIDE,
@@ -350,6 +490,41 @@ class GuidanceTests(unittest.TestCase):
             content = full.split(f"## {section}\n", 1)[1].split("\n## ", 1)[0]
             self.assertIn(ANCHOR, content)
         self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", GUIDES[1].read_text())
+
+    def test_docs_merged_example_labels_search_best_effort(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        example = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)
+        self.assertIn("best-effort duplicate avoidance only, not exactly-once", guide)
+        self.assertIn("Best-effort: check linked docs PRs", example)
+        self.assertIn("including closed PRs", example)
+        self.assertIn("Concurrent runs can still create duplicates", example)
+        self.assertNotIn("existing PR: stop, no duplicate", example)
+        self.assertIn("`branch-prefix` only namespaces output branches", guide)
+        self.assertIn("merge-SHA branch is not enforced idempotency", guide)
+
+    def test_docs_strict_dedup_requires_durable_atomic_claim_and_recovery(self):
+        guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
+        contract = guide.split("- Strict merged-run deduplication:", 1)[1].split(
+            "- Agent cannot set its own completion label", 1
+        )[0]
+        for required in (
+            "repository-owned trusted orchestration, not model instructions",
+            "Before inference/outputs, atomically create a durable claim",
+            "repository + workflow purpose + source merge SHA",
+            "only the winning owner proceeds",
+            "Existing claim: stop, whether pending or complete",
+            "read-then-write record is not atomic",
+            "completion + output PR URL using owner-checked compare-and-set",
+            "retain records after PR closure/branch deletion",
+            "Crash or uncertain output creation: fail closed",
+            "reconcile actual outputs before any explicit recovery",
+            "Never expire/reassign a claim blindly or retry an ambiguous creation",
+            "Claim + PR creation are not one transaction",
+            "not an exactly-once guarantee",
+            "The example does not implement that ledger",
+        ):
+            with self.subTest(dedup_contract=required):
+                self.assertIn(required, contract)
 
 
 if __name__ == "__main__":
