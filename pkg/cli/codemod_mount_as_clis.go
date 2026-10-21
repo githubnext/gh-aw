@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var mountAsCLIsCodemodLog = logger.New("cli:codemod_mount_as_clis")
@@ -25,23 +24,19 @@ func getMountAsCLIsToCLIProxyCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result := lines
-				modified := false
-
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
 				if hasMountAsCLIs {
-					result, modified = renameMountAsCLIsToCLIProxy(result)
-				}
-
-				if hasMCPCLIFeature {
-					after, removedMCPCLI := removeFieldFromBlock(result, "mcp-cli", "features")
-					if removedMCPCLI {
-						result = after
-						modified = true
+					if err := f.Rename([]string{"tools", "mount-as-clis"}, "cli-proxy"); err != nil {
+						return err
 					}
 				}
-
-				return result, modified
+				if hasMCPCLIFeature {
+					if err := f.Remove("features", "mcp-cli"); err != nil {
+						return err
+					}
+					return f.PruneEmpty("features")
+				}
+				return nil
 			})
 			if applied {
 				mountAsCLIsCodemodLog.Print("Renamed tools.mount-as-clis to tools.cli-proxy and removed features.mcp-cli")
@@ -77,50 +72,4 @@ func hasMCPCLIFeatureFlag(frontmatter map[string]any) bool {
 	}
 	_, hasMCPCLI := featuresMap["mcp-cli"]
 	return hasMCPCLI
-}
-
-// renameMountAsCLIsToCLIProxy renames 'mount-as-clis:' to 'cli-proxy:' inside the tools block.
-func renameMountAsCLIsToCLIProxy(lines []string) ([]string, bool) {
-	var result []string
-	modified := false
-
-	var inTools bool
-	var toolsIndent string
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "" {
-			result = append(result, line)
-			continue
-		}
-
-		if !strings.HasPrefix(trimmed, "#") && inTools && hasExitedBlock(line, toolsIndent) {
-			inTools = false
-		}
-
-		if strings.HasPrefix(trimmed, "tools:") {
-			inTools = true
-			toolsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		if inTools && strings.HasPrefix(trimmed, "mount-as-clis:") {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, toolsIndent) {
-				newLine, replaced := findAndReplaceInLine(line, "mount-as-clis", "cli-proxy")
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					mountAsCLIsCodemodLog.Printf("Renamed 'mount-as-clis' to 'cli-proxy' on line %d", i+1)
-					continue
-				}
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	return result, modified
 }

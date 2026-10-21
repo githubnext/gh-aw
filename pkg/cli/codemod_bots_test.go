@@ -190,7 +190,7 @@ bots: [dependabot, renovate, github-actions]
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, `    bots: ["dependabot","renovate","github-actions"]`)
+	assert.Contains(t, result, "    bots: [dependabot, renovate, github-actions]")
 	assert.NotContains(t, result, "\nbots:")
 }
 
@@ -228,7 +228,7 @@ bots: [github-actions]
 	assert.True(t, applied)
 	assert.Contains(t, result, "workflow_call:")
 	assert.Contains(t, result, "type: string")
-	assert.Contains(t, result, "bots: [\"dependabot\",\"github-actions\"]")
+	assert.Contains(t, result, "bots: [dependabot, github-actions]")
 }
 
 func TestBotsToOnBotsCodemod_PreservesCommentsAndBlankLines(t *testing.T) {

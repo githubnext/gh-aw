@@ -165,7 +165,7 @@ engine:
 	assert.NotContains(t, result, "\n  max-turns:")
 }
 
-func TestEngineMaxTurnsToTopLevelCodemod_InlineEngineMapNoOp(t *testing.T) {
+func TestEngineMaxTurnsToTopLevelCodemod_InlineEngineMap(t *testing.T) {
 	t.Parallel()
 	codemod := getEngineMaxTurnsToTopLevelCodemod()
 
@@ -184,6 +184,7 @@ engine: { id: copilot, max-turns: "${{ inputs.max-turns }}" }
 
 	result, applied, err := codemod.Apply(content, frontmatter)
 	require.NoError(t, err)
-	assert.False(t, applied)
-	assert.Equal(t, content, result)
+	assert.True(t, applied)
+	assert.Contains(t, result, `max-turns: "${{ inputs.max-turns }}"`)
+	assert.Contains(t, result, "engine: { id: copilot }")
 }

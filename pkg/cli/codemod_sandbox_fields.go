@@ -5,11 +5,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
-	"gopkg.in/yaml.v3"
+	"github.com/github/gh-aw/pkg/workflow/aw"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
-
-var sandboxFieldsCodemodLog = logger.New("cli:codemod_sandbox_fields")
 
 type sandboxFieldRename struct {
 	parent []string
@@ -59,204 +57,85 @@ func getSandboxFieldsCodemod() Codemod {
 		Name:         "Normalize sandbox fields to kebab-case",
 		Description:  "Renames camel-cased sandbox frontmatter fields to their kebab-case equivalents",
 		IntroducedIn: "0.86.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			if !hasCamelizedSandboxField(frontmatter) {
-				return content, false, nil
-			}
+		Apply: func(content string, _ map[string]any) (string, bool, error) {
+			return codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				for _, rename := range sandboxFieldRenames {
+					if len(rename.parent) < 1 {
+						continue
+					}
+					parents := [][]string{rename.parent}
+					if rename.parent[len(rename.parent)-1] == "*" { //nolint:uncheckedsliceindex // The nonempty parent guard above makes len(parent)-1 an in-bounds index.
+						prefix := rename.parent[:len(rename.parent)-1]
+						value, _ := f.Lookup(prefix...)
+						if _, sequence := value.([]any); sequence {
+							if err := renameSandboxSequenceTargetField(f, rename); err != nil {
+								return err
+							}
+							continue
+						}
+						targets, ok := value.(map[string]any)
+						if !ok {
+							continue
+						}
+						names := make([]string, 0, len(targets))
+						for name := range targets {
+							names = append(names, name)
+						}
+						slices.Sort(names)
+						parents = nil
+						for _, name := range names {
+							parents = append(parents, append(slices.Clone(prefix), name))
+						}
+					}
 
-			lines, _, err := parseFrontmatterLines(content)
-			if err != nil {
-				return content, false, err
-			}
-			if _, _, err := normalizeSandboxFieldLinesWithError(lines); err != nil {
-				return content, false, err
-			}
-
-			updated, applied, err := applyFrontmatterLineTransform(content, normalizeSandboxFieldLines)
-			if applied {
-				sandboxFieldsCodemodLog.Print("Normalized camel-cased sandbox frontmatter fields")
-			}
-			return updated, applied, err
+					for _, parent := range parents {
+						path := append(slices.Clone(parent), rename.oldKey)
+						if _, exists := f.Lookup(path...); !exists {
+							continue
+						}
+						if _, exists := f.Lookup(append(slices.Clone(parent), rename.newKey)...); exists {
+							return fmt.Errorf("cannot migrate sandbox field %q to %q at %s: both spellings are present; resolve the duplicate values manually and rerun gh aw fix", rename.oldKey, rename.newKey, strings.Join(path, "."))
+						}
+						if err := f.Rename(path, rename.newKey); err != nil {
+							return err
+						}
+					}
+				}
+				return nil
+			})
 		},
 	}
 }
 
-func hasCamelizedSandboxField(frontmatter map[string]any) bool {
-	var visit func(map[string]any, []string) bool
-	visit = func(current map[string]any, parent []string) bool {
-		for key, value := range current {
-			if sandboxFieldReplacement(parent, key) != "" {
-				return true
+func renameSandboxSequenceTargetField(f *codemod.Frontmatter, rename sandboxFieldRename) error {
+	return f.Edit(func(document *aw.Document) error {
+		sandbox, ok := document.Frontmatter["sandbox"].(map[string]any)
+		if !ok {
+			return nil
+		}
+		agent, ok := sandbox["agent"].(map[string]any)
+		if !ok {
+			return nil
+		}
+		targets, ok := agent["targets"].([]any)
+		if !ok {
+			return nil
+		}
+		for index, value := range targets {
+			target, ok := value.(map[string]any)
+			if !ok {
+				continue
 			}
-			child, ok := value.(map[string]any)
-			if ok && visit(child, append(parent, key)) {
-				return true
+			value, exists := target[rename.oldKey]
+			if !exists {
+				continue
 			}
-		}
-		return false
-	}
-	return visit(frontmatter, nil)
-}
-
-type sandboxYAMLPathEntry struct {
-	line   int
-	column int
-	oldKey string
-	newKey string
-}
-
-func normalizeSandboxFieldLines(lines []string) ([]string, bool) {
-	result, modified, err := normalizeSandboxFieldLinesWithError(lines)
-	if err != nil {
-		return lines, false
-	}
-	return result, modified
-}
-
-func normalizeSandboxFieldLinesWithError(lines []string) ([]string, bool, error) {
-	var document yaml.Node
-	if err := yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &document); err != nil {
-		return lines, false, fmt.Errorf("failed to parse sandbox frontmatter for field migration: %w", err)
-	}
-
-	replacements := make([]sandboxYAMLPathEntry, 0)
-	if err := collectSandboxFieldReplacements(&document, nil, &replacements); err != nil {
-		return lines, false, err
-	}
-	if len(replacements) == 0 {
-		return lines, false, nil
-	}
-
-	result := slices.Clone(lines)
-	replacementsByLine := make(map[int][]sandboxYAMLPathEntry)
-	for _, replacement := range replacements {
-		lineIndex := replacement.line
-		if lineIndex < 0 || lineIndex >= len(result) {
-			return lines, false, fmt.Errorf("cannot locate sandbox field %q in frontmatter", replacement.oldKey)
-		}
-		replacementsByLine[lineIndex] = append(replacementsByLine[lineIndex], replacement)
-	}
-	for lineIndex, line := range result {
-		lineReplacements := replacementsByLine[lineIndex]
-		if len(lineReplacements) == 0 {
-			continue
-		}
-		slices.SortFunc(lineReplacements, func(a, b sandboxYAMLPathEntry) int {
-			return b.column - a.column
-		})
-		for _, replacement := range lineReplacements {
-			var err error
-			line, err = replaceSandboxYAMLKey(line, replacement.column, replacement.oldKey, replacement.newKey)
-			if err != nil {
-				return lines, false, err
+			if _, exists := target[rename.newKey]; exists {
+				return fmt.Errorf("cannot migrate sandbox field %q to %q at sandbox.agent.targets.%d.%s: both spellings are present; resolve the duplicate values manually and rerun gh aw fix", rename.oldKey, rename.newKey, index, rename.oldKey)
 			}
+			target[rename.newKey] = value
+			delete(target, rename.oldKey)
 		}
-		result[lineIndex] = line
-	}
-	return result, true, nil
-}
-
-func collectSandboxFieldReplacements(node *yaml.Node, path []string, replacements *[]sandboxYAMLPathEntry) error {
-	switch node.Kind {
-	case yaml.DocumentNode:
-		for _, child := range node.Content {
-			if err := collectSandboxFieldReplacements(child, path, replacements); err != nil {
-				return err
-			}
-		}
-	case yaml.MappingNode:
-		return collectSandboxMappingReplacements(node, path, replacements)
-	case yaml.SequenceNode:
-		for _, child := range node.Content {
-			if err := collectSandboxFieldReplacements(child, append(slices.Clone(path), "*"), replacements); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func collectSandboxMappingReplacements(node *yaml.Node, path []string, replacements *[]sandboxYAMLPathEntry) error {
-	keys := make(map[string]struct{}, len(node.Content)/2)
-	for i, key := range node.Content {
-		if i%2 != 0 || key.Kind != yaml.ScalarNode {
-			continue
-		}
-		keys[key.Value] = struct{}{}
-	}
-	var key *yaml.Node
-	for _, child := range node.Content {
-		if key == nil {
-			key = child
-			continue
-		}
-		value := child
-		if key.Kind != yaml.ScalarNode {
-			key = nil
-			continue
-		}
-		replacement := sandboxFieldReplacement(path, key.Value)
-		if replacement != "" {
-			if _, exists := keys[replacement]; exists {
-				return fmt.Errorf(
-					"cannot migrate sandbox field %q to %q at %s: both spellings are present; resolve the duplicate values manually and rerun gh aw fix",
-					key.Value,
-					replacement,
-					strings.Join(append(slices.Clone(path), key.Value), "."),
-				)
-			}
-			*replacements = append(*replacements, sandboxYAMLPathEntry{
-				line:   key.Line - 1,
-				column: key.Column - 1,
-				oldKey: key.Value,
-				newKey: replacement,
-			})
-		}
-		childKey := key.Value
-		if replacement != "" {
-			childKey = replacement
-		}
-		if err := collectSandboxFieldReplacements(value, append(slices.Clone(path), childKey), replacements); err != nil {
-			return err
-		}
-		key = nil
-	}
-	return nil
-}
-
-func replaceSandboxYAMLKey(line string, column int, oldKey, newKey string) (string, error) {
-	if column < 0 || column >= len(line) {
-		return line, fmt.Errorf("cannot locate sandbox field %q in frontmatter", oldKey)
-	}
-	token := line[column:]
-	for _, quote := range []string{`"`, `'`} {
-		quotedKey := quote + oldKey + quote
-		if strings.HasPrefix(token, quotedKey) {
-			return line[:column] + quote + newKey + quote + token[len(quotedKey):], nil
-		}
-	}
-	key, suffix, ok := strings.Cut(token, ":")
-	if !ok {
-		return line, fmt.Errorf("cannot locate sandbox field %q in frontmatter", oldKey)
-	}
-	plainKey := strings.TrimRight(key, " \t")
-	if plainKey != oldKey {
-		return line, fmt.Errorf("cannot locate sandbox field %q in frontmatter", oldKey)
-	}
-	return line[:column] + newKey + key[len(plainKey):] + ":" + suffix, nil
-}
-
-func sandboxFieldReplacement(parent []string, key string) string {
-	for _, rename := range sandboxFieldRenames {
-		if key == rename.oldKey && sandboxFieldPathMatches(parent, rename.parent) {
-			return rename.newKey
-		}
-	}
-	return ""
-}
-
-func sandboxFieldPathMatches(path, pattern []string) bool {
-	return slices.EqualFunc(path, pattern, func(pathElement, patternElement string) bool {
-		return patternElement == "*" || pathElement == patternElement
+		return nil
 	})
 }
