@@ -117,6 +117,41 @@ gh aw audit <run-id-1> <run-id-2> --group --json
 - For optimization, correlate failures with AIC, input/output tokens, duration,
   and wasted retries; use successful runs as baselines. Frequency alone is not value.
 
+### Retrieve and cluster session evidence
+
+After reading deterministic findings, use a concrete error code, tool, domain,
+or path to retrieve bounded evidence from a single run:
+
+```bash
+gh aw audit <run-id-or-url> --search "api.example.com ERR_AUTH_401" --search-limit 5 --json > audit.json
+jq '.evidence_search | {source, indexed_events, matching_events, truncated, matches}' audit.json
+```
+
+Reuse the same `--output` directory for successive queries.
+This CLI-only search reads the actual redacted unified session
+(`usage/aw_session.jsonl` or root `aw_session.jsonl`), not synthesized `ProcessedRun`
+events or raw engine logs. Narrowed artifact selections automatically include
+`usage`. Missing/invalid sessions are unavailable evidence, not zero matches.
+
+Read each match's `evidence.reference`, `references`, and neighboring `context`
+before inferring a cause. Drain3 groups events by run-local component/phase/type
+stage and cluster ID; `occurrences` is that template's event count and
+`matching_occurrences` counts query-matching events. BM25 searches original event
+fields as well as templates, so masked parameters remain searchable.
+`bm25_score` is relevance; `anomaly_score` is a separate online Drain3 signal.
+Neither determines severity, confidence, threat absence, or audit completeness.
+Respect `truncated` and excerpt bounds; inspect referenced records when more
+context is needed. Search results are not stored in the shared audit cache.
+
+Keep the three grouping levels distinct: fleet `failure_clusters` select runs;
+`audit --group` groups deterministic findings by `[run, code]`; single-run
+`audit --search` groups retrieved event evidence by Drain3 stage/cluster.
+Search cannot be combined with multi-run arguments, `--group`, or job/step URLs.
+Never join Drain3 cluster IDs across runs, sum overlapping groups as affected
+runs, or infer a shared root cause from a common template. Compare signatures
+and first failing boundaries using the referenced events instead. Zero search
+matches do not suppress findings or establish that a run is safe.
+
 ## Report
 
 Include repository/window, analyzed/inspectable counts, collection gaps, cluster

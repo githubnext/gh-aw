@@ -21,6 +21,24 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_audit_search_distinguishes_evidence_and_failure_clusters(self):
+        guide = (ROOT / ".github/aw/analyzing-runs.md").read_text()
+        search = guide.split("### Retrieve and cluster session evidence\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "--search-limit 5 --json",
+            "usage/aw_session.jsonl",
+            "not synthesized `ProcessedRun`",
+            "bm25_score",
+            "anomaly_score",
+            "fleet `failure_clusters`",
+            "`audit --group`",
+            "Never join Drain3 cluster IDs across runs",
+            "Zero search",
+            "do not suppress findings",
+        ):
+            with self.subTest(search_contract=required):
+                self.assertIn(required, search)
+
     def test_docs_merged_mode_scopes_base_checkout_and_recursion(self):
         guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()
         example = re.search(r"```aw\n(.*?)\n```", guide, re.S).group(1)

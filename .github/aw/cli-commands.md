@@ -159,11 +159,19 @@ gh aw audit <base-id> <compare-id>  # Diff two runs (regression detection)
 gh aw audit <id1> <id2> <id3> --json  # Multi-run diff
 gh aw audit <id1> <id2> --group     # Grouped findings: one entry per [run, code] with occurrence counts
 gh aw audit <id1> <id2> <id3> --group --json  # Per-run finding codes for recurrence checks
+gh aw audit <run-id> --search "ERR_AUTH_401 api.example.com" --json  # Unified-session evidence grouped by Drain3 template
+gh aw audit <run-id> --search "github.issue_read timeout" --search-limit 3
 ```
 
 For audit triage methodology, see [analyzing-runs.md](analyzing-runs.md#audit).
+`--search` is single-run CLI retrieval over the redacted unified session, not
+finding generation. Results include bounded excerpts, source references,
+neighboring events, run-local template occurrence counts, and separate BM25
+relevance/Drain3 anomaly scores. Do not compare cluster IDs across runs or treat
+zero matches as safety evidence. It cannot be combined with `--group` or job/step URLs.
 
 **MCP equivalent**: `audit` tool (single run) / `audit-diff` tool (multi-run comparison)
+for ordinary audits; BM25 `--search` is CLI-only.
 
 ---
 

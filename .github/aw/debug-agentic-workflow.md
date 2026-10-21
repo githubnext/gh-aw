@@ -280,6 +280,17 @@ not just aggregate metrics or matching HTTP codes. Count each matching run once;
 report matching/inspectable comparable runs and their IDs. Account for workflow,
 revision, trigger/input and configuration differences; missing evidence remains unknown.
 
+To locate a signature within a run, use
+`gh aw audit RUN_ID --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
+Read `evidence_search` source references and neighboring events, not relevance
+scores alone. Search mines the actual unified session and groups event evidence
+with Drain3; these run-local stage/cluster IDs are not fleet failure clusters or
+`--group` finding codes. Keep BM25 relevance and Drain3 anomaly scores separate
+from severity/confidence. Missing sessions or zero hits never establish safety
+or erase deterministic findings. Follow
+[session evidence retrieval](analyzing-runs.md#retrieve-and-cluster-session-evidence)
+for limits and interpretation; do not combine search with grouped/multi-run audits.
+
 Start with the compact audit. Fetch targeted evidence only when needed:
 
 ```bash

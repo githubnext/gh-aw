@@ -35,6 +35,8 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 | `--group` | off | Group audit findings so each `[run, code]` pair appears once with an occurrence count and representative entry |
 | `--no-baseline` | off | Skip baseline lookup and comparison for single-run audits; the Comparison section reports no baseline found |
+| `--search <query>` | off | Retrieve relevant unified-session evidence with local BM25 ranking (single-run only; incompatible with `--group` and job/step URLs) |
+| `--search-limit <n>` | `5` | Maximum evidence groups returned by `--search`, from 1 to 20 |
 
 Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`.
 
@@ -43,6 +45,48 @@ By default a single-run audit looks up an earlier run of the same workflow and r
 ```bash
 gh aw audit 1234567890 --no-baseline
 ```
+
+### Searching session evidence
+
+```bash
+gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --json
+gh aw audit 1234567890 --search "github.issue_read timeout" --search-limit 3
+```
+
+`--search` adds an `evidence_search` section without replacing the full audit.
+It indexes actual events from the downloaded, redacted `usage/aw_session.jsonl`
+(or root `aw_session.jsonl`), not raw engine logs or synthesized run summaries.
+Narrowed `--artifacts` selections automatically include `usage`. Missing,
+malformed, unsupported, oversized, or symlinked unified-session inputs produce
+an error rather than a partial search presented as complete. Search accepts
+queries up to 1,024 bytes and sessions up to 64 MiB, 20,000 events, and 256
+distinct stages. Decoded data is bounded to 64 nesting levels.
+
+Ranking uses an in-memory BM25 index with no model calls, embeddings, external
+search service, or persistent index. Paths, tool names, domains, and error codes
+are indexed both as full identifiers and as components. Exact repeated events
+share one ranking document so retries cannot dominate relevance statistics.
+
+Drain3 mines up to the first 2,048 bytes of each actual event in session order,
+scoped by component, phase, and event type. BM25 indexes complete decoded event
+text, not just this mining prefix. Search covers both final templates and original event fields,
+retaining identifiers hidden by template wildcards. Results group by run-local
+stage and cluster ID, with total and matching occurrence counts, up to three
+matching source references, a representative event, and its preceding and
+following session events. References retain JSONL line numbers, event IDs,
+timestamps, and original artifact paths/indexes when present. Group IDs are not
+stable identifiers across runs or indexes.
+
+`bm25_score` measures query relevance; `anomaly_score` separately describes
+Drain3's online assessment when the representative event was ingested. Neither
+score determines finding severity, confidence, audit completeness, or threat
+absence. Zero matches do not mean a run is safe. Matches are relevance-ordered;
+their references and neighboring context preserve session chronology.
+
+Returned excerpts are capped at 600 bytes each and template/excerpt text at
+16 KiB overall. `text_bytes`, report-level `truncated`, and per-excerpt
+`truncated` indicate these bounds. Search results and query text are never
+written into the shared audit cache; each query reads the unified session anew.
 
 **Single-run examples:**
 
