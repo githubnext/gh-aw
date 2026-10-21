@@ -151,20 +151,39 @@ func TestRunsOnRoundTrip(t *testing.T) {
 			reparsed, err = Parse([]byte(emitted))
 			require.NoError(t, err)
 			assert.Equal(t, tt.value, reparsed.Jobs[0].RunsOn, "new ASTs must preserve runner types and values")
+		})
+	}
+}
 
-			for _, target := range tests {
-				t.Run("edit to "+target.name, func(t *testing.T) {
-					input.Jobs[0].RunsOn = target.value
-					emitted, err := Emit(input)
-					require.NoError(t, err)
-					reparsed, err := Parse([]byte(emitted))
-					require.NoError(t, err)
-					assert.Equal(t, target.value, reparsed.Jobs[0].RunsOn)
-					again, err := Emit(reparsed)
-					require.NoError(t, err)
-					assert.Equal(t, emitted, again, "edited runner emission must be stable")
-				})
-			}
+func TestRunsOnEdits(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		value  any
+	}{
+		{"scalar to list", "ubuntu-latest", []any{"self-hosted", "linux"}},
+		{"scalar to mapping", "ubuntu-latest", map[string]any{"group": "my-runners"}},
+		{"list to scalar", "[self-hosted, linux]", "ubuntu-latest"},
+		{"block list to group mapping", "\n      - self-hosted\n      - linux\n      - x64", map[string]any{"group": "my-runners"}},
+		{"mapping to scalar", "{group: my-runners}", "ubuntu-latest"},
+		{"mapping to list", "{group: my-runners}", []any{"self-hosted", "linux"}},
+		{"nested label to labels", "{group: my-runners, labels: linux}", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"nested labels to label", "\n      group: my-runners\n      labels:\n        - linux\n        - x64", map[string]any{"group": "my-runners", "labels": "linux"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "# Runner selection\njobs:\n  build:\n    runs-on: " + tt.source + "\n    steps:\n      - run: echo test\n"
+			input, err := Parse([]byte(source))
+			require.NoError(t, err)
+			input.Jobs[0].RunsOn = tt.value
+			emitted, err := Emit(input)
+			require.NoError(t, err)
+			reparsed, err := Parse([]byte(emitted))
+			require.NoError(t, err)
+			assert.Equal(t, tt.value, reparsed.Jobs[0].RunsOn)
+			again, err := Emit(reparsed)
+			require.NoError(t, err)
+			assert.Equal(t, emitted, again, "edited runner emission must be stable")
 		})
 	}
 }

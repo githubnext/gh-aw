@@ -100,23 +100,54 @@ func TestDocumentRunsOnRoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, document.Frontmatter, reparsed.Frontmatter, "rewriting frontmatter must preserve runner types and values")
 			assert.Equal(t, document.Markdown, reparsed.Markdown)
+		})
+	}
+}
 
-			for _, target := range tests {
-				t.Run("edit to "+target.name, func(t *testing.T) {
-					document.Frontmatter["runs-on"] = target.value
-					document.Frontmatter["jobs"].(map[string]any)["build"].(map[string]any)["runs-on"] = target.value
-					document.Frontmatter["safe-outputs"].(map[string]any)["jobs"].(map[string]any)["deploy"].(map[string]any)["runs-on"] = target.value
-					emitted, err := Emit(document)
-					require.NoError(t, err)
-					reparsed, err := Parse(emitted)
-					require.NoError(t, err)
-					assert.Equal(t, document.Frontmatter, reparsed.Frontmatter)
-					assert.Equal(t, document.Markdown, reparsed.Markdown)
-					again, err := Emit(reparsed)
-					require.NoError(t, err)
-					assert.Equal(t, emitted, again)
-				})
+func TestDocumentRunsOnEdits(t *testing.T) {
+	tests := []struct {
+		name   string
+		field  string
+		source string
+		value  any
+	}{
+		{"root scalar to list", "root", "ubuntu-latest", []any{"self-hosted", "linux"}},
+		{"root block list to group mapping", "root", "\n  - self-hosted\n  - linux\n  - x64", map[string]any{"group": "my-runners"}},
+		{"root mapping to scalar", "root", "{group: my-runners}", "ubuntu-latest"},
+		{"custom job scalar to mapping", "custom", "ubuntu-latest", map[string]any{"group": "my-runners"}},
+		{"custom job mapping to list", "custom", "{group: my-runners}", []any{"self-hosted", "linux"}},
+		{"custom job nested label to labels", "custom", "{group: my-runners, labels: linux}", map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}}},
+		{"safe-output job list to scalar", "safe-output", "[self-hosted, linux]", "ubuntu-latest"},
+		{"safe-output job nested labels to label", "safe-output", "\n  group: my-runners\n  labels:\n    - linux\n    - x64", map[string]any{"group": "my-runners", "labels": "linux"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := "runs-on: " + tt.source + "\n"
+			source := "---\nengine: copilot\n" + field +
+				"jobs:\n  build:\n    " + strings.ReplaceAll(strings.TrimSuffix(field, "\n"), "\n", "\n    ") + "\n" +
+				"safe-outputs:\n  jobs:\n    deploy:\n      " + strings.ReplaceAll(strings.TrimSuffix(field, "\n"), "\n", "\n      ") +
+				"\n---\n\n# Prompt\n\nKeep these bytes.  \n"
+			document, err := Parse(source)
+			require.NoError(t, err)
+			switch tt.field {
+			case "root":
+				document.Frontmatter["runs-on"] = tt.value
+			case "custom":
+				document.Frontmatter["jobs"].(map[string]any)["build"].(map[string]any)["runs-on"] = tt.value
+			case "safe-output":
+				document.Frontmatter["safe-outputs"].(map[string]any)["jobs"].(map[string]any)["deploy"].(map[string]any)["runs-on"] = tt.value
+			default:
+				t.Fatalf("unknown runner field %q", tt.field)
 			}
+			emitted, err := Emit(document)
+			require.NoError(t, err)
+			reparsed, err := Parse(emitted)
+			require.NoError(t, err)
+			assert.Equal(t, document.Frontmatter, reparsed.Frontmatter)
+			assert.Equal(t, document.Markdown, reparsed.Markdown)
+			again, err := Emit(reparsed)
+			require.NoError(t, err)
+			assert.Equal(t, emitted, again, "edited runner emission must be stable")
 		})
 	}
 }
