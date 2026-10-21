@@ -8,7 +8,7 @@ const ESLINT_WORKERS = Object.freeze(["eslint-miner", "eslint-refiner", "eslint-
 
 /** @param {string} profile */
 function factoryContract(profile) {
-  const outputs = ["noop", "report_incomplete", "missing_tool", "missing_data"].map(type => ({ type, min: 0, max: 1 }));
+  const outputs = ["noop", "report_incomplete", "report_missing_tool", "report_missing_data"].map(type => ({ type, min: 0, max: 1 }));
   if (profile === "eslint-miner") outputs.push({ type: "create_pull_request", min: 0, max: 1 });
   else if (profile === "eslint-refiner") {
     outputs.push({ type: "create_issue", min: 0, max: 3 }, { type: "create_discussion", min: 0, max: 1 }, { type: "persist_eslint_memory", min: 1, max: 1 });

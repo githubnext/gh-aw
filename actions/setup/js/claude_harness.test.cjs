@@ -708,16 +708,16 @@ describe("claude_harness.cjs", () => {
       expect(hasNumerousPermissionDeniedIssues(classifiableOutput(output))).toBe(false);
     });
 
-    it("builds missing_tool payload for permission issues", () => {
+    it("builds report_missing_tool payload for permission issues", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.reason).toContain("missing tool/permission issue");
       expect(payload.denied_commands).toEqual([]);
     });
 
-    it("builds missing_tool payload with denied commands", () => {
+    it("builds report_missing_tool payload with denied commands", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload(["go version", "ls /usr/local/go"]));
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.denied_commands).toEqual(["go version", "ls /usr/local/go"]);
     });
   });

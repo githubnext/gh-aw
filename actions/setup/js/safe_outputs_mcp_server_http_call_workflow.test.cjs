@@ -68,8 +68,8 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
       call_workflow: {
         workflows: ["generic-worker"],
       },
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
       noop: { max: 1 },
     };
 
@@ -86,8 +86,8 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
 
     // Config WITHOUT call_workflow
     const config = {
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
       noop: { max: 1 },
     };
 
@@ -132,7 +132,7 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
     // Config with falsy call_workflow value
     const config = {
       call_workflow: null,
-      missing_tool: {},
+      report_missing_tool: {},
     };
 
     expect(shouldRegisterTool(tool, config)).toBe(false);
@@ -212,7 +212,7 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
     // Simulate the full tool list that would be registered on the server
     const allTools = [
       {
-        name: "missing_tool",
+        name: "report_missing_tool",
         description: "Report a missing tool",
         inputSchema: { type: "object", properties: {} },
       },
@@ -230,7 +230,7 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
     ];
 
     const config = {
-      missing_tool: {},
+      report_missing_tool: {},
       noop: { max: 1 },
       call_workflow: { workflows: ["generic-worker"] },
     };
@@ -238,7 +238,7 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
     // Simulate registration by filtering tools using the registration logic
     const registeredToolNames = allTools.filter(tool => shouldRegisterTool(tool, config)).map(tool => tool.name);
 
-    expect(registeredToolNames).toContain("missing_tool");
+    expect(registeredToolNames).toContain("report_missing_tool");
     expect(registeredToolNames).toContain("noop");
     expect(registeredToolNames).toContain("generic_worker");
     expect(registeredToolNames).toHaveLength(3);
@@ -247,7 +247,7 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
   it("should exclude call_workflow tools from tools/list when config.call_workflow is absent", () => {
     const allTools = [
       {
-        name: "missing_tool",
+        name: "report_missing_tool",
         description: "Report a missing tool",
         inputSchema: { type: "object", properties: {} },
       },
@@ -261,12 +261,12 @@ describe("safe_outputs_mcp_server_http call_workflow registration", () => {
 
     // Config without call_workflow
     const config = {
-      missing_tool: {},
+      report_missing_tool: {},
     };
 
     const registeredToolNames = allTools.filter(tool => shouldRegisterTool(tool, config)).map(tool => tool.name);
 
-    expect(registeredToolNames).toContain("missing_tool");
+    expect(registeredToolNames).toContain("report_missing_tool");
     expect(registeredToolNames).not.toContain("generic_worker");
     expect(registeredToolNames).toHaveLength(1);
   });

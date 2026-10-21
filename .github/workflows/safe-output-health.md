@@ -107,7 +107,7 @@ Safe output jobs are the separate jobs created to handle output from agentic wor
 - `update_issue` - Job that updates issue properties
 - `add_labels` - Job that adds labels to issues/PRs
 - `push_to_pull_request_branch` - Job that pushes changes to PR branches
-- `missing_tool` - Job that reports missing tools
+- `report_missing_tool` - Diagnostic tool that records missing functionality during safe output processing
 
 #### 2.2 Error Detection Strategy
 

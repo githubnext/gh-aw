@@ -8,11 +8,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 
 /** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "missing_data";
+const HANDLER_TYPE = "report_missing_data";
 
 /**
- * Main handler factory for missing_data
- * Returns a message handler function that processes individual missing_data messages
+ * Main handler factory for report_missing_data
+ * Returns a message handler function that processes individual report_missing_data messages
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
@@ -25,15 +25,15 @@ async function main(config = {}) {
   let processedCount = 0;
 
   /**
-   * Message handler function that processes a single missing_data message
-   * @param {Object} message - The missing_data message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number} (unused for missing_data)
+   * Message handler function that processes a single report_missing_data message
+   * @param {Object} message - The report_missing_data message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number} (unused for report_missing_data)
    * @returns {Promise<Object>} Result with success/error status
    */
   return async function handleMissingData(message, resolvedTemporaryIds) {
     // Check if we've hit the max limit
     if (maxCount > 0 && processedCount >= maxCount) {
-      core.warning(`Skipping missing_data: max count of ${maxCount} reached`);
+      core.warning(`Skipping report_missing_data: max count of ${maxCount} reached`);
       return {
         success: false,
         error: `Max count of ${maxCount} reached`,

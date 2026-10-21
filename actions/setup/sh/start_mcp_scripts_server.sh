@@ -34,6 +34,7 @@ REQUIRED_DEPS=(
   "mcp_scripts_bootstrap.cjs"
   "error_helpers.cjs"
   "mcp_server_core.cjs"
+  "safe_output_names.cjs"
   "mcp_scripts_config_loader.cjs"
   "read_buffer.cjs"
   "mcp_handler_shell.cjs"

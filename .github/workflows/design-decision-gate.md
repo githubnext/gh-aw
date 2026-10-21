@@ -334,7 +334,7 @@ If no ADR is found:
 
 If any answer cannot be justified from `pr.json` + `pr-files.json` + `pr.diff` (or `pr-files.json` alone when `diff_available` is `false`), state "Not inferable from current PR evidence" instead of speculating.
 
-If Question 1 (Decision) is not inferable from current PR evidence, call `missing_data` with a concise explanation of what is missing, then stop.
+If Question 1 (Decision) is not inferable from current PR evidence, call `report_missing_data` with a concise explanation of what is missing, then stop.
 
 Generate a draft ADR file using the imported `adr-writer` template. Fill the Michael Nygard sections (`Context`, `Decision`, `Alternatives Considered`, `Consequences`) with evidence grounded in the PR.
 

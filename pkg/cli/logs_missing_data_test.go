@@ -39,7 +39,7 @@ func TestExtractMissingDataFromRun_IncludesExperimentProvenance(t *testing.T) {
 	safeOutput := `{
 		"items": [
 			{
-				"type": "missing_data",
+				"type": "report_missing_data",
 				"data_type": "issue_body",
 				"reason": "Issue body was empty",
 				"context": "triage workflow",

@@ -19336,7 +19336,7 @@ safe-outputs:
   # Accepted formats:
 
   # Format 1: Configuration for reporting missing tools from agentic workflow output
-  missing-tool:
+  report-missing-tool:
     # Maximum number of missing tool reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19603,11 +19603,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing tool reporting with default configuration
-  missing-tool: null
+  report-missing-tool: null
 
   # Format 3: Explicitly disable missing tool reporting (false). Missing tool
   # reporting is enabled by default when safe-outputs is configured.
-  missing-tool: true
+  report-missing-tool: true
 
   # Enable AI agents to report when required data or context is missing. Used for
   # workflow troubleshooting and data validation.
@@ -19617,7 +19617,7 @@ safe-outputs:
   # Format 1: Configuration for reporting missing data required to achieve workflow
   # goals. Encourages AI agents to be truthful about data gaps instead of
   # hallucinating information.
-  missing-data:
+  report-missing-data:
     # Maximum number of missing data reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19884,11 +19884,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing data reporting with default configuration
-  missing-data: null
+  report-missing-data: null
 
   # Format 3: Explicitly disable missing data reporting (false). Missing data
   # reporting is enabled by default when safe-outputs is configured.
-  missing-data: true
+  report-missing-data: true
 
   # Enable AI agents to explicitly indicate no action is needed. Used for workflow
   # control flow and conditional logic.

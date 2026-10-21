@@ -128,6 +128,10 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
           "-e",
           `
             const assert = require("node:assert/strict");
+            const { createServer } = require("./mcp_server_core.cjs");
+            const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
+            assert.equal(createServer({ name: "mcpscripts", version: "test" }).serverInfo.name, "mcpscripts");
+            assert.equal(normalizeSafeOutputName("missing_tool"), "report_missing_tool");
             const manifest = require("./safe_output_manifest.cjs");
             const summary = require("./work_queue_summary_renderer.cjs");
             const native = require("./work_queue_native.cjs");
@@ -190,6 +194,10 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
           "-e",
           `
             const assert = require("node:assert/strict");
+            const { createServer, registerTool } = require("./mcp_server_core.cjs");
+            const server = createServer({ name: "safeoutputs", version: "test" });
+            registerTool(server, { name: "missing_tool", description: "", inputSchema: { type: "object", properties: {} } });
+            assert.deepEqual(Object.keys(server.tools), ["report_missing_tool"]);
             const { getFooterMessage } = require("./messages_footer.cjs");
             const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
             const native = require("./work_queue_native.cjs");
