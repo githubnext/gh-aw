@@ -14,32 +14,36 @@ type declaredSubagentModel struct {
 	Patterns []string `json:"patterns"`
 }
 
-func readDeclaredSubagentModels(runDir string, summary *TokenUsageSummary) []declaredSubagentModel {
+// readDeclaredSubagentModels returns the declared sub-agent models and the main model
+// recorded in aw_info.json.
+func readDeclaredSubagentModels(runDir string, summary *TokenUsageSummary) ([]declaredSubagentModel, string) {
 	infoPath := findAwInfoPath(runDir)
 	if infoPath == "" {
-		return nil
+		return nil, ""
 	}
 	content, err := os.ReadFile(infoPath)
 	if err != nil {
 		addTokenUsageWarning(summary, "cannot read declared sub-agent models: "+err.Error())
-		return nil
+		return nil, ""
 	}
 	var info struct {
+		Model  string                  `json:"model"`
 		Models []declaredSubagentModel `json:"sub_agent_models"`
 	}
 	if err := json.Unmarshal(content, &info); err != nil {
 		addTokenUsageWarning(summary, "cannot parse declared sub-agent models: "+err.Error())
-		return nil
+		return nil, ""
 	}
-	return info.Models
+	return info.Models, strings.TrimSpace(info.Model)
 }
 
 func augmentDeclaredSubagentModels(runDir string, summary *TokenUsageSummary) {
-	models := readDeclaredSubagentModels(runDir, summary)
+	models, mainModel := readDeclaredSubagentModels(runDir, summary)
 	if len(models) == 0 {
 		return
 	}
 	resolver := newModelIdentityResolver(runDir)
+	parentModels := effectiveParentModels(summary, mainModel)
 	observedModels := subagentObservedModels(summary)
 	observedNames := make([]string, 0, len(observedModels))
 	for name := range observedModels {
@@ -47,15 +51,49 @@ func augmentDeclaredSubagentModels(runDir string, summary *TokenUsageSummary) {
 	}
 	slices.Sort(observedNames)
 	for _, model := range models {
-		row, sessionObserved := declaredSessionModelRow(model, summary.SubagentModelRequests, resolver, observedNames)
+		row, sessionObserved := declaredSessionModelRow(model, summary.SubagentModelRequests, resolver, observedNames, parentModels)
 		if !sessionObserved {
-			row = declaredTrafficModelRow(model, observedModels, observedNames, resolver)
+			row = declaredTrafficModelRow(model, observedModels, observedNames, resolver, parentModels)
 		}
 		summary.DeclaredSubagentModels = append(summary.DeclaredSubagentModels, row)
 	}
 }
 
-func declaredSessionModelRow(model declaredSubagentModel, requests []SubagentModelRequest, resolver *modelIdentityResolver, observedNames []string) (SubagentModelRequest, bool) {
+// effectiveParentModels returns the models the main agent ran on, which an inherited
+// sub-agent model uses: the main agent's served session models when the session records
+// them, otherwise the main model from aw_info.json.
+func effectiveParentModels(summary *TokenUsageSummary, mainModel string) []string {
+	var models []string
+	for _, agent := range summary.AgentUsage {
+		if agent.AgentType != "main" {
+			continue
+		}
+		for _, usage := range agent.Models {
+			if usage.Requests > 0 {
+				models = appendUnique(models, usage.Model)
+			}
+		}
+		for _, served := range agent.ServedModels {
+			models = appendUnique(models, served)
+		}
+	}
+	if len(models) == 0 && mainModel != "" {
+		models = append(models, mainModel)
+	}
+	return models
+}
+
+// isInheritedSubagentModel reports whether a declared model is an inheritance instruction
+// (Claude's `inherit`), which means the sub-agent runs on the parent model.
+func isInheritedSubagentModel(model string) bool {
+	switch strings.ToLower(strings.TrimSpace(model)) {
+	case "inherit", "inherited":
+		return true
+	}
+	return false
+}
+
+func declaredSessionModelRow(model declaredSubagentModel, requests []SubagentModelRequest, resolver *modelIdentityResolver, observedNames []string, parentModels []string) (SubagentModelRequest, bool) {
 	row := SubagentModelRequest{AgentName: model.Name, RequestedModel: model.Model}
 	for _, request := range requests {
 		if !strings.EqualFold(request.AgentName, model.Name) {
@@ -76,7 +114,7 @@ func declaredSessionModelRow(model declaredSubagentModel, requests []SubagentMod
 			row.ServedModels = appendUnique(row.ServedModels, served)
 		}
 		row.ServedModels = appendUnique(row.ServedModels, request.EffectiveModel)
-		if declaredModelMatches(model, request.EffectiveModel, "", resolver) {
+		if declaredModelMatches(model, request.EffectiveModel, "", resolver, parentModels) {
 			row.EffectiveModel = request.EffectiveModel
 			row.ResolvedModel = firstNonEmptyModel(request.ResolvedModel, resolver.resolve(request.EffectiveModel, "", observedNames))
 		}
@@ -107,14 +145,14 @@ func combineSubagentEffort(current, next string) string {
 	return current
 }
 
-func declaredTrafficModelRow(model declaredSubagentModel, observedModels map[string]*ModelTokenUsage, observedNames []string, resolver *modelIdentityResolver) SubagentModelRequest {
+func declaredTrafficModelRow(model declaredSubagentModel, observedModels map[string]*ModelTokenUsage, observedNames []string, resolver *modelIdentityResolver, parentModels []string) SubagentModelRequest {
 	row := SubagentModelRequest{AgentName: model.Name, RequestedModel: model.Model}
 	for _, observed := range observedNames {
 		usage := observedModels[observed]
 		if usage == nil || usage.Requests == 0 {
 			continue
 		}
-		if declaredModelMatches(model, observed, usage.Provider, resolver) {
+		if declaredModelMatches(model, observed, usage.Provider, resolver, parentModels) {
 			row.EffectiveModel = normalizeModelIdentity(observed)
 			row.ResolvedModel = row.EffectiveModel
 			row.ServedModels = []string{observed}
@@ -130,9 +168,13 @@ func declaredTrafficModelRow(model declaredSubagentModel, observedModels map[str
 	return row
 }
 
-func declaredModelMatches(model declaredSubagentModel, observed, provider string, resolver *modelIdentityResolver) bool {
+// declaredModelMatches reports whether an observed model satisfies a declaration. An
+// inherited declaration matches the effective parent models.
+func declaredModelMatches(model declaredSubagentModel, observed, provider string, resolver *modelIdentityResolver, parentModels []string) bool {
 	patterns := model.Patterns
-	if len(patterns) == 0 {
+	if isInheritedSubagentModel(model.Model) {
+		patterns = parentModels
+	} else if len(patterns) == 0 {
 		patterns = []string{model.Model}
 	}
 	for _, pattern := range patterns {

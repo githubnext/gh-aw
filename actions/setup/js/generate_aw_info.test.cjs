@@ -60,6 +60,21 @@ describe("generate_aw_info.cjs", () => {
     expect(info.skills).toBeUndefined();
   });
 
+  // Compiled GH_AW_INFO_SUB_AGENT_MODELS of typist (Claude) and daily-arxiv-researcher (Codex,
+  // whose run 39394965127 never delegated), as written to their lock files.
+  it.each([
+    ["claude", '[{"model":"small","name":"duplicate-type-finder","patterns":["anthropic/*haiku*"]}]'],
+    [
+      "codex",
+      '[{"model":"openai/gpt-5.4-mini","name":"preliminary-investigator","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"paper-screener","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"relevance-ranker","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.6-sol","name":"opportunity-extractor","patterns":["openai/gpt-5.6-sol"]}]',
+    ],
+  ])("claude_codex_aw_info_contains_declared_subagent_models (%s)", async (_engine, declarations) => {
+    process.env.GH_AW_INFO_SUB_AGENT_MODELS = declarations;
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.sub_agent_models).toEqual(JSON.parse(declarations));
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     // Keep compiler-fixed runner paths in memory; never write to the host's /tmp.

@@ -13,7 +13,7 @@ import (
 
 type auditCacheSource string
 
-const auditSchemaVersion = 9
+const auditSchemaVersion = 10
 
 const (
 	auditCacheSourceFull auditCacheSource = "full"

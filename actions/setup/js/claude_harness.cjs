@@ -73,6 +73,7 @@ const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { applyModelFallback, normalizeClaudeModel, normalizeClaudeModelArgs } = require("./model_fallback.cjs");
 const { resolveEngineModel } = require("./resolve_model_alias.cjs");
+const { applyClaudeSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { resolveAWFModelRoutingSelection, mapAWFRoutingEffort, recordAWFModelRoutingOutcome, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
 const CLAUDE_ROUTING_POLICY = getAWFModelRoutingPolicy("claude");
@@ -557,6 +558,30 @@ async function main() {
   if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     removeClaudePlugin(pluginDir);
     process.exit(0);
+  }
+
+  // Sub-agent models are resolved on routed runs too, but a pre-existing noop must not
+  // make startup depend on sub-agent model availability. Threat detection uses no
+  // sub-agents, so it neither reads, resolves, records nor writes agent files.
+  if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
+    let subagents;
+    try {
+      subagents = await applyClaudeSubagentModels({
+        reflectData: reflection.reflectData,
+        refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
+        provider: normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"),
+        pluginDir,
+        env: process.env,
+        logger: log,
+      });
+    } catch (error) {
+      log(`fatal: unexpected error while resolving Claude sub-agent models: ${getErrorMessage(error)}. Refusing to start Claude with unresolved sub-agent models.`);
+      subagents = { ok: false };
+    }
+    if (!subagents.ok) {
+      removeClaudePlugin(pluginDir);
+      process.exit(1);
+    }
   }
 
   let lastExitCode = 1;
