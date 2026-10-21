@@ -58,7 +58,7 @@ func TestAwInfoRoutingAnalyticsMetadata(t *testing.T) {
 `,
 			harness: "copilot-sdk",
 			config: map[string]any{
-				"routing":               map[string]any{"enabled": true, "goal": "cost", "mode": "economy", "allowed_models": []any{"gpt-5.6-luna"}},
+				"routing":               map[string]any{"enabled": true, "goal": "cost", "mode": "economy", "allowed_models": []any{"gpt-5.6-luna"}, "candidate_models": []any{"github-copilot/gpt-5.6-luna"}},
 				"models":                map[string]any{"allowed": []any{}, "blocked": []any{}},
 				"max_ai_credits_source": "default",
 			},

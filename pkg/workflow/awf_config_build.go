@@ -288,24 +288,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) { //nolint:larg
 	}
 	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(config.WorkflowData)
 	if isModelRoutingEnabled(config.WorkflowData) {
-		candidates, err := resolveModelRoutingAllowedModels(config.WorkflowData.EngineConfig.ModelRouting)
+		candidates, err := modelRoutingAWFCandidates(config.WorkflowData, config.EngineName, allowedModels, disallowedModels)
 		if err != nil {
-			return "", NewValidationError("engine.model-routing.allowed-models", "", "invalid model-routing candidates", err.Error())
-		}
-		if len(candidates) > 0 {
-			candidates, err = intersectModelRoutingPolicy(candidates, allowedModels, disallowedModels)
-			if err != nil {
-				return "", NewValidationError("engine.model-routing.allowed-models", "", "model-routing candidates violate model policy", err.Error())
-			}
+			return "", err
 		}
 		if apiProxySupportsRoutingCandidateModels(config.WorkflowData) {
 			// The model policy alone is the request policy; candidates only limit the router's pick.
-			if len(candidates) == 0 {
-				if err := modelRoutingDefaultCandidatesPolicyError(config.EngineName, allowedModels, disallowedModels); err != nil {
-					return "", NewValidationError("engine.model-routing.allowed-models", "", "model-routing candidates violate model policy", err.Error())
-				}
-				candidates = modelRoutingDefaultCandidates(config.EngineName)
-			}
 			apiProxy.Routing.CandidateModels = candidates
 		} else {
 			// AWF before v0.28.33 has no routing.candidateModels: the allow list is the router's pool.

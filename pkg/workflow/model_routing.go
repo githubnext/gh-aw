@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -33,82 +32,12 @@ func applyModelRoutingEnv(env map[string]string, data *WorkflowData) {
 	}
 }
 
-func resolveModelRoutingAllowedModels(routing *CopilotModelRoutingConfig) ([]string, error) {
-	if routing == nil {
-		return nil, nil
-	}
-	if routing.AllowedModels == nil {
-		return nil, nil
-	}
-	if len(routing.AllowedModels) == 0 {
-		return nil, errors.New("engine.model-routing.allowed-models must contain at least one Copilot model")
-	}
-
-	models := make([]string, 0, len(routing.AllowedModels))
-	seen := make(map[string]struct{}, len(routing.AllowedModels))
-	for _, model := range routing.AllowedModels {
-		model = strings.TrimSpace(model)
-		model = strings.TrimPrefix(model, "github-copilot/")
-		model = strings.TrimPrefix(model, "copilot/")
-		if !validModelRoutingCandidate(model) {
-			return nil, fmt.Errorf("engine.model-routing.allowed-models contains invalid Copilot model %q", model)
-		}
-		qualified := "github-copilot/" + model
-		if _, ok := seen[qualified]; ok {
-			continue
-		}
-		seen[qualified] = struct{}{}
-		models = append(models, qualified)
-	}
-	return models, nil
-}
-
-func intersectModelRoutingPolicy(candidates, allowed, blocked []string) ([]string, error) {
-	result := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if containsExpression(candidate) {
-			if len(allowed) > 0 || len(blocked) > 0 {
-				return nil, errors.New("GitHub Actions expressions in engine.model-routing.allowed-models cannot be checked against models.allowed or models.blocked")
-			}
-			result = append(result, candidate)
-			continue
-		}
-		model := strings.TrimPrefix(candidate, "github-copilot/")
-		if len(allowed) > 0 && !matchesModelPolicy(model, candidate, allowed) {
-			continue
-		}
-		if matchesModelPolicy(model, candidate, blocked) {
-			continue
-		}
-		result = append(result, candidate)
-	}
-	if len(result) == 0 {
-		return nil, errors.New("all engine.model-routing.allowed-models are excluded by models.allowed or models.blocked policy")
-	}
-	return result, nil
-}
-
 func validModelRoutingCandidate(model string) bool {
 	if !containsExpression(model) {
 		return routingModelNamePattern.MatchString(model)
 	}
 	withoutExpressions := ExpressionPattern.ReplaceAllString(model, "x")
 	return routingModelNamePattern.MatchString(withoutExpressions)
-}
-
-// modelRoutingCandidatesExcludedByPolicy lists the literal candidates that models.allowed or models.blocked removes.
-func modelRoutingCandidatesExcludedByPolicy(candidates, allowed, blocked []string) []string {
-	var excluded []string
-	for _, candidate := range candidates {
-		if containsExpression(candidate) {
-			continue
-		}
-		model := strings.TrimPrefix(candidate, "github-copilot/")
-		if (len(allowed) > 0 && !matchesModelPolicy(model, candidate, allowed)) || matchesModelPolicy(model, candidate, blocked) {
-			excluded = append(excluded, model)
-		}
-	}
-	return excluded
 }
 
 // subAgentModelPolicyWarnings reports declared sub-agent models that AWF will reject
@@ -156,8 +85,17 @@ func subAgentModelAllowedByPolicy(request string, data *WorkflowData, allowed, b
 
 func expandModelPatterns(request string, aliases map[string][]string, defaultProvider string) []string {
 	var patterns []string
-	var expand func(string, map[string]bool, bool)
-	expand = func(model string, visited map[string]bool, fromAlias bool) {
+	walkModelPatterns(request, aliases, defaultProvider, func(pattern, _ string) {
+		patterns = append(patterns, pattern)
+	})
+	return patterns
+}
+
+// walkModelPatterns visits each provider-qualified pattern that request expands to,
+// together with the alias whose entry produced it ("" for a literal request).
+func walkModelPatterns(request string, aliases map[string][]string, defaultProvider string, visit func(pattern, alias string)) {
+	var expand func(string, string, map[string]bool)
+	expand = func(model, source string, visited map[string]bool) {
 		model, _, _ = strings.Cut(model, "?")
 		if entries, ok := aliases[model]; ok {
 			if visited[model] {
@@ -165,12 +103,12 @@ func expandModelPatterns(request string, aliases map[string][]string, defaultPro
 			}
 			visited[model] = true
 			for _, entry := range entries {
-				expand(entry, visited, true)
+				expand(entry, model, visited)
 			}
 			delete(visited, model)
 			return
 		}
-		if !fromAlias && strings.ContainsAny(model, "*[]") {
+		if source == "" && strings.ContainsAny(model, "*[]") {
 			return
 		}
 		if suffix, ok := strings.CutPrefix(model, "copilot/"); ok {
@@ -182,11 +120,10 @@ func expandModelPatterns(request string, aliases map[string][]string, defaultPro
 			model = path.Join(defaultProvider, model)
 		}
 		if provider, name, ok := strings.Cut(model, "/"); ok && provider != "" && name != "" {
-			patterns = append(patterns, model)
+			visit(model, source)
 		}
 	}
-	expand(request, make(map[string]bool), false)
-	return patterns
+	expand(request, "", make(map[string]bool))
 }
 
 func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {
@@ -195,9 +132,9 @@ func (c *Compiler) warnRoutedSubAgentModels(data *WorkflowData) {
 	}
 	c.warnRoutedModelOverrides(data)
 	allowed, blocked := resolveModelPolicyForAWFConfig(data)
-	if candidates, err := resolveModelRoutingAllowedModels(data.EngineConfig.ModelRouting); err == nil {
-		excluded := modelRoutingCandidatesExcludedByPolicy(candidates, allowed, blocked)
-		if len(excluded) > 0 && len(excluded) < len(candidates) {
+	if groups, err := resolveModelRoutingCandidateGroups(data, data.EngineConfig.ID); err == nil && len(groups) > 0 {
+		_, excluded, err := intersectModelRoutingPolicy(groups, allowed, blocked, !apiProxySupportsRoutingCandidateModels(data))
+		if err == nil && len(excluded) > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
 				"engine.model-routing.allowed-models entries excluded by models.allowed or models.blocked will not be selected: "+strings.Join(excluded, ", ")))
 			c.IncrementWarningCount()
@@ -466,12 +403,14 @@ func validateModelRouting(workflowData *WorkflowData, engineName string) error {
 	if routing.Mode != "economy" && routing.Mode != "balanced" && routing.Mode != "robust" && routing.Mode != "auto" {
 		return NewValidationError("engine.model-routing.mode", routing.Mode, "unsupported model-routing mode", "Use economy, balanced, robust, or auto.")
 	}
-	candidates, err := resolveModelRoutingAllowedModels(routing)
+	groups, err := resolveModelRoutingCandidateGroups(workflowData, engineName)
 	if err != nil {
 		return NewValidationError("engine.model-routing.allowed-models", strings.Join(routing.AllowedModels, ", "), "invalid model-routing candidates", err.Error())
 	}
-	for _, candidate := range routing.AllowedModels {
-		if !modelRoutingEngineSupportsModel(engineName, candidate) {
+	for _, group := range groups {
+		// Aliases are already limited to the engine's model family when they are expanded.
+		if !group.Alias && !modelRoutingEngineSupportsModel(engineName, group.Name) {
+			candidate := group.Name
 			message := fmt.Sprintf("model %q is incompatible with the %s engine's Copilot API", candidate, engineName)
 			switch engineName {
 			case "claude":
@@ -482,14 +421,14 @@ func validateModelRouting(workflowData *WorkflowData, engineName string) error {
 			return NewValidationError("engine.model-routing.allowed-models", candidate, "incompatible model-routing candidate", message)
 		}
 	}
-	if len(candidates) == 0 && !apiProxySupportsRoutingCandidateModels(workflowData) {
+	if len(groups) == 0 && !apiProxySupportsRoutingCandidateModels(workflowData) {
 		return NewValidationError("engine.model-routing.allowed-models", "", "missing model-routing candidates",
 			fmt.Sprintf("AWF versions before %s, or an apiProxy image without routing.candidateModels support, route only over engine.model-routing.allowed-models. List the candidate models, or use AWF %s or newer.",
 				constants.AWFRoutingCandidateModelsMinVersion, constants.AWFRoutingCandidateModelsMinVersion))
 	}
 	allowed, blocked := resolveModelPolicyForAWFConfig(workflowData)
-	if len(candidates) > 0 {
-		if _, err := intersectModelRoutingPolicy(candidates, allowed, blocked); err != nil {
+	if len(groups) > 0 {
+		if _, _, err := intersectModelRoutingPolicy(groups, allowed, blocked, !apiProxySupportsRoutingCandidateModels(workflowData)); err != nil {
 			return NewValidationError("engine.model-routing.allowed-models", strings.Join(routing.AllowedModels, ", "), "model-routing candidates violate model policy", err.Error())
 		}
 	} else if err := modelRoutingDefaultCandidatesPolicyError(engineName, allowed, blocked); err != nil {

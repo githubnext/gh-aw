@@ -194,8 +194,10 @@ export interface ModelConfigData {
     enabled: boolean;
     goal?: string;
     mode?: string;
-    /** Configured routing candidates without provider prefix; absent means the router default or unknown. */
+    /** Configured routing candidates as authored (exact ids or gh-aw aliases) without provider prefix; absent means the router default or unknown. */
     allowedModels?: string[];
+    /** Effective router pool sent to AWF as provider-qualified ids or patterns: aliases expanded, narrowed by the model policy; absent when unknown or expression-valued. */
+    candidateModels?: string[];
   };
   /** Configured model allow/block policy; empty lists mean no restriction was configured. */
   models?: { allowed: string[]; blocked: string[] };

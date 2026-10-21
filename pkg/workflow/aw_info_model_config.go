@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"slices"
 	"strconv"
-	"strings"
 )
 
 // awInfoModelRouting is the configured routing policy recorded in aw_info.model_config.
@@ -14,6 +13,9 @@ type awInfoModelRouting struct {
 	Goal          string   `json:"goal,omitempty"`
 	Mode          string   `json:"mode,omitempty"`
 	AllowedModels []string `json:"allowed_models,omitempty"`
+	// CandidateModels is the router's effective pool sent to AWF: allowed-models with
+	// aliases expanded and narrowed by models.allowed and models.blocked.
+	CandidateModels []string `json:"candidate_models,omitempty"`
 }
 
 type awInfoModelPolicy struct {
@@ -47,19 +49,24 @@ func buildAwInfoModelConfig(data *WorkflowData) (string, string) {
 	if isModelRoutingEnabled(data) {
 		routing := data.EngineConfig.ModelRouting
 		config.Routing = awInfoModelRouting{Enabled: true, Goal: routing.Goal, Mode: routing.Mode}
-		if models, err := resolveModelRoutingAllowedModels(routing); err == nil {
-			allowed := make([]string, 0, len(models))
-			for _, model := range models {
+		if groups, err := resolveModelRoutingCandidateGroups(data, data.EngineConfig.ID); err == nil {
+			allowed := make([]string, 0, len(groups))
+			for _, group := range groups {
 				// Expression candidates resolve at runtime; omit the list rather than record a partial one.
-				if containsExpression(model) {
+				if containsExpression(group.Name) {
 					allowed = nil
 					break
 				}
-				allowed = append(allowed, strings.TrimPrefix(model, "github-copilot/"))
+				allowed = append(allowed, group.Name)
 			}
 			if len(allowed) > 0 {
 				config.Routing.AllowedModels = allowed
 			}
+		}
+		policyAllowed, policyBlocked := resolveModelPolicyForAWFConfig(data)
+		if candidates, err := modelRoutingAWFCandidates(data, data.EngineConfig.ID, policyAllowed, policyBlocked); err == nil &&
+			!slices.ContainsFunc(candidates, containsExpression) {
+			config.Routing.CandidateModels = candidates
 		}
 	}
 	budget := ""

@@ -2744,8 +2744,10 @@ engine:
     # these profiles per task.
     mode: "economy"
 
-    # Optional exact Copilot model names that narrow the router's choice for the main
-    # agent only. This is not a request policy; put patterns such as gpt-* in
+    # Optional exact Copilot model names or gh-aw model aliases (such as small or
+    # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+    # to their GitHub Copilot model patterns, limited to the engine's model family for
+    # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
     # models.allowed or models.blocked. When omitted, the router chooses from the
     # models that policy allows (Claude and Codex only from their own model family).
     # Among workflows that enable routing for the same engine, if any omits
@@ -21367,8 +21369,10 @@ safe-outputs:
         # these profiles per task.
         mode: "economy"
 
-        # Optional exact Copilot model names that narrow the router's choice for the main
-        # agent only. This is not a request policy; put patterns such as gpt-* in
+        # Optional exact Copilot model names or gh-aw model aliases (such as small or
+        # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+        # to their GitHub Copilot model patterns, limited to the engine's model family for
+        # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
         # models.allowed or models.blocked. When omitted, the router chooses from the
         # models that policy allows (Claude and Codex only from their own model family).
         # Among workflows that enable routing for the same engine, if any omits

@@ -830,7 +830,12 @@
             "enabled": { "type": "boolean" },
             "goal": { "type": "string" },
             "mode": { "type": "string" },
-            "allowedModels": { "type": "array", "items": { "type": "string" }, "description": "Configured routing candidates without provider prefix; absent means the router default or unknown." }
+            "allowedModels": { "type": "array", "items": { "type": "string" }, "description": "Configured routing candidates as authored (exact ids or gh-aw aliases) without provider prefix; absent means the router default or unknown." },
+            "candidateModels": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Effective router pool sent to AWF as provider-qualified ids or patterns: aliases expanded, narrowed by the model policy; absent when unknown or expression-valued."
+            }
           },
           "required": ["enabled"],
           "additionalProperties": false,

@@ -82,7 +82,7 @@ By default, the router chooses from every model it supports that your organizati
 | Setting | What it does | Applies to | Entries |
 |---|---|---|---|
 | `models.allowed` and `models.blocked` | Sets which models the workflow may use at all. The firewall rejects requests for other models. | Every model request in the run: the main agent, sub-agents, and built-in agents | Model names or patterns with `*` |
-| `engine.model-routing.allowed-models` | Gives the router a shortlist to choose from. | Only the router's choice for the main agent | Exact model names |
+| `engine.model-routing.allowed-models` | Gives the router a shortlist to choose from. | Only the router's choice for the main agent | Exact model names or [model aliases](#a-shortlist-of-model-aliases) |
 
 `models.allowed` and `models.blocked` are the workflow's [model policy](/gh-aw/reference/glossary/#model-policy-modelsallowed-modelsblocked), and they work the same way with or without routing. Use them for rules such as "only GPT models" or "never Opus models". Use `allowed-models` when you want the router to choose among a few specific models. Most workflows need only one of the two. The examples below show common setups.
 
@@ -103,7 +103,7 @@ engine:
 New GPT models become candidates without editing the workflow. Because the policy applies to the whole run, sub-agents are also limited to GPT models.
 
 > [!NOTE]
-> `allowed-models` accepts exact model names only. A pattern such as `allowed-models: ["gpt-*"]` fails to compile. Put patterns in `models.allowed` or `models.blocked` instead.
+> `allowed-models` accepts exact model names and gh-aw model aliases, not patterns. A pattern such as `allowed-models: ["gpt-*"]` fails to compile. Put patterns in `models.allowed` or `models.blocked` instead.
 
 ### Every model except the most expensive
 
@@ -136,6 +136,23 @@ engine:
 
 The router never considers other models, including new ones, so update the list as models change. If a listed model is retired, the router chooses among the others, and if none is available, the run fails. The shortlist doesn't affect sub-agents.
 
+### A shortlist of model aliases
+
+To keep a shortlist working when models are retired, list [model aliases](/gh-aw/reference/model-tables/#model-aliases) such as `small` or `sonnet` instead of exact names:
+
+```aw wrap
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models: [small, sonnet]
+```
+
+The compiler expands each alias into the GitHub Copilot model patterns it stands for, here `github-copilot/*haiku*`, `github-copilot/gpt-5*mini*`, `github-copilot/gpt-5*nano*`, `github-copilot/gemini-*flash*lite*`, and `github-copilot/*sonnet*`, and the router chooses among the available models that match. Routing always uses GitHub Copilot inference, so only an alias's `copilot/` patterns are used, whichever engine runs the workflow. Exact names stay exact, and you can mix them with aliases, as in `[gpt-5.6-luna, small]`.
+
+An entry that is neither an alias nor an exact model name, such as the typo `smal`, fails to compile, and the error lists the valid aliases. Exact names aren't checked against the models currently available.
+
 ### A policy and a shortlist together
 
 When a workflow sets both, the router chooses from the `allowed-models` entries that the policy allows. `allowed-models` can't permit a model that the policy excludes:
@@ -151,7 +168,9 @@ engine:
     allowed-models: [gpt-5.4-mini, gpt-5.6-sol, claude-sonnet-5]
 ```
 
-Here the router chooses `gpt-5.4-mini` or `gpt-5.6-sol`, and the compiler warns that `claude-sonnet-5` won't be selected. If the policy excludes every entry, compilation fails.
+Here the router chooses `gpt-5.4-mini` or `gpt-5.6-sol`, and the compiler warns that `claude-sonnet-5` won't be selected. If the policy excludes every entry, compilation fails and the error names the excluded entries.
+
+An alias is narrowed by the policy in the same way. A pattern that a `models.blocked` rule fully covers is dropped, and a pattern outside `models.allowed` is narrowed to the `models.allowed` entries it includes: with `models.allowed: [claude-haiku-4.5, gpt-5.4-mini]`, `allowed-models: [small]` becomes `claude-haiku-4.5` and `gpt-5.4-mini`. When a block or allow pattern only partly overlaps an alias pattern, such as `models.blocked: [claude-sonnet-4.5]` with `sonnet`, the alias pattern stays in the shortlist and the firewall applies the policy to each available model, so the router never selects a blocked model. The compiler warns about aliases that the policy excludes entirely.
 
 `allowed-models` entries can be GitHub Actions expressions, such as `${{ vars.ROUTING_MODEL }}`, but only when the workflow sets neither `models.allowed` nor `models.blocked`, because the compiler can't check an expression against the policy.
 
@@ -258,6 +277,8 @@ engine:
 
 Without `allowed-models`, Claude and Codex choose from every model in their family that the policy allows. The compiler rejects other engines and providers, and `allowed-models` entries from another family.
 
+Aliases are limited to the engine's family as well. With Claude, `allowed-models: [small]` keeps only the alias's Claude models (`claude-*haiku*`), and with Codex, only its GPT models (`gpt-5*mini*` and `gpt-5*nano*`). An alias with no models in the engine's family, such as `sonnet` with Codex, fails to compile.
+
 Routing also has these requirements:
 
 - It needs the AWF firewall, which is the default sandbox.
@@ -312,9 +333,10 @@ Sub-agents from a different model family than the selected main model fail. See 
 | Symptom | Cause and fix |
 |---|---|
 | Compilation fails because routing requires GitHub Copilot inference | A Claude or Codex workflow uses its default provider. Set `engine.model-provider: github`. See [GitHub Copilot models only](#github-copilot-models-only). |
-| Compilation fails when `allowed-models` contains a pattern such as `gpt-*` | `allowed-models` takes exact names. Put the pattern in `models.allowed` instead. See [Only one model family](#only-one-model-family). |
+| Compilation fails when `allowed-models` contains a pattern such as `gpt-*` | `allowed-models` takes exact names and aliases. Put the pattern in `models.allowed` instead. See [Only one model family](#only-one-model-family). |
+| Compilation fails because an `allowed-models` entry is neither a gh-aw model alias nor an exact model id | The entry is misspelt, such as `smal`. Use an alias from the list in the error or an exact model name. See [A shortlist of model aliases](#a-shortlist-of-model-aliases). |
 | Compilation fails because all `allowed-models` are excluded by `models.allowed` or `models.blocked` | The policy excludes every candidate or, for Claude or Codex without `allowed-models`, the engine's whole family. Change either setting. |
-| Compilation fails with an incompatible model-routing candidate | An `allowed-models` entry isn't in the engine's model family. Remove it. |
+| Compilation fails with an incompatible model-routing candidate | An `allowed-models` entry, or every model of an alias, isn't in the engine's model family. Remove it. |
 | Compilation fails with "multiple engine fields found" after importing routing settings | The importing workflow uses `engine: copilot`. Remove `engine`, or use `engine: { id: copilot }`. |
 | The agent step fails and `gh aw audit` reports a routing failure | Routing couldn't produce a usable selection: no candidate was available to the organization, the router failed (exit code `78`), or the engine can't use the selected model or effort. The audit's Model Routing section shows the failure code and details. |
 | A sub-agent's requests fail with HTTP 400 in Copilot CLI mode | The sub-agent's model family differs from the selected main model. See [Sub-agents](#sub-agents). |
