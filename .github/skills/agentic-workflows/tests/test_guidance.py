@@ -329,9 +329,10 @@ class GuidanceTests(unittest.TestCase):
                 self.assertTrue(lines, f"{path} must route to {ANCHOR}")
                 line = lines[0]
                 self.assertIn(
-                    f"(https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md{ANCHOR})",
+                    f"`.github/aw/debug-agentic-workflow.md{ANCHOR}`",
                     line,
                 )
+                self.assertNotIn("https://github.com/github/gh-aw/blob/main/", line)
                 self.assertNotIn("(../../aw/", line)
                 for symptom in (
                     "AWF model/endpoint 400s",
