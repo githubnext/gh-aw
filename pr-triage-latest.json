@@ -1,23 +1,24 @@
 {
-  "run_date": "2026-10-20T18:29:21Z",
-  "run_id": "39474819088",
+  "run_date": "2026-10-21T00:54:46Z",
+  "run_id": "39523925787",
   "source": "pr-triage",
-  "eligible_total": 6,
+  "eligible_total": 5,
   "cooldown_skipped": 5,
   "open_copilot_prs": 11,
   "category_counts": {
-    "bug": 6
+    "bug": 5
   },
   "risk_counts": {
-    "low": 3,
+    "low": 2,
     "medium": 1,
     "high": 2
   },
   "priority_counts": {
-    "medium": 6
+    "medium": 4,
+    "high": 1
   },
   "action_counts": {
-    "auto_merge": 3,
+    "auto_merge": 2,
     "fast_track": 1,
     "defer": 2,
     "batch_review": 0,
@@ -31,7 +32,7 @@
         70346,
         70347
       ],
-      "reason": "trusted-bot, gateway, and proxy policy changes"
+      "reason": "proxy and trusted-bot policy guardrail fixes"
     }
   ],
   "selected_candidates": [
@@ -51,19 +52,6 @@
     {
       "number": 70346,
       "title": "Normalize scalar allowed-repos in GitHub guard policies",
-      "category": "bug",
-      "risk": "low",
-      "priority_score": 60,
-      "score_breakdown": {
-        "impact": 25,
-        "urgency": 15,
-        "quality": 20
-      },
-      "action": "auto_merge"
-    },
-    {
-      "number": 69997,
-      "title": "Allow digest-pinned MCP images in local gateway schemas",
       "category": "bug",
       "risk": "low",
       "priority_score": 60,
@@ -115,11 +103,14 @@
     }
   ],
   "skipped_prs": [
-    70581,
-    70387,
-    70389,
-    70552,
-    70549
+    70697,
+    70696,
+    70688,
+    70672,
+    70671,
+    70653,
+    70712,
+    70711
   ],
-  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-20T18:29:21Z."
+  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T00:54:46Z."
 }
