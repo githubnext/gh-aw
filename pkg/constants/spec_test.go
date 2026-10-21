@@ -77,6 +77,7 @@ func TestSpec_Constants_JobAndServerIdentifiers(t *testing.T) {
 		{name: "upload code scanning", got: constants.UploadCodeScanningJobName, want: "upload_code_scanning_sarif"},
 		{name: "upload coverage", got: constants.UploadCodeCoverageJobName, want: "upload_code_coverage"},
 		{name: "conclusion", got: constants.ConclusionJobName, want: "conclusion"},
+		{name: "conclusion admission", got: constants.ConclusionAdmissionJobName, want: "conclusion_admission"},
 		{name: "unlock", got: constants.UnlockJobName, want: "unlock"},
 	}
 	for _, tt := range jobs {

@@ -14,7 +14,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-JAR_SHA256 = "15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac"
+JAR_SHA256 = "5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2"
 MUTATIONS = {
     "agent-write": "JobIsolation",
     "persist-credentials": "NoCredentialPersistence",
@@ -178,6 +178,37 @@ ADMISSION_WITNESSES = {
     "outage-daily-block": "NoOutageDailyBlock",
     "early-timeout": "NoEarlyTimeout",
 }
+CONCLUSION_MUTATIONS = {
+    "callback-before-upload": "ArtifactBeforeConclusion",
+    "endpoint-bypass": "NoEndpointNoRequest",
+    "invalid-session": "InvalidInputNoRequest",
+    "token-handoff": "ConclusionOIDCOnly",
+    "identity-bypass": "InvocationVerified",
+    "unfiltered-session": "CompactProjection",
+    "oversized-payload": "BoundedPayload",
+    "artifact-id-spoof": "ArtifactReferences",
+    "artifact-ids-omitted": "ArtifactReferences",
+    "compact-replaces-artifact": "FullArtifactPreserved",
+    "retry-payload": "StablePayload",
+    "retry-overflow": "RetryBound",
+    "deadline-retry": "DeadlineHonored",
+    "delivery-fails-workflow": "BestEffort",
+    "ack-before-store": "DurableAcceptance",
+    "duplicate-processing": "SingleProcessing",
+    "conflict-overwrite": "AcceptedSessionImmutable",
+    "conclusion-charge": "NoFinancialEffects",
+    "retry-trace": "TraceCorrelation",
+}
+CONCLUSION_WITNESSES = {
+    "delivered": "NoDeliveredConclusion",
+    "retry-recovery": "NoRetryRecovery",
+    "upload-failure-delivery": "NoUploadFailureDelivery",
+    "agent-failure-delivery": "NoAgentFailureDelivery",
+    "ignored-admission-delivery": "NoIgnoredAdmissionDelivery",
+    "rejected-conflict": "NoRejectedConflict",
+    "deadline-warning": "NoDeadlineWarning",
+    "artifact-reference-delivery": "NoArtifactReferenceDelivery",
+}
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
     "persist-credentials": "Compiler mutation: actions/checkout persists its entry token.",
@@ -337,8 +368,10 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
         report.update({"profile": profile, "effect": effect,
                        "detection_policy": detection_policy, "detection_enabled": detection_enabled,
                        "checkout_mode": checkout_mode, "artifact_mode": artifact_mode})
-    elif model == "ActivationAdmission":
-        report.update({"outage_policy": outage_policy, "otel_enabled": otel_enabled})
+    elif model in {"ActivationAdmission", "AdmissionConclusion"}:
+        report["outage_policy"] = outage_policy
+        if model == "ActivationAdmission":
+            report["otel_enabled"] = otel_enabled
     return report
 
 
@@ -403,6 +436,20 @@ def check_activation_admission(java, jar, results):
         cases.append(run_case(java, jar, results, f"admission-{name}",
                               invariant=invariant, witness=True, model="ActivationAdmission",
                               otel_enabled=name != "unexported-admission"))
+    return cases
+
+
+def check_admission_conclusion(java, jar, results):
+    cases = [run_case(java, jar, results, f"conclusion-secure-{policy}",
+                      model="AdmissionConclusion", outage_policy=policy)
+             for policy in ["ignore", "block"]]
+    for fault, invariant in CONCLUSION_MUTATIONS.items():
+        cases.append(run_case(java, jar, results, f"conclusion-{fault}", fault,
+                              invariant=invariant, model="AdmissionConclusion",
+                              outage_policy="block" if fault == "delivery-fails-workflow" else "ignore"))
+    for name, invariant in CONCLUSION_WITNESSES.items():
+        cases.append(run_case(java, jar, results, f"conclusion-{name}",
+                              invariant=invariant, witness=True, model="AdmissionConclusion"))
     return cases
 
 
@@ -497,8 +544,8 @@ def check_workflow_models(java, jar, results):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=["all", "admission"], default="all",
-                        help="Check all registered models or only activation admission")
+    parser.add_argument("--model", choices=["all", "admission", "conclusion"], default="all",
+                        help="Check all models, admission and conclusion, or only conclusion")
     parser.add_argument("--results", type=Path, help="New directory for all reports and traces")
     parser.add_argument("--compiler", type=Path, help="Local gh-aw binary for source acceptance/rejection checks")
     parser.add_argument("--write-examples", action="store_true", help="Regenerate checked-in representative traces")
@@ -523,7 +570,9 @@ def main():
     java = os.environ.get("JAVA_BIN", "java")
     print(f"Reports: {results}", flush=True)
     cases = check_workflow_models(java, jar, results) if args.model == "all" else []
-    cases.extend(check_activation_admission(java, jar, results))
+    if args.model in {"all", "admission"}:
+        cases.extend(check_activation_admission(java, jar, results))
+    cases.extend(check_admission_conclusion(java, jar, results))
     current_hashes = {model: hashlib.sha256((ROOT / f"{model}.tla").read_bytes()).hexdigest()
                       for model in {case["model"] for case in cases}}
     if any(case["model_sha256"] != current_hashes[case["model"]] for case in cases):
