@@ -38,7 +38,7 @@ tools:
 		assert.True(t, applied)
 		assert.Contains(t, result, "  cli-proxy: false")
 		assert.Contains(t, result, "  bash: false")
-		assert.Contains(t, result, "  bash: false\n  cli-proxy: false")
+		assert.Contains(t, result, "  cli-proxy: false\n  bash: false")
 	})
 
 	t.Run("disables existing cli-proxy true", func(t *testing.T) {
@@ -153,7 +153,7 @@ tools: {bash: false}
 		assert.Contains(t, result, "tools: {cli-proxy: false, bash: false}")
 	})
 
-	t.Run("does not treat a multi-line flow tools value as block header", func(t *testing.T) {
+	t.Run("edits a multi-line flow tools mapping structurally", func(t *testing.T) {
 		t.Parallel()
 		content := `---
 tools: {
@@ -169,8 +169,8 @@ tools: {
 
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
-		assert.False(t, applied)
-		assert.Equal(t, content, result)
+		assert.True(t, applied)
+		assert.Contains(t, result, "tools: {cli-proxy: false, \n  bash: false\n}")
 	})
 
 	t.Run("adds tools block inside frontmatter when absent", func(t *testing.T) {
@@ -188,7 +188,7 @@ name: Test
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "---\nname: Test\ntools:\n  cli-proxy: false\n---")
+		assert.Contains(t, result, "---\ntools:\n  cli-proxy: false\nname: Test\n---")
 	})
 
 	t.Run("does not apply when bash is enabled", func(t *testing.T) {
@@ -338,6 +338,6 @@ tools:
 		result, applied, err := codemod.ApplyWithContext(content, frontmatter, workflowPath)
 		require.NoError(t, err)
 		assert.True(t, applied)
-		assert.Contains(t, result, "  cli-proxy: false\n  github:\n    mode: local")
+		assert.Contains(t, result, "  github:\n    mode: local\n  cli-proxy: false")
 	})
 }

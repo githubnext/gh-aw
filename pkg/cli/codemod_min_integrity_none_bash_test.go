@@ -180,7 +180,7 @@ tools: { github: { min-integrity: none } }
 		assert.Contains(t, result, "tools: {bash: false, github: { min-integrity: none } }")
 	})
 
-	t.Run("skips multi-line inline tools mappings", func(t *testing.T) {
+	t.Run("edits multi-line inline tools mappings", func(t *testing.T) {
 		t.Parallel()
 		content := `---
 on: workflow_dispatch
@@ -199,8 +199,8 @@ tools: {
 
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err)
-		assert.False(t, applied)
-		assert.Equal(t, content, result)
+		assert.True(t, applied)
+		assert.Contains(t, result, "tools: {bash: false, \n  github: {min-integrity: none}\n}")
 	})
 }
 
@@ -250,76 +250,6 @@ tools: {github: {min-integrity: none}}
 			require.NoError(t, err)
 			assert.Contains(t, string(result), "bash: false")
 			assert.Contains(t, string(result), "cli-proxy: false")
-		})
-	}
-}
-
-func TestInsertBashFalseIntoTopLevelTools_SkipsCommentsAndBlankLines(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		lines    []string
-		expected []string
-	}{
-		{
-			name: "inserts after leading comments and blank lines, matching field indentation",
-			lines: []string{
-				"on: workflow_dispatch",
-				"tools:",
-				"  # keep the github toolset minimal",
-				"",
-				"  github:",
-				"    min-integrity: none",
-			},
-			expected: []string{
-				"on: workflow_dispatch",
-				"tools:",
-				"  # keep the github toolset minimal",
-				"",
-				"  bash: false",
-				"  github:",
-				"    min-integrity: none",
-			},
-		},
-		{
-			name: "uses the first field indentation even when it is not two spaces",
-			lines: []string{
-				"tools:",
-				"    # comment",
-				"    github:",
-				"      min-integrity: none",
-			},
-			expected: []string{
-				"tools:",
-				"    # comment",
-				"    bash: false",
-				"    github:",
-				"      min-integrity: none",
-			},
-		},
-		{
-			name: "inserts right after the tools key when the block has only comments",
-			lines: []string{
-				"tools:",
-				"  # nothing configured yet",
-				"engine: copilot",
-			},
-			expected: []string{
-				"tools:",
-				"  bash: false",
-				"  # nothing configured yet",
-				"engine: copilot",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result, applied := insertBashFalseIntoTopLevelTools(tt.lines)
-			assert.True(t, applied)
-			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

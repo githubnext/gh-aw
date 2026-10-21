@@ -83,7 +83,7 @@ func TestScheduleCodemod_MonthlyOn(t *testing.T) {
 	content := `---
 on:
   schedule:
-    - cron: monthly on 1
+    - cron: monthly on 1 # first day of the month
 ---
 
 # Test`
@@ -100,8 +100,8 @@ on:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "0 0 1 * *")
-	assert.Contains(t, result, "# Converted from 'monthly on 1'")
+	assertPolicyCodemodValue(t, result, []any{map[string]any{"cron": "0 0 1 * *"}}, "on", "schedule")
+	assert.Contains(t, result, "# first day of the month")
 }
 
 func TestScheduleCodemod_MonthlyOnAt(t *testing.T) {
@@ -111,7 +111,7 @@ func TestScheduleCodemod_MonthlyOnAt(t *testing.T) {
 	content := `---
 on:
   schedule:
-    - cron: monthly on 15 at 14:00
+    - cron: "monthly on 15 at 14:00" # middle of the month
 ---
 
 # Test`
@@ -128,8 +128,8 @@ on:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "0 9 15 * *")
-	assert.Contains(t, result, "# Converted from 'monthly on 15 at 14:00'")
+	assertPolicyCodemodValue(t, result, []any{map[string]any{"cron": "0 9 15 * *"}}, "on", "schedule")
+	assert.Contains(t, result, "# middle of the month")
 }
 
 func TestScheduleCodemod_DailyAround_NoChange(t *testing.T) {
@@ -210,7 +210,8 @@ on:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "    - cron: daily around 09:00")
+	assert.Contains(t, result, "    - cron:")
+	assertPolicyCodemodValue(t, result, []any{map[string]any{"cron": "daily around 09:00"}}, "on", "schedule")
 }
 
 func TestScheduleCodemod_MultipleSchedules(t *testing.T) {
@@ -267,7 +268,7 @@ on:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "schedule: daily around 09:00")
+	assertPolicyCodemodValue(t, result, []any{map[string]any{"schedule": "daily around 09:00"}}, "on", "schedule")
 }
 
 func TestScheduleCodemod_PreservesMarkdown(t *testing.T) {

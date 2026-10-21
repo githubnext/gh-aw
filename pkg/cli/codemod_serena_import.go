@@ -1,13 +1,14 @@
 package cli
 
 import (
-	"fmt"
+	"errors"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var serenaImportCodemodLog = logger.New("cli:codemod_serena_import")
@@ -35,27 +36,14 @@ func getSerenaToSharedImportCodemod() Codemod {
 
 			alreadyImported := hasSerenaSharedImport(frontmatter)
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				var result []string
-				var modified bool
-
-				if isListForm {
-					result, modified = removeSerenaFromToolsList(lines)
-				} else {
-					result, modified = removeFieldFromBlock(lines, "serena", "tools")
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := removeSerenaTools(f, isListForm); err != nil {
+					return err
 				}
-				if !modified {
-					return lines, false
-				}
-
-				result = removeBlockIfEmpty(result, "tools")
-				result = removeBlockIfEmpty(result, "engine")
-
 				if alreadyImported {
-					return result, true
+					return nil
 				}
-
-				return addSerenaImport(result, languages), true
+				return addSerenaSharedImport(f, languages)
 			})
 			if applied {
 				if alreadyImported {
@@ -69,6 +57,58 @@ func getSerenaToSharedImportCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
+}
+
+func removeSerenaTools(f *codemod.Frontmatter, listForm bool) error {
+	if listForm {
+		tools, ok := f.Document.Frontmatter["tools"].([]any)
+		if !ok {
+			return errors.New("cannot migrate Serena: tools must be a sequence")
+		}
+		remaining := slices.DeleteFunc(slices.Clone(tools), func(value any) bool {
+			text, ok := value.(string)
+			return ok && strings.EqualFold(strings.TrimSpace(text), "serena")
+		})
+		if len(remaining) == 0 {
+			return f.Remove("tools")
+		}
+		return f.Set([]string{"tools"}, remaining)
+	}
+	for _, path := range [][]string{{"tools"}, {"engine", "tools"}} {
+		if err := f.Remove(append(slices.Clone(path), "serena")...); err != nil {
+			return err
+		}
+		if err := f.PruneEmpty(path...); err != nil {
+			return err
+		}
+	}
+	return f.PruneEmpty("engine")
+}
+
+func addSerenaSharedImport(f *codemod.Frontmatter, languages []string) error {
+	if languages == nil {
+		languages = []string{}
+	}
+	entry := map[string]any{
+		"uses": "shared/mcp/serena.md",
+		"with": map[string]any{"languages": languages},
+	}
+	imports, exists := f.Lookup("imports")
+	var entries []any
+	if exists {
+		var ok bool
+		entries, ok = imports.([]any)
+		if !ok {
+			return errors.New("cannot migrate Serena: imports must be a sequence")
+		}
+	}
+	if err := f.Set([]string{"imports"}, append(slices.Clone(entries), entry)); err != nil {
+		return err
+	}
+	if len(languages) == 0 {
+		return f.Comment([]string{"imports"}, `TODO: specify Serena languages, e.g. ["TypeScript", "JavaScript"]`)
+	}
+	return nil
 }
 
 func findSerenaLanguagesForMigration(frontmatter map[string]any) ([]string, bool) {
@@ -145,101 +185,6 @@ func isSerenaInToolsList(frontmatter map[string]any) bool {
 		}
 	}
 	return false
-}
-
-// removeSerenaFromToolsList removes the string item "serena" from the "tools:" YAML list.
-// It handles both block form (tools:\n  - serena) and inline form (tools: [serena]).
-// When "serena" is the only item in an inline list, the entire "tools:" line is removed
-// so that removeBlockIfEmpty can clean up the empty block.
-// Returns the modified lines and whether any changes were made.
-func removeSerenaFromToolsList(lines []string) ([]string, bool) {
-	result := make([]string, 0, len(lines))
-	modified := false
-	inToolsBlock := false
-	toolsIndent := ""
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Detect the "tools:" top-level key.
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "tools:") {
-			valuePart := strings.TrimSpace(trimmed[len("tools:"):])
-
-			// Inline list form: tools: [serena] or tools: [serena, other]
-			if strings.HasPrefix(valuePart, "[") {
-				newValue, changed := removeSerenaFromInlineList(valuePart)
-				if changed {
-					modified = true
-					if newValue == "[]" {
-						// Empty inline list — skip the line; removeBlockIfEmpty will
-						// drop the tools: block because no child lines follow.
-						continue
-					}
-					result = append(result, "tools: "+newValue)
-				} else {
-					result = append(result, line)
-				}
-				continue
-			}
-
-			// Block form: tools:\n  - serena
-			inToolsBlock = true
-			toolsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Track block exit.
-		if inToolsBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, toolsIndent) {
-				inToolsBlock = false
-			}
-		}
-
-		// Remove "- serena" list items (with or without quotes).
-		if inToolsBlock {
-			bare := strings.TrimPrefix(trimmed, "- ")
-			bare = strings.Trim(bare, "\"'")
-			if strings.EqualFold(bare, "serena") {
-				modified = true
-				continue
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	return result, modified
-}
-
-// removeSerenaFromInlineList removes "serena" from a YAML inline list string such as
-// "[serena]" or "[serena, other]". Returns the new value and whether a change was made.
-func removeSerenaFromInlineList(value string) (string, bool) {
-	if !strings.HasPrefix(value, "[") || !strings.HasSuffix(value, "]") {
-		return value, false
-	}
-	inner := value[1 : len(value)-1]
-	parts := strings.Split(inner, ",")
-	kept := make([]string, 0, len(parts))
-	modified := false
-	for _, part := range parts {
-		trimmedPart := strings.TrimSpace(part)
-		unquoted := strings.Trim(trimmedPart, "\"'")
-		if strings.EqualFold(unquoted, "serena") {
-			modified = true
-			continue
-		}
-		if trimmedPart != "" {
-			kept = append(kept, trimmedPart)
-		}
-	}
-	if !modified {
-		return value, false
-	}
-	if len(kept) == 0 {
-		return "[]", true
-	}
-	return "[" + strings.Join(kept, ", ") + "]", true
 }
 
 func extractSerenaLanguages(serenaAny any) ([]string, bool) {
@@ -340,135 +285,4 @@ func hasSerenaSharedImport(frontmatter map[string]any) bool {
 func isSerenaImportPath(path string) bool {
 	trimmed := strings.TrimSpace(path)
 	return trimmed == "shared/mcp/serena.md" || trimmed == "shared/mcp/serena"
-}
-
-func addSerenaImport(lines []string, languages []string) []string {
-	var langLine string
-	if len(languages) == 0 {
-		// No languages were specified in the original workflow. Emit a placeholder so
-		// the user knows what to fill in. The empty array is valid per the import-schema
-		// (the field is present); Serena simply won't analyse any language until updated.
-		langLine = `      languages: []  # TODO: specify languages, e.g. ["TypeScript", "JavaScript"]`
-	} else {
-		langLine = "      languages: " + formatStringArrayInline(languages)
-	}
-	entry := []string{
-		"  - uses: shared/mcp/serena.md",
-		"    with:",
-		langLine,
-	}
-
-	importsIdx := -1
-	importsEnd := len(lines)
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "imports:") {
-			importsIdx = i
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					importsEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-
-	if importsIdx >= 0 {
-		result := make([]string, 0, len(lines)+len(entry))
-		result = append(result, lines[:importsEnd]...)
-		result = append(result, entry...)
-		result = append(result, lines[importsEnd:]...)
-		return result
-	}
-
-	insertAt := 0
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
-			insertAt = len(lines)
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					insertAt = j
-					break
-				}
-			}
-			break
-		}
-	}
-
-	importBlock := make([]string, 0, 1+len(entry))
-	importBlock = append(importBlock, "imports:")
-	importBlock = append(importBlock, entry...)
-
-	result := make([]string, 0, len(lines)+len(importBlock))
-	result = append(result, lines[:insertAt]...)
-	result = append(result, importBlock...)
-	result = append(result, lines[insertAt:]...)
-	return result
-}
-
-func formatStringArrayInline(values []string) string {
-	quoted := make([]string, 0, len(values))
-	for _, value := range values {
-		quoted = append(quoted, fmt.Sprintf("%q", value))
-	}
-	return "[" + strings.Join(quoted, ", ") + "]"
-}
-
-func removeBlockIfEmpty(lines []string, blockName string) []string {
-	result := make([]string, 0, len(lines))
-	for i := 0; i < len(lines); {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, blockName+":") {
-			result = append(result, line)
-			i++
-			continue
-		}
-
-		valuePart := strings.TrimSpace(strings.TrimPrefix(trimmed, blockName+":"))
-		if valuePart != "" && !strings.HasPrefix(valuePart, "#") {
-			result = append(result, line)
-			i++
-			continue
-		}
-
-		hasMeaningfulNestedContent, blockEnd := hasNestedContent(lines, i+1, getIndentation(line))
-
-		if hasMeaningfulNestedContent {
-			result = append(result, line)
-			i++
-			continue
-		}
-
-		i = blockEnd
-	}
-
-	return result
-}
-
-func hasNestedContent(lines []string, startIndex int, blockIndent string) (bool, int) {
-	for i := startIndex; i < len(lines); i++ {
-		nestedLine := lines[i]
-		nestedTrimmed := strings.TrimSpace(nestedLine)
-		if nestedTrimmed == "" {
-			continue
-		}
-
-		nestedIndent := getIndentation(nestedLine)
-		if strings.HasPrefix(nestedTrimmed, "#") {
-			if len(nestedIndent) <= len(blockIndent) {
-				return false, i
-			}
-			continue
-		}
-
-		if len(nestedIndent) <= len(blockIndent) && strings.Contains(nestedLine, ":") {
-			return false, i
-		}
-
-		return true, i
-	}
-
-	return false, len(lines)
 }

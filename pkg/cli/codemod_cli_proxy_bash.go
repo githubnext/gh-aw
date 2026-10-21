@@ -1,10 +1,9 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var cliProxyBashCodemodLog = logger.New("cli:codemod_cli_proxy_bash")
@@ -33,7 +32,11 @@ func applyCLIProxyBashDisabledCodemod(content string, frontmatter map[string]any
 	effectiveTools, err := resolveEffectiveTools(content, frontmatter, filePath)
 	if err != nil {
 		cliProxyBashCodemodLog.Printf("Failed to resolve effective tools: %v", err)
-		effectiveTools, _ = frontmatter["tools"].(map[string]any)
+		authored, ok := frontmatter["tools"].(map[string]any)
+		if !ok {
+			return content, false, nil
+		}
+		effectiveTools = authored
 	}
 	if !toolsRefuseBash(effectiveTools) {
 		return content, false, nil
@@ -47,8 +50,21 @@ func applyCLIProxyBashDisabledCodemod(content string, frontmatter map[string]any
 		return content, false, nil
 	}
 
-	newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-		return setShellBackedModesDisabledInTools(lines, needsCLIProxyFalse, needsGitHubLocal)
+	newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+		if needsCLIProxyFalse {
+			if err := f.Set([]string{"tools", "cli-proxy"}, false); err != nil {
+				return err
+			}
+		}
+		if needsGitHubLocal {
+			if github, found := f.Lookup("tools", "github"); found {
+				if _, mapping := github.(map[string]any); !mapping {
+					return f.Set([]string{"tools", "github"}, map[string]any{"mode": "local"})
+				}
+			}
+			return f.Set([]string{"tools", "github", "mode"}, "local")
+		}
+		return nil
 	})
 	if applied {
 		cliProxyBashCodemodLog.Print("Disabled shell-backed CLI modes because tools.bash is disabled")
@@ -80,226 +96,4 @@ func frontmatterHasCLIProxyDisabled(frontmatter map[string]any) bool {
 	}
 	enabled, isBool := toolsMap["cli-proxy"].(bool)
 	return isBool && !enabled
-}
-
-// setShellBackedModesDisabledInTools rewrites the top-level tools block so shell-backed tool
-// paths are disabled when bash is disabled.
-func setShellBackedModesDisabledInTools(lines []string, setCLIProxyFalse, setGitHubLocal bool) ([]string, bool) {
-	toolsLine := -1
-	// Only a top-level tools block is rewritten, so the block indentation is always empty.
-	const toolsIndent = ""
-	for i, line := range lines {
-		if isTopLevelBlockKey(line, "tools") {
-			toolsLine = i
-			break
-		}
-	}
-	if toolsLine == -1 {
-		if hasTopLevelKey(lines, "tools") {
-			// A single-line inline mapping can still take an explicit 'cli-proxy: false';
-			// rewriting a nested inline 'github' mapping is not attempted.
-			if setCLIProxyFalse && !setGitHubLocal {
-				if result, inserted := insertEntryIntoInlineMapping(lines, "tools", "cli-proxy: false"); inserted {
-					return result, true
-				}
-			}
-			cliProxyBashCodemodLog.Print("Top-level tools key is not block syntax, skipping")
-			return lines, false
-		}
-		// lines contains only YAML frontmatter (applyFrontmatterLineTransform reconstructs the
-		// closing delimiter), so appending here still inserts the block inside frontmatter.
-		result := append([]string{}, lines...)
-		result = append(result, "tools:")
-		if setCLIProxyFalse {
-			result = append(result, "  cli-proxy: false")
-		}
-		if setGitHubLocal {
-			result = append(result, "  github:", "    mode: local")
-		}
-		return result, true
-	}
-
-	fieldIndent := toolsIndent + "  "
-	insertAt := toolsLine + 1
-	foundFirstField := false
-	cliProxyLine := -1
-	githubLine := -1
-	githubIndent := ""
-	githubModeLine := -1
-	githubInsertAt := -1
-
-	for i := toolsLine + 1; i < len(lines); i++ {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if hasExitedBlock(line, toolsIndent) {
-			break
-		}
-		lineIndent := getIndentation(line)
-		if !foundFirstField {
-			fieldIndent = lineIndent
-			insertAt = i
-			foundFirstField = true
-		}
-		// Only rewrite a direct child of the tools block.
-		if strings.HasPrefix(trimmed, "bash:") && lineIndent == fieldIndent {
-			insertAt = i + 1
-		}
-		if strings.HasPrefix(trimmed, "cli-proxy:") && lineIndent == fieldIndent {
-			cliProxyLine = i
-		}
-		if isBlockKey(line, "github") && lineIndent == fieldIndent {
-			githubLine = i
-			githubIndent = lineIndent
-			githubInsertAt = i + 1
-			for j := i + 1; j < len(lines); j++ {
-				githubChildLine := lines[j]
-				githubChildTrimmed := strings.TrimSpace(githubChildLine)
-				if githubChildTrimmed == "" || strings.HasPrefix(githubChildTrimmed, "#") {
-					continue
-				}
-				if hasExitedBlock(githubChildLine, githubIndent) {
-					break
-				}
-				githubChildIndent := getIndentation(githubChildLine)
-				if githubInsertAt == i+1 {
-					githubInsertAt = j
-				}
-				if strings.HasPrefix(githubChildTrimmed, "mode:") && githubChildIndent == githubIndent+"  " {
-					githubModeLine = j
-					break
-				}
-			}
-		}
-	}
-
-	result := append([]string{}, lines...)
-	applied := false
-
-	if setCLIProxyFalse {
-		if cliProxyLine >= 0 {
-			result[cliProxyLine] = fieldIndent + "cli-proxy: false"
-		} else {
-			result = insertLine(result, insertAt, fieldIndent+"cli-proxy: false")
-			if githubLine >= insertAt {
-				githubLine++
-			}
-			if githubModeLine >= insertAt {
-				githubModeLine++
-			}
-			if githubInsertAt >= insertAt {
-				githubInsertAt++
-			}
-		}
-		applied = true
-	}
-
-	if setGitHubLocal {
-		if githubModeLine >= 0 {
-			result[githubModeLine] = githubIndent + "  mode: local"
-			applied = true
-		} else if githubLine >= 0 {
-			if githubInsertAt < 0 {
-				githubInsertAt = githubLine + 1
-			}
-			result = insertLine(result, githubInsertAt, githubIndent+"  mode: local")
-			applied = true
-		} else {
-			insertGithubAt := insertAt
-			if cliProxyLine >= 0 {
-				insertGithubAt = cliProxyLine + 1
-			} else if setCLIProxyFalse {
-				insertGithubAt++
-			}
-			result = insertLine(result, insertGithubAt, fieldIndent+"github:")
-			result = insertLine(result, insertGithubAt+1, fieldIndent+"  mode: local")
-			applied = true
-		}
-	}
-
-	return result, applied
-}
-
-func insertLine(lines []string, index int, line string) []string {
-	result := make([]string, 0, len(lines)+1)
-	result = append(result, lines[:index]...)
-	result = append(result, line)
-	result = append(result, lines[index:]...)
-	return result
-}
-
-func isTopLevelBlockKey(line, key string) bool {
-	return getIndentation(line) == "" && isBlockKey(line, key)
-}
-
-// insertEntryIntoInlineMapping inserts entry as the first item of a top-level inline flow
-// mapping (for example "tools: {github: {min-integrity: none}}"). It only rewrites flow
-// mappings that open and close on a single line, and reports false when the key is absent,
-// is not an inline mapping, or spans multiple lines.
-func insertEntryIntoInlineMapping(lines []string, key, entry string) ([]string, bool) {
-	prefix := key + ":"
-	for i, line := range lines {
-		if getIndentation(line) != "" {
-			continue
-		}
-		rest, ok := strings.CutPrefix(strings.TrimSpace(line), prefix)
-		if !ok {
-			continue
-		}
-		if !strings.HasPrefix(strings.TrimSpace(rest), "{") {
-			return lines, false
-		}
-		braceIndex := strings.Index(line, "{")
-		if !hasBalancedBraces(line[braceIndex:]) {
-			return lines, false
-		}
-		inner := strings.TrimLeft(line[braceIndex+1:], " ")
-		separator := ", "
-		if strings.HasPrefix(inner, "}") {
-			separator = ""
-		}
-		result := append([]string{}, lines...)
-		result[i] = line[:braceIndex+1] + entry + separator + inner
-		return result, true
-	}
-	return lines, false
-}
-
-// hasBalancedBraces reports whether every '{' in value is closed within value.
-func hasBalancedBraces(value string) bool {
-	depth := 0
-	for _, r := range value {
-		switch r {
-		case '{':
-			depth++
-		case '}':
-			depth--
-		}
-	}
-	return depth == 0
-}
-
-func hasTopLevelKey(lines []string, key string) bool {
-	prefix := key + ":"
-	for _, line := range lines {
-		if getIndentation(line) != "" {
-			continue
-		}
-		if strings.HasPrefix(strings.TrimSpace(line), prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-func isBlockKey(line, key string) bool {
-	trimmed := strings.TrimSpace(line)
-	prefix := key + ":"
-	if !strings.HasPrefix(trimmed, prefix) {
-		return false
-	}
-	rest := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
-	return rest == "" || strings.HasPrefix(rest, "#")
 }

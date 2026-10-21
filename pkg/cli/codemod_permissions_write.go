@@ -1,137 +1,43 @@
 package cli
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/aw"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
-var writePermissionsCodemodLog = logger.New("cli:codemod_permissions")
-
-// writeOnlyPermissions are permission scopes that only accept "write" or "none" as valid values.
-// These must never be converted to "read" since "read" is not a valid value for them.
+// These scopes do not accept read access.
 var writeOnlyPermissions = map[string]bool{
-	"id-token":         true, // OIDC token: only write or none
-	"copilot-requests": true, // Copilot authentication token: only write or none
+	"id-token":         true,
+	"copilot-requests": true,
 }
 
-// getMigrateWritePermissionsToReadCodemod creates a codemod for converting write permissions to read
 func getMigrateWritePermissionsToReadCodemod() Codemod {
 	return Codemod{
 		ID:           "write-permissions-to-read-migration",
 		Name:         "Convert write permissions to read",
 		Description:  "Converts all write permissions to read permissions to comply with the new security policy",
 		IntroducedIn: "0.4.0",
-		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			// Check if permissions exist
-			permissionsValue, hasPermissions := frontmatter["permissions"]
-			if !hasPermissions {
-				return content, false, nil
-			}
-
-			// Check if any write permissions exist
-			hasWritePermissions := false
-
-			// Handle string shorthand (write-all, write)
-			if strValue, ok := permissionsValue.(string); ok {
-				if strValue == "write-all" || strValue == "write" {
-					hasWritePermissions = true
-				}
-			}
-
-			// Handle map format
-			if mapValue, ok := permissionsValue.(map[string]any); ok {
-				for key, value := range mapValue {
-					// Skip write-only permissions (e.g. id-token, copilot-requests) since
-					// "read" is not a valid value for them — they only accept "write" or "none"
-					if writeOnlyPermissions[key] {
-						continue
-					}
-					if strValue, ok := value.(string); ok && strValue == "write" {
-						hasWritePermissions = true
-						break
-					}
-				}
-			}
-
-			if !hasWritePermissions {
-				return content, false, nil
-			}
-
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				var modified bool
-				var inPermissionsBlock bool
-				var permissionsIndent string
-				result := make([]string, len(lines))
-				for i, line := range lines {
-					trimmedLine := strings.TrimSpace(line)
-
-					// Track if we're in the permissions block
-					if strings.HasPrefix(trimmedLine, "permissions:") {
-						inPermissionsBlock = true
-						permissionsIndent = getIndentation(line)
-
-						// Handle shorthand on same line: "permissions: write-all" or "permissions: write"
-						if strings.Contains(trimmedLine, ": write-all") {
-							result[i] = strings.Replace(line, ": write-all", ": read-all", 1)
-							modified = true
-							writePermissionsCodemodLog.Printf("Replaced permissions: write-all with permissions: read-all on line %d", i+1)
-							continue
-						} else if strings.Contains(trimmedLine, ": write") && !strings.Contains(trimmedLine, "write-all") {
-							result[i] = strings.Replace(line, ": write", ": read", 1)
-							modified = true
-							writePermissionsCodemodLog.Printf("Replaced permissions: write with permissions: read on line %d", i+1)
-							continue
+		Apply: func(content string, _ map[string]any) (string, bool, error) {
+			return codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return f.Edit(func(document *aw.Document) error {
+					switch permissions := document.Frontmatter["permissions"].(type) {
+					case string:
+						switch permissions {
+						case "write":
+							document.Frontmatter["permissions"] = "read"
+						case "write-all":
+							document.Frontmatter["permissions"] = "read-all"
 						}
-
-						result[i] = line
-						continue
-					}
-
-					// Check if we've left the permissions block
-					if inPermissionsBlock && trimmedLine != "" && !strings.HasPrefix(trimmedLine, "#") {
-						if hasExitedBlock(line, permissionsIndent) {
-							inPermissionsBlock = false
-						}
-					}
-
-					// Replace write with read if in permissions block
-					if inPermissionsBlock && strings.Contains(trimmedLine, ": write") {
-						// Preserve indentation and everything else
-						// Extract the key, value, and any trailing comment
-						parts := strings.SplitN(line, ":", 2)
-						if len(parts) >= 2 {
-							key := parts[0]
-							permKey := strings.TrimSpace(key)
-							valueAndComment := parts[1]
-
-							// Skip write-only permissions (e.g. id-token, copilot-requests) since
-							// "read" is not a valid value for them — they only accept "write" or "none"
-							if writeOnlyPermissions[permKey] {
-								result[i] = line
-								writePermissionsCodemodLog.Printf("Skipping write-only permission %q on line %d", permKey, i+1)
-								continue
+					case map[string]any:
+						for key, value := range permissions {
+							if value == "write" && !writeOnlyPermissions[key] {
+								permissions[key] = "read"
 							}
-
-							// Replace "write" with "read" in the value part
-							newValueAndComment := strings.Replace(valueAndComment, " write", " read", 1)
-							result[i] = fmt.Sprintf("%s:%s", key, newValueAndComment)
-							modified = true
-							writePermissionsCodemodLog.Printf("Replaced write with read on line %d", i+1)
-						} else {
-							result[i] = line
 						}
-					} else {
-						result[i] = line
 					}
-				}
-				return result, modified
+					return nil
+				})
 			})
-			if applied {
-				writePermissionsCodemodLog.Print("Applied write permissions to read migration")
-			}
-			return newContent, applied, err
 		},
 	}
 }

@@ -5,9 +5,43 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGitHubAppClientIDCodemod_AWASTSequenceConflicts(t *testing.T) {
+	t.Parallel()
+	content := `---
+checkout:
+  - 'github-app': {'app-id': old, nested: {app-id: untouched}} # keep
+  - github-app: {app-id: legacy, client-id: null}
+---
+
+# Body
+app-id: untouched
+`
+	result, applied, err := getGitHubAppClientIDCodemod().Apply(content, nil)
+	require.NoError(t, err)
+	require.True(t, applied)
+	document, err := aw.Parse(result)
+	require.NoError(t, err)
+	checkouts := document.Frontmatter["checkout"].([]any)
+	first := checkouts[0].(map[string]any)["github-app"].(map[string]any)
+	assert.NotContains(t, first, "app-id")
+	assert.Equal(t, "old", first["client-id"])
+	assert.Equal(t, map[string]any{"app-id": "untouched"}, first["nested"])
+	second := checkouts[1].(map[string]any)["github-app"].(map[string]any)
+	assert.Equal(t, "legacy", second["app-id"])
+	assert.Contains(t, second, "client-id")
+	assert.Nil(t, second["client-id"])
+	assert.Contains(t, result, "# keep")
+	assert.Contains(t, result, "\n---\n\n# Body\napp-id: untouched\n")
+	repeated, changed, err := getGitHubAppClientIDCodemod().Apply(result, nil)
+	require.NoError(t, err)
+	assert.False(t, changed)
+	assert.Equal(t, result, repeated)
+}
 
 func TestGitHubAppClientIDCodemod(t *testing.T) {
 	t.Parallel()

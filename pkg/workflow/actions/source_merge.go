@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/token"
 )
 
 func sameSourceValue(left, right ast.Node) bool {
@@ -66,6 +67,10 @@ func replaceSourceNode(source, replacement ast.Node) (ast.Node, error) {
 	if source == nil || replacement == nil {
 		return replacement, nil
 	}
+	replacement, err := sourceScalarReplacement(source, replacement)
+	if err != nil {
+		return nil, err
+	}
 	comment := source.GetComment()
 	if alias, ok := source.(*ast.AliasNode); ok && comment == nil {
 		comment = alias.Value.GetComment()
@@ -73,8 +78,83 @@ func replaceSourceNode(source, replacement ast.Node) (ast.Node, error) {
 	if err := replacement.SetComment(comment); err != nil {
 		return nil, fmt.Errorf("preserving workflow value comment: %w", err)
 	}
-	replacement.AddColumn(source.GetToken().Position.Column - replacement.GetToken().Position.Column)
+	shiftSourceNode(replacement, source.GetToken().Position.Column-replacement.GetToken().Position.Column)
 	return replacement, nil
+}
+
+func sourceMappingRenames(before, after map[string]*ast.MappingValueNode) map[string]string {
+	renames := make(map[string]string)
+	for oldKey, oldField := range before {
+		if after[oldKey] != nil {
+			continue
+		}
+		var candidate string
+		candidates := 0
+		for newKey, newField := range after {
+			if before[newKey] == nil && sameSourceValue(oldField.Value, newField.Value) {
+				candidate = newKey
+				candidates++
+			}
+		}
+		if candidates != 1 {
+			continue
+		}
+		matches := 0
+		for key, field := range before {
+			if after[key] == nil && sameSourceValue(field.Value, oldField.Value) {
+				matches++
+			}
+		}
+		if matches == 1 {
+			renames[oldKey] = candidate
+		}
+	}
+	return renames
+}
+
+func renameSourceField(field, replacement *ast.MappingValueNode, newKey string) bool {
+	key, ok := field.Key.(*ast.StringNode)
+	if !ok || replacement == nil {
+		return false
+	}
+	// Reuse an unambiguous rename's syntax so its value and comments
+	// remain attached, including inside sequence mappings.
+	key.Value, key.Token.Value = newKey, newKey
+	if key.Token.Type != token.SingleQuoteType && key.Token.Type != token.DoubleQuoteType {
+		key.Token.Type = replacement.Key.GetToken().Type
+	}
+	return true
+}
+
+func mergeSourceExistingFields(entries []*ast.MappingValueNode, original, before, after map[string]*ast.MappingValueNode) ([]*ast.MappingValueNode, error) {
+	renames := sourceMappingRenames(before, after)
+	var fields []*ast.MappingValueNode
+	for _, field := range entries {
+		key := sourceKey(field.Key)
+		oldField, newField := before[key], after[key]
+		if oldField != nil && newField == nil {
+			newKey, renamed := renames[key]
+			if !renamed || original[newKey] != nil || !renameSourceField(field, after[newKey], newKey) {
+				continue
+			}
+			newField = after[newKey]
+			original[newKey] = field
+		}
+		if newField != nil {
+			var oldValue ast.Node
+			if oldField != nil {
+				oldValue = oldField.Value
+			}
+			value, err := mergeSourceNode(field.Value, oldValue, newField.Value)
+			if err != nil {
+				return nil, err
+			}
+			shiftSourceNode(value, field.Value.GetToken().Position.Column-value.GetToken().Position.Column)
+			field.Value = value
+		}
+		fields = append(fields, field)
+	}
+	return fields, nil
 }
 
 func mergeSourceMapping(source, before, after ast.Node) (ast.Node, error) {
@@ -88,34 +168,16 @@ func mergeSourceMapping(source, before, after ast.Node) (ast.Node, error) {
 		column = min(column, field.Key.GetToken().Position.Column)
 	}
 	oldFields, newFields := sourceMapping(before), sourceMapping(after)
-	var fields []*ast.MappingValueNode
-	for _, field := range sourceMappingEntries(source) {
-		key := sourceKey(field.Key)
-		oldField, newField := oldFields[key], newFields[key]
-		if oldField != nil && newField == nil {
-			continue
-		}
-		if newField != nil {
-			var oldValue ast.Node
-			if oldField != nil {
-				oldValue = oldField.Value
-			}
-			value, err := mergeSourceNode(field.Value, oldValue, newField.Value)
-			if err != nil {
-				return nil, err
-			}
-			if err := field.Replace(value); err != nil {
-				return nil, err
-			}
-		}
-		fields = append(fields, field)
+	fields, err := mergeSourceExistingFields(entries, original, oldFields, newFields)
+	if err != nil {
+		return nil, err
 	}
 	for _, field := range sourceMappingEntries(after) {
 		key := sourceKey(field.Key)
 		if original[key] != nil || (oldFields[key] != nil && sameSourceValue(oldFields[key].Value, field.Value)) {
 			continue
 		}
-		field.AddColumn(column - field.Key.GetToken().Position.Column)
+		shiftSourceNode(field, column-field.Key.GetToken().Position.Column)
 		if mapping, ok := source.(*ast.MappingNode); ok && mapping.IsFlowStyle {
 			field.SetIsFlowStyle(true)
 		}
@@ -123,6 +185,9 @@ func mergeSourceMapping(source, before, after ast.Node) (ast.Node, error) {
 	}
 	if mapping, ok := source.(*ast.MappingNode); ok {
 		mapping.Values = fields
+		if mapping.IsFlowStyle {
+			return flowSourceNode(mapping)
+		}
 		return mapping, nil
 	}
 	return ast.Mapping(source.GetToken(), false, fields...), nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,38 @@ func hasDeprecatedAppFieldInContent(content string) bool {
 		}
 	}
 	return false
+}
+
+func TestGitHubAppCodemod_AWASTCheckoutSequence(t *testing.T) {
+	t.Parallel()
+	for _, frontmatter := range []string{
+		`checkout: [{app: {token: old}, nested: {app: untouched}}, {app: {token: legacy}, github-app: null}] # keep`,
+		"checkout:\n  - 'app': {token: old} # keep\n    nested: {app: untouched}\n  - app: {token: legacy}\n    github-app: null",
+	} {
+		t.Run(frontmatter, func(t *testing.T) {
+			t.Parallel()
+			body := "\n---\n\n# Body\napp: untouched\n"
+			result, applied, err := getGitHubAppCodemod().Apply("---\n"+frontmatter+body, nil)
+			require.NoError(t, err)
+			require.True(t, applied)
+			document, err := aw.Parse(result)
+			require.NoError(t, err)
+			checkouts := document.Frontmatter["checkout"].([]any)
+			first := checkouts[0].(map[string]any)
+			assert.NotContains(t, first, "app")
+			assert.Equal(t, map[string]any{"token": "old"}, first["github-app"])
+			assert.Equal(t, map[string]any{"app": "untouched"}, first["nested"])
+			second := checkouts[1].(map[string]any)
+			assert.Contains(t, second, "app")
+			assert.Nil(t, second["github-app"])
+			assert.Contains(t, result, "# keep")
+			assert.Contains(t, result, body)
+			repeated, changed, err := getGitHubAppCodemod().Apply(result, nil)
+			require.NoError(t, err)
+			assert.False(t, changed)
+			assert.Equal(t, result, repeated)
+		})
+	}
 }
 
 func TestGitHubAppCodemod(t *testing.T) {
@@ -318,7 +351,14 @@ checkout:
 		result, modified, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error when applying codemod")
 		assert.True(t, modified, "Should modify content")
-		assert.Contains(t, result, "github-app:", "Should contain github-app field")
+		document, err := aw.Parse(result)
+		require.NoError(t, err)
+		checkouts := document.Frontmatter["checkout"].([]any)
+		checkout := checkouts[0].(map[string]any)
+		assert.Equal(t, map[string]any{
+			"app-id":      "${{ vars.APP_ID }}",
+			"private-key": "${{ secrets.APP_PRIVATE_KEY }}",
+		}, checkout["github-app"])
 		assert.False(t, hasDeprecatedAppFieldInContent(result), "Should not contain old app field")
 	})
 
