@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/github/gh-aw/pkg/workflow/codemod"
@@ -35,21 +34,6 @@ func getExpiresIntegerToDayStringCodemod() Codemod {
 			})
 		},
 	}
-}
-
-func convertExpiresIntegerLineToDayString(line string) (string, bool) {
-	content := "---\n" + line + "\n---\n"
-	updated, changed, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
-		value, _ := f.Lookup("expires")
-		if expires, ok := expiresIntegerDayString(value); ok {
-			return f.Set([]string{"expires"}, expires)
-		}
-		return nil
-	})
-	if err != nil || !changed {
-		return line, false
-	}
-	return strings.TrimSuffix(strings.TrimPrefix(updated, "---\n"), "\n---\n"), true
 }
 
 func expiresIntegerDayString(value any) (string, bool) {

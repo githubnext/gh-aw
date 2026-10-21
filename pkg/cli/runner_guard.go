@@ -325,7 +325,7 @@ func runnerGuardFindingsToShared(findings []runnerGuardFinding, fileLines []stri
 
 		shared = append(shared, scanfindings.NewFinding(scanfindings.NewFindingParams{
 			RuleID: finding.RuleID, SeverityLabel: finding.Severity, Message: message,
-			File: finding.File, Line: lineNum, Column: 1, FileLines: fileLines,
+			File: finding.File, Line: lineNum, FileLines: fileLines,
 		}))
 	}
 	return shared

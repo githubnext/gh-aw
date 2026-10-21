@@ -71,6 +71,57 @@ func TestRenderJSONMCPConfig_GatewayAgentIDValidatesAgainstSchema(t *testing.T) 
 	}
 }
 
+func TestRenderJSONMCPConfig_TrustedBots(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		bot     string
+		wantErr bool
+	}{
+		{"GitHub Actions bot", "github-actions[bot]", false},
+		{"Copilot bot", "copilot-swe-agent[bot]", false},
+		{"login without suffix", "My-Bot_123", false},
+		{"empty identity", "", true},
+		{"command substitution", "$(id)", true},
+		{"backtick substitution", "`id`", true},
+		{"variable expansion", "${HOME}", true},
+		{"workflow expression", "${{ github.actor }}", true},
+		{"whitespace", "my bot", true},
+		{"trailing newline", "github-actions[bot]\n", true},
+		{"quote", `my"bot`, true},
+		{"backslash", `my\bot`, true},
+		{"non-ASCII identity", "böt", true},
+		{"invalid suffix", "my-bot[other]", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var output strings.Builder
+			err := RenderJSONMCPConfig(&output, nil, nil, &WorkflowData{}, JSONMCPConfigOptions{
+				GatewayConfig: &MCPGatewayRuntimeConfig{
+					Domain:      "localhost",
+					AgentID:     "test-agent",
+					TrustedBots: []string{"existing-bot[bot]", test.bot},
+				},
+			})
+			if test.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "sandbox.mcp.trusted-bots") ||
+					!strings.Contains(err.Error(), "use only ASCII letters") {
+					t.Fatalf("expected actionable identity validation error, got %v", err)
+				}
+				if output.Len() != 0 {
+					t.Fatal("invalid identities must not emit a shell script")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+				}
+				expected := fmt.Sprintf(`"trustedBots": ["existing-bot[bot]", %q]`, test.bot)
+				if !strings.Contains(output.String(), expected) {
+					t.Fatalf("missing trusted bots in generated configuration: %s", output.String())
+				}
+			}
+		})
+	}
+}
+
 func TestMCPRenderersPreserveMappedContainerDigests(t *testing.T) {
 	for _, image := range []string{
 		"registry.example.com/server:v1@sha256:" + strings.Repeat("a", 64),

@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+`compile --dry-run` now rejects authored host steps, custom MCP servers/scripts,
+custom safe-output scripts, enabled Bash graders, and authored OIDC permissions,
+including imports. Custom jobs and custom safe-output jobs become disabled,
+credential-free placeholders with empty outputs. Existing actionable scanner
+findings fail alongside added findings. Migrate by removing unsupported
+declarations in a separate diagnostic workflow, reviewing skipped dependencies,
+and resolving actionable findings before live testing. Ordinary compilation is
+unchanged; dry-run is still not a hosted execution sandbox.
+
 AWF and downloaded Copilot CLI releases now require a reviewed checksum-manifest
 digest bundled in the trusted setup action or supplied as literal
 `sandbox.agent.checksums-sha256` (AWF) / `engine.checksums-sha256` (Copilot)

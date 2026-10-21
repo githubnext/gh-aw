@@ -62,6 +62,9 @@ var mcpRendererLog = logger.New("workflow:mcp_renderer")
 // for built-in tool names and typical custom mcp-server keys.
 var safeMCPServerIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+// Trusted bot identities are emitted into the same unquoted heredoc as server IDs.
+var safeMCPTrustedBotRE = regexp.MustCompile(`^[A-Za-z0-9_-]+(\[bot\])?$`)
+
 // isSafeMCPServerID reports whether id can be safely embedded inside an unquoted bash heredoc
 // without triggering shell expansion.
 func isSafeMCPServerID(id string) bool {
@@ -227,6 +230,9 @@ func RenderJSONMCPConfig( //nolint:largefunc // Existing renderer keeps MCP JSON
 		if len(options.GatewayConfig.TrustedBots) > 0 {
 			configBuilder.WriteString(",\n              \"trustedBots\": [")
 			for i, bot := range options.GatewayConfig.TrustedBots {
+				if !safeMCPTrustedBotRE.MatchString(bot) {
+					return fmt.Errorf("sandbox.mcp.trusted-bots: invalid identity %q; use only ASCII letters, digits, hyphens, or underscores, optionally followed by [bot] (for example, github-actions[bot])", bot)
+				}
 				if i > 0 {
 					configBuilder.WriteString(", ")
 				}

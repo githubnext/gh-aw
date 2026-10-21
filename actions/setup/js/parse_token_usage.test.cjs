@@ -1209,6 +1209,58 @@ describe("parse_token_usage", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("aic", "0");
     });
 
+    test.each([undefined, 0])("preserves unknown versus reported zero cost through parsing and OTLP export: %s", async reportedAIC => {
+      process.env.GH_AW_TMP_DIR = tmpDir;
+      const tokenUsagePath = path.join(tmpDir, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl");
+      fs.mkdirSync(path.dirname(tokenUsagePath), { recursive: true });
+      fs.writeFileSync(
+        tokenUsagePath,
+        JSON.stringify({
+          model: "unpriced-regression-model",
+          provider: "unknown-provider",
+          input_tokens: 1000,
+          output_tokens: 100,
+          ai_credits_this_response: reportedAIC,
+          ai_credits_total: reportedAIC,
+        })
+      );
+
+      await main(path.join(tmpDir, "missing-session-state"));
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const usageJSON = originalReadFileSync(path.join(tmpDir, "agent_usage.json"), "utf8");
+      const usage = JSON.parse(usageJSON);
+      expect(usage.input_tokens).toBe(1000);
+      if (reportedAIC === undefined) {
+        expect(usage).not.toHaveProperty("ai_credits");
+        expect(mockCore.exportVariable).not.toHaveBeenCalledWith("GH_AW_AIC", expect.anything());
+      } else {
+        expect(usage.ai_credits).toBe(0);
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "0");
+      }
+
+      const { sendJobConclusionSpan } = require("./send_otlp_span.cjs");
+      vi.stubEnv("INPUT_JOB_NAME", "agent");
+      vi.stubEnv("GH_AW_AIC", "");
+      vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "");
+      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+      const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+      fs.readFileSync = vi.fn(p => {
+        if (p === "/tmp/gh-aw/agent_usage.json") return usageJSON;
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      try {
+        await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+        const spans = appendSpy.mock.calls.flatMap(([, content]) => JSON.parse(content).resourceSpans[0].scopeSpans[0].spans);
+        const aicAttributes = spans.flatMap(span => span.attributes).filter(attribute => attribute.key === "gh-aw.aic");
+        expect(aicAttributes).toEqual(reportedAIC === undefined ? [] : [{ key: "gh-aw.aic", value: { doubleValue: 0 } }]);
+      } finally {
+        mkdirSpy.mockRestore();
+        appendSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
     test("surfaces fallback accounting warnings", async () => {
       const malformedEntry = JSON.stringify({
         model: "gpt-4o-mini-2024-07-18",

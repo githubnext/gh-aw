@@ -389,3 +389,13 @@ func TestPoutineFindingsToSharedUsesFindingPath(t *testing.T) {
 		t.Errorf("File = %q, want finding path", findings[0].File)
 	}
 }
+
+func TestPoutineFindingsKeepUnknownColumn(t *testing.T) {
+	finding := poutineFinding{RuleID: "rule"}
+	finding.Meta.Path = "workflow.yml"
+	finding.Meta.Line = 5
+	shared := poutineFindingsToShared([]poutineFinding{finding}, poutineRules{}, "", nil)
+	if len(shared) != 1 || shared[0].Column != 0 {
+		t.Fatalf("expected unknown column 0, got %#v", shared)
+	}
+}

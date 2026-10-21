@@ -24,6 +24,7 @@ Load these additional files only when relevant:
 - [serena-tool.md](serena-tool.md)
 - [linter-workflows.md](linter-workflows.md)
 - [release-workflow.md](release-workflow.md) whenever a workflow creates or updates release notes
+- [documentation-workflows.md](documentation-workflows.md) for documentation agents, required docs checks, and post-merge page/index upkeep
 - [agent-runtime-instructions.md](agent-runtime-instructions.md) for changes involving Docker, Cloud Hypervisor, ARC DinD, or self-hosted runners
 - [skills.md](skills.md) when the user asks to add specific skills or agent plugins
 - [operational-value-designer](../skills/operational-value-designer/SKILL.md) when updating graders, their evidence contract, or legacy evaluator syntax
