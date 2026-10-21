@@ -10,6 +10,33 @@ const ruleTester = new RuleTester({
 });
 
 describe("no-exec-interpolated-command", () => {
+  for (const sourceType of ["module", "script", "commonjs"] as const) {
+    it(`resolves only stable top-level bindings in ${sourceType}`, () => {
+      const tester = new RuleTester({ languageOptions: { ecmaVersion: 2022, sourceType } });
+      tester.run("no-exec-interpolated-command", noExecInterpolatedCommandRule, {
+        valid: [
+          "let cmd = `git checkout ${branch}`; function run() { exec.exec(cmd, []); }",
+          "var cmd = `git checkout ${branch}`; function run() { exec.exec(cmd, []); }",
+          "const cmd = `git checkout ${branch}`; cmd = 'git'; function run() { exec.exec(cmd, []); }",
+          "const cmd = `git checkout ${branch}`; function run(cmd) { exec.exec(cmd, []); }",
+          "const cmd = `git checkout ${branch}`; function run() { const cmd = 'git'; exec.exec(cmd, []); }",
+          "const cmd = `git checkout ${branch}`; function outer() { let cmd; function run() { exec.exec(cmd, []); } }",
+          "const [cmd = 'git'] = []; function run() { exec.exec(cmd, []); }",
+          "const { cmd } = commands; function run() { exec.exec(cmd, []); }",
+          "var cmd = `git checkout ${branch}`; var cmd; function run() { exec.exec(cmd, []); }",
+          "const branch = 'main'; const cmd = `git checkout ${branch}`; function run() { exec.exec(cmd, []); }",
+        ],
+        invalid: [
+          { code: "const cmd = `git checkout ${branch}`; function run() { exec.exec(cmd, []); }", errors: [{ messageId: "interpolatedCommand" }] },
+          { code: "const cmd = `git checkout ${branch}`; exec.exec(cmd, []);", errors: [{ messageId: "interpolatedCommand" }] },
+          { code: "const command = `git checkout ${branch}`; function run() { const cmd = command; if (ok) exec.exec(cmd, []); }", errors: [{ messageId: "interpolatedCommand" }] },
+          { code: "const [cmd] = [`git checkout ${branch}`]; function run() { exec.exec(cmd, []); }", errors: [{ messageId: "interpolatedCommand" }] },
+          { code: "const { cmd } = { cmd: `git checkout ${branch}` }; function run() { exec.exec(cmd, []); }", errors: [{ messageId: "interpolatedCommand" }] },
+        ],
+      });
+    });
+  }
+
   it("accepts static command forms and flags dynamic ones", () => {
     ruleTester.run("no-exec-interpolated-command", noExecInterpolatedCommandRule, {
       valid: [

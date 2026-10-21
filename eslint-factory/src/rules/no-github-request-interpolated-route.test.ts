@@ -10,6 +10,26 @@ const cjsRuleTester = new RuleTester({
 });
 
 describe("no-github-request-interpolated-route", () => {
+  for (const sourceType of ["module", "script", "commonjs"] as const) {
+    it(`resolves only stable top-level routes in ${sourceType}`, () => {
+      const tester = new RuleTester({ languageOptions: { ecmaVersion: 2022, sourceType } });
+      tester.run("no-github-request-interpolated-route", noGithubRequestInterpolatedRouteRule, {
+        valid: [
+          "let route = `GET /repos/${owner}/${repo}`; function run() { github.request(route, {}); }",
+          "var route = `GET /repos/${owner}/${repo}`; function run() { github.request(route, {}); }",
+          "const route = `GET /repos/${owner}/${repo}`; route = 'GET /repos'; function run() { github.request(route, {}); }",
+          "const route = `GET /repos/${owner}/${repo}`; function run(route) { github.request(route, {}); }",
+          "const route = 'GET /repos/{owner}/{repo}'; function run() { github.request(route, {}); }",
+        ],
+        invalid: [
+          { code: "const route = `GET /repos/${owner}/${repo}`; function run() { github.request(route, {}); }", errors: [{ messageId: "interpolatedRoute" }] },
+          { code: "const route = `GET /repos/${owner}/${repo}`; github.request(route, {});", errors: [{ messageId: "interpolatedRoute" }] },
+          { code: "const route = 'GET /repos/' + owner + '/' + repo; function run() { github.request(route, {}); }", errors: [{ messageId: "interpolatedRoute" }] },
+        ],
+      });
+    });
+  }
+
   it("uses the correct docs URL", () => {
     expect(noGithubRequestInterpolatedRouteRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#no-github-request-interpolated-route");
   });

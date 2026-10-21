@@ -82,7 +82,7 @@ function resolveObjectPatternProperty(pattern: TSESTree.ObjectPattern, init: TSE
 }
 
 /**
- * When `identifier` is a write-once local variable binding, returns its
+ * When `identifier` is a write-once local or top-level const binding, returns its
  * initializer expression so the caller can apply further checks. Returns null
  * for parameters, imports, multiply-assigned vars, and vars with no
  * initializer.
@@ -94,25 +94,22 @@ function resolveObjectPatternProperty(pattern: TSESTree.ObjectPattern, init: TSE
 function resolveInitializer(identifier: TSESTree.Identifier, sourceCode: TSESLint.SourceCode): TSESTree.Expression | null {
   const startScope = sourceCode.getScope(identifier);
   const functionScope = startScope.variableScope;
-  // Only resolve within a concrete function boundary (function declaration,
-  // function expression, or arrow function). Module/global scopes are
-  // intentionally skipped because those bindings are not a stable proxy for
-  // runtime values at call time.
-  if (functionScope.type !== "function") return null;
-
   let scope: TSESLint.Scope.Scope | null = startScope;
-  // Stay inside the same function's nested block scopes; do not cross to
-  // enclosing function/module scopes.
-  while (scope !== null && scope.variableScope === functionScope) {
+  while (scope !== null) {
     const variable = scope.set.get(identifier.name);
     if (variable !== undefined) {
+      // CommonJS wraps the Program in a function scope. Only const bindings
+      // are stable across calls at top level; keep outer-function locals unresolved.
+      const isTopLevel = scope.variableScope.block.type === AST_NODE_TYPES.Program;
+      if (!isTopLevel && (functionScope.type !== "function" || scope.variableScope !== functionScope)) return null;
       // Only accept simple, single-definition Variable bindings.
       if (variable.defs.length !== 1) return null;
       const def = variable.defs[0];
       if (def.type !== "Variable") return null;
+      if (isTopLevel && def.parent.kind !== "const") return null;
       // Reject re-assigned bindings (write references that are not the initializer).
       if (variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
-      const declarator = def.node as TSESTree.VariableDeclarator;
+      const declarator = def.node;
       if (declarator.init === null || declarator.init === undefined) return null;
       if (declarator.id.type === AST_NODE_TYPES.Identifier) return declarator.init;
       if (declarator.id.type === AST_NODE_TYPES.ArrayPattern) return resolveArrayPatternElement(declarator.id, declarator.init, identifier.name);

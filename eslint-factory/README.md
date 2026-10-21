@@ -163,7 +163,7 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 
 **Out of scope:**
 - `this.github.request(...)` — `this`-based member expressions are not resolved.
-- `github.request(route, ...)` — variable indirection for the route argument is not resolved.
+- `github.request(route, ...)` when `route` cannot be resolved to a write-once local initializer or a top-level `const` initializer. Top-level `let`/`var`, reassigned bindings, and enclosing-function locals are not resolved.
 - `github.request("GET /repos/".concat(owner), ...)` — `.concat()`-built routes are not inspected.
 - `github.request("GET /repos" + "/{owner}/{repo}", ...)` — compile-time constant concatenations are accepted.
 
@@ -912,6 +912,8 @@ Disallow passing an interpolated template literal or dynamic string concatenatio
 - Static command strings, including string concatenation of only static expressions and chained string-normalizing methods on them.
 - Arguments passed correctly via the `args` array.
 
+Write-once local initializers and top-level `const` initializers are inspected, including aliases and precisely resolvable destructuring. Top-level `let`/`var`, reassigned bindings, and enclosing-function locals are not resolved.
+
 ### `no-setfailed-then-exit-zero`
 
 Disallow resetting the exit code to success (`process.exit(0)` or `process.exitCode = 0`) after `core.setFailed()`.
@@ -1247,6 +1249,8 @@ const branch = stdout.trim();
 ### `no-async-foreach-callback`
 
 Disallow `async` callbacks passed to `Array.prototype.forEach()`. `forEach()` ignores each callback's returned promise, so the work is not sequenced and rejections can go unhandled.
+
+Both `.forEach(...)` and `["forEach"](...)` calls are checked. Named callbacks are resolved when bound to a single, unreassigned function declaration or a `const` initialized with a function expression or arrow function. Parameters, imports, mutable bindings, and dynamically computed property names are not resolved.
 
 **Flagged form:**
 ```js
