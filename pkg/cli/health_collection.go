@@ -20,6 +20,7 @@ type HealthCollection struct {
 	ReportSchemaVersion       int                                 `json:"report_schema_version,omitempty"`
 	ObservedAt                time.Time                           `json:"observed_at,omitzero"`
 	Capabilities              []string                            `json:"capabilities,omitempty"`
+	WorkQueue                 *HealthWorkQueue                    `json:"work_queue,omitempty"`
 	CacheEvidence             map[int64]HealthCacheEvidence       `json:"cache_evidence,omitempty"`
 	JobEvidence               map[int64]HealthJobEvidence         `json:"job_evidence,omitempty"`
 	JobRequests               int                                 `json:"job_requests"`
@@ -143,6 +144,9 @@ func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
 		return err
 	}
 	if err := renderHealthCacheEvidence(w, collection.CacheEvidence); err != nil {
+		return err
+	}
+	if err := renderHealthWorkQueue(w, collection.WorkQueue); err != nil {
 		return err
 	}
 	for _, id := range slices.Sorted(maps.Keys(collection.PRLifecycleEvidence)) {

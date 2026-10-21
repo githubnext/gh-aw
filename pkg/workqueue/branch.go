@@ -28,6 +28,7 @@ var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 type Branch struct {
 	Remote              string
 	Name                string
+	Host                string
 	DependencyClients   map[string]*api.RESTClient
 	DeliveryVerifier    DeliveryVerifier
 	RemediationVerifier RemediationVerifier
@@ -65,7 +66,7 @@ func (b Branch) withClient() (Branch, error) {
 		return b, err
 	}
 	if b.client == nil {
-		client, err := api.NewRESTClient(githubapi.ClientOptions("", ""))
+		client, err := api.NewRESTClient(githubapi.ClientOptions(b.Host, ""))
 		if err != nil {
 			return b, err
 		}

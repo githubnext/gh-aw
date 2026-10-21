@@ -290,13 +290,22 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			for i := range slices.Backward(responses) {
 				newestFirst = append(newestFirst, responses[i])
 			}
-			requests := 0
+			requests, queueRequests := 0, 0
 			healthRunGH = func(ctx context.Context, message string, args ...string) ([]byte, error) {
 				requests++
 				require.GreaterOrEqual(t, len(args), 4)
 				assert.Equal(t, "api", args[0])
 				endpoint := args[3]
 				switch {
+				case endpoint == "repos/org/repo":
+					queueRequests++
+					return []byte(`{"full_name":"org/repo","default_branch":"main"}`), nil
+				case strings.Contains(endpoint, "/contents/.github/workflows?"):
+					queueRequests++
+					return []byte(`[{"path":".github/workflows/example.lock.yml","sha":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","type":"file"}]`), nil
+				case strings.Contains(endpoint, "/git/blobs/"):
+					queueRequests++
+					return []byte("jobs: {}"), nil
 				case strings.Contains(endpoint, "/actions/workflows?"):
 					return []byte(`{"workflows":[{"id":11,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
 				case strings.Contains(endpoint, "/actions/runs?status=failure"):
@@ -358,7 +367,7 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			}
 			assert.Empty(t, report.FailureClusters)
 			assert.False(t, report.Collection.Partial)
-			assert.LessOrEqual(t, requests, 14, "superseded sources do not need lock metadata lookups")
+			assert.LessOrEqual(t, requests-queueRequests, 14, "superseded sources do not need lock metadata lookups")
 		})
 	}
 }
