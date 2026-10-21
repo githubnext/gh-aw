@@ -162,7 +162,7 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
   const targetRepoSlug = `${targetRepo.owner}/${targetRepo.repo}`;
   const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
 
-  // Fall back to per-handler safe-output allowlists when a global allowlist is
+  // Fall back to per-handler safe-output allowlists and target repos when a global allowlist is
   // not provided. This prevents post-action context resolution from rejecting
   // a repository that was already allowed by the active safe-output handler.
   if (allowedRepos.size === 0) {
@@ -178,6 +178,9 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
             const parsed = parseAllowedRepos(value.allowed_repos);
             for (const repo of parsed) {
               allowedRepos.add(repo);
+            }
+            if (typeof value["target-repo"] === "string" && value["target-repo"].trim() !== "") {
+              allowedRepos.add(value["target-repo"].trim());
             }
           }
         }
