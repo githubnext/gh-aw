@@ -968,10 +968,10 @@ async function main() {
   }
 
   // Declare and warn only: Codex does not load the staged Markdown sub-agents, so their
-  // models are resolved and recorded for audits, never applied and never fatal. Threat
-  // detection uses no sub-agents.
+  // models are resolved and recorded for audits, never applied and never fatal. Only a
+  // sub-agent using the reserved name `main` stops Codex. Threat detection uses no sub-agents.
   if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
-    await declareCodexSubagentModels({
+    const subagents = await declareCodexSubagentModels({
       reflectData,
       refetchReflectData: async () => {
         if (process.env.AWF_REFLECT_ENABLED !== "1") return null;
@@ -982,6 +982,10 @@ async function main() {
       env: process.env,
       logger: log,
     });
+    if (subagents && subagents.ok === false) {
+      process.exit(1);
+      return;
+    }
   }
 
   // Prompts remain on stdin; use a placeholder in the argument diagnostic.

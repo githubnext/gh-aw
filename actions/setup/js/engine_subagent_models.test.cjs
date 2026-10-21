@@ -9,8 +9,10 @@ const require = createRequire(import.meta.url);
 global.core = { info: () => {}, warning: () => {}, error: () => {}, setFailed: () => {} };
 const { applyClaudeSubagentModels, declareCodexSubagentModels, isDetectionPhase, replaceAgentModel } = require("./engine_subagent_models.cjs");
 const { extractInlineSubAgents, writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
+const { claudeBareCapabilities, removeClaudePlugin } = require("./claude_runtime.cjs");
 const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
 const { parseDocument } = require("./work_queue_yaml.cjs");
+const { recordModelResolution } = require("./resolve_model_alias.cjs");
 const runs = require("./fixtures/claude_codex_subagent_runs.cjs");
 
 const repoRoot = path.resolve(path.dirname(require.resolve("./engine_subagent_models.cjs")), "../../..");
@@ -270,6 +272,68 @@ describe("Claude sub-agent models (Typist run 39415087125)", () => {
     expect(run.records()).toEqual([expect.objectContaining({ role: "duplicate-type-finder", status: "failed", cause: "model_unavailable", provider: "openai" })]);
   });
 
+  it("gives the bare-mode plugin a run-local copy of the resolved definitions", async () => {
+    const run = layout();
+    stageInline(run, "claude", { "duplicate-type-finder": typistAgent(), "persona-evaluator": "---\ndescription: Evaluates\nmodel: inherit\n---\nEvaluate.\n" });
+    const managedDir = path.join(run.agentsBaseDir, ".claude");
+    const stagedPath = path.join(managedDir, "agents/duplicate-type-finder.md");
+    const staged = fs.readFileSync(stagedPath, "utf8");
+    const repositoryAgent = "---\nname: repo-reviewer\nmodel: small\n---\nReview.\n";
+    fs.writeFileSync(path.join(run.workspaceDir, ".claude/agents/repo-reviewer.md"), repositoryAgent);
+    // The plugin Claude loads with --bare, as the harness prepares it.
+    const { args, pluginDir } = claudeBareCapabilities(["--bare"], managedDir, path.join(run.dir, "agent"));
+    expect(args.slice(-2)).toEqual(["--plugin-dir", pluginDir]);
+    expect(fs.realpathSync(path.join(pluginDir, "agents"))).toBe(fs.realpathSync(path.join(managedDir, "agents")));
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", pluginDir, workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome.ok).toBe(true);
+    const pluginAgents = path.join(pluginDir, "agents");
+    expect(fs.lstatSync(pluginAgents).isSymbolicLink()).toBe(false);
+    expect(fs.readdirSync(pluginAgents).sort()).toEqual(["duplicate-type-finder.md", "persona-evaluator.md"]);
+    const loaded = fs.readFileSync(path.join(pluginAgents, "duplicate-type-finder.md"), "utf8");
+    expect(frontmatterOf(loaded)).toMatchObject({ name: "duplicate-type-finder", model: "claude-haiku-5-5" });
+    expect(loaded).toBe(fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/duplicate-type-finder.md"), "utf8"));
+    expect(frontmatterOf(fs.readFileSync(path.join(pluginAgents, "persona-evaluator.md"), "utf8"))).toMatchObject({ name: "persona-evaluator", model: "inherit" });
+    // Staged and repository files are unchanged; removing the plugin removes the copy only.
+    expect(fs.readFileSync(stagedPath, "utf8")).toBe(staged);
+    expect(frontmatterOf(staged).model).toBe("small");
+    expect(fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/repo-reviewer.md"), "utf8")).toBe(repositoryAgent);
+    removeClaudePlugin(pluginDir);
+    expect(fs.existsSync(pluginDir)).toBe(false);
+    expect(fs.readFileSync(stagedPath, "utf8")).toBe(staged);
+  });
+
+  it("fails closed for a workflow-declared sub-agent named main", async () => {
+    const run = layout();
+    stageInline(run, "claude", { main: typistAgent(), "duplicate-type-finder": typistAgent() });
+    const before = fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/main.md"), "utf8");
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome).toEqual({ ok: false, resolutions: [] });
+    expect(run.records()).toEqual([]);
+    expect(run.logs).toContainEqual(expect.stringContaining("the sub-agent name 'main' is reserved for the Claude main model's resolution record. Rename the agent in the workflow. Refusing to start Claude."));
+    expect(fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/main.md"), "utf8")).toBe(before);
+  });
+
+  it("skips a repository agent named main, so the main and worker records both survive", async () => {
+    const run = layout();
+    stageInline(run, "claude", { "duplicate-type-finder": typistAgent() });
+    const repositoryAgent = "---\nname: main\nmodel: claude-nonexistent-9\n---\nShadow.\n";
+    fs.writeFileSync(path.join(run.workspaceDir, ".claude/agents/main-agent.md"), repositoryAgent);
+    const mainRecord = { engine: "claude", role: "main", configured_model: "sonnet", resolved_model: "claude-sonnet-5-5", provider: "anthropic", status: "resolved", cause: null };
+    recordModelResolution(mainRecord, run.env);
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.resolutions.map(resolution => resolution.name)).toEqual(["duplicate-type-finder"]);
+    expect(run.records()).toEqual([mainRecord, { engine: "claude", role: "duplicate-type-finder", configured_model: "small", resolved_model: "claude-haiku-5-5", provider: "anthropic", status: "resolved", cause: null }]);
+    expect(run.logs).toContainEqual(expect.stringContaining("warning: repository agent " + path.join(run.workspaceDir, ".claude/agents/main-agent.md") + " uses the reserved name 'main'"));
+    expect(fs.readFileSync(path.join(run.workspaceDir, ".claude/agents/main-agent.md"), "utf8")).toBe(repositoryAgent);
+  });
+
   it("replaces only the model scalar", () => {
     expect(replaceAgentModel('---\nname: "a"\nmodel: small\ntools: Read\n---\nBody model: small\n', "claude-haiku-5-5")).toBe('---\nname: "a"\nmodel: "claude-haiku-5-5"\ntools: Read\n---\nBody model: small\n');
   });
@@ -336,10 +400,34 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
     expect(fs.readdirSync(path.join(run.workspaceDir, ".codex/agents")).some(name => name.endsWith(".toml"))).toBe(false);
   });
 
+  it("fails closed for a workflow-declared sub-agent named main and keeps the main record", async () => {
+    const run = layout();
+    const agents = arxivAgents();
+    stageInline(run, "codex", { main: agents["paper-screener"], "paper-screener": agents["paper-screener"] });
+    recordModelResolution(runs.arxivMainModelResolution.data, run.env);
+
+    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome).toEqual({ ok: false, agents: ["main", "paper-screener"], resolutions: [], failures: [] });
+    expect(run.records()).toEqual([runs.arxivMainModelResolution.data]);
+    expect(run.logs).toContainEqual(expect.stringContaining("the sub-agent name 'main' is reserved for the Codex main model's resolution record. Rename the agent in the workflow. Refusing to start Codex."));
+  });
+
+  it("records the worker next to the main record", async () => {
+    const run = layout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+    recordModelResolution(runs.arxivMainModelResolution.data, run.env);
+
+    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome.ok).toBe(true);
+    expect(run.records()).toEqual([runs.arxivMainModelResolution.data, { engine: "codex", role: "paper-screener", configured_model: "openai/gpt-5.4-mini", resolved_model: "gpt-5.4-mini", provider: "openai", status: "exact", cause: null }]);
+  });
+
   it("does nothing without staged Codex agents", async () => {
     const run = layout();
     const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
-    expect(outcome).toEqual({ agents: [], resolutions: [], failures: [] });
+    expect(outcome).toEqual({ ok: true, agents: [], resolutions: [], failures: [] });
     expect(run.logs).toEqual([]);
   });
 });

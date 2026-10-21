@@ -134,20 +134,35 @@ function resolveSubAgentExperimentReferences(agentName, content, env = process.e
 /**
  * Claude Code skips a project agent file without a frontmatter `name`, so the
  * generated Claude copy gets the declared block name when the author omitted it.
- * An authored `name` is kept.
+ * An authored `name` (detected by the YAML parser, so quoted keys count) is kept.
+ * A flow mapping gets the key inside its braces, so mapping styles are never mixed.
+ * Frontmatter that does not parse as a mapping is left unchanged; the model
+ * resolution step then rejects it before Claude starts.
  *
  * @param {string} agentName - Declared sub-agent name from the `## agent:` marker.
  * @param {string} content - Agent block content (frontmatter + prompt).
  * @returns {string} Content with a top-level `name:` in its frontmatter.
  */
 function ensureClaudeSubAgentName(agentName, content) {
-  const nameLine = `name: ${JSON.stringify(agentName)}`;
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  const nameEntry = `name: ${JSON.stringify(agentName)}`;
   const match = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*\r?(?=\n|$)/.exec(content);
-  if (!match) return `---\n${nameLine}\n---\n${content}`;
+  if (!match) return `---\n${nameEntry}\n---\n${content}`;
   const frontmatter = match[1] ?? "";
-  if (/^name[ \t]*:/m.test(frontmatter)) return content;
   const start = content.indexOf("\n") + 1;
-  return content.slice(0, start) + nameLine + "\n" + content.slice(start);
+  /** @type {any} */
+  const document = parseDocument(frontmatter);
+  if (!document || document.errors.length) return content;
+  const map = document.contents;
+  if (map === null || map === undefined) return content.slice(0, start) + nameEntry + "\n" + content.slice(start);
+  if (!Array.isArray(map.items) || !Array.isArray(map.range)) return content;
+  if (map.items.some((/** @type {any} */ pair) => pair?.key?.value === "name")) return content;
+  const position = start + map.range[0];
+  if (map.flow) {
+    return content.slice(0, position + 1) + nameEntry + (map.items.length > 0 ? ", " : "") + content.slice(position + 1);
+  }
+  const indent = content.slice(content.lastIndexOf("\n", position - 1) + 1, position);
+  return content.slice(0, position) + nameEntry + "\n" + indent + content.slice(position);
 }
 
 /**

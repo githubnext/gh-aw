@@ -123,3 +123,20 @@ describe("claude_small_subagent_smoke_runs_resolved_model_first (post-step check
     await expect(assertEvidence(staged)).rejects.toThrow("definition has no native name");
   });
 });
+
+describe("smoke-claude-sub-agents is read-only", () => {
+  const lock = fs.readFileSync(new URL("../../../.github/workflows/smoke-claude-sub-agents.lock.yml", import.meta.url), "utf8");
+
+  test("the compiled lock grants no issues: write and exposes no issue-creating safe output", () => {
+    expect(lock).not.toMatch(/^\s*issues:\s*write\s*$/m);
+    expect(lock).not.toMatch(/create_issue|create_report_incomplete_issue/);
+    expect(lock).toContain('GH_AW_FAILURE_REPORT_AS_ISSUE: "false"');
+  });
+
+  test("the agent finishes through a non-publishing noop", () => {
+    const manifest = JSON.parse(lock.split("\n")[1].replace(/^# gh-aw-manifest: /, ""));
+    expect(manifest.mcp_servers.find(server => server.name === "safeoutputs").tools).toContain("noop");
+    expect(lock).toContain('GH_AW_NOOP_REPORT_AS_ISSUE: "false"');
+    expect(workflow).toContain("Finish by calling the `noop` safe output once");
+  });
+});

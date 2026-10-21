@@ -100,6 +100,34 @@ func TestClaudeCodexAwInfoContainsDeclaredSubagentModels(t *testing.T) {
 				"## agent: `paper-screener`\n---\ndescription: Screens papers\nmodel: small\n---\nScreen.\n",
 			want: []subagentModelDeclaration{{Name: "paper-screener", Model: "small", Patterns: []string{"openai/gpt-5*mini*", "openai/gpt-5*nano*"}}},
 		},
+		{
+			name: "claude provider-qualified alias expands the alias",
+			body: frontmatter + "engine: claude\nmodels:\n  fast: [anthropic/*haiku*]\n---\n# Work\nUse fast-worker.\n\n" +
+				"## agent: `fast-worker`\n---\ndescription: Works fast\nmodel: anthropic/fast\n---\nWork.\n\n" +
+				"## agent: `small-worker`\n---\ndescription: Works small\nmodel: anthropic/small\n---\nWork.\n",
+			want: []subagentModelDeclaration{
+				{Name: "fast-worker", Model: "anthropic/fast", Patterns: []string{"anthropic/*haiku*"}},
+				{Name: "small-worker", Model: "anthropic/small", Patterns: []string{"anthropic/*haiku*"}},
+			},
+		},
+		{
+			name: "claude on the copilot provider expands a copilot-qualified alias",
+			body: frontmatter + "engine: claude\nmodel: copilot/claude-sonnet-4.6\n---\n# Work\nUse duplicate-type-finder.\n\n" +
+				"## agent: `duplicate-type-finder`\n---\ndescription: Collects all Go type definitions\nmodel: copilot/small\n---\nYou are a Go type-definition analyst.\n",
+			want: []subagentModelDeclaration{{Name: "duplicate-type-finder", Model: "copilot/small", Patterns: []string{"github-copilot/*haiku*", "github-copilot/gpt-5*mini*", "github-copilot/gpt-5*nano*", "github-copilot/gemini-*flash*lite*"}}},
+		},
+		{
+			name: "codex provider-qualified alias expands the alias",
+			body: frontmatter + "engine: codex\n---\n# Work\nScreen papers.\n\n" +
+				"## agent: `paper-screener`\n---\ndescription: Screens papers\nmodel: openai/small\n---\nScreen.\n",
+			want: []subagentModelDeclaration{{Name: "paper-screener", Model: "openai/small", Patterns: []string{"openai/gpt-5*mini*", "openai/gpt-5*nano*"}}},
+		},
+		{
+			name: "another provider's prefix is not stripped",
+			body: frontmatter + "engine: codex\n---\n# Work\nScreen papers.\n\n" +
+				"## agent: `paper-screener`\n---\ndescription: Screens papers\nmodel: anthropic/small\n---\nScreen.\n",
+			want: []subagentModelDeclaration{{Name: "paper-screener", Model: "anthropic/small", Patterns: []string{}}},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -570,6 +570,7 @@ async function main() {
         reflectData: reflection.reflectData,
         refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
         provider: normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"),
+        pluginDir,
         env: process.env,
         logger: log,
       });

@@ -498,6 +498,26 @@ describe("Claude staged sub-agent identity", () => {
     expect(fs.readFileSync(path.join(tmpDir, ".github", "agents", "helper.agent.md"), "utf8")).toBe("---\nmodel: small\n---\nHelp.\n");
   });
 
+  it("detects a quoted authored name key and keeps it", () => {
+    const workflow = `Main.\n\n${agentMarker("reviewer")}\n---\n"name": reviewer\nmodel: small\n---\nReview.`;
+    writeInlineSubAgents(workflow, tmpDir, tmpDir, "claude");
+
+    const written = fs.readFileSync(path.join(tmpDir, ".claude", "agents", "reviewer.md"), "utf8");
+    expect(written).toBe('---\n"name": reviewer\nmodel: small\n---\nReview.\n');
+    expect(parseFrontmatter(written)).toEqual({ name: "reviewer", model: "small" });
+  });
+
+  it("inserts the name inside flow-mapping frontmatter without mixing mapping styles", () => {
+    const workflow = `Main.\n\n${agentMarker("marker-worker")}\n---\n{description: Returns a marker, model: small}\n---\nMarker.\n\n${agentMarker("empty-flow")}\n---\n{ }\n---\nEmpty.`;
+    writeInlineSubAgents(workflow, tmpDir, tmpDir, "claude");
+
+    const written = fs.readFileSync(path.join(tmpDir, ".claude", "agents", "marker-worker.md"), "utf8");
+    expect(written).toBe('---\n{name: "marker-worker", description: Returns a marker, model: small}\n---\nMarker.\n');
+    expect(parseFrontmatter(written)).toEqual({ name: "marker-worker", description: "Returns a marker", model: "small" });
+    const empty = fs.readFileSync(path.join(tmpDir, ".claude", "agents", "empty-flow.md"), "utf8");
+    expect(parseFrontmatter(empty)).toEqual({ name: "empty-flow" });
+  });
+
   it("injects the name for any engine id that stages into .claude/agents", () => {
     // interpolate_prompt.cjs passes GH_AW_ENGINE_ID, which the compiler emits as the canonical
     // "claude"; differently cased or padded ids still stage and register the same way.

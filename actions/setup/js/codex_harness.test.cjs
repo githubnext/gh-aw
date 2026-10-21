@@ -2398,6 +2398,26 @@ describe("Codex sub-agent declarations before spawn (github/gh-aw#70667)", () =>
     expect(result.stderr).not.toContain("The requested model is not supported");
   });
 
+  it("fails closed before spawn for a workflow-declared sub-agent named main", () => {
+    const dir = makeHarnessTempDir("codex-subagents-main-");
+    const ostmp = path.join(dir, "ostmp");
+    const recordsDir = path.join(dir, "records");
+    const staged = path.join(ostmp, "gh-aw", ".codex", "agents");
+    fs.mkdirSync(staged, { recursive: true });
+    fs.copyFileSync(path.join(runs.arxivAgentsDir, "paper-screener.md"), path.join(staged, "main.md"));
+    const { result, calls } = runHarnessFixture("", {
+      reflectData: runs.arxivReflect(),
+      env: { TMPDIR: ostmp, AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai", GH_AW_TMP_DIR: recordsDir, GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"), GH_AW_PHASE: "" },
+    });
+
+    expect(result.status).toBe(1);
+    expect(calls).toEqual([]);
+    expect(result.stderr).toContain("the sub-agent name 'main' is reserved for the Codex main model's resolution record");
+    const recordPath = path.join(recordsDir, "agent", "model-resolution.json");
+    const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+    expect(records.filter(record => record.engine === "codex" && record.role === "main").every(record => record.configured_model !== "openai/gpt-5.4-mini")).toBe(true);
+  });
+
   it("claude_codex_detection_skips_subagent_resolution (Codex)", () => {
     const { result, calls, records, stagedAfter } = runWithArxivAgents({ env: { GH_AW_PHASE: "detection" } });
 

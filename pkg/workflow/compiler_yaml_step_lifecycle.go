@@ -283,9 +283,14 @@ func writeSubagentModelDeclarations(yaml *strings.Builder, data *WorkflowData, e
 	for _, agent := range data.SubAgentModels {
 		model := RewriteExperimentsReferenceForDownstreamJobs(agent.Model, data.Experiments)
 		model = RewriteActivationOutputsToLocalStepOutputs(model, data.Experiments)
-		patterns := expandSubagentModelPatterns(agent.Model, data, provider)
+		var patterns []string
 		if engineID == "claude" || engineID == "codex" {
+			patterns = expandSubagentModelPatternsWith(agent.Model, data, provider, func(model string) string {
+				return stripSubagentProviderPrefix(model, provider)
+			})
 			patterns = providerScopedSubagentPatterns(agent.Model, patterns, provider)
+		} else {
+			patterns = expandSubagentModelPatterns(agent.Model, data, provider)
 		}
 		declarations = append(declarations, map[string]any{
 			"name": agent.Name, "model": model,
@@ -314,6 +319,17 @@ func claudeCodexSubagentProvider(data *WorkflowData, engineID string) string {
 		return "github-copilot"
 	}
 	return provider
+}
+
+// stripSubagentProviderPrefix removes a `<provider>/` prefix that names the engine's provider,
+// as the runtime does before alias lookup, so `anthropic/fast` expands the `fast` alias.
+// Another provider's prefix is kept; its patterns are then dropped by provider scoping.
+func stripSubagentProviderPrefix(model, provider string) string {
+	prefix, rest, ok := strings.Cut(strings.TrimSpace(model), "/")
+	if !ok || prefix == "" || rest == "" || strings.Contains(rest, "/") || normalizeLLMProvider(prefix) != normalizeLLMProvider(provider) {
+		return model
+	}
+	return rest
 }
 
 // providerScopedSubagentPatterns keeps only the patterns of the engine's provider. Claude's

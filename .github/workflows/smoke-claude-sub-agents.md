@@ -17,6 +17,19 @@ features:
 sandbox:
   agent:
     id: awf
+safe-outputs:
+  create-issue: false
+  threat-detection: false
+  report-failure-as-issue: false
+  report-failed-jobs: false
+  noop:
+    report-as-issue: false
+  missing-tool:
+    create-issue: false
+  missing-data:
+    create-issue: false
+  report-incomplete:
+    create-issue: false
 post-steps:
   - name: Assert declared sub-agent ran on its resolved model
     if: always()
@@ -98,8 +111,8 @@ post-steps:
 This is a read-only smoke test. Do not modify any files and do not use any other tools before the delegation below.
 
 1. Your **first action** must be a single foreground call of the `Agent` tool with `subagent_type` set to `marker-worker` and the prompt `marker?`. Do not run it in the background.
-2. Do not use `general-purpose` or any other agent, and do not answer on the worker's behalf. If `marker-worker` is unavailable, stop and report that it is unavailable.
-3. Reply with the worker's exact response and nothing else.
+2. Do not use `general-purpose` or any other agent, and do not answer on the worker's behalf. If `marker-worker` is unavailable, call the `noop` safe output with a message saying it is unavailable, then stop.
+3. Finish by calling the `noop` safe output once, with the worker's exact response as the message. Do not publish anything else.
 
 ## agent: `marker-worker`
 ---

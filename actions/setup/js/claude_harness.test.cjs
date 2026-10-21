@@ -1672,6 +1672,100 @@ describe("Claude sub-agent models before spawn (github/gh-aw#70667)", () => {
     }
   });
 
+  it("fails closed before spawn for a workflow-declared sub-agent named main", () => {
+    const dir = makeHarnessTempDir("claude-subagents-main-");
+    const ostmp = path.join(dir, "ostmp");
+    const workspace = path.join(dir, "workspace");
+    const recordsDir = path.join(dir, "records");
+    try {
+      writeInlineSubAgents(`# Typist\n\n## agent: \`main\`\n${typistAgent()}`, workspace, path.join(ostmp, "gh-aw"), "claude");
+      const { result, calls } = runHarnessWithStub({
+        stubScript,
+        reflectData: runs.typistReflect(),
+        extraEnv: {
+          TMPDIR: ostmp,
+          GITHUB_WORKSPACE: workspace,
+          GH_AW_ENGINE_CWD: "",
+          GH_AW_TMP_DIR: recordsDir,
+          GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"),
+          GH_AW_LLM_PROVIDER: "anthropic",
+          GH_AW_SAFE_OUTPUTS: "",
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+          GH_AW_PHASE: "",
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(calls).toEqual([]);
+      expect(result.stderr).toContain("the sub-agent name 'main' is reserved for the Claude main model's resolution record");
+      const recordPath = path.join(recordsDir, "agent", "model-resolution.json");
+      const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+      expect(records.filter(record => record.configured_model === "small")).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("bare mode loads the resolved definition through the plugin's agents path", () => {
+    const dir = makeHarnessTempDir("claude-subagents-bare-");
+    const ostmp = path.join(dir, "ostmp");
+    const workspace = path.join(dir, "workspace");
+    try {
+      // The managed directory is /tmp/gh-aw/.claude in a run; point the real plugin builder at this run's staging.
+      const preload = path.join(dir, "bare-plugin.cjs");
+      fs.writeFileSync(
+        preload,
+        `
+        const runtime = require(${JSON.stringify(require.resolve("./claude_runtime.cjs"))});
+        const build = runtime.claudeBareCapabilities;
+        runtime.claudeBareCapabilities = args => build(args, ${JSON.stringify(path.join(ostmp, "gh-aw", ".claude"))}, ${JSON.stringify(path.join(ostmp, "agent"))});
+      `,
+        "utf8"
+      );
+      writeInlineSubAgents(`# Typist\n\n## agent: \`duplicate-type-finder\`\n${typistAgent()}`, workspace, path.join(ostmp, "gh-aw"), "claude");
+      const staged = fs.readFileSync(path.join(ostmp, "gh-aw/.claude/agents/duplicate-type-finder.md"), "utf8");
+      const bareStub = `
+        const fs = require("fs");
+        const path = require("path");
+        const args = process.argv.slice(2);
+        const agentsDir = path.join(args[args.indexOf("--plugin-dir") + 1], "agents");
+        const agents = Object.fromEntries(fs.readdirSync(agentsDir).map(name => [name, fs.readFileSync(path.join(agentsDir, name), "utf8")]));
+        fs.appendFileSync(process.env.CLAUDE_HARNESS_STUB_CALLS, JSON.stringify({ args, agents, symlink: fs.lstatSync(agentsDir).isSymbolicLink() }) + "\\n");
+        process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "done" }) + "\\n");
+      `;
+      const { result, calls } = runHarnessWithStub({
+        stubScript: bareStub,
+        extraArgs: ["--bare"],
+        reflectData: runs.typistReflect(),
+        extraEnv: {
+          NODE_OPTIONS: `--require=${JSON.stringify(preload)}`,
+          TMPDIR: ostmp,
+          GITHUB_WORKSPACE: workspace,
+          GH_AW_ENGINE_CWD: "",
+          GH_AW_TMP_DIR: path.join(dir, "records"),
+          GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"),
+          GH_AW_LLM_PROVIDER: "anthropic",
+          GH_AW_SAFE_OUTPUTS: "",
+          GH_AW_HARNESS_MAX_RETRIES: "0",
+          GH_AW_PHASE: "",
+        },
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].args).toContain("--plugin-dir");
+      expect(calls[0].symlink).toBe(false);
+      const loaded = calls[0].agents["duplicate-type-finder.md"];
+      expect(loaded).toMatch(/^---\nname: "duplicate-type-finder"\n/);
+      expect(loaded).toContain('model: "claude-haiku-5-5"');
+      expect(fs.readFileSync(path.join(ostmp, "gh-aw/.claude/agents/duplicate-type-finder.md"), "utf8")).toBe(staged);
+      expect(staged).toContain("model: small");
+      expect(fs.readdirSync(path.join(ostmp, "agent"))).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("claude_codex_detection_skips_subagent_resolution (Claude)", () => {
     // Fixture mutation: an unknown model that would fail closed outside detection.
     const agentContent = typistAgent().replace("model: small", "model: claude-nonexistent-9");

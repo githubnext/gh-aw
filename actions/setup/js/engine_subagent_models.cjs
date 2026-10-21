@@ -17,7 +17,11 @@
  *
  * Codex: the staged Markdown agents are not loaded by Codex (it discovers custom agents only
  * from TOML role files), so their models are resolved and recorded for observability and a
- * warning says they are not applied; nothing fails closed.
+ * warning says they are not applied; only a reserved name fails closed.
+ *
+ * The sub-agent name `main` is reserved for both engines: it is the role of the main model's
+ * `model.resolution` record, which a sub-agent record with the same role would replace. A
+ * workflow-declared `main` stops the engine; a repository `main` is skipped with a warning.
  */
 
 const fs = require("fs");
@@ -30,6 +34,25 @@ const { MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_agent_errors.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
 const { loadModelAliasMap, ModelAliasResolutionError, recordModelResolution, resolveEngineModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
+
+/** The `model.resolution` role of the engine's main model; no sub-agent may use it. */
+const RESERVED_SUBAGENT_NAME = "main";
+
+/**
+ * Log why workflow-declared sub-agents with the reserved name stop the engine.
+ * @param {"claude" | "codex"} engine
+ * @param {Array<{ path: string }>} agents
+ * @param {(msg: string) => void} logger
+ * @returns {boolean} true when at least one agent uses the reserved name
+ */
+function rejectReservedDeclaredNames(engine, agents, logger) {
+  for (const agent of agents) {
+    logger(
+      `${engine} sub-agent file ${agent.path}: the sub-agent name '${RESERVED_SUBAGENT_NAME}' is reserved for the ${engine === "claude" ? "Claude" : "Codex"} main model's resolution record. Rename the agent in the workflow. Refusing to start ${engine === "claude" ? "Claude" : "Codex"}.`
+    );
+  }
+  return agents.length > 0;
+}
 
 /**
  * Determine whether the current run phase is threat detection.
@@ -288,10 +311,16 @@ async function resolveEngineSubagentModels(options) {
  * exists without editing tracked content. Agent files without a `name` are skipped because
  * Claude Code does not register them.
  *
+ * With `engine.bare: true`, Claude loads the workflow agents through the temporary plugin in
+ * `pluginDir`, whose `agents` entry links to the staged directory. That link is replaced by a
+ * run-local copy of the staged definitions carrying the resolved ids, so the staged files and
+ * repository files stay unchanged and the copy is removed with the plugin.
+ *
  * @param {{
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   provider: string,
+ *   pluginDir?: string,
  *   workspaceDir?: string,
  *   workingDirectory?: string,
  *   agentsBaseDir?: string,
@@ -311,7 +340,8 @@ async function applyClaudeSubagentModels(options) {
   const target = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("claude"));
   /** @type {string[]} */
   const invalidDeclared = [];
-  const declared = listMarkdownAgentFiles(path.resolve(agentsBaseDir, target.dir), logger, {
+  const stagedDir = path.resolve(agentsBaseDir, target.dir);
+  const declared = listMarkdownAgentFiles(stagedDir, logger, {
     onInvalid: (filePath, error) => {
       invalidDeclared.push(filePath);
       logger(`claude sub-agent file ${filePath}: cannot read or parse the staged workflow sub-agent: ${getErrorMessage(error)}.`);
@@ -325,6 +355,15 @@ async function applyClaudeSubagentModels(options) {
     logger(`Refusing to start Claude: ${invalidDeclared.length} workflow-declared sub-agent file(s) cannot be read or parsed, so their models cannot be resolved.`);
     return { ok: false, resolutions: [] };
   }
+  if (
+    rejectReservedDeclaredNames(
+      "claude",
+      declared.filter(agent => agent.name === RESERVED_SUBAGENT_NAME),
+      logger
+    )
+  ) {
+    return { ok: false, resolutions: [] };
+  }
   const declaredPaths = new Set(declared.map(agent => agent.workspacePath));
   const declaredNames = new Set(declared.map(agent => agent.name));
   const repository = [];
@@ -332,6 +371,10 @@ async function applyClaudeSubagentModels(options) {
     if (declaredPaths.has(path.resolve(agent.path))) continue;
     if (!agent.name) {
       if (agent.model) logger(`warning: repository agent ${agent.path} has no frontmatter 'name', so Claude Code does not register it; its model '${agent.model}' is not resolved.`);
+      continue;
+    }
+    if (agent.name === RESERVED_SUBAGENT_NAME) {
+      logger(`warning: repository agent ${agent.path} uses the reserved name '${RESERVED_SUBAGENT_NAME}' (the role of the Claude main model's resolution record); its model is not resolved or recorded.`);
       continue;
     }
     if (declaredNames.has(agent.name)) continue;
@@ -354,6 +397,8 @@ async function applyClaudeSubagentModels(options) {
   });
   if (failures.some(failure => failure.fatal)) return { ok: false, resolutions };
 
+  /** @type {Map<string, string>} */
+  const resolvedDefinitions = new Map();
   for (const resolution of resolutions) {
     const agent = declared.find(candidate => candidate.name === resolution.name);
     if (!agent) {
@@ -368,6 +413,7 @@ async function applyClaudeSubagentModels(options) {
     try {
       const staged = fs.readFileSync(agent.path, "utf8");
       const content = resolution.model === resolution.configuredModel ? staged : replaceAgentModel(staged, resolution.model);
+      resolvedDefinitions.set(agent.fileName, content);
       const existing = fs.existsSync(agent.workspacePath) ? fs.readFileSync(agent.workspacePath, "utf8") : null;
       if (existing !== content) {
         fs.mkdirSync(path.dirname(agent.workspacePath), { recursive: true });
@@ -379,15 +425,60 @@ async function applyClaudeSubagentModels(options) {
       return { ok: false, resolutions };
     }
   }
+  if (options.pluginDir) {
+    try {
+      writePluginAgents(options.pluginDir, stagedDir, resolvedDefinitions, logger);
+    } catch (error) {
+      logger(`claude sub-agents: cannot write the resolved agent definitions into the bare-mode plugin ${options.pluginDir}: ${getErrorMessage(error)}. Refusing to start Claude with unresolved sub-agent models.`);
+      return { ok: false, resolutions };
+    }
+  }
   return { ok: true, resolutions };
+}
+
+/**
+ * Replace the bare-mode plugin's `agents` link to the staged directory with a run-local copy
+ * of the staged definitions, using the resolved content where a model was resolved. Nothing
+ * happens when the plugin has no `agents` entry.
+ * @param {string} pluginDir
+ * @param {string} stagedDir
+ * @param {Map<string, string>} resolvedDefinitions file name -> resolved definition
+ * @param {(msg: string) => void} logger
+ */
+function writePluginAgents(pluginDir, stagedDir, resolvedDefinitions, logger) {
+  const pluginAgents = path.join(pluginDir, "agents");
+  try {
+    fs.lstatSync(pluginAgents);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+    throw error;
+  }
+  /** @type {string | undefined} */
+  let copy;
+  try {
+    copy = fs.mkdtempSync(path.join(pluginDir, ".agents-"));
+    fs.cpSync(stagedDir, copy, { recursive: true, dereference: true });
+    for (const [fileName, content] of resolvedDefinitions) fs.writeFileSync(path.join(copy, fileName), content, { mode: 0o600 });
+    fs.rmSync(pluginAgents, { recursive: true, force: true });
+    fs.renameSync(copy, pluginAgents);
+  } catch (error) {
+    try {
+      if (copy) fs.rmSync(copy, { recursive: true, force: true });
+    } catch (cleanupError) {
+      logger(`warning: cannot remove the partial bare-mode agents copy ${copy}: ${getErrorMessage(cleanupError)}; the plugin directory is removed with the plugin.`);
+    }
+    throw error;
+  }
+  logger(`claude sub-agents: the bare-mode plugin loads a run-local copy of the resolved definitions from ${pluginAgents}`);
 }
 
 /**
  * Codex: declare and warn only. Codex discovers custom agents only from TOML role files
  * (verified for Codex 0.163.0), so the workflow-declared Markdown agents staged in
  * `<agentsBaseDir>/.codex/agents` are not loaded and their models are not applied. Their
- * models are still resolved and recorded so audits see the declarations; a failure is a
- * warning and never stops Codex.
+ * models are still resolved and recorded so audits see the declarations; a model failure is
+ * a warning and never stops Codex. An agent named `main` makes `ok` false, because its
+ * record would replace the main model's record; Codex must then not start.
  *
  * @param {{
  *   reflectData: any,
@@ -398,7 +489,7 @@ async function applyClaudeSubagentModels(options) {
  *   env?: NodeJS.ProcessEnv,
  *   logger: (msg: string) => void,
  * }} options
- * @returns {Promise<{ agents: string[], resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>, failures: Array<{ name: string }> }>}
+ * @returns {Promise<{ ok: boolean, agents: string[], resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>, failures: Array<{ name: string }> }>}
  */
 async function declareCodexSubagentModels(options) {
   const { logger } = options;
@@ -407,7 +498,16 @@ async function declareCodexSubagentModels(options) {
   const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
   const directory = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("codex")).dir);
   const agents = listMarkdownAgentFiles(directory, logger).map(agent => ({ ...agent, name: agent.name || agent.fileName.slice(0, -".md".length) }));
-  if (agents.length === 0) return { agents: [], resolutions: [], failures: [] };
+  if (agents.length === 0) return { ok: true, agents: [], resolutions: [], failures: [] };
+  if (
+    rejectReservedDeclaredNames(
+      "codex",
+      agents.filter(agent => agent.name === RESERVED_SUBAGENT_NAME),
+      logger
+    )
+  ) {
+    return { ok: false, agents: agents.map(agent => agent.name), resolutions: [], failures: [] };
+  }
   logger(
     `warning: Codex discovers custom agents only from TOML role files (verified for Codex 0.163.0); the ${agents.length} workflow-declared Markdown sub-agent(s) in ${directory} (${agents.map(agent => agent.name).join(", ")}) are not loaded by Codex, and their declared models are recorded but not applied.`
   );
@@ -423,7 +523,7 @@ async function declareCodexSubagentModels(options) {
     env,
     logger,
   });
-  return { agents: agents.map(agent => agent.name), resolutions, failures };
+  return { ok: true, agents: agents.map(agent => agent.name), resolutions, failures };
 }
 
 module.exports = {
