@@ -31,7 +31,7 @@ function evidence() {
   };
 }
 
-async function assertEvidence({ events, requests }, variant = "inline_strict") {
+async function assertEvidence({ events, requests }, execution = "success") {
   const mockRequire = name => {
     if (name.endsWith("unified_session.cjs")) return { writeUnifiedSession() {} };
     if (name === "node:fs") {
@@ -43,7 +43,7 @@ async function assertEvidence({ events, requests }, variant = "inline_strict") {
     return require(name);
   };
   await new AsyncFunction("require", "process", script)(mockRequire, {
-    env: { RUNNER_TEMP: "/tmp", SMOKE_VARIANT: variant, SMOKE_EXECUTION: "success" },
+    env: { RUNNER_TEMP: "/tmp", SMOKE_EXECUTION: execution },
   });
 }
 
@@ -121,8 +121,10 @@ describe("Copilot sub-agent smoke evidence", () => {
     await expect(assertEvidence(data)).rejects.toThrow("failed");
   });
 
-  test("requires no delegation in the negative control", async () => {
-    await expect(assertEvidence({ events: [], requests: [] }, "single_agent_control")).resolves.toBeUndefined();
-    await expect(assertEvidence(evidence(), "single_agent_control")).rejects.toThrow("must not invoke");
+  test("reports a dead child pin's model.resolution cause before the failed execution", async () => {
+    const data = evidence();
+    data.events = data.events.filter(event => event.type === "model.resolution");
+    Object.assign(data.events.find(event => event.data.role === "gpt5-whoami").data, { resolved_model: null, status: "failed", cause: "model_unavailable" });
+    await expect(assertEvidence({ events: data.events, requests: [] }, "failure")).rejects.toThrow("gpt5-whoami model.resolution status is failed, expected resolved (cause: model_unavailable)");
   });
 });

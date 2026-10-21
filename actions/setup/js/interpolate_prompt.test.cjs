@@ -255,7 +255,6 @@ describe("interpolate_prompt", () => {
       const { main } = require("./interpolate_prompt.cjs");
       let tmpDir, promptPath, originalEnv;
       const smokeStrategies = [
-        ["single_agent_control", "Do not call any sub-agent."],
         ["delegated_sequential", "Execute and validate each sub-agent one at a time before moving to the next."],
         ["inline_strict", "Validate all three results and keep the current inline orchestration behavior."],
       ];
@@ -311,7 +310,7 @@ describe("interpolate_prompt", () => {
           for (const [otherVariant, otherInstruction] of smokeStrategies) {
             if (otherVariant !== variant) expect(rendered).not.toContain(otherInstruction);
           }
-          expect(rendered.includes("Call `haiku-whoami`")).toBe(variant !== "single_agent_control");
+          expect(rendered).toContain("Call `haiku-whoami`");
           expect(rendered).not.toContain("{{");
         }),
         it("should fail when GH_AW_PROMPT is not set", () => {
