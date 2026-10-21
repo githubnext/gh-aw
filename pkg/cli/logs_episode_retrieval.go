@@ -115,10 +115,6 @@ func (c *episodeCollector) initialize(now time.Time) error {
 	return nil
 }
 
-func retrievalCoverageReason(reason string) string {
-	return "retrieval_" + reason
-}
-
 func (c *episodeCollector) initializeScope() error {
 	if c.opts.SeedRunID <= 0 || c.opts.MaxRuns <= 0 || c.opts.MaxAPIRequests <= 0 || c.opts.Timeout <= 0 || c.opts.OutputDir == "" {
 		return errors.New("episode retrieval requires a positive seed run ID, --max-runs, --max-api-requests, --timeout, and a nonempty --output")
@@ -369,6 +365,10 @@ func (c *episodeCollector) issue(candidate episodeCandidate, reason string, err 
 	})
 }
 
+func episodeRetrievalCoverageReason(reason string) string {
+	return "retrieval_" + reason
+}
+
 func (c *episodeCollector) logsData() LogsData {
 	slices.SortFunc(c.members, func(a, b ProcessedRun) int { return b.Run.CreatedAt.Compare(a.Run.CreatedAt) })
 	data := buildLogsDataWithCollectionCoverage(c.members, c.opts.OutputDir, nil, logsCollectionCoverageOptions{disableLocalClassification: true})
@@ -376,11 +376,11 @@ func (c *episodeCollector) logsData() LogsData {
 	for i := range data.Episodes {
 		episode := &data.Episodes[i]
 		for _, reason := range c.report.StopReasons {
-			episode.Coverage.addGap(retrievalCoverageReason(reason))
+			episode.Coverage.addGap(episodeRetrievalCoverageReason(reason))
 			episode.Coverage.CollectionTruncated = true
 		}
 		for _, issue := range c.report.Issues {
-			episode.Coverage.addGap(retrievalCoverageReason(issue.Reason))
+			episode.Coverage.addGap(episodeRetrievalCoverageReason(issue.Reason))
 		}
 	}
 	data.Message = "Canonical episode retrieval is bounded to the reported repositories and time window; membership coverage is not complete."
