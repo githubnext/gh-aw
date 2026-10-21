@@ -53,6 +53,7 @@ const { iterateJsonl } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { addCopilotURLPermissions } = require("./copilot_url_permissions.cjs");
 const { maskSecret } = require("./actions_secret_masking.cjs");
 const fs = require("fs");
 const os = require("os");
@@ -1735,7 +1736,9 @@ async function main() {
     resolvedArgs = args;
   } else {
     const resolvedPrompt = resolvePromptFileInput(args);
-    resolvedArgs = resolvedPrompt.args;
+    const fallbackConfigPath = !process.env.GH_AW_AWF_CONFIG_PATH && process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "gh-aw", "awf-config.json") : undefined;
+    const configPath = process.env.GH_AW_AWF_CONFIG_PATH || AWF_CONFIG_PATH;
+    resolvedArgs = addCopilotURLPermissions(resolvedPrompt.args, { sdkMode: copilotSDKMode, configPath, fallbackConfigPath });
     promptStdin = resolvedPrompt.stdin;
   }
 
