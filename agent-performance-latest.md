@@ -61,3 +61,6 @@ metrics/latest.json (2026-10-19) is a partial snapshot (4.12h coverage, all per-
 
 ## Run 2026-10-20T12:56Z
 metrics/latest.json (2026-10-20) partial: 8.06h coverage, 0/344 workflows with executed-run counts. Ranking deferred; no discussion/issue filed.
+
+## Run 2026-10-21T12:57Z
+metrics/latest.json refreshed (2026-10-21T03:05Z, partial: per-workflow safe-output/quality null). First ranking in weeks, run-based only: 538 executed, 75.8% success. Lowest: ai-moderator 10% (9/10 failed, avg 83min), smoke-copilot 22%, test-quality-sentinel 56%, pr-code-quality-reviewer 54%, mattpocock-skills-reviewer 58%, design-decision-gate 60%, ponytail-reviewer 62%. Discussion posted. Prior root causes in shared-alerts (EACCES/#61952, model_not_supported) not re-verified this run; treat as stale until re-checked.
