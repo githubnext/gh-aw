@@ -3,6 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "./work_queue_yaml.cjs";
 
@@ -26,6 +28,75 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it("advertises Caveman ledger tools and requires the CLI audit before clean completion", () => {
+    const { workflow, prompt, lock, manifest, steps } = readWorkflow("daily-caveman-optimizer");
+    expect(workflow.tools["cli-proxy"]).toBe(true);
+    expect(workflow.tools.ledger["caveman-run-history"]).toMatchObject({ type: "table", key: "run_id" });
+    const config = JSON.parse(steps.find(step => step.env?.GH_AW_SAFE_OUTPUTS_CONFIG).env.GH_AW_SAFE_OUTPUTS_CONFIG);
+    expect(config.ledger_append.ledgers[0]).toMatchObject({ name: "caveman-run-history", type: "table", key: "run_id" });
+    expect(manifest.mcp_servers.find(server => server.name === "mcpscripts").tools).toContain("caveman-run-state");
+    expect(lock).toMatch(/Tools: [^\n]*ledger_append/);
+    expect(prompt).toContain("safeoutputs ledger_append '<json>'");
+    expect(prompt).toContain("safeoutputs report_incomplete");
+    expect(prompt).toContain("do not emit a clean `noop`, request a PR, or claim the audit record was persisted");
+    expect(workflow["mcp-scripts"]["caveman-run-state"].env).toEqual({ CAVEMAN_RUN_ID: "${{ github.run_id }}" });
+  });
+
+  it("queries Caveman audit state with real read-only SQLite without a sqlite3 executable", () => {
+    const { workflow } = readWorkflow("daily-caveman-optimizer");
+    const script = workflow["mcp-scripts"]["caveman-run-state"].script;
+    const directory = mkdtempSync(resolve(tmpdir(), "gh-aw-caveman-state-"));
+    const databasePath = resolve(directory, "ledger.db");
+    const runID = "39494738069";
+    const value = { record_type: "caveman_run", run_id: runID, files_processed: 5, files_optimized: 0, date: "2026-10-20", planned_outcome: "noop" };
+    let connection;
+    const query = id =>
+      runInNewContext(
+        `(function () { ${script}\n})()`,
+        {
+          process: { env: { CAVEMAN_RUN_ID: id } },
+          require: name => {
+            expect(name).toBe("node:sqlite");
+            return {
+              DatabaseSync: function (path, options) {
+                expect(path).toBe("/tmp/gh-aw/ledgers/caveman-run-history/ledger.db");
+                expect(options).toEqual({ readOnly: true });
+                connection = new DatabaseSync(databasePath, options);
+                return connection;
+              },
+            };
+          },
+        },
+        { timeout: 1000 }
+      );
+    try {
+      expect(() => query(runID)).toThrow();
+      const fixture = new DatabaseSync(databasePath);
+      try {
+        fixture.exec("CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT)");
+        fixture.prepare("INSERT INTO state VALUES (?, ?)").run(runID, JSON.stringify(value));
+        fixture.prepare("INSERT INTO state VALUES (?, ?)").run("invalid", "{");
+      } finally {
+        fixture.close();
+      }
+      expect(query(runID)).toEqual({ current_run: value });
+      expect(connection.isOpen).toBe(false);
+      expect(query("missing")).toEqual({ current_run: null });
+      expect(connection.isOpen).toBe(false);
+      expect(query("' OR 1=1 --")).toEqual({ current_run: null });
+      expect(() => query("invalid")).toThrow();
+      expect(connection.isOpen).toBe(false);
+      const persisted = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(persisted.prepare("SELECT COUNT(*) AS count FROM state").get().count).toBe(2);
+      } finally {
+        persisted.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ["audit-workflows", "audit-history"],
     ["copilot-centralization-optimizer", "centralization"],
