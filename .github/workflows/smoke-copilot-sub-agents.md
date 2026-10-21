@@ -33,7 +33,7 @@ experiments:
     min_samples: 30
     weight: [50, 50]
     start_date: "2026-07-23"
-    end_date: "2026-10-23"
+    end_date: "2027-03-01"
     issue: 47551
 safe-outputs:
   create-issue:
@@ -78,6 +78,7 @@ post-steps:
           ["gpt5-whoami", "gpt-5", "resolved", "/responses"],
           ["terra-whoami", "gpt-5.6-terra", "exact", "/responses"],
         ];
+        const expectedNames = new Set(expected.map(([agentName]) => agentName));
         const servedModel = model => String(model || "")
           .replace(/^copilot(?:-(?:responses|completions))?(?:-\d+)?\//, "")
           .replace(/-[0-9]{4}(?:-[0-9]{2}-[0-9]{2}|[0-9]{4})$/, "")
@@ -103,6 +104,10 @@ post-steps:
           if (status === "exact") assert.equal(model, configuredModel, `${agentName} resolved to ${model}, expected ${configuredModel}`);
         }
         assert.equal(process.env.SMOKE_EXECUTION, "success", "Copilot SDK execution failed");
+        const unexpected = [...new Set(started.map(event => event.data?.agentName).filter(agentName => !expectedNames.has(agentName)))];
+        assert.equal(unexpected.length, 0, `Unexpected sub-agent invocation(s): ${unexpected.join(", ")}`);
+        assert.equal(started.length, expected.length, `Expected exactly ${expected.length} sub-agent invocations, found ${started.length}`);
+        assert.equal(started[0]?.data.agentName, expected[0][0], `${expected[0][0]} must be the first sub-agent invoked`);
         const proxyPaths = [
           "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl",
           "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",

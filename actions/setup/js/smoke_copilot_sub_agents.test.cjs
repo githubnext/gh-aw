@@ -52,6 +52,26 @@ describe("Copilot sub-agent smoke evidence", () => {
     await expect(assertEvidence(evidence())).resolves.toBeUndefined();
   });
 
+  test("rejects an unexpected sub-agent invocation", async () => {
+    const data = evidence();
+    data.events.push({ type: "subagent.started", data: { agentName: "unexpected-agent", invocationId: "unexpected-agent" } });
+    await expect(assertEvidence(data)).rejects.toThrow("Unexpected sub-agent invocation(s): unexpected-agent");
+  });
+
+  test("rejects extra invocations of an expected sub-agent", async () => {
+    const data = evidence();
+    data.events.push({ type: "subagent.started", data: { agentName: "haiku-whoami", invocationId: "haiku-again" } });
+    await expect(assertEvidence(data)).rejects.toThrow("Expected exactly 3 sub-agent invocations, found 4");
+  });
+
+  test("requires haiku-whoami to be the first sub-agent invoked", async () => {
+    const data = evidence();
+    const first = data.events.findIndex(event => event.type === "subagent.started" && event.data.agentName === "haiku-whoami");
+    const second = data.events.findIndex(event => event.type === "subagent.started" && event.data.agentName === "gpt5-whoami");
+    [data.events[first], data.events[second]] = [data.events[second], data.events[first]];
+    await expect(assertEvidence(data)).rejects.toThrow("haiku-whoami must be the first sub-agent invoked");
+  });
+
   test("accepts the served dated Claude model identity", async () => {
     const data = evidence();
     data.events[1].data.model = "copilot-completions/claude-haiku-4-5-20251001";
@@ -60,7 +80,7 @@ describe("Copilot sub-agent smoke evidence", () => {
 
   test("rejects success without delegation", async () => {
     const data = evidence();
-    await expect(assertEvidence({ events: data.events.filter(event => event.type === "model.resolution"), requests: data.requests })).rejects.toThrow("must actually run");
+    await expect(assertEvidence({ events: data.events.filter(event => event.type === "model.resolution"), requests: data.requests })).rejects.toThrow("Expected exactly 3 sub-agent invocations, found 0");
   });
 
   test("rejects a sub-agent without a model.resolution record", async () => {
