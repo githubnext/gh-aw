@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
+import { spawnSync } from "child_process";
+import net from "net";
 import fs from "fs";
 import os from "os";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { createCopilotSDKModelObserver, readCopilotModelSubstitution, persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { COPILOT_MODEL_VERIFICATION_EXIT_CODE, createCopilotSDKModelObserver, readCopilotModelSubstitution, persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
 const { qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
 const { detectErrors } = require("./agent_error_patterns.cjs");
@@ -130,45 +132,127 @@ describe("Copilot SDK main-session model observation", () => {
     expect(selection()).toMatchObject({ resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
   });
 
-  it("sdk_main_model_switch_is_substituted_and_stops", async () => {
-    vi.stubEnv("COPILOT_MODEL", "gpt-5.6-luna");
-    vi.stubEnv("GH_AW_COPILOT_CONFIGURED_MODEL", "gpt-5.6-luna");
-    const [start, firstMessage] = mainEvents();
-    let afterSwitch = 0;
-    const { result, disconnect } = await runSession({
-      replay: handler => {
-        handler(start);
-        handler(firstMessage);
-        handler(derivedMainModelChange());
-        // A later matching main-session record cannot clear the mismatch.
-        handler(firstMessage);
-        afterSwitch++;
-        return new Promise(() => {});
-      },
+  /**
+   * Run copilot_harness.cjs in SDK driver mode with retries enabled. The stub driver runs the real
+   * SDK session runner against a fake SDK client that replays `replay.json`, records each attempt
+   * and exits with the runner's exit code, as copilot_sdk_driver.cjs does.
+   * @param {{ events: any[], final: any }} replay `final: null` keeps sendAndWait pending.
+   */
+  async function runHarnessWithStubDriver(replay) {
+    const freePort = async () => {
+      const server = net.createServer();
+      await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+      const { port } = server.address();
+      await new Promise(resolve => server.close(resolve));
+      return port;
+    };
+    const [providerPort, sdkPort] = [await freePort(), await freePort()];
+    // awf-reflect from the routed run 39147795806 without its routing selection; the provider listener is local.
+    const reflect = JSON.parse(fs.readFileSync(path.join(fixtures, "copilot-routed-run-39147795806", "awf-reflect.json"), "utf8"));
+    delete reflect.routing;
+    Object.assign(reflect.endpoints[0], { base_url: `http://127.0.0.1:${providerPort}`, models_url: `http://127.0.0.1:${providerPort}/models` });
+    const reflectPath = path.join(root, "reflect.json");
+    fs.writeFileSync(reflectPath, JSON.stringify(reflect));
+    const preloadPath = path.join(root, "reflect-preload.cjs");
+    fs.writeFileSync(
+      preloadPath,
+      `const body = require("fs").readFileSync(${JSON.stringify(reflectPath)}, "utf8");
+require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))}).fetchAWFReflect = async () => ({ ok: true, reflectData: JSON.parse(body) });
+if (process.argv[1].endsWith("copilot_harness.cjs")) require("net").createServer(socket => socket.end()).listen(${providerPort}, "127.0.0.1").unref();`
+    );
+    const sidecarPath = path.join(root, "copilot-sidecar.cjs");
+    fs.writeFileSync(sidecarPath, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nrequire("net").createServer(socket => socket.end()).listen(Number(args[args.indexOf("--port") + 1]), "127.0.0.1");\n`, { mode: 0o755 });
+    const replayPath = path.join(root, "replay.json");
+    fs.writeFileSync(replayPath, JSON.stringify(replay));
+    const attemptsPath = path.join(root, "attempts");
+    const driverPath = path.join(root, "copilot-sdk-driver-stub.cjs");
+    fs.writeFileSync(
+      driverPath,
+      `const fs = require("fs");
+const { runWithCopilotSDK } = require(${JSON.stringify(require.resolve("./copilot_sdk_session.cjs"))});
+const { events, final } = JSON.parse(fs.readFileSync(${JSON.stringify(replayPath)}, "utf8"));
+fs.appendFileSync(${JSON.stringify(attemptsPath)}, "attempt\\n");
+let handler = () => {};
+class CopilotClient {
+  start = async () => {};
+  stop = async () => {};
+  createSession = async () => ({
+    sessionId: ${JSON.stringify(SESSION_ID)},
+    on: callback => { handler = callback; },
+    sendAndWait: async () => { for (const event of events) handler(event); return final ?? new Promise(() => {}); },
+    disconnect: async () => {},
+  });
+}
+runWithCopilotSDK({
+  sdkUri: process.env.COPILOT_SDK_URI,
+  prompt: "test",
+  logger: message => process.stderr.write(message + "\\n"),
+  workingDirectory: ${JSON.stringify(root)},
+  agentsBaseDir: ${JSON.stringify(root)},
+  sdkModule: { CopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+}).then(result => process.exit(result.exitCode));`
+    );
+    const env = { ...process.env, AWF_REFLECT_ENABLED: "1", COPILOT_MODEL: "gpt-5.6-luna", COPILOT_SDK_URI: `http://127.0.0.1:${sdkPort}`, GH_AW_AWF_CONFIG_PATH: path.join(root, "awf-config.json") };
+    Object.assign(env, { GH_AW_HARNESS_MAX_RETRIES: "3", GH_AW_HARNESS_INITIAL_DELAY_MS: "1", GH_AW_HARNESS_MAX_DELAY_MS: "1", GH_AW_HARNESS_STALL_WARNING_MS: "0", NODE_OPTIONS: `--require ${preloadPath}` });
+    fs.writeFileSync(env.GH_AW_AWF_CONFIG_PATH, JSON.stringify({ network: { allowDomains: [] } }));
+    for (const key of [
+      "GH_AW_MODEL_ROUTING",
+      "GH_AW_MODEL_FALLBACK",
+      "GH_AW_SKIP_REFLECT",
+      "GH_AW_SAFE_OUTPUTS",
+      "COPILOT_PROVIDER_WIRE_API",
+      "GH_AW_MODEL_ALIASES",
+      "GH_AW_COPILOT_CONFIGURED_MODEL",
+      "GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON",
+    ])
+      delete env[key];
+    const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, driverPath, sidecarPath], {
+      cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+      env,
+      encoding: "utf8",
+      timeout: 30000,
     });
-    expect(afterSwitch).toBe(1);
-    expect(result.exitCode).toBe(1);
-    expect(disconnect).toHaveBeenCalled();
-    expect(result.output).toContain("Copilot substituted 'copilot-completions/claude-haiku-4.5'. Refusing silent model substitution.");
+    const attempts = fs.existsSync(attemptsPath) ? fs.readFileSync(attemptsPath, "utf8").trim().split("\n").length : 0;
+    return { result, attempts };
+  }
+
+  it("sdk_main_model_switch_is_substituted_and_stops", async () => {
+    const [start, firstMessage] = mainEvents();
+    // A later matching main-session record cannot clear the mismatch; sendAndWait never resolves.
+    const { result, attempts } = await runHarnessWithStubDriver({ events: [start, firstMessage, derivedMainModelChange(), firstMessage], final: null });
+
+    expect(attempts, result.stderr).toBe(1);
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stderr).toContain("stopping SDK session: Copilot model verification failed");
+    expect(result.stderr).toContain("Copilot substituted 'copilot-completions/claude-haiku-4.5'. Refusing silent model substitution.");
+    expect(result.stderr).not.toContain("retry 1/3");
     expect(selection()).toEqual({ status: "substituted", configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: "copilot-completions/claude-haiku-4.5" });
-    // The harness reads the recorded refusal, fails the attempt as copilot_model_verification
-    // (nonzero, no retry) and reports it through the CLI substitution classification.
     const diagnostic = readCopilotModelSubstitution();
-    expect(result.output).toContain(diagnostic);
+    expect(result.stderr).toContain(diagnostic);
     expect(detectErrors(diagnostic).modelNotSupportedError).toBe(true);
-    const harness = fs.readFileSync(require.resolve("./copilot_harness.cjs"), "utf8");
-    expect(harness).toContain("copilotSDKMode ? readCopilotModelSubstitution() : modelObserver.check(true)");
-    expect(harness).toMatch(/if \(result\.runtimeGuardReason === "copilot_model_verification"\) return \{ action: "stop" \};/);
     const info = path.join(root, "aw_info.json");
     fs.writeFileSync(info, "{}");
     persistCopilotModelSelection();
     expect(JSON.parse(fs.readFileSync(info, "utf8"))).toMatchObject({ model: "copilot-completions/claude-haiku-4.5", model_selection: { status: "substituted" } });
   });
 
+  it("sdk_model_verification_failure_is_not_retried", async () => {
+    // An unreadable native events.jsonl makes the post-disconnect replay fail without recording a substitution.
+    fs.mkdirSync(path.join(root, ".copilot", "session-state", SESSION_ID, "events.jsonl"), { recursive: true });
+    const { result, attempts } = await runHarnessWithStubDriver({ events: mainEvents().filter(event => event.type !== "session.shutdown"), final: finalMessage() });
+
+    expect(attempts, result.stderr).toBe(1);
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stderr).toContain("Copilot model verification failed:");
+    expect(result.stderr).not.toContain("retry 1/3");
+    expect(selection().status).toBe("observed");
+    expect(readCopilotModelSubstitution()).toBe("");
+  });
+
   it.each([
     ["matching", "gpt-5.6-luna", "observed", 0],
     // Derived test fixture: the main session served a different model than the router selected.
-    ["derived different", "gpt-5.6-sol", "substituted", 1],
+    ["derived different", "gpt-5.6-sol", "substituted", COPILOT_MODEL_VERIFICATION_EXIT_CODE],
   ])("sdk_routed_model_is_checked_against_selection_wire_model (%s main model)", async (_name, mainModel, status, exitCode) => {
     expect(routingSelection).toMatchObject({ stage: "selection", wire_model: "gpt-5.6-luna" });
     const routedModel = qualifyModelForMultiProvider(routingSelection.wire_model, providerConfig());
@@ -231,7 +315,7 @@ describe("Copilot SDK main-session model observation", () => {
         fs.writeFileSync(native, [...mainEvents().slice(0, -1), shutdown].map(event => JSON.stringify(event)).join("\n") + "\n");
       },
     });
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(COPILOT_MODEL_VERIFICATION_EXIT_CODE);
     expect(result.output).toContain("Copilot substituted 'gpt-5.6-sol'");
     expect(selection()).toMatchObject({ status: "substituted", effective_model: "gpt-5.6-sol" });
     expect(readCopilotModelSubstitution()).toContain("Refusing silent model substitution");

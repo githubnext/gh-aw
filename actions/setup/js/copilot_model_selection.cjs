@@ -10,6 +10,10 @@ const { normalizeForCopilotCLI, splitModelIdentifier } = require("./resolve_mode
 const { copilotSessionContext } = require("./copilot_session.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+// Exit code the SDK driver uses to report a main-session model verification failure (substitution
+// or unverifiable evidence) so the harness stops without retrying, as it does in CLI mode.
+const COPILOT_MODEL_VERIFICATION_EXIT_CODE = 79;
+
 function modelID(value) {
   return validateModelIdentifier(normalizeForCopilotCLI(splitModelIdentifier(String(value || "")).base));
 }
@@ -272,4 +276,4 @@ function readCopilotModelSubstitution(env = process.env) {
   }
 }
 
-module.exports = { copilotSessionStateDirectories, createCopilotModelObserver, createCopilotSDKModelObserver, readCopilotModelSubstitution, recordCopilotModelSelection, persistCopilotModelSelection };
+module.exports = { COPILOT_MODEL_VERIFICATION_EXIT_CODE, copilotSessionStateDirectories, createCopilotModelObserver, createCopilotSDKModelObserver, readCopilotModelSubstitution, recordCopilotModelSelection, persistCopilotModelSelection };

@@ -37,7 +37,7 @@ const { COPILOT_WORKFLOW_EVENT_TYPES } = require("./copilot_workflow_events.cjs"
 const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 const { qualifyModelForMultiProvider, parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
-const { createCopilotSDKModelObserver, copilotSessionStateDirectories } = require("./copilot_model_selection.cjs");
+const { COPILOT_MODEL_VERIFICATION_EXIT_CODE, createCopilotSDKModelObserver, copilotSessionStateDirectories } = require("./copilot_model_selection.cjs");
 
 const CAPTURED_EPHEMERAL_EVENTS = new Set([...COPILOT_WORKFLOW_EVENT_TYPES, "assistant.usage", "assistant.message_delta", "assistant.reasoning_delta", "model.call_failure", "model.call_final_result", "model.call_finished"]);
 
@@ -176,9 +176,10 @@ async function runWithCopilotSDK(options) {
   const verification = { modelObserver: null, sessionId: "" };
   const result = await runCopilotSDKSession({ ...options, verification });
   // Native shutdown records arrive while disconnecting, after the session result is known.
-  const modelSubstitution = verification.modelObserver && verification.sessionId ? verification.modelObserver.finalize(verification.sessionId) : "";
-  if (!modelSubstitution) return result;
-  return { ...result, exitCode: 1, output: result.output.includes(modelSubstitution) ? result.output : `${result.output}\n${modelSubstitution}` };
+  const verificationFailure = verification.modelObserver && verification.sessionId ? verification.modelObserver.finalize(verification.sessionId) : "";
+  if (!verificationFailure) return result;
+  // Any verification failure (substitution or unverifiable evidence) is reported with a dedicated exit code so the harness does not retry.
+  return { ...result, exitCode: COPILOT_MODEL_VERIFICATION_EXIT_CODE, output: result.output.includes(verificationFailure) ? result.output : `${result.output}\n${verificationFailure}` };
 }
 
 /**

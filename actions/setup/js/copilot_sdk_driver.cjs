@@ -5,7 +5,8 @@
  *
  * Minimal standalone program launched by copilot_harness.cjs.  Reads
  * configuration from environment variables, delegates the full session
- * lifecycle to copilot_sdk_session.cjs, and exits with the session's exit code.
+ * lifecycle to copilot_sdk_session.cjs, and exits with the session's exit code
+ * (COPILOT_MODEL_VERIFICATION_EXIT_CODE when main-session model verification fails).
  *
  *   GH_AW_PROMPT                            — path to the prompt file
  *   COPILOT_SDK_URI                          — SDK server URI (set by the harness)
