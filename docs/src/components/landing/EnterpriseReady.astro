@@ -1,0 +1,386 @@
+---
+import LandingSection from './LandingSection.astro';
+import Octicon from '../Octicon.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const runtimes = [
+  { name: 'Docker', icon: 'container', badge: 'Default', host: 'Linux runners · ARC DinD' },
+  { name: 'Cloud Hypervisor', icon: 'shield-lock', badge: 'Preview', host: 'GitHub-hosted Ubuntu · KVM' },
+  { name: 'NVX', icon: 'cpu', badge: 'Preview', host: 'Linux x86_64 · KVM' },
+] as const;
+const jobs = [
+  { name: 'Your actions', icon: 'code', detail: 'Prepare', agent: false },
+  { name: 'Agent', icon: 'copilot', detail: 'Reason & act', agent: true },
+  { name: 'Your jobs', icon: 'check-circle', detail: 'Build & verify', agent: false },
+] as const;
+const spans = [
+  { name: 'workflow', start: 0, width: 100 },
+  { name: 'agent', start: 16, width: 70 },
+  { name: 'MCP tools', start: 30, width: 38 },
+  { name: 'safe outputs', start: 75, width: 25 },
+];
+---
+
+<LandingSection id="enterprise" title="Enterprise ready" lede="Your infrastructure. Your trust policies. Agents that fit both.">
+  <div slot="intro" class="aw-copy">
+    <p>Bring your own <a href={`${base}/reference/self-hosted-runners/`}>Linux self-hosted runners</a>, or scale on Kubernetes with <a href={`${base}/reference/arc-dind-copilot-agent/`}>ARC and Docker-in-Docker</a>.</p>
+    <p>Choose Docker isolation or preview Cloud Hypervisor and NVX microVMs on compatible hosts. Apply <a href={`${base}/reference/integrity/`}>integrity policies</a> to filter GitHub content by author trust and merge status before it reaches the agent.</p>
+    <a class="aw-link" href={`${base}/reference/agent-runtimes/`}>Explore agent runtimes <span aria-hidden="true">→</span></a>
+  </div>
+  <figure slot="aside" class="aw-infra" aria-label="Runner and isolation options with integrity filtering">
+    <div class="aw-runner-deck aw-card">
+      <div class="aw-panel-heading"><Octicon name="server" /><span>Your GitHub Actions runners</span><span class="aw-live" aria-hidden="true" /></div>
+      <div class="aw-runner-options">
+        <span>GitHub-hosted</span><span>Self-hosted</span><span>ARC DinD</span>
+      </div>
+    </div>
+    <div class="aw-flow" aria-hidden="true"><span>Choose your isolation</span></div>
+    <div class="aw-runtime-grid">
+      {runtimes.map((runtime) => (
+        <a class="aw-runtime aw-card" href={`${base}/reference/agent-runtimes/`}>
+          <Octicon name={runtime.icon} size={28} class="aw-runtime-icon" />
+          <span class="aw-runtime-name">{runtime.name}</span>
+          <span class="aw-badge">{runtime.badge}</span>
+          <span class="aw-host">{runtime.host}</span>
+        </a>
+      ))}
+    </div>
+    <div class="aw-flow aw-flow-short" aria-hidden="true" />
+    <a class="aw-trust aw-card" href={`${base}/reference/integrity/`}>
+      <span class="aw-trust-icon"><Octicon name="filter" size={22} /></span>
+      <span><strong>Integrity filtering</strong><span class="aw-host">Your trust policy, before inference</span></span>
+      <Octicon name="shield-check" size={24} class="aw-trust-check" />
+    </a>
+    <figcaption>Runtime eligibility varies by host. Cloud Hypervisor and NVX are preview runtimes; ARC DinD uses Docker.</figcaption>
+  </figure>
+</LandingSection>
+<LandingSection id="integrations" title="Fits your existing stack" lede="Add agents without leaving your actions or observability behind.">
+  <div slot="intro" class="aw-copy">
+    <p><strong>GitHub Actions compatibility, built in.</strong> Reuse existing actions, scripts and custom jobs alongside agents. Compiled workflows run as standard GitHub Actions YAML.</p>
+    <p>Follow each run with <a href={`${base}/reference/open-telemetry/`}>OpenTelemetry</a>: workflow traces, agent execution and tool-call spans, sent to your OTLP-compatible monitoring backend.</p>
+    <a class="aw-link" href={`${base}/reference/steps-jobs/`}>Keep your actions. Add an agent. <span aria-hidden="true">→</span></a>
+  </div>
+  <figure slot="aside" class="aw-integration aw-card" aria-label="Illustrative GitHub Actions pipeline and OpenTelemetry trace">
+    <div class="aw-panel-heading"><Octicon name="file-code" /><span class="aw-mono">workflow.md → workflow.lock.yml</span></div>
+    <div class="aw-pipeline">
+      {jobs.map((job) => (
+        <div class:list={['aw-job', job.agent && 'aw-job-agent']}>
+          <Octicon name={job.icon} size={24} />
+          <strong>{job.name}</strong>
+          <span>{job.detail}</span>
+        </div>
+      ))}
+    </div>
+    <div class="aw-traces">
+      <div class="aw-trace-heading"><span class="aw-live" aria-hidden="true" /><strong>One run. A connected trace.</strong><span class="aw-badge">OpenTelemetry</span></div>
+      <div class="aw-span-list">
+        {spans.map((span, i) => (
+          <div class="aw-span-row">
+            <span class="aw-mono">{span.name}</span>
+            <div class="aw-span-track" aria-hidden="true">
+              <span class="aw-span" style={`--start: ${span.start}%; --width: ${span.width}%; --delay: ${i * 250}ms`} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div class="aw-export"><Octicon name="pulse" size={20} /><span>OTLP</span><span class="aw-export-line" aria-hidden="true" /><Octicon name="graph" size={20} /><strong>Your monitoring stack</strong></div>
+    </div>
+    <figcaption>Illustrative pipeline and trace. Configure steps, jobs and telemetry for your workflow.</figcaption>
+  </figure>
+</LandingSection>
+
+<style>
+  .aw-copy {
+    margin-top: 1.5rem;
+    max-width: 38.75rem;
+    font-size: var(--aw-step-0);
+    line-height: 1.65;
+    color: var(--aw-color-text-secondary);
+  }
+  .aw-copy p {
+    margin: 0 0 1rem;
+    text-wrap: pretty;
+  }
+  .aw-copy a:not(.aw-link) {
+    color: var(--aw-color-accent-text);
+    text-underline-offset: 0.2em;
+  }
+  .aw-infra,
+  .aw-integration {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--aw-step--1);
+  }
+  .aw-panel-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 1.25rem;
+    color: var(--aw-color-text-secondary);
+  }
+  .aw-mono {
+    font-family: var(--aw-font-mono);
+  }
+  .aw-live {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--aw-color-success);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--aw-color-success) 12%, transparent);
+  }
+  .aw-panel-heading .aw-live {
+    margin-left: auto;
+  }
+  .aw-runner-deck {
+    border-radius: var(--aw-radius-lg);
+  }
+  .aw-runner-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1.25rem 1.25rem;
+  }
+  .aw-runner-options span,
+  .aw-badge {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--aw-color-border);
+    border-radius: var(--aw-radius-pill);
+    color: var(--aw-color-text-secondary);
+    background: var(--aw-color-bg-subtle);
+  }
+  .aw-flow {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 3.75rem;
+    overflow: hidden;
+  }
+  .aw-flow::before,
+  .aw-flow::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    height: 100%;
+    width: 1px;
+    background: var(--aw-color-border-strong);
+  }
+  .aw-flow::after {
+    height: 1.25rem;
+    background: var(--aw-color-accent);
+  }
+  .aw-flow span {
+    z-index: 1;
+    padding: 0.125rem 0.75rem;
+    color: var(--aw-color-text-muted);
+    background: var(--aw-color-bg);
+  }
+  .aw-flow-short {
+    height: 1.75rem;
+  }
+  .aw-runtime-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+  .aw-runtime {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 1.5rem 0.5rem 1rem;
+    border-radius: var(--aw-radius-lg);
+    text-align: center;
+    text-decoration: none;
+    transition: transform 180ms ease, border-color 180ms ease;
+  }
+  .aw-runtime:hover,
+  .aw-runtime:focus-visible {
+    transform: translateY(-4px);
+    border-color: var(--aw-color-accent);
+  }
+  .aw-runtime-icon {
+    color: var(--aw-color-accent-text);
+  }
+  .aw-runtime-name {
+    font-weight: 550;
+    color: var(--aw-color-text-strong);
+  }
+  .aw-host {
+    display: block;
+    color: var(--aw-color-text-muted);
+    line-height: 1.5;
+  }
+  .aw-trust {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--aw-radius-lg);
+    text-decoration: none;
+    color: var(--aw-color-text);
+  }
+  .aw-trust-icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: none;
+    border-radius: var(--aw-radius-md);
+    color: var(--aw-color-accent-text);
+    background: var(--aw-color-accent-low);
+  }
+  .aw-trust-check {
+    margin-left: auto;
+    color: var(--aw-color-success);
+  }
+  figcaption {
+    margin: 1rem 0 0;
+    color: var(--aw-color-text-muted);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .aw-integration {
+    overflow: hidden;
+    border-radius: var(--aw-radius-lg);
+  }
+  .aw-integration > .aw-panel-heading {
+    border-bottom: 1px solid var(--aw-color-border);
+    overflow-wrap: anywhere;
+  }
+  .aw-pipeline {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    padding: 2rem 1.25rem;
+  }
+  .aw-job {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 1rem 0.375rem;
+    border: 1px solid var(--aw-color-border-strong);
+    border-radius: var(--aw-radius-md);
+    color: var(--aw-color-text-secondary);
+    background: var(--aw-color-bg-subtle);
+    text-align: center;
+  }
+  .aw-job + .aw-job::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: 1.25rem;
+    border-top: 1px solid var(--aw-color-border-strong);
+  }
+  .aw-job-agent {
+    color: var(--aw-color-accent-text);
+    border-color: var(--aw-color-accent);
+    background: var(--aw-color-accent-low);
+    box-shadow: 0 0 2rem color-mix(in oklab, var(--aw-color-accent) 12%, transparent);
+  }
+  .aw-traces {
+    border-top: 1px solid var(--aw-color-border);
+    padding: 1.25rem;
+  }
+  .aw-trace-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--aw-color-text-secondary);
+  }
+  .aw-trace-heading .aw-badge {
+    margin-left: auto;
+  }
+  .aw-span-list {
+    display: grid;
+    gap: 0.875rem;
+    margin-block: 1.5rem;
+  }
+  .aw-span-row {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--aw-color-text-muted);
+  }
+  .aw-span-track {
+    height: 0.75rem;
+    background: var(--aw-color-bg-subtle);
+    border-radius: var(--aw-radius-xs);
+  }
+  .aw-span {
+    display: block;
+    margin-left: var(--start);
+    width: var(--width);
+    height: 100%;
+    border-radius: var(--aw-radius-xs);
+    background: var(--aw-color-accent);
+    transform-origin: left;
+  }
+  .aw-export {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+    color: var(--aw-color-text-secondary);
+  }
+  .aw-export-line {
+    flex: 1;
+    min-width: 1rem;
+    border-top: 1px dashed var(--aw-color-accent);
+  }
+  .aw-integration figcaption {
+    margin: 0;
+    padding: 0 1.25rem 1.25rem;
+  }
+  @media (max-width: 29.99rem) {
+    .aw-runtime-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .aw-runtime {
+      display: grid;
+      grid-template-columns: 2rem minmax(0, 1fr) auto;
+      gap: 0.5rem;
+      padding: 1rem;
+      text-align: left;
+    }
+    .aw-runtime .aw-host {
+      grid-column: 2 / -1;
+    }
+    .aw-pipeline {
+      gap: 0.75rem;
+      padding-inline: 0.75rem;
+    }
+    .aw-job + .aw-job::before {
+      width: 0.75rem;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .aw-flow::after {
+      animation: aw-packet 3s ease-in-out infinite;
+    }
+    .aw-span {
+      animation: aw-trace 5s var(--aw-ease-out) var(--delay) infinite;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aw-runtime {
+      transition: none;
+    }
+  }
+  @keyframes aw-packet {
+    from { transform: translateY(-2rem); opacity: 0; }
+    25%, 75% { opacity: 1; }
+    to { transform: translateY(3rem); opacity: 0; }
+  }
+  @keyframes aw-trace {
+    0% { transform: scaleX(0); opacity: 0.4; }
+    30%, 85% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0.4; }
+  }
+</style>
