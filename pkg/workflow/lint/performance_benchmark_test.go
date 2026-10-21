@@ -14,10 +14,10 @@ import (
 // Parsing is deliberately outside measurement: every rule consumes existing ASTs.
 func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, positive bool, jobs int) Input {
 	tb.Helper()
-	source := contract.safe
+	source := contractSource(contract, target, false)
 	prompt := contract.safePrompt
 	if positive {
-		source = contract.unsafe
+		source = contractSource(contract, target, true)
 		prompt = contract.unsafePrompt
 	}
 	if target == ActionsAST {

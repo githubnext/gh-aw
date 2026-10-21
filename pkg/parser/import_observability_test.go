@@ -1,9 +1,11 @@
 package parser
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestExtractOTLPAttributesFromObsMap verifies extractOTLPAttributesFromObsMap
@@ -101,4 +103,23 @@ func TestExtractOTLPAttributesFromObsMap(t *testing.T) {
 			assert.Equal(t, tt.expected, got)
 		})
 	}
+}
+
+func TestMergeObservabilityConfigsIncludesResourceAttributes(t *testing.T) {
+	configs := []string{
+		`{"otlp":{"resource-attributes":{"shared.key":"first","first.only":"one"}}}`,
+		`{"otlp":{"resource-attributes":{"shared.key":"second","second.only":"two"}}}`,
+	}
+
+	merged := mergeObservabilityConfigs(configs)
+	require.NotEmpty(t, merged)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(merged), &result))
+	otlp := result["otlp"].(map[string]any)
+	assert.Equal(t, map[string]any{
+		"shared.key":  "first",
+		"first.only":  "one",
+		"second.only": "two",
+	}, otlp["resource-attributes"])
 }
