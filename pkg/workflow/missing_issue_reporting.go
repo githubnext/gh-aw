@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"maps"
 	"strconv"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -43,11 +44,28 @@ type MissingToolConfig = IssueReportingConfig
 type ReportIncompleteConfig = IssueReportingConfig
 
 func (c *Compiler) parseMissingDataConfig(outputMap map[string]any) *MissingDataConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-data", "[missing data]", false, true, missingDataLog)
+	return c.parseIssueReportingConfig(normalizeMissingReportKeys(outputMap), "report-missing-data", "[missing data]", false, true, missingDataLog)
 }
 
 func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
-	return c.parseIssueReportingConfig(outputMap, "missing-tool", "[missing tool]", false, true, missingToolLog)
+	return c.parseIssueReportingConfig(normalizeMissingReportKeys(outputMap), "report-missing-tool", "[missing tool]", false, true, missingToolLog)
+}
+
+func normalizeMissingReportKeys(outputMap map[string]any) map[string]any {
+	if outputMap == nil {
+		return nil
+	}
+	normalized := maps.Clone(outputMap)
+	for _, kind := range []string{"tool", "data"} {
+		legacy, canonical := "missing-"+kind, "report-missing-"+kind
+		if value, exists := normalized[legacy]; exists {
+			if _, canonicalExists := normalized[canonical]; !canonicalExists {
+				normalized[canonical] = value
+			}
+			delete(normalized, legacy)
+		}
+	}
+	return normalized
 }
 
 // parseReportIncompleteConfig handles report_incomplete configuration.

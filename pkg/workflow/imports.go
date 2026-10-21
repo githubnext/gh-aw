@@ -252,6 +252,7 @@ func getSafeOutputTypeKeys() ([]string, error) {
 //
 //nolint:largefunc // Existing import merge flow remains sequential to preserve conflict and precedence semantics.
 func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedSafeOutputsJSON []string, topRawSafeOutputs map[string]any) (*SafeOutputsConfig, error) {
+	topRawSafeOutputs = normalizeMissingReportKeys(topRawSafeOutputs)
 	importsLog.Print("Merging safe-outputs from imports")
 
 	if len(importedSafeOutputsJSON) == 0 {
@@ -309,6 +310,7 @@ func (c *Compiler) MergeSafeOutputs(topSafeOutputs *SafeOutputsConfig, importedS
 			importsLog.Printf("Skipping malformed safe-outputs config: %v", err)
 			continue
 		}
+		config = normalizeMissingReportKeys(config)
 
 		// Check for conflicts and remove types already defined in top-level config
 		// Main workflow definitions take precedence over imports (override behavior).
@@ -434,6 +436,8 @@ func mergeAutoDefaultedSafeOutput[T any](result **T, imported *T, config, topRaw
 //
 //nolint:largefunc // Existing meta-field merge flow remains centralized for consistent import semantics.
 func mergeSafeOutputConfig(result *SafeOutputsConfig, config, topRawSafeOutputs map[string]any, c *Compiler) (*SafeOutputsConfig, error) {
+	config = normalizeMissingReportKeys(config)
+	topRawSafeOutputs = normalizeMissingReportKeys(topRawSafeOutputs)
 	importsLog.Printf("Merging imported safe-output config: key_count=%d", len(config))
 	// Create a frontmatter-like structure for extractSafeOutputsConfig
 	frontmatter := map[string]any{
@@ -497,8 +501,8 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config, topRawSafeOutputs 
 	// if the import explicitly carries the key, its value wins over any auto-default in result.
 	// The nil fallback applies only when the main workflow did not explicitly configure
 	// the type (an explicit false also produces nil in the parsed result).
-	mergeAutoDefaultedSafeOutput(&result.MissingTool, importedConfig.MissingTool, config, topRawSafeOutputs, "missing-tool")
-	mergeAutoDefaultedSafeOutput(&result.MissingData, importedConfig.MissingData, config, topRawSafeOutputs, "missing-data")
+	mergeAutoDefaultedSafeOutput(&result.MissingTool, importedConfig.MissingTool, config, topRawSafeOutputs, "report-missing-tool")
+	mergeAutoDefaultedSafeOutput(&result.MissingData, importedConfig.MissingData, config, topRawSafeOutputs, "report-missing-data")
 	mergeAutoDefaultedSafeOutput(&result.NoOp, importedConfig.NoOp, config, topRawSafeOutputs, "noop")
 	mergeAutoDefaultedSafeOutput(&result.ReportIncomplete, importedConfig.ReportIncomplete, config, topRawSafeOutputs, "report-incomplete")
 	// ThreatDetection is also auto-defaulted by extractSafeOutputsConfig; apply the same

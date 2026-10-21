@@ -9,7 +9,7 @@ var diagnosticHandlerRegistry = map[string]handlerBuilder{
 		c := cfg.MissingTool
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "missing-tool", c.GitHubToken)).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "report-missing-tool", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
@@ -20,7 +20,7 @@ var diagnosticHandlerRegistry = map[string]handlerBuilder{
 		c := cfg.MissingData
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "missing-data", c.GitHubToken)).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "report-missing-data", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},

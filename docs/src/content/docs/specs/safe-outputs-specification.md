@@ -1096,7 +1096,7 @@ When no `safe-outputs:` section is present, the compiler automatically injects a
 #     title-prefix: "[<workflowID>]"
 ```
 
-This auto-injection is suppressed when any safe output type other than the system types (`noop`, `missing-tool`, `missing-data`) is explicitly configured.
+This auto-injection is suppressed when any safe output type other than the system types (`noop`, `report-missing-tool`, `report-missing-data`) is explicitly configured.
 
 **Compilation Layer**:
 
@@ -2901,7 +2901,7 @@ Paths in this table are under `actions/setup/js/`. The bounded [Git-operation mo
 
 ### 7.2 System Types
 
-System types are always available in every workflow. The types `noop`, `missing-tool`, and `missing-data` are unconditionally enabled, while `create-issue` is conditionally auto-injected when no other safe output types are explicitly configured (see Section 4.3 for auto-injection rules).
+System types are always available in every workflow. The types `noop`, `report-missing-tool`, and `report-missing-data` are unconditionally enabled, while `create-issue` is conditionally auto-injected when no other safe output types are explicitly configured (see Section 4.3 for auto-injection rules).
 
 #### Type: noop
 
@@ -4924,7 +4924,7 @@ safe-outputs:
 
 **Purpose**: Report when AI requests unavailable functionality for feature discovery.
 
-The legacy tool and output type `missing_tool` remains accepted as an alias. The YAML configuration key remains `missing-tool`.
+The YAML configuration key is `report-missing-tool`. The legacy tool/output type `missing_tool` and YAML key `missing-tool` remain accepted as aliases. `gh aw fix --write` migrates the legacy YAML key.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
@@ -4954,7 +4954,7 @@ The legacy tool and output type `missing_tool` remains accepted as an alias. The
 
 **Purpose**: Report when AI lacks required information to complete goals.
 
-The legacy tool and output type `missing_data` remains accepted as an alias. The YAML configuration key remains `missing-data`.
+The YAML configuration key is `report-missing-data`. The legacy tool/output type `missing_data` and YAML key `missing-data` remain accepted as aliases. `gh aw fix --write` migrates the legacy YAML key.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
