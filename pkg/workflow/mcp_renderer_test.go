@@ -71,6 +71,56 @@ func TestRenderJSONMCPConfig_GatewayAgentIDValidatesAgainstSchema(t *testing.T) 
 	}
 }
 
+func TestMCPRenderersPreserveMappedContainerDigests(t *testing.T) {
+	for _, image := range []string{
+		"registry.example.com/server:v1@sha256:" + strings.Repeat("a", 64),
+		"registry.example.com/server@sha256:" + strings.Repeat("b", 64),
+	} {
+		for _, format := range []string{"json", "toml"} {
+			t.Run(format+"/"+image, func(t *testing.T) {
+				mappings := map[string]string{
+					constants.DefaultGhAwNodeImage:            image,
+					"ghcr.io/github/github-mcp-server:v1.0.0": image,
+					"example.com/custom:v1":                   image,
+				}
+				data := &WorkflowData{ContainerPinMappings: mappings}
+				renderer := NewMCPConfigRenderer(MCPRendererOptions{
+					Format: format, IsLast: true, ContainerPinMappings: mappings,
+				})
+				renderers := map[string]func(*strings.Builder){
+					"safeoutputs": func(output *strings.Builder) { renderer.RenderSafeOutputsMCP(output, data) },
+					"github": func(output *strings.Builder) {
+						renderer.RenderGitHubMCP(output, map[string]any{
+							"type": "local", "version": "v1.0.0",
+						}, data)
+					},
+					"custom": func(output *strings.Builder) {
+						err := renderSharedMCPConfig(output, "custom", map[string]any{
+							"container": "example.com/custom:v1",
+						}, MCPConfigRenderer{Format: format, ContainerPinMappings: mappings})
+						if err != nil {
+							t.Fatalf("render custom MCP config: %v", err)
+						}
+					},
+				}
+				for name, render := range renderers {
+					t.Run(name, func(t *testing.T) {
+						var output strings.Builder
+						render(&output)
+						field := `"container": "` + image + `"`
+						if format == "toml" {
+							field = `container = "` + image + `"`
+						}
+						if !strings.Contains(output.String(), field) {
+							t.Fatalf("missing pinned container %s in config:\n%s", field, output.String())
+						}
+					})
+				}
+			})
+		}
+	}
+}
+
 func TestNewMCPConfigRenderer(t *testing.T) {
 	tests := []struct {
 		name    string

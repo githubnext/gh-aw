@@ -755,12 +755,13 @@ func (c *Compiler) updateConclusionJobDependencies(pushRepoMemoryJobName, pushLe
 }
 
 // ensureConclusionIsLastJob ensures the conclusion job depends on ALL other workflow jobs,
-// making it truly the last job to execute. This is a final-pass check that catches any
-// custom or auto-generated jobs that were not explicitly added to conclusion's needs
-// during the incremental build process (e.g. user-defined post-agent jobs).
+// except its isolated admission callback, making the callback the final dependent job.
+// This is a final-pass check that catches any custom or auto-generated jobs that were not
+// explicitly added to conclusion's needs during the incremental build process.
 //
 // Jobs intentionally excluded:
 //   - "conclusion" itself
+//   - the isolated conclusion-admission callback, which runs after conclusion
 //   - "pre_activation" / "pre-activation" – runs at the very start, before activation
 func (c *Compiler) ensureConclusionIsLastJob() error {
 	conclusionJob, exists := c.jobManager.GetJob("conclusion")
@@ -779,10 +780,11 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	// Jobs that must never appear in conclusion's needs
 	exclude := map[string]struct {
 	}{
-		"conclusion":                           {},
-		string(constants.GradersJobName):       {},
-		string(constants.PreActivationJobName): {},
-		"pre-activation":                       {},
+		"conclusion": {},
+		string(constants.ConclusionAdmissionJobName): {},
+		string(constants.GradersJobName):             {},
+		string(constants.PreActivationJobName):       {},
+		"pre-activation":                             {},
 	}
 
 	// Iterate over all jobs in alphabetical order for deterministic output
