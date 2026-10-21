@@ -83,6 +83,60 @@ func TestDryRunWorkflowMutationControls(t *testing.T) {
 	assert.Same(t, data, compiler.dryRunWorkflowData(data))
 }
 
+func TestDryRunCompiledCacheMode(t *testing.T) {
+	const source = `---
+on: workflow_dispatch
+strict: false
+engine: copilot
+permissions:
+  contents: read
+tools:
+  github: false
+pre-steps:
+  - uses: actions/cache@v5
+    with:
+      key: dependencies
+      path: node_modules
+jobs:
+  custom:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo custom
+---
+Test dry-run cache isolation.
+`
+	for _, host := range []string{"github.com", "ghes-cli", "ghes-config"} {
+		t.Run(host, func(t *testing.T) {
+			dir := t.TempDir()
+			if host == "ghes-config" {
+				writeAWJSON(t, dir, `{"ghes": true}`)
+			}
+			path := filepath.Join(dir, "cache.md")
+			require.NoError(t, os.WriteFile(path, []byte(source), 0600))
+			compiler := NewCompiler()
+			compiler.gitRoot = dir
+			compiler.SetSkipValidation(true)
+			compiler.SetGHESCompat(host == "ghes-cli")
+			for _, dryRun := range []bool{false, true, false} {
+				compiler.SetDryRun(dryRun)
+				require.NoError(t, compiler.CompileWorkflow(path))
+				content, err := os.ReadFile(filepath.Join(dir, "cache.lock.yml"))
+				require.NoError(t, err)
+				var compiled map[string]any
+				require.NoError(t, yaml.Unmarshal(content, &compiled))
+				require.NoError(t, compiler.validateGitHubActionsSchemaFromParsed(compiled))
+				if dryRun && host == "github.com" {
+					assert.Equal(t, "read", compiled["cache-mode"])
+				} else {
+					assert.NotContains(t, compiled, "cache-mode")
+				}
+				assert.Contains(t, string(content), "actions/cache@")
+				assert.Contains(t, compiled["jobs"], "custom")
+			}
+		})
+	}
+}
+
 func TestDevelopmentConclusion(t *testing.T) {
 	for _, policy := range []string{"true", "${{ vars.REPORT_FAILURE }}"} {
 		t.Run(policy, func(t *testing.T) {

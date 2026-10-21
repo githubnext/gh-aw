@@ -385,6 +385,11 @@ issue locking. `aw_info.json` records the boolean `dry_run` flag. Failure handli
 local diagnostics, step summaries, and run artifacts remain enabled. No new
 memory-tool fields are required; ordinary compilation preserves persistence.
 
+On GitHub.com, dry-run locks also set workflow-level `cache-mode: read`, allowing
+cache restores but preventing saves, including caches used by authored steps and
+setup actions. GHES compilation omits this setting because it is not supported
+there; compiler-managed caches remain restore-only.
+
 Dry-run compilation adds `workflow_dispatch`, preserves existing manual inputs,
 and copies reusable-workflow inputs when adding manual dispatch. Actor roles are
 restricted to `admin`/`maintainer` (including `maintain`); an existing narrower
