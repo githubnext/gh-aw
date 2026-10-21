@@ -12,6 +12,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
 const { buildWorkflowCallId, normalizeLegacyWorkQueueContext, normalizeWorkQueueContext, resolveWorkQueueRuntime, readInboundAwContext } = require("./aw_context.cjs");
 const { normalizeWebhookContext, redactWebhookPayloads } = require("./webhook_context.cjs");
+const { normalizeEngineHarness, parseCompiledModelConfig } = require("./routing_analytics.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -179,6 +180,27 @@ async function main(core, ctx, githubClient) {
     awInfo.sub_agent_models = models;
   }
 
+  // Harness identity comes from the compiled configuration, never from engine_id or model output.
+  const engineHarness = normalizeEngineHarness(process.env.GH_AW_INFO_ENGINE_HARNESS);
+  if (engineHarness) {
+    awInfo.engine_harness = engineHarness;
+  } else if (process.env.GH_AW_INFO_ENGINE_HARNESS) {
+    core.warning(`Ignoring unsupported GH_AW_INFO_ENGINE_HARNESS: ${JSON.stringify(process.env.GH_AW_INFO_ENGINE_HARNESS)}`);
+  }
+  // workflow_ref is the executing workflow reference (job.workflow_ref), distinct from caller_workflow_ref.
+  if (workflowId) {
+    awInfo.workflow_ref = workflowId;
+  }
+  const serverUrl = parseServerUrl(ctx.serverUrl || process.env.GITHUB_SERVER_URL);
+  if (serverUrl) {
+    awInfo.server_url = serverUrl;
+  }
+  // Configured routing, model policy and budget, published even when routing is disabled or later fails.
+  const modelConfig = parseCompiledModelConfig(process.env.GH_AW_INFO_MODEL_CONFIG, process.env.GH_AW_INFO_MAX_AI_CREDITS, message => core.warning(message));
+  if (modelConfig) {
+    awInfo.model_config = modelConfig;
+  }
+
   // Include aw_context when the workflow was triggered by a caller that relayed
   // orchestration context via workflow inputs or repository_dispatch client payload.
   // Validates JSON format and structure before populating the context key in aw_info.json.
@@ -302,6 +324,21 @@ async function main(core, ctx, githubClient) {
       const message = getErrorMessage(err);
       core.warning(`Failed to parse GH_AW_INFO_SKILLS: ${skillsEnv} (${message})`);
       return null;
+    }
+  }
+
+  /**
+   * Keep only the origin of an http(s) server URL.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function parseServerUrl(value) {
+    if (typeof value !== "string" || !value) return "";
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:" ? url.origin : "";
+    } catch {
+      return "";
     }
   }
 

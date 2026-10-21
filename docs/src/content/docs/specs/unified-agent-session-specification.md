@@ -298,6 +298,16 @@ while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used
 for legacy lineage matching. Both references are captured when the runner writes
 `aw_info.json`, never from the collector's environment. An unavailable executing
 reference remains empty; the caller reference is not substituted for it.
+`workflow.info.workflowRef` (runner-written `aw_info.json.workflow_ref`) repeats
+the executing reference held by `workflowId`; it is never `GITHUB_WORKFLOW_REF`.
+`serverUrl` (`server_url`) is the origin of the runner's GitHub server URL, such
+as `https://github.com`. `engineHarness` (`engine_harness`) is `copilot-cli` or
+`copilot-sdk`, compiled from the workflow's Copilot harness configuration
+(`engine.copilot-sdk`) and wired as `GH_AW_INFO_ENGINE_HARNESS`; it is never
+inferred from `engineId`, the workflow name, or model output, and is absent for
+other engines. All three are absent in sessions written before they existed;
+readers MUST treat their absence as unknown, not as a particular harness or
+server.
 
 That context describes the recorded caller: `episode.hopId` is not relabeled as
 the current run's hop, and `episode.parentHopId` remains that caller's recorded
@@ -667,7 +677,8 @@ source for opaque fields.
 | `mcp.tool_call`, `mcp.event` | Structured gateway calls or other gateway log messages. |
 | `mcp.configuration` | Sanitized pre-startup inventory from `mcp-logs/configuration.jsonl`, including detection-phase gateways when present. `servers` retains only `serverName`, recognized `transport`, explicit boolean `required`, and string `tools` filters. An empty inventory or tool filter is preserved; absent settings are not inferred. URLs, container images, commands, arguments, environment, headers, credentials, gateway settings, policies, and unknown fields are omitted before persistence. Registered secrets are additionally redacted by the session artifact writer. This records configuration, not successful connections or available tools. |
 | `firewall.http_access` | AWF network audit observations, including operational entries without a host. |
-| `firewall.token_usage`, `firewall.model_routing`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, token/time steering, tracker and other firewall messages. |
+| `firewall.token_usage`, `firewall.model_routing`, `firewall.upstream_error`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, identifier-only upstream error responses (T-UAS-078), token/time steering, tracker and other firewall messages. |
+| `model.config`, `model.baseline_estimate` | Runner-written configured routing/model policy, budget, and baseline model (T-UAS-076), and the collector's counterfactual baseline repricing for routed runs (T-UAS-077). |
 | `safe_output.request`, `safe_output.result`, `safe_output.error` | Requested operation identities, executed item identities, and available errors. Requests are not execution results. |
 | `experiment.state`, `experiment.assignment` | Downloaded state and assignment observations, including historical state retained in the supplied snapshot. |
 | `grader.manifest`, `grader.result` | Essential deterministic grader definitions/results, without scripts; grading does not invent event time. |
@@ -849,6 +860,84 @@ catalogue), `exact` (an exact id passed through unchanged), or `failed`; and
 `cause` is `null` unless `status` is `failed`, when it is `model_unavailable` or
 `catalog_unavailable` and `resolved_model` is `null`. Unknown source fields are
 excluded; an absent record does not imply that a model was or was not resolved.
+
+#### Routing analytics
+
+**T-UAS-076 — Configured model policy.** The runner (`generate_aw_info`) writes
+the compiler-wired `GH_AW_INFO_MODEL_CONFIG` and evaluated `GH_AW_INFO_MAX_AI_CREDITS`
+to `aw_info.json.model_config` before the engine starts, so the record survives
+routing selection, sub-agent resolution, and startup failures. After the agent
+exits, the agent-phase token-usage step adds `baseline_model` from runner-written
+evidence. The collector projects `runtime/aw_info.json.model_config` (or the
+selected `aw_info.json` copy) as exactly one `model.config` event per run, with
+`workflow` provenance and the aw_info source's phase and path. Sessions without
+`model_config` contain no `model.config` event; an invalid record produces an
+`invalid_model_config` collection warning rather than a partial event.
+
+| Field | Writer and provenance | Meaning |
+| --- | --- | --- |
+| `routing.enabled` | Compiler → runner | Whether `engine.model-routing` is configured. `false` is an explicit unrouted run. |
+| `routing.goal`, `routing.mode` | Compiler → runner | Configured routing objective and mode. Never the router's per-run classification (`workflow.info.modelRouting.mode`). |
+| `routing.allowedModels` | Compiler → runner | Configured routing candidates without the `github-copilot/` prefix; absent when unset or expression-valued. |
+| `models.allowed`, `models.blocked` | Compiler → runner | Configured model allow/block policy sent to AWF, kept separate from the runtime inventory and routing candidate pool. Empty lists mean no restriction; the object is absent without the firewall or when a rule is expression-valued. |
+| `maxAiCredits` | Runner | Effective per-run budget: the evaluated compiled literal or repository-default expression (`vars.GH_AW_DEFAULT_MAX_AI_CREDITS`, falling back to `1000`), or the admitted allowance. |
+| `maxAiCreditsSource` | Compiler → runner; collector | `frontmatter` (explicit `max-ai-credits`), `default` (the repository-default expression), or `admission` when an admitted `guardrail.admission` allowance replaced the configured budget. Recorded from configuration provenance, never inferred from the value. |
+| `baselineModel` | Runner (agent phase) | Concrete main model the run would use without routing, after alias resolution: the recorded `main` model resolution; for unrouted runs, `model_selection.resolved_model`; for routed Copilot runs, the configured model resolved against the run's alias map and AWF reflection. Never `auto` and never the routed selection. |
+
+All values are identifier-shaped metadata; prompts, transcripts, secrets, and
+free-form diagnostics MUST NOT be recorded. Every field other than
+`routing.enabled` is optional: an absent field is unknown, never `false`, an empty
+policy, or zero, while an explicitly recorded `false`, empty list, or number is a
+configured value. Older sessions without `model.config` have unknown policy; their
+absence MUST NOT be read as routing being disabled.
+
+**T-UAS-077 — Baseline estimate.** For runs whose `model.config` records
+`routing.enabled: true`, the collector emits one `model.baseline_estimate` event
+with `collector` provenance, phase `conclusion`. Explicitly unrouted runs and runs
+without `model.config` have no estimate; readers MUST treat a missing estimate as
+unknown, not zero. The estimate reprices each agent-phase main-agent proxy request
+(`firewall.token_usage`) at `baselineModel` with `computeInferenceAIC`, using the
+request's recorded input, output, cache-read, cache-write, and reasoning tokens and
+its `input_tokens_include_cache` semantics (provider default when absent). Each
+`request_id` is counted once. Native session accounting copies and detection- or
+evals-phase requests are never included.
+
+Attribution uses only proxy-written and runner-written evidence: requests with
+`purpose: routing_classification` are the classifier and are excluded; requests
+AWF recorded as `routed: deviated` whose requested model matches a runner-declared
+`aw_info.json.sub_agent_models` entry are sub-agent requests and are excluded;
+requests AWF recorded as `routed: as_selected` that do not match a declared
+sub-agent are main requests. Any other request — no request record, conflicting
+records, a missing request ID, or an `as_selected` request matching a declared
+sub-agent — is counted in `unattributedRequests`. `model_routing.outcome`,
+agent-authored reports, differing models or endpoints, and `xInitiator` alone are
+never attribution evidence. An undeclared sub-agent that inherits the selected
+model is indistinguishable from the main agent in this evidence.
+
+| Field | Meaning |
+| --- | --- |
+| `estimated` | Always `true`: a counterfactual estimate, not observed spend. |
+| `baselineModel` | The `model.config.baselineModel` used for pricing; absent when unknown. |
+| `aic` | Sum over priced main requests; absent when no request could be priced. |
+| `mainRequests` | Main-agent requests attributed by the rules above. |
+| `pricedRequests`, `unpricedRequests` | Main requests with and without baseline pricing and complete token counts. Unknown pricing is unpriced, never zero cost. |
+| `unattributedRequests` | Agent-phase requests that could not be attributed. |
+| `complete` | `true` only when `baselineModel` is known, at least one main request was observed, and no request is unpriced or unattributed. A priced subtotal with unpriced or unattributed requests is incomplete. |
+
+#### Upstream errors
+
+**T-UAS-078 — Identifier-only proxy errors.** The collector maps AWF
+`upstream-errors.jsonl` records (`event: UPSTREAM_ERROR_RESPONSE`, written by the
+proxy) to `firewall.upstream_error`, retaining only `requestId`, `provider`,
+`model`, `httpStatus` (from `status`), and the identifier-only `errorCode`,
+`errorType`, and `errorParam` that AWF extracted from the provider's error
+envelope. `firewall.model_routing` request records likewise retain `errorCode`,
+`errorType`, and `errorSource` (`upstream` or `awf`) from `error_code`,
+`error_type`, and `error_source`. Identifiers MUST match
+`^[A-Za-z0-9_.:-]{1,64}$`; other values are dropped, never truncated or recovered
+by parsing error text. `response_body`, response headers, endpoints, messages,
+and other payload fields MUST NOT be copied. Absent identifiers remain absent:
+a record without `error_code` has an unknown code, not an empty one.
 
 #### Model inventory
 
@@ -1674,6 +1763,9 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 | T-UAS-074 | `agent/model-resolution.json` with resolved, exact, and failed records for main and sub-agent roles; empty, non-array, malformed, and contract-violating records | One `model.resolution` event per record in array order with `model_resolution` provenance and only the contract fields; invalid sources emit collection warnings and no events. |
 | T-UAS-075 | Recorded AWF reflection from run 38995410124 with four unconfigured null endpoints; pending-fetch, legacy, and malformed-ID or capability-metadata variants | One inventory event per valid source with endpoint order, `configured`, model IDs, routing endpoints, reasoning efforts, and known context windows; null lists absent rather than empty; malformed sources warn and publish no inventory; projection is idempotent. |
+| T-UAS-076 | Real compiled inputs and agent artifacts of routed SDK, unrouted CLI, and failed routed SDK runs; older sessions without the new metadata | One `model.config` per run with configured (not selected) routing, policy, budget/source, and resolved baseline; `workflow.info` harness, executing reference, and server; older sessions keep the fields absent. |
+| T-UAS-077 | Routed run with main, sub-agent, classifier, and detection requests; replicated proxy copies; unknown pricing, malformed tokens, missing request records, unrouted runs | Only main requests repriced once with `computeInferenceAIC`; unpriced and unattributed coverage explicit; never a complete zero; unrouted runs omit the estimate. |
+| T-UAS-078 | AWF upstream-error and failed request records from gh-aw-firewall#10211 writers with and without code/type/param/source | Supplied identifiers, status, provider, model, and request ID retained; bodies, headers, and messages excluded; invalid identifiers dropped. |
 
 ### 9.3 Engine and integration fixture matrix
 

@@ -195,6 +195,19 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AWMG_VERSION: \"%s\"\n", mcpGatewayVersion)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_FIREWALL_TYPE: \"%s\"\n", firewallType)
 	fmt.Fprintf(yaml, "          GH_AW_INFO_AGENT_RUNTIME: \"%s\"\n", agentRuntime)
+	if harness := copilotEngineHarness(engineID, data); harness != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_ENGINE_HARNESS: \"%s\"\n", harness)
+	}
+	if modelConfigJSON, budget := buildAwInfoModelConfig(data); modelConfigJSON != "" {
+		fmt.Fprintf(yaml, "          GH_AW_INFO_MODEL_CONFIG: '%s'\n", strings.ReplaceAll(modelConfigJSON, "'", "''"))
+		if budget != "" {
+			if containsExpression(budget) {
+				fmt.Fprintf(yaml, "          GH_AW_INFO_MAX_AI_CREDITS: %s\n", budget)
+			} else {
+				fmt.Fprintf(yaml, "          GH_AW_INFO_MAX_AI_CREDITS: \"%s\"\n", budget)
+			}
+		}
+	}
 	// Only emit the cache-memory flag when at least one cache is configured.
 	if data.CacheMemoryConfig != nil && len(data.CacheMemoryConfig.Caches) > 0 {
 		yaml.WriteString("          GH_AW_INFO_CACHE_MEMORY: \"true\"\n")

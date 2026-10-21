@@ -11,6 +11,7 @@ const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 const { mapAWFRoutingEffort, resolveAWFModelRoutingSelection, getAWFModelRoutingPolicy } = require("./awf_model_routing.cjs");
 const { recordModelRouting, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
 const { persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { persistModelConfigBaseline } = require("./routing_analytics.cjs");
 
 const DEFAULT_GH_AW_DIR = "/tmp/gh-aw";
 /**
@@ -649,6 +650,11 @@ async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/cop
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   } finally {
+    try {
+      persistModelConfigBaseline();
+    } catch (error) {
+      core.warning(getErrorMessage(error));
+    }
     persistAgentAwInfoCopy();
     if (selectionError) core.setFailed(`${ERR_PARSE}: ${selectionError}`);
   }

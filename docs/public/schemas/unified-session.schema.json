@@ -91,6 +91,7 @@
       { "if": { "properties": { "type": { "const": "firewall.model_routing" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelRoutingData" } } } },
       { "if": { "properties": { "type": { "const": "firewall.steering" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/FirewallSteeringData" } } } },
       { "if": { "properties": { "type": { "const": "firewall.token_usage" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/UsageReportData" } } } },
+      { "if": { "properties": { "type": { "const": "firewall.upstream_error" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/FirewallUpstreamErrorData" } } } },
       { "if": { "properties": { "type": { "const": "github_api.rate_limit" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GitHubApiRateLimitData" } } } },
       { "if": { "properties": { "type": { "const": "grader.manifest" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderManifestData" } } } },
       { "if": { "properties": { "type": { "const": "grader.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderResultData" } } } },
@@ -122,6 +123,8 @@
       { "if": { "properties": { "type": { "const": "mcp.rpc.request" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.rpc.response" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.tool_call" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
+      { "if": { "properties": { "type": { "const": "model.baseline_estimate" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelBaselineEstimateData" } } } },
+      { "if": { "properties": { "type": { "const": "model.config" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelConfigData" } } } },
       { "if": { "properties": { "type": { "const": "model.inventory" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelInventoryData" } } } },
       { "if": { "properties": { "type": { "const": "model.resolution" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelResolutionData" } } } },
       { "if": { "properties": { "type": { "const": "model_endpoint.mismatch" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelEndpointMismatchData" } } } },
@@ -612,6 +615,20 @@
       "additionalProperties": false,
       "description": "AWF API proxy steering event-log observation."
     },
+    "FirewallUpstreamErrorData": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "httpStatus": { "type": "integer" },
+        "errorCode": { "type": "string", "description": "Identifier-shaped provider error code; absent means the provider did not supply one." },
+        "errorType": { "type": "string" },
+        "errorParam": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "description": "Proxy-written upstream error response, projected without bodies, headers or messages."
+    },
     "GitHubApiRateLimitData": {
       "type": "object",
       "properties": {
@@ -788,6 +805,52 @@
       },
       "additionalProperties": false
     },
+    "ModelBaselineEstimateData": {
+      "type": "object",
+      "properties": {
+        "estimated": { "type": "boolean", "const": true },
+        "baselineModel": { "type": "string" },
+        "aic": { "type": "number", "description": "Sum over priced main-agent requests; absent when no request could be priced." },
+        "mainRequests": { "type": "integer", "minimum": 0 },
+        "pricedRequests": { "type": "integer", "minimum": 0 },
+        "unpricedRequests": { "type": "integer", "minimum": 0 },
+        "unattributedRequests": { "type": "integer", "minimum": 0 },
+        "complete": { "type": "boolean", "description": "True only when every agent-phase request was attributed and every main request was priced." }
+      },
+      "required": ["estimated", "mainRequests", "pricedRequests", "unpricedRequests", "unattributedRequests", "complete"],
+      "additionalProperties": false,
+      "description": "Collector-written repricing of main-agent requests at the baseline model; routed runs only."
+    },
+    "ModelConfigData": {
+      "type": "object",
+      "properties": {
+        "routing": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "goal": { "type": "string" },
+            "mode": { "type": "string" },
+            "allowedModels": { "type": "array", "items": { "type": "string" }, "description": "Configured routing candidates without provider prefix; absent means the router default or unknown." }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false,
+          "description": "Configured routing policy, never the router's per-run selection."
+        },
+        "models": {
+          "type": "object",
+          "properties": { "allowed": { "type": "array", "items": { "type": "string" } }, "blocked": { "type": "array", "items": { "type": "string" } } },
+          "required": ["allowed", "blocked"],
+          "additionalProperties": false,
+          "description": "Configured model allow/block policy; empty lists mean no restriction was configured."
+        },
+        "maxAiCredits": { "type": "integer", "description": "Effective per-run AI credit budget.", "minimum": 1, "maximum": 2147483647 },
+        "maxAiCreditsSource": { "type": "string", "enum": ["frontmatter", "default", "admission"], "description": "Provenance of the budget: compiled frontmatter, the repository default, or the admission allowance." },
+        "baselineModel": { "type": "string", "description": "Concrete main model the run would use without routing, after alias resolution." }
+      },
+      "required": ["routing"],
+      "additionalProperties": false,
+      "description": "Runner-written configured model policy; absent fields are unknown, not false, empty or zero."
+    },
     "ModelEndpointMismatchData": {
       "type": "object",
       "properties": {
@@ -900,7 +963,10 @@
         "upstreamEndpoint": { "$ref": "#/definitions/JsonValue" },
         "unavailable": { "type": "array", "items": { "type": "string" }, "description": "Request-telemetry dimensions AWF did not observe, such as `model` and `effort`; not unavailable models." },
         "status": { "$ref": "#/definitions/JsonValue", "description": "Observed HTTP status, independent of `outcome`." },
-        "phase": { "$ref": "#/definitions/JsonValue", "description": "AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase." }
+        "phase": { "$ref": "#/definitions/JsonValue", "description": "AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase." },
+        "errorCode": { "type": "string", "description": "Identifier-only provider or AWF error code on failed request records; absent means unknown." },
+        "errorType": { "type": "string", "description": "Identifier-only provider or AWF error type on failed request records; absent means unknown." },
+        "errorSource": { "type": "string", "enum": ["upstream", "awf"], "description": "Whether a failed request was rejected by the upstream provider or by AWF; absent means unknown." }
       },
       "additionalProperties": false
     },
@@ -1154,6 +1220,7 @@
       "type": "object",
       "properties": {
         "engineId": { "$ref": "#/definitions/JsonValue" },
+        "engineHarness": { "type": "string", "enum": ["copilot-cli", "copilot-sdk"], "description": "Compiled Copilot harness; absent means unknown, never inferred from engineId." },
         "agentVersion": { "$ref": "#/definitions/JsonValue" },
         "cliVersion": { "$ref": "#/definitions/JsonValue" },
         "awfVersion": { "$ref": "#/definitions/JsonValue" },
@@ -1166,11 +1233,13 @@
         "dryRun": { "$ref": "#/definitions/JsonValue" },
         "workflow": { "$ref": "#/definitions/JsonValue" },
         "workflowId": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference supplied by the compiler from job.workflow_ref." },
+        "workflowRef": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference (job.workflow_ref); same value as workflowId." },
         "workflowCallId": { "$ref": "#/definitions/JsonValue", "description": "Current workflow invocation ID from aw_info, separate from the caller's ID." },
         "callerWorkflowRef": { "$ref": "#/definitions/JsonValue", "description": "GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows." },
         "repository": { "$ref": "#/definitions/JsonValue" },
         "runId": { "$ref": "#/definitions/JsonValue" },
         "runAttempt": { "$ref": "#/definitions/JsonValue" },
+        "serverUrl": { "$ref": "#/definitions/JsonValue", "description": "GitHub server origin, such as https://github.com." },
         "ref": { "$ref": "#/definitions/JsonValue" },
         "sha": { "$ref": "#/definitions/JsonValue" },
         "actor": { "$ref": "#/definitions/JsonValue" },

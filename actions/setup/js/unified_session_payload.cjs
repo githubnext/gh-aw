@@ -10,6 +10,10 @@ const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
 const { redactWebhookPayloads } = require("./webhook_context.cjs");
+const { isErrorIdentifier, normalizeEngineHarness } = require("./routing_analytics.cjs");
+
+/** AWF failed-request origins: provider response versus AWF-originated rejection. */
+const ERROR_SOURCES = new Set(["upstream", "awf"]);
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -365,6 +369,19 @@ const EVENT_FIELDS = {
     unavailable: ["unavailable"],
     status: ["status"],
     phase: ["phase"],
+    errorCode: ["error_code", "errorCode"],
+    errorType: ["error_type", "errorType"],
+    errorSource: ["error_source", "errorSource"],
+  },
+  // Identifier-only projection; response bodies, headers and messages are never copied.
+  "firewall.upstream_error": {
+    requestId: ["request_id", "requestId"],
+    provider: ["provider"],
+    model: ["model"],
+    httpStatus: ["status", "httpStatus"],
+    errorCode: ["error_code", "errorCode"],
+    errorType: ["error_type", "errorType"],
+    errorParam: ["error_param", "errorParam"],
   },
   "safe_output.request": SAFE_OUTPUT_FIELDS,
   "safe_output.result": SAFE_OUTPUT_FIELDS,
@@ -411,6 +428,7 @@ const EVENT_FIELDS = {
   "workflow.info": {
     dryRun: ["dryRun", "dry_run"],
     engineId: ["engineId", "engine_id", "engine"],
+    engineHarness: ["engineHarness", "engine_harness"],
     agentVersion: ["agentVersion", "agent_version"],
     cliVersion: ["cliVersion", "cli_version"],
     awfVersion: ["awfVersion", "awf_version"],
@@ -422,11 +440,13 @@ const EVENT_FIELDS = {
     triggerType: ["triggerType", "event_name"],
     workflow: ["workflow", "workflow_name"],
     workflowId: ["workflowId", "workflow_id"],
+    workflowRef: ["workflowRef", "workflow_ref"],
     workflowCallId: ["workflowCallId", "workflow_call_id"],
     callerWorkflowRef: ["callerWorkflowRef", "caller_workflow_ref"],
     repository: ["repository"],
     runId: ["runId", "run_id"],
     runAttempt: ["runAttempt", "run_attempt"],
+    serverUrl: ["serverUrl", "server_url"],
     ref: ["ref"],
     sha: ["sha"],
     actor: ["actor"],
@@ -629,8 +649,22 @@ function normalizeUnifiedSessionEvent(event, phase) {
     for (const key of ["eligibleChoices", "catalogueOverlap", "selectedEndpoint", "requestedEndpoint", "upstreamEndpoint", "status", "phase"]) {
       if (data[key] !== null && typeof data[key] === "object") delete data[key];
     }
+    for (const key of ["errorCode", "errorType"]) {
+      if (Object.hasOwn(data, key) && !isErrorIdentifier(data[key])) delete data[key];
+    }
+    if (Object.hasOwn(data, "errorSource") && !ERROR_SOURCES.has(data.errorSource)) delete data.errorSource;
+  }
+  if (event.type === "firewall.upstream_error") {
+    for (const key of ["errorCode", "errorType", "errorParam"]) {
+      if (Object.hasOwn(data, key) && !isErrorIdentifier(data[key])) delete data[key];
+    }
+    for (const key of ["requestId", "provider", "model"]) {
+      if (Object.hasOwn(data, key) && typeof data[key] !== "string") delete data[key];
+    }
+    if (Object.hasOwn(data, "httpStatus") && !(Number.isInteger(data.httpStatus) && data.httpStatus >= 100 && data.httpStatus <= 599)) delete data.httpStatus;
   }
   if (event.type === "workflow.info") {
+    if (Object.hasOwn(data, "engineHarness") && !normalizeEngineHarness(data.engineHarness)) delete data.engineHarness;
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {
       data.awContext = structuredClone(redactWebhookPayloads(awContext));
