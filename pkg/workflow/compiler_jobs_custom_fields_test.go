@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/require"
+
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
@@ -57,14 +60,24 @@ func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 			expectedRunsOn: "runs-on: ubuntu-latest",
 		},
 		{
-			name:             "array form",
-			runsOn:           []any{"self-hosted", "linux", "large"},
-			expectedContains: []string{"runs-on:", "- self-hosted", "- linux", "- large"},
+			name:           "array form",
+			runsOn:         []any{"self-hosted", "linux", "x64", "something"},
+			expectedRunsOn: "runs-on:\n      - self-hosted\n      - linux\n      - x64\n      - something",
+		},
+		{
+			name:           "single label array",
+			runsOn:         []any{"self-hosted"},
+			expectedRunsOn: "runs-on:\n      - self-hosted",
 		},
 		{
 			name:             "object form",
 			runsOn:           map[string]any{"group": "my-runners"},
 			expectedContains: []string{"runs-on:", "group: my-runners"},
+		},
+		{
+			name:           "object with labels",
+			runsOn:         map[string]any{"group": "my-runners", "labels": []any{"linux", "x64"}},
+			expectedRunsOn: "runs-on:\n      group: my-runners\n      labels:\n        - linux\n        - x64",
 		},
 		{
 			name:      "unmarshalable value returns error",
@@ -120,6 +133,42 @@ func TestBuildCustomJobsRunsOnForms(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompileCustomJobRunnerLabels(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-runner-labels")
+	testFile := filepath.Join(tmpDir, "test.md")
+	frontmatter := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+strict: false
+jobs:
+  input_parser:
+    runs-on: [self-hosted, linux, x64, something]
+    steps:
+      - run: echo test
+---
+
+# Test Workflow
+
+Test content
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+	require.NoError(t, NewCompiler().CompileWorkflow(testFile))
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "test.lock.yml"))
+	require.NoError(t, err)
+	require.Contains(t, string(content), "    runs-on:\n      - self-hosted\n      - linux\n      - x64\n      - something\n")
+
+	var compiled struct {
+		Jobs map[string]struct {
+			RunsOn any `yaml:"runs-on"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &compiled))
+	require.Equal(t, []any{"self-hosted", "linux", "x64", "something"}, compiled.Jobs["input_parser"].RunsOn)
 }
 
 // TestBuildCustomJobsNewSimpleFields tests extraction of simple job fields via CompileWorkflow

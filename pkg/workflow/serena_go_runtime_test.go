@@ -23,10 +23,14 @@ func TestSerenaGoRuntimeExposure(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, os.WriteFile(filepath.Join(dir, name), content, 0o600))
 			}
-			source := "---\non: workflow_dispatch\nengine: " + engine + "\nimports:\n  - serena-go.md\n---\nAnalyze Go with Serena.\n"
+			source := "---\non: workflow_dispatch\nengine: " + engine + "\nimports:\n  - serena-go.md\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nAnalyze Go with Serena.\n"
 			workflowPath := filepath.Join(dir, "test.md")
 			require.NoError(t, os.WriteFile(workflowPath, []byte(source), 0o600))
-			require.NoError(t, NewCompiler().CompileWorkflow(workflowPath))
+			compiler := NewCompiler()
+			data, err := compiler.ParseWorkflowFile(workflowPath)
+			require.NoError(t, err)
+			require.Empty(t, data.Runtimes, "host-only Serena setup must not opt into runtime network domains")
+			require.NoError(t, compiler.CompileWorkflow(workflowPath))
 			content, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
 			require.NoError(t, err)
 			lock := string(content)
@@ -53,27 +57,53 @@ func TestSerenaGoRuntimeExposure(t *testing.T) {
 			var compiled struct {
 				Jobs map[string]struct {
 					Steps []struct {
-						Name           string `yaml:"name"`
-						Run            string `yaml:"run"`
-						TimeoutMinutes string `yaml:"timeout-minutes"`
+						Name           string            `yaml:"name"`
+						Uses           string            `yaml:"uses"`
+						Run            string            `yaml:"run"`
+						TimeoutMinutes string            `yaml:"timeout-minutes"`
+						With           map[string]string `yaml:"with"`
 					} `yaml:"steps"`
 				} `yaml:"jobs"`
 			}
 			require.NoError(t, yaml.Unmarshal(content, &compiled))
 			var exposure, healthCheck string
-			for _, step := range compiled.Jobs["agent"].Steps {
+			nodeSetup, exposureStep, healthCheckStep, gatewayStep := -1, -1, -1, -1
+			for i, step := range compiled.Jobs["agent"].Steps {
+				if step.Name == "Setup Node.js for Serena" {
+					nodeSetup = i
+					require.True(t, strings.HasPrefix(step.Uses, "actions/setup-node@"))
+					require.Equal(t, "24", step.With["node-version"])
+				}
 				if step.Name == "Expose Go to Serena container" {
+					exposureStep = i
 					exposure = step.Run
 				}
 				if step.Name == "Check Serena Go semantic analysis" {
+					healthCheckStep = i
 					healthCheck = step.Run
 					require.Equal(t, "5", step.TimeoutMinutes)
+				}
+				if step.Name == "Start MCP Gateway" {
+					gatewayStep = i
 				}
 			}
 			require.NotEmpty(t, exposure)
 			require.NotEmpty(t, healthCheck)
-			require.Less(t, strings.Index(lock, "- name: Expose Go to Serena container"), strings.Index(lock, "- name: Start MCP Gateway"))
-			require.Less(t, strings.Index(lock, "- name: Check Serena Go semantic analysis"), strings.Index(lock, "- name: Start MCP Gateway"))
+			require.GreaterOrEqual(t, nodeSetup, 0)
+			require.GreaterOrEqual(t, exposureStep, 0)
+			require.GreaterOrEqual(t, healthCheckStep, 0)
+			require.GreaterOrEqual(t, gatewayStep, 0)
+			require.Less(t, nodeSetup, exposureStep)
+			require.Less(t, exposureStep, healthCheckStep)
+			require.Less(t, healthCheckStep, gatewayStep)
+			require.Contains(t, compiled.Jobs, "detection")
+			for jobID, job := range compiled.Jobs {
+				jobYAML, err := yaml.Marshal(job)
+				require.NoError(t, err)
+				for _, domain := range []string{"nodejs.org", "npmjs.org", "npmjs.com", "storage.googleapis.com"} {
+					require.NotContains(t, string(jobYAML), domain, "job %s must not gain Node runtime network domains", jobID)
+				}
+			}
 			testSerenaGoExposureScript(t, exposure, serverPath)
 			testSerenaGoHealthCheckScript(t, healthCheck)
 		})

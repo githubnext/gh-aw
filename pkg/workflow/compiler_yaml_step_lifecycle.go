@@ -19,6 +19,7 @@ func writeFormattedYAML(yaml *strings.Builder, format string, args ...any) {
 
 func (c *Compiler) generatePreSteps(yaml *strings.Builder, data *WorkflowData) {
 	writeStepsSection(yaml, data.PreSteps)
+	writeStepsSection(yaml, data.GeneratedPreSteps)
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
