@@ -17,6 +17,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` or `actions/github-script` code. Use environment bindings and quoted shell expansions or `process.env` instead. |
 | `workflow-run-scope` | `CTR-021` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
 | `secret-leak` | `CTR-017` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
+| `otlp-secret-leak` | `CTR-017` | AW, Actions | Secret-tainted expressions are not exported through OTLP span/resource attributes. Actions AST analysis follows modeled environment bindings; AW-only analysis checks direct references. Does not detect hard-coded credentials or arbitrary runtime values. |
 | `permission-scope` | `CTR-001` | AW, Actions | Explicit permissions avoid blanket `write-all` grants; OIDC does not use invalid `id-token: read`. Scoped writes and `id-token: write` are not automatically violations. |
 | `version-check` | `CTR-018` | AW | Authored source does not disable `check-for-updates`. |
 | `conditional-import` | `CTR-020` | AW | Configuration import entries do not contain `if`, even if false or null. Runtime prompt conditionals are unaffected. |
@@ -64,6 +65,8 @@ The four new rules produce warnings in both strict and non-strict mode. They ide
 AW checks inspect explicit execution blocks, including `safe-outputs.steps`, custom jobs, and post-steps, but do not load imports or reconstruct generated defaults. When a compiled Actions AST is supplied, it owns execution checks; the companion AW document does not duplicate steps removed or transformed by compilation. Obfuscation checks skip prompts, grader code, and unrelated AW configuration. Invalid expressions or malformed action inputs fail analysis with value-free errors while retaining findings from valid scopes.
 
 This is not complete zizmor parity. Creator-verification findings such as [#50015](https://github.com/github/gh-aw/pull/50015) require external provenance data; static ASTs do not establish creator trust. Existing specialized trigger and permission rules remain separate, and zizmor ignore comments are not AST-rule suppressions.
+
+`otlp-secret-leak` reports direct secret references in authored `observability.otlp.attributes` and `resource-attributes`, and follows modeled environment flows to Actions `GH_AW_OTLP_ATTRIBUTES` and `OTEL_RESOURCE_ATTRIBUTES` bindings. Diagnostics identify only the configuration path, never the value. The check is advisory; it does not inspect literal credentials, arbitrary runtime-generated values, or collector trust.
 
 ## Severity and source policy
 

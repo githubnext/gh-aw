@@ -755,7 +755,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | `logs_artifact_set.go` | `const` | `ArtifactSetUsage` | `const ArtifactSetUsage ArtifactSet = "usage"` | ArtifactSetUsage downloads the compact usage artifact produced by the conclusion job (aw-info. |
 | `logs_models.go` | `const` | `APICallCooldown` | `const APICallCooldown = 500 * time.Millisecond` | APICallCooldown is the minimum pause between successive batch-fetch iterations to avoid hitting the GitHub API rate limit when processing many runs in a single invocation. |
 | `logs_models.go` | `const` | `BatchSize` | `const BatchSize = 100` | BatchSize is the number of runs to fetch in each iteration |
-| `logs_models.go` | `const` | `BatchSizeForAllWorkflows` | `const BatchSizeForAllWorkflows = 250` | BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows There can be a really large number of workflow runs in a repository, so we are generous in the batch size when used without qualific… |
+| `logs_models.go` | `const` | `BatchSizeForAllWorkflows` | `const BatchSizeForAllWorkflows = 100` | Batch size when searching across all agentic workflows, capped at the GitHub API page size to avoid extra round-trips. |
 | `logs_models.go` | `const` | `GitHubActionsRetentionDays` | `const GitHubActionsRetentionDays = 90` | GitHubActionsRetentionDays is GitHub's default log-retention window for GitHub Actions workflow runs. |
 | `logs_models.go` | `const` | `MaxConcurrentDownloads` | `const MaxConcurrentDownloads = 10` | MaxConcurrentDownloads limits the number of parallel artifact downloads |
 | `logs_models.go` | `const` | `MaxIterations` | `const MaxIterations = 20` | MaxIterations limits how many batches we fetch to prevent infinite loops |
