@@ -5977,16 +5977,14 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gen_ai.usage.cache_creation.input_tokens");
     });
 
-    // CI guardrail: gh-aw.aic must be emitted as a numeric attribute alongside
-    // gh-aw.workflow.name so per-workflow AIC rollups work in Sentry EAP even
-    // when the total is zero (zero != no-data for observability purposes).
+    // Explicit zero must remain distinguishable from missing cost data.
     it("emits gh-aw.aic as a numeric zero and co-locates it with gh-aw.workflow.name on the agent span when ai_credits is 0", async () => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      // Simulate parse_token_usage.cjs writing ai_credits: 0 (firewall proxy had no AIC data).
+      // Preserve an explicit zero reported by the usage source.
       const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, cache_write_tokens: 50, ai_credits: 0 };
       readFileSpy.mockImplementation(filePath => {
         if (filePath === "/tmp/gh-aw/agent_usage.json") {
@@ -6037,28 +6035,39 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.aic"]).toBe(0.42);
     });
 
-    it("emits gh-aw.aic as numeric 0 when both agent_usage.json and agent-stdio.log are absent", async () => {
+    it.each([undefined, "not valid json", {}, { input_tokens: 100 }, { ai_credits: -1 }, { ai_credits: "unknown" }])("omits gh-aw.aic when usage has no valid cost: %j", async usage => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
-      // readFileSpy already throws ENOENT for all paths
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json" && usage !== undefined) {
+          return typeof usage === "string" ? usage : JSON.stringify(usage);
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
 
       await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
 
       const agentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       const agentSpan = agentBody.resourceSpans[0].scopeSpans[0].spans[0];
       const aicAttr = agentSpan.attributes.find(a => a.key === "gh-aw.aic");
-      // gh-aw.aic must be present as numeric 0 even when no data is available so
-      // Sentry EAP indexes the field as numeric (not string) and Tempo can query
-      // { span."gh-aw.aic" > 0 } without a manual schema override.
-      expect(aicAttr).toBeDefined();
-      // gh-aw.aic is declared as type `double` in the OTel spec; use doubleValue
-      // (not intValue) so Sentry EAP consistently indexes it as float even when
-      // the value is 0, enabling sum()/avg()/p95() rollups without schema overrides.
-      expect(aicAttr.value.doubleValue).toBe(0);
-      expect(typeof aicAttr.value.doubleValue).toBe("number");
+      expect(aicAttr).toBeUndefined();
+      const conclusionBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(conclusionBody.resourceSpans[0].scopeSpans[0].spans[0].attributes.some(a => a.key === "gh-aw.aic")).toBe(false);
+    });
+
+    it("preserves an explicit zero from GH_AW_AIC when usage files are absent", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+      process.env.GH_AW_AIC = "0";
+
+      await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.resourceSpans[0].scopeSpans[0].spans[0].attributes).toContainEqual({ key: "gh-aw.aic", value: { doubleValue: 0 } });
     });
   });
 
@@ -6180,12 +6189,13 @@ describe("sendJobConclusionSpan", () => {
       expect(keys).not.toContain("gh-aw.aic");
     });
 
-    it("includes detection-job token breakdown and cost attributes when detection writes agent_usage.json", async () => {
+    it.each(["0.125", "0"])("uses detection's own GH_AW_AIC=%s with namespaced usage evidence", async aic => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.INPUT_JOB_NAME = "detection";
       process.env.GH_AW_DETECTION_CONCLUSION = "success";
+      process.env.GH_AW_AIC = aic;
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
@@ -6193,7 +6203,7 @@ describe("sendJobConclusionSpan", () => {
 
       const usage = { input_tokens: 5000, output_tokens: 200, cache_read_tokens: 100, ai_credits: 0.125 };
       readFileSpy.mockImplementation(filePath => {
-        if (filePath === "/tmp/gh-aw/agent_usage.json") {
+        if (filePath === "/tmp/gh-aw/threat-detection/detection_usage.json") {
           return JSON.stringify(usage);
         }
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
@@ -6203,11 +6213,9 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
-      expect(attrs["gen_ai.usage.input_tokens"]).toBe(5000);
-      expect(attrs["gen_ai.usage.output_tokens"]).toBe(200);
-      expect(attrs["gen_ai.usage.cache_read.input_tokens"]).toBe(100);
-      expect(attrs["gen_ai.usage.total_tokens"]).toBe(5200);
-      expect(attrs["gh-aw.aic"]).toBe(0.125);
+      expect(attrs["gen_ai.usage.input_tokens"]).toBeUndefined();
+      expect(attrs["gen_ai.usage.total_tokens"]).toBeUndefined();
+      expect(attrs["gh-aw.aic"]).toBe(Number(aic));
       expect(attrs["gh-aw.detection.conclusion"]).toBe("success");
     });
 
@@ -6265,18 +6273,20 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.detection.reason"]).toBe("threat_detected");
     });
 
-    it("includes skipped detection result attribute on detection span when detection was not needed", async () => {
+    it.each(["skipped", "success"])("does not reuse inherited agent costs when detection is %s without its own AIC", async conclusion => {
       const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
       vi.stubGlobal("fetch", mockFetch);
 
       process.env.INPUT_JOB_NAME = "detection";
-      process.env.GH_AW_DETECTION_CONCLUSION = "skipped";
+      process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
       statSpy.mockImplementation(() => {
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
       process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
 
       readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_usage.json") return JSON.stringify({ input_tokens: 5000, ai_credits: 0.125 });
+        if (filePath === "/tmp/gh-aw/agent-stdio.log") return '{"type":"result","usage":{"ai_credits":0.42}}\n';
         throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
       });
 
@@ -6284,7 +6294,8 @@ describe("sendJobConclusionSpan", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const attrs = Object.fromEntries(body.resourceSpans[0].scopeSpans[0].spans[0].attributes.map(a => [a.key, a.value.intValue ?? a.value.doubleValue ?? a.value.stringValue]));
-      expect(attrs["gh-aw.detection.conclusion"]).toBe("skipped");
+      expect(attrs["gh-aw.detection.conclusion"]).toBe(conclusion);
+      expect(attrs["gh-aw.aic"]).toBeUndefined();
     });
 
     it("omits gen_ai token breakdown when INPUT_JOB_NAME is empty", async () => {
