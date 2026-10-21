@@ -12,6 +12,16 @@ import (
 
 const admissionJobResultCondition = "(needs.admission.result == 'success' || needs.admission.result == 'skipped')"
 
+func (c *Compiler) isAdmissionEnabled(frontmatter map[string]any) bool {
+	if on, ok := frontmatter["on"].(map[string]any); ok {
+		if enabled, ok := on["admission"].(bool); ok && enabled {
+			return true
+		}
+	}
+	repoConfig, err := c.loadRepoConfig()
+	return err == nil && repoConfig != nil && repoConfig.Admission
+}
+
 func (c *Compiler) buildConclusionAdmissionStep(data *WorkflowData) []string {
 	return []string{
 		"      - name: Report admission conclusion\n",
@@ -106,6 +116,9 @@ func (c *Compiler) buildConclusionAdmissionJob(data *WorkflowData) (*Job, error)
 }
 
 func addActivationAdmissionOutputs(ctx *activationJobBuildContext) {
+	if !ctx.data.AdmissionEnabled {
+		return
+	}
 	for _, name := range []string{"result", "max-ai-credits", "max-ai-credits-threat-detection", "max-ai-credits-evals"} {
 		ctx.outputs["admission-"+name] = "${{ needs.admission.outputs." + name + " }}"
 	}
@@ -218,14 +231,16 @@ func (c *Compiler) buildActivationAndAdmissionJobs(data *WorkflowData, preActiva
 	if err != nil {
 		return fmt.Errorf("activation job could not be built: %w. Check the workflow triggers and activation-related frontmatter fields", err)
 	}
-	admission, err := c.buildAdmissionJob(data, activation)
-	if err != nil {
-		return fmt.Errorf("admission job could not be built: %w", err)
+	if data.AdmissionEnabled {
+		admission, err := c.buildAdmissionJob(data, activation)
+		if err != nil {
+			return fmt.Errorf("admission job could not be built: %w", err)
+		}
+		if err := c.jobManager.AddJob(admission); err != nil {
+			return fmt.Errorf("admission job could not be added: %w", err)
+		}
+		c.connectActivationAdmission(activation)
 	}
-	if err := c.jobManager.AddJob(admission); err != nil {
-		return fmt.Errorf("admission job could not be added: %w", err)
-	}
-	c.connectActivationAdmission(activation)
 	if err := c.jobManager.AddJob(activation); err != nil {
 		return fmt.Errorf("activation job could not be added: %w. Check that no other job in the workflow reuses its name", err)
 	}
