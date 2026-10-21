@@ -10,15 +10,18 @@ const ruleTester = new RuleTester({
 });
 
 describe("no-child-process-interpolated-command", () => {
-  it("resolves top-level const commands without trusting mutable bindings", () => {
-    ruleTester.run("no-child-process-interpolated-command", noChildProcessInterpolatedCommandRule, {
-      valid: [
-        'const { execSync } = require("child_process"); let cmd = `git checkout ${branch}`; function run() { execSync(cmd); }',
-        'const { execSync } = require("child_process"); const cmd = "git status"; function run() { execSync(cmd); }',
-      ],
-      invalid: [{ code: 'const { execSync } = require("child_process"); const cmd = `git checkout ${branch}`; function run() { execSync(cmd); }', errors: [{ messageId: "interpolatedCommand" }] }],
+  for (const sourceType of ["module", "script", "commonjs"] as const) {
+    it(`resolves top-level const commands without trusting mutable bindings in ${sourceType}`, () => {
+      const tester = new RuleTester({ languageOptions: { ecmaVersion: 2022, sourceType } });
+      tester.run("no-child-process-interpolated-command", noChildProcessInterpolatedCommandRule, {
+        valid: [
+          'const { execSync } = require("child_process"); let cmd = `git checkout ${branch}`; function run() { execSync(cmd); }',
+          'const { execSync } = require("child_process"); const cmd = "git status"; function run() { execSync(cmd); }',
+        ],
+        invalid: [{ code: 'const { execSync } = require("child_process"); const cmd = `git checkout ${branch}`; function run() { execSync(cmd); }', errors: [{ messageId: "interpolatedCommand" }] }],
+      });
     });
-  });
+  }
 
   it("flags dynamic child_process command strings for shell-evaluated methods", () => {
     ruleTester.run("no-child-process-interpolated-command", noChildProcessInterpolatedCommandRule, {

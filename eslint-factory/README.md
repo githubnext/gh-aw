@@ -1252,6 +1252,8 @@ Disallow `async` callbacks passed to `Array.prototype.forEach()`. `forEach()` ig
 
 Calls using `.forEach(...)`, `["forEach"](...)`, or a no-substitution template literal (`` [`forEach`](...) ``) are checked, including escaped spellings whose cooked value is `forEach`. Named callbacks are resolved when bound to a single, unreassigned function declaration or a `const` initialized with a function expression or arrow function. Parameters, imports, mutable bindings, and dynamically computed property names are not resolved.
 
+Callback references are resolved across any number of enclosing function scopes, respecting shadowing. Unlike the command initializer resolution used by the exec, child-process, and GitHub request rules, enclosing-function locals are included here because these unreassigned callback bindings retain their async function identity.
+
 **Flagged form:**
 ```js
 items.forEach(async item => {

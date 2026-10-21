@@ -34,6 +34,8 @@ describe("no-async-foreach-callback", () => {
         `const [handler] = [async () => {}]; items.forEach(handler);`,
         `const handler = factory(); items.forEach(handler);`,
         `const handler = async () => {}; { const handler = () => {}; items.forEach(handler); }`,
+        `function outer() { const handler = async () => {}; function middle(handler) { function run() { items.forEach(handler); } } }`,
+        `function outer() { async function handler() {} function middle() { handler = syncHandler; function run() { items.forEach(handler); } } }`,
         { code: `import handler from "handlers"; items.forEach(handler);`, languageOptions: { sourceType: "module" } },
       ],
       invalid: [
@@ -49,6 +51,8 @@ describe("no-async-foreach-callback", () => {
         { code: `const handler = async function (x) { await f(x); }; function run() { items.forEach(handler); }`, errors: [{ messageId: "asyncForEach", type: "Identifier" }] },
         { code: `items.forEach(handler); async function handler() {}`, errors: [{ messageId: "asyncForEach", type: "Identifier" }] },
         { code: `function run() { const handler = async () => {}; { items.forEach(handler); } }`, errors: [{ messageId: "asyncForEach", type: "Identifier" }] },
+        { code: `function outer() { const handler = async () => {}; function middle() { function run() { items.forEach(handler); } } }`, errors: [{ messageId: "asyncForEach", type: "Identifier" }] },
+        { code: `function outer() { async function handler() {} function middle() { function run() { items.forEach(handler); } } }`, errors: [{ messageId: "asyncForEach", type: "Identifier" }] },
       ],
     });
   });
