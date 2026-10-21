@@ -179,8 +179,10 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
             for (const repo of parsed) {
               allowedRepos.add(repo);
             }
-            if (typeof value["target-repo"] === "string" && value["target-repo"].trim() !== "") {
-              allowedRepos.add(value["target-repo"].trim());
+            const handlerTargetRepo = parseRepoSlug(value["target-repo"]);
+            // The shared parser checks slug structure, not characters or wildcard patterns.
+            if (handlerTargetRepo && /^[A-Za-z0-9-]+$/.test(handlerTargetRepo.owner) && /^[A-Za-z0-9_.-]+$/.test(handlerTargetRepo.repo)) {
+              allowedRepos.add(`${handlerTargetRepo.owner}/${handlerTargetRepo.repo}`);
             }
           }
         }
