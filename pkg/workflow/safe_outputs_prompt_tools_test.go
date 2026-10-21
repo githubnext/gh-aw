@@ -28,7 +28,7 @@ func TestBuildSafeOutputsSectionsCodeCoverage(t *testing.T) {
 				NoOp:               &NoOpConfig{},
 				UploadCodeCoverage: tt.config,
 			}
-			sections := buildSafeOutputsSections(config, nil)
+			sections := buildSafeOutputsSections(config, nil, nil)
 			require.NotEmpty(t, sections)
 			_, enabled := computeEnabledToolNames(&WorkflowData{SafeOutputs: config})["upload_code_coverage"]
 			assert.Equal(t, tt.config != nil, enabled)
@@ -223,7 +223,7 @@ func TestBuildSafeOutputsSectionsCustomTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sections := buildSafeOutputsSections(tt.safeOutputs, nil)
+			sections := buildSafeOutputsSections(tt.safeOutputs, nil, nil)
 
 			if tt.expectNil {
 				assert.Nil(t, sections, "Expected nil sections for empty/nil config")
@@ -253,7 +253,7 @@ func TestBuildSafeOutputsSectionsWorkflowBudgetsAreShared(t *testing.T) {
 			Workflows:            []string{"first-call", "second-call"},
 		},
 		NoOp: &NoOpConfig{},
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections)
 	content := sections[0].Content
@@ -292,7 +292,7 @@ func TestBuildSafeOutputsSectionsCustomToolsConsistency(t *testing.T) {
 		},
 	}
 
-	sections := buildSafeOutputsSections(config, nil)
+	sections := buildSafeOutputsSections(config, nil, nil)
 	require.NotNil(t, sections, "Expected non-nil sections")
 
 	actualToolNames := extractToolNamesFromSections(t, sections)
@@ -361,7 +361,7 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 			},
 		},
 		NoOp: &NoOpConfig{},
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -397,8 +397,51 @@ func TestBuildSafeOutputsSectionsMaxExpressionExtraction(t *testing.T) {
 	assert.True(t, foundExpr, "EnvVars must contain the original ${{ inputs.review-comment-max }} expression")
 }
 
+func TestBuildSafeOutputsSectionsLedgerTools(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		ledgers  []LedgerConfig
+		expected []string
+	}{
+		{name: "disabled"},
+		{name: "table", ledgers: []LedgerConfig{{Name: "history", Type: "table"}}, expected: []string{"ledger_append"}},
+		{name: "untyped", ledgers: []LedgerConfig{{Name: "history"}}, expected: []string{"ledger_append"}},
+		{name: "compaction", ledgers: []LedgerConfig{{Name: "history", Type: "table", Compaction: defaultLedgerCompactionConfig()}}, expected: []string{"ledger_append", "ledger_request_compaction"}},
+		{name: "map", ledgers: []LedgerConfig{{Name: "state", Type: "map"}}, expected: []string{"ledger_map_delete", "ledger_map_put"}},
+		{name: "notes", ledgers: []LedgerConfig{{Name: "notes", Type: "notes"}}, expected: []string{"ledger_note_add", "ledger_note_vote"}},
+		{name: "mixed", ledgers: []LedgerConfig{{Name: "history", Type: "table"}, {Name: "other", Type: "table"}, {Name: "state", Type: "map"}}, expected: []string{"ledger_append", "ledger_map_delete", "ledger_map_put"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &LedgerToolConfig{Ledgers: tt.ledgers}
+			sections := buildSafeOutputsSections(nil, nil, config)
+			if len(tt.expected) == 0 {
+				require.Empty(t, sections)
+				return
+			}
+			assert.Equal(t, tt.expected, extractToolNamesFromSections(t, sections))
+
+			data := &WorkflowData{
+				Tools:        map[string]any{"ledger": map[string]any{}},
+				SafeOutputs:  &SafeOutputsConfig{NoOp: &NoOpConfig{}},
+				LedgerConfig: config,
+			}
+			servers := collectMCPServersForManifest(data)
+			var manifestTools []string
+			for _, server := range servers {
+				if server.Name == "safeoutputs" {
+					manifestTools = server.Tools
+				}
+			}
+			require.NotEmpty(t, manifestTools)
+			for _, name := range tt.expected {
+				assert.Contains(t, manifestTools, name)
+			}
+		})
+	}
+}
+
 func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) {
-	sections := buildSafeOutputsSections(nil, &CommentMemoryConfig{})
+	sections := buildSafeOutputsSections(nil, &CommentMemoryConfig{}, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 
@@ -422,7 +465,7 @@ func TestBuildSafeOutputsSections_IncludesCommentMemoryPromptFile(t *testing.T) 
 func TestBuildSafeOutputsSections_IncludesSteerPromptFile(t *testing.T) {
 	sections := buildSafeOutputsSections(&SafeOutputsConfig{
 		Steer: true,
-	}, nil)
+	}, nil, nil)
 
 	require.NotNil(t, sections, "Expected non-nil sections")
 

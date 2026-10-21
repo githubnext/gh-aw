@@ -27,18 +27,28 @@ import (
 // from the actions folder, applies the meta overrides, and writes the final
 // tools.json—avoiding inlining the entire file into the compiled workflow YAML.
 
-// generateDynamicTools generates MCP tool definitions for dynamic tools:
-// custom safe-jobs, dispatch_workflow targets, and call_workflow targets.
-// These tools are not in safe_outputs_tools.json and must be generated from
-// the workflow configuration at compile time.
-//
-//nolint:largefunc // Dynamic tool generation is intentionally kept as one exhaustive flow.
-func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string]any, error) {
-	var dynamicTools []map[string]any
+type dynamicLedgerTool struct {
+	Name        string
+	Description string
+	LedgerType  string
+	Operation   string
+	InputSchema map[string]any
+}
 
-	if data.LedgerConfig != nil {
+func (tool dynamicLedgerTool) definition() map[string]any {
+	return map[string]any{
+		"name": tool.Name, "description": tool.Description,
+		"_ledger_type": tool.LedgerType, "_ledger_operation": tool.Operation,
+		"inputSchema": tool.InputSchema,
+	}
+}
+
+func generateDynamicLedgerTools(config *LedgerToolConfig) []dynamicLedgerTool {
+	var dynamicTools []dynamicLedgerTool
+
+	if config != nil {
 		ledgerNamesByType := make(map[string][]string)
-		for _, ledger := range data.LedgerConfig.Ledgers {
+		for _, ledger := range config.Ledgers {
 			ledgerNamesByType[ledger.Type] = append(ledgerNamesByType[ledger.Type], ledger.Name)
 		}
 		for ledgerType := range ledgerNamesByType {
@@ -74,15 +84,29 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 					required = append(required, spec.field)
 				}
 			}
-			dynamicTools = append(dynamicTools, map[string]any{
-				"name": spec.name, "description": fmt.Sprintf("%s a %s ledger entry. Persistence follows trusted validation.", spec.operation, spec.ledgerType),
-				"_ledger_type": spec.ledgerType, "_ledger_operation": spec.operation,
-				"inputSchema": map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false},
+			dynamicTools = append(dynamicTools, dynamicLedgerTool{
+				Name: spec.name, Description: fmt.Sprintf("%s a %s ledger entry. Persistence follows trusted validation.", spec.operation, spec.ledgerType),
+				LedgerType: spec.ledgerType, Operation: spec.operation,
+				InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false},
 			})
 		}
 		if noteLedgers := ledgerNamesByType["notes"]; len(noteLedgers) > 0 {
 			dynamicTools = append(dynamicTools, generateNoteLedgerTools(noteLedgers)...)
 		}
+	}
+	return dynamicTools
+}
+
+// generateDynamicTools generates MCP tool definitions for dynamic tools:
+// custom safe-jobs, dispatch_workflow targets, and call_workflow targets.
+// These tools are not in safe_outputs_tools.json and must be generated from
+// the workflow configuration at compile time.
+//
+//nolint:largefunc // Dynamic tool generation is intentionally kept as one exhaustive flow.
+func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string]any, error) {
+	var dynamicTools []map[string]any
+	for _, tool := range generateDynamicLedgerTools(data.LedgerConfig) {
+		dynamicTools = append(dynamicTools, tool.definition())
 	}
 
 	// Add custom job tools from SafeOutputs.Jobs
@@ -264,7 +288,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 	return dynamicTools, nil
 }
 
-func generateNoteLedgerTools(ledgerNames []string) []map[string]any {
+func generateNoteLedgerTools(ledgerNames []string) []dynamicLedgerTool {
 	ledger := map[string]any{
 		"type": "string", "enum": ledgerNames,
 		"description": "Target notes ledger; optional when only one notes ledger exists, required otherwise.",
@@ -306,7 +330,7 @@ func generateNoteLedgerTools(ledgerNames []string) []map[string]any {
 			required: []string{"note_id", "vote"},
 		},
 	}
-	tools := make([]map[string]any, 0, len(fields))
+	tools := make([]dynamicLedgerTool, 0, len(fields))
 	actions := map[string]string{"note": "Add", "vote": "Vote on"}
 	for _, field := range fields {
 		properties := field.properties
@@ -315,11 +339,11 @@ func generateNoteLedgerTools(ledgerNames []string) []map[string]any {
 		if len(ledgerNames) > 1 {
 			required = append(required, "ledger")
 		}
-		tools = append(tools, map[string]any{
-			"name":         field.name,
-			"description":  actions[field.operation] + " a note in a notes ledger. Persistence follows trusted validation.",
-			"_ledger_type": "notes", "_ledger_operation": field.operation,
-			"inputSchema": map[string]any{
+		tools = append(tools, dynamicLedgerTool{
+			Name:        field.name,
+			Description: actions[field.operation] + " a note in a notes ledger. Persistence follows trusted validation.",
+			LedgerType:  "notes", Operation: field.operation,
+			InputSchema: map[string]any{
 				"type": "object", "properties": properties, "required": required, "additionalProperties": false,
 			},
 		})

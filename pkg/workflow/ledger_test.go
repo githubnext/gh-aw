@@ -171,7 +171,7 @@ func TestNotesLedgerToolConfiguration(t *testing.T) {
 	config.Ledgers = config.Ledgers[:1]
 	tools := generateNoteLedgerTools([]string{"alpha"})
 	for _, tool := range tools {
-		require.NotContains(t, tool["inputSchema"].(map[string]any)["required"], "ledger")
+		require.NotContains(t, tool.InputSchema["required"], "ledger")
 	}
 }
 

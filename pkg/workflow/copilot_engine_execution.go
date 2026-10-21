@@ -284,6 +284,15 @@ func (e *CopilotEngine) buildCopilotFeatureArgs(workflowData *WorkflowData, copi
 		copilotExecLog.Printf("Adding %d tool permission arguments", len(toolArgs))
 	}
 	copilotArgs = append(copilotArgs, toolArgs...)
+	if !isCopilotSDKMode(workflowData) && isFirewallEnabled(workflowData) {
+		// Copilot checks URL permissions separately from shell permissions.
+		// Mirror AWF's effective destinations without bypassing either allowlist.
+		for domain := range strings.SplitSeq(e.buildCopilotAllowedDomains(workflowData), ",") {
+			if domain = strings.TrimSpace(domain); domain != "" && domain != "*" {
+				copilotArgs = append(copilotArgs, "--allow-url", domain)
+			}
+		}
+	}
 	if dynamicWorkflowsEnabled(e, workflowData.EngineConfig) {
 		copilotArgs = append(copilotArgs, "--allow-tool", "workflow")
 	} else {

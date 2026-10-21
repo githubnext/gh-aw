@@ -47,7 +47,8 @@ func collectMCPServersForManifest(data *WorkflowData) []GHAWManifestMCPServer {
 		case "agentic-workflows":
 			add(constants.AgenticWorkflowsMCPServerID.String(), []string{"*"})
 		case "safe-outputs":
-			add(constants.SafeOutputsMCPServerID.String(), collectSafeOutputsManifestTools(data.SafeOutputs))
+			tools := append(collectSafeOutputsManifestTools(data.SafeOutputs), collectLedgerSafeOutputToolNames(data.LedgerConfig)...)
+			add(constants.SafeOutputsMCPServerID.String(), tools)
 		case "ledger":
 			add("ledger", []string{"ledger_append", "ledger_get", "ledger_query", "ledger_status"})
 		case "work-queue":

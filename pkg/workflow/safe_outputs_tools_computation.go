@@ -1,8 +1,19 @@
 package workflow
 
-import "github.com/github/gh-aw/pkg/logger"
+import (
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
+)
 
 var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_computation")
+
+func collectLedgerSafeOutputToolNames(config *LedgerToolConfig) []string {
+	enabled := computeEnabledToolNames(&WorkflowData{LedgerConfig: config})
+	for _, tool := range generateDynamicLedgerTools(config) {
+		enabled[tool.Name] = struct{}{}
+	}
+	return sliceutil.SortedKeys(enabled)
+}
 
 // computeEnabledToolNames returns the set of predefined tool names that are enabled
 // by the workflow's SafeOutputsConfig. Dynamic tools (dispatch-workflow, custom jobs,

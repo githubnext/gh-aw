@@ -116,6 +116,48 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 }
 
+func TestCopilotCLIURLPermissionsFollowFirewall(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		firewall bool
+		sdk      bool
+		domains  string
+		expected []string
+	}{
+		{name: "declared destinations", firewall: true, domains: "api.github.com,github.com,*.example.com", expected: []string{"api.github.com", "github.com", "*.example.com"}},
+		{name: "no firewall", domains: "github.com"},
+		{name: "SDK permissions remain separate", firewall: true, sdk: true, domains: "github.com"},
+		{name: "no destinations", firewall: true},
+		{name: "wildcard is not an unrestricted URL grant", firewall: true, domains: "*"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				EngineConfig:                 &EngineConfig{CopilotSDK: tt.sdk},
+				NetworkPermissions:           &NetworkPermissions{Firewall: &FirewallConfig{Enabled: tt.firewall}},
+				CachedAllowedDomainsComputed: true,
+				CachedAllowedDomainsStr:      tt.domains,
+			}
+			engine := NewCopilotEngine()
+			args := engine.buildCopilotFeatureArgs(data, nil, []string{"--allow-tool", "shell"})
+			var urls []string
+			for i, arg := range args {
+				if arg == "--allow-url" {
+					urls = append(urls, args[i+1])
+				}
+				if arg == "--allow-all-urls" || arg == "--allow-all" || arg == "--yolo" {
+					t.Fatalf("unexpected permission bypass: %s", arg)
+				}
+			}
+			if strings.Join(urls, ",") != strings.Join(tt.expected, ",") {
+				t.Fatalf("URL permissions = %v, want %v", urls, tt.expected)
+			}
+			if !strings.Contains(strings.Join(args, " "), "--allow-tool shell") {
+				t.Fatal("URL permissions must preserve shell tool permissions")
+			}
+		})
+	}
+}
+
 func TestCopilotEngineExecutionStepsWithNativeWebFetchOmitsPermission(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{

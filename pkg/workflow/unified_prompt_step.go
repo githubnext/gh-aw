@@ -170,7 +170,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection { /
 			IsFile:  true,
 		})
 		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
-		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs, data.CommentMemoryConfig)...)
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs, data.CommentMemoryConfig, data.LedgerConfig)...)
 	}
 
 	// 8a. MCP CLI tools instructions (if any MCP servers are mounted as CLIs)
@@ -516,7 +516,7 @@ func sharedToolBudget(family string, names []string, max *string) string {
 //
 // The static intro (gh CLI warning, temporary ID rules, noop note) lives in
 // actions/setup/md/safe_outputs_prompt.md and is included by the caller before these sections.
-func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *CommentMemoryConfig) []PromptSection { //nolint:largefunc // Explicit tool checks keep the agent-facing list aligned with safe-output configuration.
+func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *CommentMemoryConfig, ledger *LedgerToolConfig) []PromptSection { //nolint:largefunc // Explicit tool checks keep the agent-facing list aligned with safe-output configuration.
 	if safeOutputs == nil {
 		safeOutputs = &SafeOutputsConfig{}
 	}
@@ -735,6 +735,8 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 			tools = append(tools, stringutil.NormalizeSafeOutputIdentifier(actionName))
 		}
 	}
+
+	tools = append(tools, collectLedgerSafeOutputToolNames(ledger)...)
 
 	if len(tools) == 0 && commentMemory == nil && !safeOutputs.Steer {
 		return nil
