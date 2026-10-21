@@ -4,9 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -30,26 +33,68 @@ const (
 // MCPLogsGuardrailResponse represents the response returned by the logs tool.
 // The full data is always written to a file; this response provides the file
 // path so the caller can read the data.
-// Partial is true when the download stopped early (timeout or count limit) and
-// the written data contains a continuation cursor; Continuation then carries the
-// parameters needed to fetch the remaining logs.
+// Partial reports known collection or episode evidence gaps. Continuation and
+// Continuations preserve the available single-target and per-target cursors.
 type MCPLogsGuardrailResponse struct {
-	Message      string            `json:"message"`
-	FilePath     string            `json:"file_path,omitempty"`
-	Partial      bool              `json:"partial,omitempty"`
-	Continuation *ContinuationData `json:"continuation,omitempty"`
+	Message         string                 `json:"message"`
+	FilePath        string                 `json:"file_path,omitempty"`
+	Partial         bool                   `json:"partial,omitempty"`
+	Continuation    *ContinuationData      `json:"continuation,omitempty"`
+	Continuations   []WorkflowContinuation `json:"continuations,omitempty"`
+	CoverageStatus  string                 `json:"coverage_status,omitempty"`
+	CoverageReasons []string               `json:"coverage_reasons,omitempty"`
 }
 
-// extractLogsContinuation returns the continuation cursor embedded in the logs
-// JSON output, or nil when the output is not JSON or the results are complete.
-func extractLogsContinuation(outputStr string) *ContinuationData {
+func extractLogsCollectionState(outputStr string) MCPLogsGuardrailResponse {
 	var parsed struct {
-		Continuation *ContinuationData `json:"continuation"`
+		Continuation     *ContinuationData      `json:"continuation"`
+		Continuations    []WorkflowContinuation `json:"continuations"`
+		EpisodeRetrieval *struct {
+			StopReasons []string `json:"stop_reasons"`
+			Issues      []struct {
+				Reason string `json:"reason"`
+			} `json:"issues"`
+		} `json:"episode_retrieval"`
+		Episodes []struct {
+			Coverage EpisodeCoverage `json:"coverage"`
+		} `json:"episodes"`
 	}
 	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil {
-		return nil
+		mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse output JSON: %v", err)
+		return MCPLogsGuardrailResponse{}
 	}
-	return parsed.Continuation
+	response := MCPLogsGuardrailResponse{
+		Continuation:  parsed.Continuation,
+		Continuations: parsed.Continuations,
+		Partial:       parsed.Continuation != nil || len(parsed.Continuations) > 0,
+	}
+	if parsed.EpisodeRetrieval != nil || len(parsed.Episodes) > 0 {
+		// Selected-run coverage cannot establish complete episode membership.
+		response.CoverageStatus = "unknown"
+	}
+	for _, episode := range parsed.Episodes {
+		if episode.Coverage.Status == "partial" || episode.Coverage.CollectionTruncated {
+			response.CoverageStatus = "partial"
+		}
+		response.CoverageReasons = append(response.CoverageReasons, episode.Coverage.Reasons...)
+	}
+	if retrieval := parsed.EpisodeRetrieval; retrieval != nil {
+		for _, reason := range retrieval.StopReasons {
+			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+reason)
+		}
+		for _, issue := range retrieval.Issues {
+			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+issue.Reason)
+		}
+		if len(retrieval.StopReasons) > 0 || len(retrieval.Issues) > 0 {
+			response.CoverageStatus = "partial"
+		}
+	}
+	if response.CoverageStatus == "partial" {
+		response.Partial = true
+	}
+	slices.Sort(response.CoverageReasons)
+	response.CoverageReasons = slices.Compact(response.CoverageReasons)
+	return response
 }
 
 // extractLogsStaleWarning returns the top-level "stale_warning" field embedded
@@ -75,7 +120,7 @@ func extractLogsStaleWarning(outputStr string) string {
 // are deduplicated — if the file already exists it is not rewritten.
 // The cache directory is kept separate from the artifact download directory so
 // these summary files are never included in artifact uploads.
-func buildLogsFileResponse(outputStr string) string {
+func buildLogsFileResponse(outputStr string) string { //nolint:largefunc // Keep the existing symlink-safe cache write and response assembly together.
 	// Verify or create the cache directory. Use Lstat to detect symlinks and
 	// refuse to follow them, hardening against symlink-based directory attacks.
 	if info, err := os.Lstat(mcpLogsCacheDir); err == nil {
@@ -85,8 +130,8 @@ func buildLogsFileResponse(outputStr string) string {
 		if !info.IsDir() {
 			return buildLogsFileErrorResponse(fmt.Sprintf("logs cache path %q is not a directory", mcpLogsCacheDir))
 		}
-	} else if os.IsNotExist(err) {
-		if mkErr := os.MkdirAll(mcpLogsCacheDir, constants.DirPermPublic); mkErr != nil && !os.IsExist(mkErr) {
+	} else if errors.Is(err, fs.ErrNotExist) {
+		if mkErr := os.MkdirAll(mcpLogsCacheDir, constants.DirPermPublic); mkErr != nil && !errors.Is(mkErr, fs.ErrExist) {
 			mcpLogsGuardrailLog.Printf("Failed to create logs cache directory: %v", mkErr)
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to create logs cache directory: %v", mkErr))
 		}
@@ -117,7 +162,7 @@ func buildLogsFileResponse(outputStr string) string {
 			return buildLogsFileErrorResponse(fmt.Sprintf("failed to set logs cache file permissions: %v", chmodErr))
 		}
 		mcpLogsGuardrailLog.Printf("Logs data already cached at: %s", filePath)
-	} else if os.IsNotExist(err) {
+	} else if errors.Is(err, fs.ErrNotExist) {
 		// Write with O_EXCL to avoid following symlinks or races.
 		writeErr := func() (err error) {
 			f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, constants.FilePermPublic)
@@ -151,18 +196,22 @@ func buildLogsFileResponse(outputStr string) string {
 		return buildLogsFileErrorResponse(fmt.Sprintf("failed to access logs cache file: %v", err))
 	}
 
-	response := MCPLogsGuardrailResponse{
-		FilePath: filePath,
-	}
+	response := extractLogsCollectionState(outputStr)
+	response.FilePath = filePath
 
 	var msgs []string
-	continuation := extractLogsContinuation(outputStr)
-	if continuation != nil {
-		response.Partial = true
-		response.Continuation = continuation
-		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: the download stopped before all matching runs were collected. %s Partial logs data has been written to '%s'. Use the file_path to read the collected data and the continuation parameters to fetch the remaining logs.", continuation.Message, filePath))
+	if response.Continuation != nil || len(response.Continuations) > 0 {
+		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: the download stopped before all matching runs were collected. Collected logs data has been written to '%s'. Read file_path and resume using continuation or every per-target entry in continuations, preserving its repository and all cursor parameters.", filePath))
+		if response.Continuation != nil {
+			msgs = append(msgs, response.Continuation.Message)
+		}
+	} else if response.Partial {
+		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: episode collection or evidence has known gaps. Collected logs data has been written to '%s'. Read file_path for episode coverage and episode_retrieval bounds, counters, stop reasons and issues; no resumable cursor is available.", filePath))
 	} else {
-		msgs = append(msgs, fmt.Sprintf("Logs data has been written to '%s'. Use the file_path to read the full data.", filePath))
+		msgs = append(msgs, fmt.Sprintf("Logs data has been written to '%s'. Use file_path to read the collected report.", filePath))
+	}
+	if response.CoverageStatus != "" {
+		msgs = append(msgs, "Episode membership coverage is "+response.CoverageStatus+"; the selected runs do not establish complete episode membership.")
 	}
 	// Surface the stale-data warning (when no date range was requested and the
 	// newest run returned is unexpectedly old) directly in the tool response so

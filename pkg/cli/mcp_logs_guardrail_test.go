@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildLogsFileResponse_WritesFile(t *testing.T) {
@@ -206,6 +209,118 @@ func TestBuildLogsFileResponse_CompleteResultsNotPartial(t *testing.T) {
 
 	// Cleanup
 	_ = os.Remove(response.FilePath)
+}
+
+func TestBuildLogsFileResponse_CollectionCoverage(t *testing.T) {
+	tests := []struct {
+		name          string
+		output        string
+		partial       bool
+		status        string
+		reasons       []string
+		continuations []WorkflowContinuation
+		message       string
+	}{
+		{
+			name: "per-target continuations without a singular cursor",
+			output: `{"runs":[],"continuations":[
+				{"repository":"github/gh-aw","workflow_name":"audit","message":"Count limit reached.","count":100,"end_date":"2026-10-18T16:49:00Z","before_run_id":42},
+				{"repository":"example/other","workflow_name":"monitor","message":"Timeout reached.","start_date":"2026-10-12","before_run_id":17}
+			]}`,
+			partial: true,
+			continuations: []WorkflowContinuation{
+				{Repository: "github/gh-aw", ContinuationData: ContinuationData{WorkflowName: "audit", Message: "Count limit reached.", Count: 100, EndDate: "2026-10-18T16:49:00Z", BeforeRunID: 42}},
+				{Repository: "example/other", ContinuationData: ContinuationData{WorkflowName: "monitor", Message: "Timeout reached.", StartDate: "2026-10-12", BeforeRunID: 17}},
+			},
+			message: "every per-target entry in continuations",
+		},
+		{
+			name:    "bounded retrieval stopped without episode rows",
+			output:  `{"runs":[],"episode_retrieval":{"stop_reasons":["timeout","run_limit"],"issues":[{"reason":"discovery_failed","message":"diagnostic only in file"}]}}`,
+			partial: true,
+			status:  "partial",
+			reasons: []string{"retrieval_discovery_failed", "retrieval_run_limit", "retrieval_timeout"},
+			message: "no resumable cursor is available",
+		},
+		{
+			name:    "retrieval issues alone preserve unavailable evidence",
+			output:  `{"runs":[{"intentional_failure":true},{"conclusion":"failure"}],"episode_retrieval":{"issues":[{"reason":"recorded_run_unavailable","message":"diagnostic only in file"}]}}`,
+			partial: true,
+			status:  "partial",
+			reasons: []string{"retrieval_recorded_run_unavailable"},
+			message: "no resumable cursor is available",
+		},
+		{
+			name:    "evidence gaps are not resumable collection",
+			output:  `{"episodes":[{"coverage":{"scope":"selected_runs","status":"partial","reasons":["missing_recorded_parent"]}}]}`,
+			partial: true,
+			status:  "partial",
+			reasons: []string{"missing_recorded_parent"},
+			message: "episode collection or evidence has known gaps",
+		},
+		{
+			name:    "coverage reasons are stable and deduplicated",
+			output:  `{"episode_retrieval":{"stop_reasons":["timeout"]},"episodes":[{"coverage":{"status":"partial","reasons":["retrieval_timeout","missing_recorded_root"]}},{"coverage":{"status":"unknown","reasons":["missing_recorded_root"]}}]}`,
+			partial: true,
+			status:  "partial",
+			reasons: []string{"missing_recorded_root", "retrieval_timeout"},
+			message: "Episode membership coverage is partial",
+		},
+		{
+			name:    "truncation flag preserves partial even without status",
+			output:  `{"episodes":[{"coverage":{"collection_truncated":true}}]}`,
+			partial: true,
+			status:  "partial",
+			message: "PARTIAL RESULTS",
+		},
+		{
+			name:    "bounded retrieval without gaps remains unknown",
+			output:  `{"episode_retrieval":{"stop_reasons":[]},"episodes":[{"coverage":{"scope":"selected_runs","status":"unknown"}}]}`,
+			status:  "unknown",
+			message: "Episode membership coverage is unknown",
+		},
+		{
+			name:    "selected episodes without retrieval remain unknown",
+			output:  `{"episodes":[{"coverage":{"scope":"selected_runs","status":"unknown"}}]}`,
+			status:  "unknown",
+			message: "do not establish complete episode membership",
+		},
+		{
+			name:    "empty discovery carries no episode coverage claim",
+			output:  `{"runs":[],"episodes":[],"continuations":[]}`,
+			message: "collected report",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var response MCPLogsGuardrailResponse
+			require.NoError(t, json.Unmarshal([]byte(buildLogsFileResponse(tt.output)), &response))
+			require.NotEmpty(t, response.FilePath)
+			t.Cleanup(func() { assert.NoError(t, os.Remove(response.FilePath)) })
+			assert.Equal(t, tt.partial, response.Partial)
+			assert.Equal(t, tt.status, response.CoverageStatus)
+			assert.Equal(t, tt.reasons, response.CoverageReasons)
+			assert.Equal(t, tt.continuations, response.Continuations)
+			assert.Nil(t, response.Continuation)
+			assert.Contains(t, response.Message, tt.message)
+			assert.NotContains(t, response.Message, "read the full data")
+			assert.NotContains(t, response.Message, "diagnostic only in file")
+			data, err := os.ReadFile(response.FilePath)
+			require.NoError(t, err)
+			assert.Equal(t, tt.output, string(data), "retain the original report and intentional-failure semantics unchanged")
+		})
+	}
+}
+
+func TestExtractLogsCollectionState_PreservesBothCursorShapes(t *testing.T) {
+	output := `{"continuation":{"message":"Count limit reached.","before_run_id":42},"continuations":[{"repository":"github/gh-aw","message":"Timeout reached.","before_run_id":17}],"runs":[{"intentional_failure":true}]}`
+	response := extractLogsCollectionState(output)
+	require.NotNil(t, response.Continuation)
+	assert.Equal(t, int64(42), response.Continuation.BeforeRunID)
+	require.Len(t, response.Continuations, 1)
+	assert.Equal(t, int64(17), response.Continuations[0].BeforeRunID)
+	assert.True(t, response.Partial)
+	assert.Empty(t, response.CoverageStatus)
 }
 
 func TestBuildLogsFileResponse_SurfacesStaleDataWarning(t *testing.T) {
