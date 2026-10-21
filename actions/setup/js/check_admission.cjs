@@ -50,18 +50,11 @@ function isTransient(status) {
  */
 
 /**
- * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void, log?: (message: string) => void}} [options]
- * @returns {Promise<AdmissionResult>}
+ * @template T
+ * @param {{config: NonNullable<ReturnType<typeof readAdmissionConfig>>, body: string, parseResponse: (response: Response) => Promise<T>, acceptedStatuses?: number[], env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void, log?: (message: string) => void}} options
+ * @returns {Promise<{decision: T | undefined} & AdmissionTrace>}
  */
-async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () => performance.now(), mask = () => {}, log = () => {} } = {}) {
-  log("Admission: checking configuration (configuration values withheld).");
-  const config = readAdmissionConfig(env);
-  if (!config) {
-    log("Admission: disabled; retaining existing budget and daily-validation policy.");
-    return { result: "skipped" };
-  }
-  const body = buildAdmissionIdentity(env);
-  log("Admission: request identity validated (identity and workflow hash withheld).");
+async function requestAuthority({ config, body, parseResponse, acceptedStatuses = [200], env = process.env, fetchImpl = fetch, now = () => performance.now(), mask = () => {}, log = () => {} }) {
   const requestUrl = env.ACTIONS_ID_TOKEN_REQUEST_URL;
   const bootstrapToken = env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
   if (!requestUrl || !bootstrapToken) throw new AdmissionError();
@@ -86,7 +79,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
   let expiresAt = 0;
   /** @type {Array<{spanId: string, startMs: number, endMs: number}>} */
   const attempts = [];
-  /** @type {{maxAiCredits: number, threatDetectionMaxAiCredits?: number, evalsMaxAiCredits?: number} | undefined} */
+  /** @type {T | undefined} */
   let decision;
   try {
     decision = await withRetry(
@@ -141,19 +134,11 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
                 const headers = { authorization: `bearer ${token}`, "content-type": "application/json", "cache-control": "no-store" };
                 headers.traceparent = buildTraceparent(traceId, spanId);
                 const response = await fetchImpl(config.endpoint, { method: "POST", headers, body, redirect: "manual", signal });
-                if (response.status !== 200) {
+                if (!acceptedStatuses.includes(response.status)) {
                   discard(response);
                   throw new AdmissionError(isTransient(response.status));
                 }
-                if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:"utf-8"|utf-8))?\s*$/i.test(response.headers.get("content-type") || "")) {
-                  discard(response);
-                  throw new AdmissionError();
-                }
-                const result = parseAdmissionDecision(await readBoundedBody(response, 4096));
-                log("Admission: complete response validated; primary allowance supplied (values withheld).");
-                log(result.threatDetectionMaxAiCredits === undefined ? "Admission: detection allowance absent; retaining component policy." : "Admission: detection allowance supplied (value withheld).");
-                log(result.evalsMaxAiCredits === undefined ? "Admission: evals allowance absent; retaining component policy." : "Admission: evals allowance supplied (value withheld).");
-                return result;
+                return await parseResponse(response);
               },
               deadline,
               now
@@ -183,7 +168,39 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
   } finally {
     token = "";
   }
-  const traceContext = { traceId, parentSpanId, operationSpanId, attempts, startMs, endMs: Date.now(), endpoints };
+  return { decision, traceId, parentSpanId, operationSpanId, attempts, startMs, endMs: Date.now(), endpoints };
+}
+
+/**
+ * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void, log?: (message: string) => void}} [options]
+ * @returns {Promise<AdmissionResult>}
+ */
+async function checkAdmission(options = {}) {
+  const { env = process.env, log = () => {} } = options;
+  log("Admission: checking configuration (configuration values withheld).");
+  const config = readAdmissionConfig(env);
+  if (!config) {
+    log("Admission: disabled; retaining existing budget and daily-validation policy.");
+    return { result: "skipped" };
+  }
+  const body = buildAdmissionIdentity(env);
+  log("Admission: request identity validated (identity and workflow hash withheld).");
+  const { decision, ...traceContext } = await requestAuthority({
+    ...options,
+    config,
+    body,
+    parseResponse: async response => {
+      if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:"utf-8"|utf-8))?\s*$/i.test(response.headers.get("content-type") || "")) {
+        discard(response);
+        throw new AdmissionError();
+      }
+      const result = parseAdmissionDecision(await readBoundedBody(response, 4096));
+      log("Admission: complete response validated; primary allowance supplied (values withheld).");
+      log(result.threatDetectionMaxAiCredits === undefined ? "Admission: detection allowance absent; retaining component policy." : "Admission: detection allowance supplied (value withheld).");
+      log(result.evalsMaxAiCredits === undefined ? "Admission: evals allowance absent; retaining component policy." : "Admission: evals allowance supplied (value withheld).");
+      return result;
+    },
+  });
   if (!decision) {
     if (config.onOutage === "block") {
       log("Admission: service unavailable; outage policy blocks activation.");
@@ -280,4 +297,4 @@ async function main(core) {
   }
 }
 
-module.exports = { checkAdmission, main, OUTAGE };
+module.exports = { checkAdmission, requestAuthority, main, OUTAGE };
