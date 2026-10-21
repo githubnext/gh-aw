@@ -58,44 +58,69 @@ type DryRunScannerDifferential struct {
 }
 
 func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDifferential, error) {
-	if baselineErr := b.results[tool]; baselineErr != nil {
-		var baseline *scannerFindingsError
-		if !errors.As(baselineErr, &baseline) {
-			return nil, errors.Join(fmt.Errorf("%s baseline scan failed: %w", tool, baselineErr), err)
-		}
+	baseline, baselineErr := collectScannerDiagnostics(b.results[tool])
+	if baselineErr != nil {
+		return nil, errors.Join(fmt.Errorf("%s baseline scan failed: %w", tool, baselineErr), err)
 	}
-	var current *scannerFindingsError
-	if err != nil && !errors.As(err, &current) {
+	current, currentErr := collectScannerDiagnostics(err)
+	if currentErr != nil {
 		return nil, err
 	}
-	diff := &DryRunScannerDifferential{}
+	diff := &DryRunScannerDifferential{Baseline: len(baseline)}
 	counts := make(map[string]int)
-	var baseline *scannerFindingsError
-	if errors.As(b.results[tool], &baseline) {
-		diff.Baseline = len(baseline.diagnostics)
-		for _, diagnostic := range baseline.diagnostics {
-			counts[diagnostic.Identity]++
-		}
+	for _, diagnostic := range baseline {
+		counts[diagnostic.Identity]++
 	}
 	var added []scanfindings.Finding
-	if current != nil {
-		for _, diagnostic := range current.diagnostics {
-			finding := diagnostic.Finding
-			if finding.Severity == scanfindings.SeverityLow || finding.Severity == scanfindings.SeverityInfo {
-				diff.Ignored++
-			} else if counts[diagnostic.Identity] > 0 {
-				counts[diagnostic.Identity]--
-				diff.Existing++
-			} else {
-				diff.Added++
-				added = append(added, finding)
-			}
+	for _, diagnostic := range current {
+		finding := diagnostic.Finding
+		if finding.Severity == scanfindings.SeverityLow || finding.Severity == scanfindings.SeverityInfo {
+			diff.Ignored++
+		} else if counts[diagnostic.Identity] > 0 {
+			counts[diagnostic.Identity]--
+			diff.Existing++
+		} else {
+			diff.Added++
+			added = append(added, finding)
 		}
 	}
 	if len(added) > 0 {
 		return diff, withScannerFindings(fmt.Errorf("%s found %d added medium-or-higher or unclassified finding(s)", tool, len(added)), added)
 	}
 	return diff, nil
+}
+
+func collectScannerDiagnostics(err error) ([]scannerDiagnostic, error) {
+	if err == nil {
+		return nil, nil
+	}
+	var findings *scannerFindingsError
+	if errors.As(err, &findings) && err == findings { //nolint:errorlint // Match this node only; errors.Is would also match a joined descendant.
+		if len(findings.diagnostics) == 0 {
+			return nil, errors.New("scanner reported findings without usable diagnostics")
+		}
+		return findings.diagnostics, nil
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		children := joined.Unwrap()
+		if len(children) == 0 {
+			return nil, err
+		}
+		var diagnostics []scannerDiagnostic
+		var failures []error
+		for _, child := range children {
+			findings, failure := collectScannerDiagnostics(child)
+			diagnostics = append(diagnostics, findings...)
+			failures = append(failures, failure)
+		}
+		return diagnostics, errors.Join(failures...)
+	}
+	if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+		if child := wrapped.Unwrap(); child != nil {
+			return collectScannerDiagnostics(child)
+		}
+	}
+	return nil, err
 }
 
 func prepareDryRunScannerBaseline(ctx context.Context, config *CompileConfig, files []string, workflowDir string, compiler *workflow.Compiler) error {
@@ -225,14 +250,35 @@ func scannerFindingIdentity(finding scanfindings.Finding) string {
 func (sources scannerSources) findingIdentity(finding scanfindings.Finding) string {
 	file := normalizeScannerFile(finding.File)
 	anchor := strconv.Itoa(finding.Line) + ":" + strconv.Itoa(finding.Column)
-	if source := sources.load(file); source != nil {
+	if len(finding.Locations) > 0 {
+		var locations []string
+		for _, location := range finding.Locations {
+			locations = append(locations, sources.locationIdentity(location))
+		}
+		anchor = scannerValueDigest(fmt.Sprintf("%q", locations))
+	} else if source := sources.load(file); source != nil {
 		if location := source.locate(finding.Line, finding.Column); location != nil {
 			anchor = source.identity(location, finding.Line)
 		} else {
 			anchor += "\x00" + source.digest
 		}
 	}
-	return strings.Join([]string{file, finding.RuleID, finding.Severity.String(), finding.Message, anchor}, "\x00")
+	return scannerValueDigest(fmt.Sprintf("%q", []string{file, finding.RuleID, finding.Severity.String(), finding.Message, anchor}))
+}
+
+func (sources scannerSources) locationIdentity(location scanfindings.SourceLocation) string {
+	file := normalizeScannerFile(location.File)
+	anchor := fmt.Sprintf("%d:%d", location.Line, location.Column)
+	path := location.Path
+	if source := sources.load(file); source != nil {
+		if digest, found := source.nodes[path]; found && path != "" {
+			anchor = digest
+			path = source.pathIdentity(path)
+		} else {
+			anchor += "\x00" + source.digest
+		}
+	}
+	return scannerValueDigest(fmt.Sprintf("%q", []string{file, location.Role, path, anchor}))
 }
 
 func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {

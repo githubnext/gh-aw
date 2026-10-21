@@ -404,8 +404,12 @@ func TestZizmorEmptyDiagnosticsOnlyAllowsFilteredFindings(t *testing.T) {
 		_, _, err := parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{
 			dryRun: true, filteredWarnings: &filteredWarnings,
 		})
-		require.NoError(t, err)
-		assert.Error(t, zizmorEmptyDiagnosticsError(10, filteredWarnings), "output: %s", stdout)
+		if stdout == "null" {
+			require.NoError(t, err)
+			assert.Error(t, zizmorEmptyDiagnosticsError(10, filteredWarnings))
+		} else {
+			require.Error(t, err, "unusable findings must fail even alongside usable diagnostics")
+		}
 	}
 }
 

@@ -315,6 +315,11 @@ with stable IDs or unique names. Steps without an ID or unique name use a
 content fingerprint, so repeated names or action references do not conflate
 different steps. Ambiguous locations and unparseable workflows retain
 coordinates and a file fingerprint rather than guessing a matching field.
+Zizmor findings retain all primary and related symbolic scopes, including
+source/sink relationships across files. A stable step label locates a step but
+does not grandfather changes to its configuration. Incomplete diagnostics and
+operational errors joined with findings remain fatal; usable findings cannot
+hide partial scanner failures.
 Low-severity and informational findings remain visible but do not fail the gate.
 Zizmor's `secrets-outside-env` rule is excluded in dry-run mode because repository
 and organization secrets are common in agentic workflows; ordinary compilation

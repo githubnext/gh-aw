@@ -26,6 +26,7 @@ type scannerSource struct {
 	digest    string
 	locations []scannerSourceLocation
 	steps     map[string]string
+	nodes     map[string]string
 }
 
 type scannerSourceLocation struct {
@@ -62,12 +63,15 @@ func (sources scannerSources) load(file string) *scannerSource {
 		compileDevelopmentLog.Print("Scanner source unavailable; retaining coordinate identity")
 		return nil
 	}
-	source := &scannerSource{digest: scannerValueDigest(string(content)), steps: make(map[string]string)}
+	source := &scannerSource{
+		digest: scannerValueDigest(string(content)), steps: make(map[string]string), nodes: make(map[string]string),
+	}
 	sources[file] = source
 	if err := source.parse(file, content); err != nil {
 		// Invalid workflows still produce scanner findings. Do not match them
 		// structurally or expose source values in a parse-error diagnostic.
 		source.locations = nil
+		source.nodes = nil
 		compileDevelopmentLog.Print("Scanner AST unavailable; retaining content and coordinate identity")
 	}
 	return source
@@ -194,6 +198,11 @@ func (source *scannerSource) indexSteps(path string, steps []map[string]any) err
 }
 
 func (source *scannerSource) indexNode(node ast.Node, path string, semantic any) error {
+	content, err := json.Marshal(semantic)
+	if err != nil {
+		return fmt.Errorf("fingerprinting scanner scope: %w", err)
+	}
+	source.nodes[path] = scannerValueDigest(string(content))
 	switch value := node.(type) {
 	case *ast.MappingNode:
 		for _, field := range value.Values {
@@ -355,11 +364,21 @@ func (source *scannerSource) pathIdentity(path string) string {
 }
 
 func (source *scannerSource) identity(location *scannerSourceLocation, line int) string {
+	path := location.path
 	digest := location.digest
+	for _, field := range []string{"id", "name", "uses"} {
+		if stepPath, found := strings.CutSuffix(path, "."+field); found {
+			if _, step := source.steps[stepPath]; step {
+				path = stepPath
+				digest = source.nodes[stepPath]
+				break
+			}
+		}
+	}
 	if location.run && location.contentLine > 0 && line-source.offset >= location.contentLine {
 		if text, ok := source.lineAt(line - source.offset - 1); ok {
 			digest = scannerValueDigest(strings.TrimSpace(text))
 		}
 	}
-	return source.pathIdentity(location.path) + "\x00" + digest
+	return source.pathIdentity(path) + "\x00" + digest
 }
