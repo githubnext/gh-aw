@@ -32,7 +32,10 @@ export const noAsyncForEachCallbackRule = createRule({
         if (callee.type !== "MemberExpression") {
           return;
         }
-        const isForEach = callee.computed ? callee.property.type === "Literal" && callee.property.value === "forEach" : callee.property.type === "Identifier" && callee.property.name === "forEach";
+        const property = callee.property;
+        const isForEach = callee.computed
+          ? (property.type === "Literal" && property.value === "forEach") || (property.type === "TemplateLiteral" && property.expressions.length === 0 && property.quasis[0].value.cooked === "forEach")
+          : property.type === "Identifier" && property.name === "forEach";
         if (!isForEach) return;
         const callback = node.arguments[0];
         if (!callback) return;

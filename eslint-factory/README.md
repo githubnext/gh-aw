@@ -1250,7 +1250,7 @@ const branch = stdout.trim();
 
 Disallow `async` callbacks passed to `Array.prototype.forEach()`. `forEach()` ignores each callback's returned promise, so the work is not sequenced and rejections can go unhandled.
 
-Both `.forEach(...)` and `["forEach"](...)` calls are checked. Named callbacks are resolved when bound to a single, unreassigned function declaration or a `const` initialized with a function expression or arrow function. Parameters, imports, mutable bindings, and dynamically computed property names are not resolved.
+Calls using `.forEach(...)`, `["forEach"](...)`, or a no-substitution template literal (`` [`forEach`](...) ``) are checked, including escaped spellings whose cooked value is `forEach`. Named callbacks are resolved when bound to a single, unreassigned function declaration or a `const` initialized with a function expression or arrow function. Parameters, imports, mutable bindings, and dynamically computed property names are not resolved.
 
 **Flagged form:**
 ```js
