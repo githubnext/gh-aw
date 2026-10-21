@@ -46,18 +46,20 @@ type WorkflowHealth struct {
 
 // HealthSummary represents aggregated health metrics across all workflows
 type HealthSummary struct {
-	InsufficientWorkflows int                   `json:"insufficient_evidence_workflows"`
-	Collection            *HealthCollection     `json:"collection,omitempty"`
-	FailureClusters       []FailureCluster      `json:"failure_clusters,omitempty"`
-	FailureInvestigation  *FailureInvestigation `json:"failure_investigation,omitempty"`
-	Period                string                `json:"period"`
-	TotalWorkflows        int                   `json:"total_workflows"`
-	HealthyWorkflows      int                   `json:"healthy_workflows"`
-	Workflows             []WorkflowHealth      `json:"workflows"`
-	BelowThreshold        int                   `json:"below_threshold"`
-	DegradedWorkflows     int                   `json:"degraded_workflows"`
-	SubagentFailureCount  int                   `json:"subagent_failure_count"`
-	SubagentFailureRuns   int                   `json:"subagent_failure_runs"`
+	StatusCounts             map[string]int        `json:"status_counts"`
+	ObservedFailureWorkflows int                   `json:"observed_failure_workflows"`
+	InsufficientWorkflows    int                   `json:"insufficient_evidence_workflows"`
+	Collection               *HealthCollection     `json:"collection,omitempty"`
+	FailureClusters          []FailureCluster      `json:"failure_clusters,omitempty"`
+	FailureInvestigation     *FailureInvestigation `json:"failure_investigation,omitempty"`
+	Period                   string                `json:"period"`
+	TotalWorkflows           int                   `json:"total_workflows"`
+	HealthyWorkflows         int                   `json:"healthy_workflows"`
+	Workflows                []WorkflowHealth      `json:"workflows"`
+	BelowThreshold           int                   `json:"below_threshold"`
+	DegradedWorkflows        int                   `json:"degraded_workflows"`
+	SubagentFailureCount     int                   `json:"subagent_failure_count"`
+	SubagentFailureRuns      int                   `json:"subagent_failure_runs"`
 }
 
 // TrendDirection represents the trend of a workflow's health
@@ -196,11 +198,21 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 	healthyCount := 0
 	belowThresholdCount := 0
 	degradedCount, subagentFailures, subagentFailureRuns := 0, 0, 0
+	statusCounts := make(map[string]int)
+	observedFailures := 0
 
 	for _, wh := range workflowHealths {
+		status := wh.Status
+		if status == "" {
+			status = "unknown"
+		}
+		statusCounts[status]++
 		if wh.IntentionalFailure {
 			// Exclude from rollup counts — these workflows are expected to fail.
 			continue
+		}
+		if wh.FailureCount > 0 {
+			observedFailures++
 		}
 		subagentFailures += wh.SubagentFailureCount
 		subagentFailureRuns += wh.SubagentFailureRuns
@@ -210,7 +222,8 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 		if isHealthEvidenceInsufficient(wh.Status) {
 			continue
 		}
-		if wh.SuccessRate >= threshold && wh.SubagentFailureCount == 0 {
+		if wh.SuccessRate >= threshold && wh.SubagentFailureCount == 0 &&
+			(wh.Status == "healthy" || wh.Status == "recovery_observed" || wh.Status == "") {
 			healthyCount++
 		}
 		if wh.BelowThresh {
@@ -219,14 +232,16 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 	}
 
 	summary := HealthSummary{
-		Period:               period,
-		TotalWorkflows:       len(workflowHealths),
-		HealthyWorkflows:     healthyCount,
-		Workflows:            workflowHealths,
-		BelowThreshold:       belowThresholdCount,
-		DegradedWorkflows:    degradedCount,
-		SubagentFailureCount: subagentFailures,
-		SubagentFailureRuns:  subagentFailureRuns,
+		StatusCounts:             statusCounts,
+		ObservedFailureWorkflows: observedFailures,
+		Period:                   period,
+		TotalWorkflows:           len(workflowHealths),
+		HealthyWorkflows:         healthyCount,
+		Workflows:                workflowHealths,
+		BelowThreshold:           belowThresholdCount,
+		DegradedWorkflows:        degradedCount,
+		SubagentFailureCount:     subagentFailures,
+		SubagentFailureRuns:      subagentFailureRuns,
 	}
 	for _, wh := range workflowHealths {
 		if isHealthEvidenceInsufficient(wh.Status) {

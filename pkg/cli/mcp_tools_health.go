@@ -33,7 +33,7 @@ func registerHealthTool(server *mcp.Server, execCmd execCmdFunc) {
 		Description: `Read workflow health metrics, success rates, execution trends, and revision-aware recovery evidence.
 
 Returns the health command's JSON summary for all workflows, or a detailed JSON report when workflow_name is supplied.
-Reports use a bounded current-revision sample, not exhaustive history. Failure clusters and sub-agent failures use only existing cached logs; no artifacts are downloaded.
+Reports use a bounded current-revision sample, not exhaustive history. Failure clusters reuse typed Jobs API observations and compatible cached evidence; sub-agent failures require current-version cached usage. Cache compatibility and job-evidence completeness are explicit; no artifacts are downloaded.
 Uses the server's existing GitHub credentials and does not modify workflows or cached logs.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args healthArgs) (*mcp.CallToolResult, any, error) {
 		if err := ctx.Err(); err != nil {

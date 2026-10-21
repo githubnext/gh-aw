@@ -143,7 +143,9 @@ func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, erro
 	if run.Attempt > 0 {
 		endpoint += fmt.Sprintf("/attempts/%d", run.Attempt)
 	}
+	before := collection.APIRequests
 	out, err := healthAPI(collection, path.Join(endpoint, "jobs")+"?per_page=1")
+	collection.JobRequests += collection.APIRequests - before
 	if err != nil {
 		return false, fmt.Errorf("failed to check jobs for health run %d: %w", run.DatabaseID, err)
 	}
