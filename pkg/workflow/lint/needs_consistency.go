@@ -45,6 +45,9 @@ func checkNeedsConsistency(ctx context.Context, input Input) ([]Diagnostic, erro
 	if err := checker.index(ctx, input); err != nil {
 		return nil, err
 	}
+	if err := checker.prompt(ctx, input); err != nil {
+		return checker.diagnostics, err
+	}
 	if checker.root != nil {
 		if err := checker.expressions(ctx, &needsJob{fields: checker.root}); err != nil {
 			return checker.diagnostics, err

@@ -51,14 +51,16 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	builtinSections := c.collectPromptSections(data)
 	compilerYamlPromptLog.Printf("Collected %d built-in prompt sections", len(builtinSections))
 
-	// Process imports and enrich with main-markdown expressions, activation filters,
-	// and experiment mappings.
+	// Process imports and enrich with main-markdown and experiment mappings.
 	userPromptChunks, expressionMappings := c.processPromptImportEntries(data)
 	expressionMappings = c.enrichExpressionMappings(data, expressionMappings, beforeActivationJobs)
 
 	// Build main workflow content chunks (inline embed or runtime-import macro) and
 	// collect any additional expression mappings from inlined markdown.
 	userPromptChunks, expressionMappings = c.buildMainWorkflowPromptChunks(data, userPromptChunks, expressionMappings)
+	promptMarkdown := data.MarkdownContent + "\n" + data.ImportedMarkdown + "\n" + c.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+	expressionMappings, data.DeferredPromptExpressions = rewriteDeferredPromptExpressions(expressionMappings, data.Jobs, beforeActivationJobs, promptMarkdown)
+	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
 
 	// Enhance entity number expressions with || inputs.item_number fallback when the
 	// workflow has a workflow_dispatch trigger with item_number.
@@ -82,12 +84,23 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 		generatePlaceholderSubstitutionStep(yaml, allExpressionMappings, "      ", data)
 	}
 
-	writePromptBashStep(yaml, "Validate prompt placeholders", "validate_prompt_placeholders.sh")
+	if len(data.DeferredPromptExpressions) > 0 {
+		yaml.WriteString("      - name: Validate prompt placeholders\n        env:\n")
+		fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+		var placeholders []string
+		for _, mapping := range data.DeferredPromptExpressions {
+			placeholders = append(placeholders, "__"+mapping.EnvVar+"__")
+		}
+		fmt.Fprintf(yaml, "          GH_AW_DEFERRED_PLACEHOLDERS: '%s'\n", strings.Join(placeholders, " ")) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+		yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh\"\n")
+	} else {
+		writePromptBashStep(yaml, "Validate prompt placeholders", "validate_prompt_placeholders.sh")
+	}
 	writePromptBashStep(yaml, "Print prompt", "print_prompt_summary.sh")
 }
 
-// enrichExpressionMappings extracts expressions from the main workflow markdown, filters them
-// for activation, and appends experiment expression mappings.
+// enrichExpressionMappings extracts expressions from the main workflow markdown
+// and appends experiment expression mappings.
 func (c *Compiler) enrichExpressionMappings(data *WorkflowData, expressionMappings []*ExpressionMapping, beforeActivationJobs []string) []*ExpressionMapping {
 	if !c.inlinePrompt && !data.InlinedImports && data.MainWorkflowMarkdown != "" {
 		compilerYamlPromptLog.Printf("Extracting expressions from main workflow markdown (%d bytes)", len(data.MainWorkflowMarkdown))
@@ -106,7 +119,6 @@ func (c *Compiler) enrichExpressionMappings(data *WorkflowData, expressionMappin
 			expressionMappings = append(expressionMappings, runtimeImportExprMappings...)
 		}
 	}
-	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
 	if len(data.Experiments) > 0 {
 		experimentMappings := ExperimentExpressionMappings(data.Experiments)
 		compilerYamlPromptLog.Printf("Adding %d experiment expression mapping(s)", len(experimentMappings))

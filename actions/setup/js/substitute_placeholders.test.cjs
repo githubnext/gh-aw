@@ -104,6 +104,28 @@ describe("substitutePlaceholders", () => {
     expect(fs.readFileSync(promptPath, "utf8")).toBe("developer");
   });
 
+  it.each(["123", "", "value with ${{ literal }} and $(literal)\nnext line"])("resolves late job outputs after activation without changing split prompts (%j)", async value => {
+    const promptPath = path.join(tempDir, "prompt.txt");
+    const systemPath = path.join(tempDir, "system.txt");
+    const userPath = path.join(tempDir, "user.txt");
+    const system = "System instructions\n";
+    const user = "Release: __GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID__";
+    fs.writeFileSync(systemPath, system);
+    fs.writeFileSync(userPath, user);
+    fs.writeFileSync(promptPath, system + user);
+
+    await substitutePlaceholders({
+      file: promptPath,
+      substitutions: { GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID: "__GH_AW_DEFERRED_1234__" },
+    });
+    expect(fs.readFileSync(promptPath, "utf8")).toBe(system + "Release: __GH_AW_DEFERRED_1234__");
+
+    await substitutePlaceholders({ file: promptPath, substitutions: { GH_AW_DEFERRED_1234: value } });
+    expect(fs.readFileSync(systemPath, "utf8")).toBe(system);
+    expect(fs.readFileSync(userPath, "utf8")).toBe("Release: " + value);
+    expect(fs.readFileSync(promptPath, "utf8")).toBe(system + "Release: " + value);
+  });
+
   it("substitutes split files for a custom combined prompt filename", async () => {
     const systemPath = path.join(tempDir, "system.txt");
     const userPath = path.join(tempDir, "user.txt");

@@ -119,4 +119,26 @@ else
 fi
 echo ""
 
+echo "Testing compiler-declared deferred placeholders"
+printf '%s\n' 'Release: __GH_AW_DEFERRED_1234__' > "$TEST_DIR/deferred.txt"
+export GH_AW_PROMPT="$TEST_DIR/deferred.txt"
+export GH_AW_DEFERRED_PLACEHOLDERS="__GH_AW_DEFERRED_1234__"
+OUTPUT=$(bash "$SCRIPT_PATH" 2>&1)
+if echo "$OUTPUT" | grep -q "Warning"; then
+    echo "Deferred placeholder unexpectedly produced a warning"
+    exit 1
+fi
+unset GH_AW_DEFERRED_PLACEHOLDERS
+if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
+    echo "Undeclared deferred placeholder was accepted"
+    exit 1
+fi
+export GH_AW_DEFERRED_PLACEHOLDERS="__GH_AW_DEFERRED_1234__"
+printf '%s\n' 'Other: __GH_AW_UNEXPECTED__' >> "$TEST_DIR/deferred.txt"
+if bash "$SCRIPT_PATH" > /dev/null 2>&1; then
+    echo "Unrelated placeholder was accepted alongside a deferred binding"
+    exit 1
+fi
+unset GH_AW_DEFERRED_PLACEHOLDERS
+
 echo "🎉 All validation tests passed!"

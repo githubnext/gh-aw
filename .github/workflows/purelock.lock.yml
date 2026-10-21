@@ -324,6 +324,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
+          GH_AW_NEEDS_PURELOCK_PRECOMPUTE_OUTPUTS_COVERAGE_SOURCE: ${{ '__GH_AW_DEFERRED_690FE2B788A8BCD1__' }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
           GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_pull_request, upload_code_coverage, report_missing_tool, report_missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "<issue-steering>\nThe steering issue for this run is #__GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER__.\n\n"
@@ -351,6 +352,7 @@ jobs:
           GH_AW_SKILL_DIR: ".codex/skills"
           GH_AW_SKILL_EXT: "/SKILL.md"
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_PURELOCK_PRECOMPUTE_OUTPUTS_COVERAGE_SOURCE: ${{ '__GH_AW_DEFERRED_690FE2B788A8BCD1__' }}
         with:
           script: |
             const path = require('path');
@@ -377,6 +379,7 @@ jobs:
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
+          GH_AW_NEEDS_PURELOCK_PRECOMPUTE_OUTPUTS_COVERAGE_SOURCE: '__GH_AW_DEFERRED_690FE2B788A8BCD1__'
         with:
           script: |
             const path = require('path');
@@ -403,14 +406,15 @@ jobs:
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
                 GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
+                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
+                GH_AW_NEEDS_PURELOCK_PRECOMPUTE_OUTPUTS_COVERAGE_SOURCE: process.env.GH_AW_NEEDS_PURELOCK_PRECOMPUTE_OUTPUTS_COVERAGE_SOURCE
               }
             });
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
-        run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
+          GH_AW_DEFERRED_PLACEHOLDERS: '__GH_AW_DEFERRED_690FE2B788A8BCD1__'
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
@@ -639,6 +643,27 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      - name: Resolve deferred prompt expressions
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_DEFERRED_690FE2B788A8BCD1: ${{ needs.purelock_precompute.outputs.coverage_source }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+
+            const substitutePlaceholders = require(path.join(actionsDir, 'substitute_placeholders.cjs'));
+
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              substitutions: {
+                GH_AW_DEFERRED_690FE2B788A8BCD1: process.env.GH_AW_DEFERRED_690FE2B788A8BCD1
+              }
+            });
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_cache_memory_dir.sh"

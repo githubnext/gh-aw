@@ -57,6 +57,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	// turn. Unlike cache-memory/repo-memory (pure restores), comment-memory fetches comment
 	// content via the GitHub API, which is available at this point in the job.
 	c.generateActivationArtifactAndCommentMemorySteps(yaml, data)
+	generatePlaceholderSubstitutionStepForFile(yaml, data.DeferredPromptExpressions, "      ", data, "Resolve deferred prompt expressions", constants.AwPromptsFile)
 	c.generateWorkQueueIntentOriginStep(yaml, data)
 
 	// Add cache-memory steps before custom steps so that user steps: code can read
