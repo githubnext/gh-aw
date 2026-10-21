@@ -254,6 +254,11 @@ describe("interpolate_prompt", () => {
     describe("main function integration", () => {
       const { main } = require("./interpolate_prompt.cjs");
       let tmpDir, promptPath, originalEnv;
+      const smokeStrategies = [
+        ["single_agent_control", "Do not call any sub-agent."],
+        ["delegated_sequential", "Execute and validate each sub-agent one at a time before moving to the next."],
+        ["inline_strict", "Validate all three results and keep the current inline orchestration behavior."],
+      ];
       /**
        * Apply the STEP 2.5 experiment condition substitution logic from main().
        * Reads GH_AW_EXPERIMENTS_* from process.env and substitutes experiments.name
@@ -281,6 +286,7 @@ describe("interpolate_prompt", () => {
           (tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "interpolate-test-"))),
           (promptPath = path.join(tmpDir, "prompt.txt")),
           (process.env.GH_AW_PROMPT = promptPath),
+          (process.env.GITHUB_WORKSPACE = tmpDir),
           core.info.mockClear(),
           core.setFailed.mockClear());
       }),
@@ -290,6 +296,23 @@ describe("interpolate_prompt", () => {
               if (!(k in originalEnv)) delete process.env[k];
             }),
             Object.assign(process.env, originalEnv));
+        }),
+        it.each(smokeStrategies)("renders only the assigned %s instructions from the sub-agent smoke", async (variant, instruction) => {
+          const workflow = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/smoke-copilot-sub-agents.md"), "utf8");
+          const tasks = workflow.split("\n## Tasks\n")[1].split("\n## Output\n")[0];
+          process.env.GH_AW_EXPERIMENTS_SUB_AGENT_STRATEGY = variant;
+          fs.writeFileSync(promptPath, tasks);
+
+          await main();
+
+          expect(core.setFailed).not.toHaveBeenCalled();
+          const rendered = fs.readFileSync(promptPath, "utf8");
+          expect(rendered).toContain(instruction);
+          for (const [otherVariant, otherInstruction] of smokeStrategies) {
+            if (otherVariant !== variant) expect(rendered).not.toContain(otherInstruction);
+          }
+          expect(rendered.includes("Call `haiku-whoami`")).toBe(variant !== "single_agent_control");
+          expect(rendered).not.toContain("{{");
         }),
         it("should fail when GH_AW_PROMPT is not set", () => {
           delete process.env.GH_AW_PROMPT;
