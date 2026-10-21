@@ -15,9 +15,9 @@
  * gets the concrete id; repository agents are resolved and recorded, but their files are
  * never changed — a warning says when the resolved id is not applied.
  *
- * Codex: the staged Markdown agents are not loaded by Codex (it discovers custom agents only
- * from TOML role files), so their models are resolved and recorded for observability and a
- * warning says they are not applied; only a reserved name fails closed.
+ * Codex: workflow-declared inline agents fail closed; each staged Markdown agent becomes a
+ * native TOML role file in `$CODEX_HOME/agents` carrying the resolved concrete id, because
+ * Codex discovers custom agents only from TOML role files.
  *
  * The sub-agent name `main` is reserved for both engines: it is the role of the main model's
  * `model.resolution` record, which a sub-agent record with the same role would replace. A
@@ -473,32 +473,54 @@ function writePluginAgents(pluginDir, stagedDir, resolvedDefinitions, logger) {
 }
 
 /**
- * Codex: declare and warn only. Codex discovers custom agents only from TOML role files
- * (verified for Codex 0.163.0), so the workflow-declared Markdown agents staged in
- * `<agentsBaseDir>/.codex/agents` are not loaded and their models are not applied. Their
- * models are still resolved and recorded so audits see the declarations; a model failure is
- * a warning and never stops Codex. An agent named `main` makes `ok` false, because its
- * record would replace the main model's record; Codex must then not start.
+ * Codex: generate one native TOML role file per workflow-declared sub-agent before Codex
+ * starts. Codex discovers custom agents only from `.toml` role files (verified for Codex
+ * 0.163.0), so the Markdown agents staged by the activation job in
+ * `<agentsBaseDir>/.codex/agents` are converted into `<codexHome>/agents/<name>.toml` with
+ * the declared block name, the frontmatter `description`, the Markdown body as
+ * `developer_instructions` and the resolved concrete model. A model `?effort=` parameter
+ * becomes `model_reasoning_effort`; an agent without a model (or with `inherit`) inherits the
+ * main model. Roles inherit the main agent's provider, tools and MCP servers, so no tool list
+ * is written.
+ *
+ * Workflow-declared agents fail closed: when one cannot be read, parsed, resolved or written,
+ * or uses the reserved name `main`, `ok` is false and Codex must not start.
  *
  * @param {{
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   provider: string,
+ *   codexHome?: string,
  *   agentsBaseDir?: string,
  *   aliasMap?: Record<string, string[]> | null,
  *   env?: NodeJS.ProcessEnv,
  *   logger: (msg: string) => void,
  * }} options
- * @returns {Promise<{ ok: boolean, agents: string[], resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>, failures: Array<{ name: string }> }>}
+ * @returns {Promise<{ ok: boolean, agents: string[], resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>, failures: Array<{ name: string }>, roleFiles: string[] }>}
  */
-async function declareCodexSubagentModels(options) {
+async function applyCodexSubagentModels(options) {
   const { logger } = options;
   const env = options.env || process.env;
   const { normalizeCodexModel } = require("./model_fallback.cjs");
+  const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+  const { serializeConfig } = require("./codex_config.cjs");
+  const { mapAWFRoutingEffort } = require("./awf_model_routing.cjs");
   const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
   const directory = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("codex")).dir);
-  const agents = listMarkdownAgentFiles(directory, logger).map(agent => ({ ...agent, name: agent.name || agent.fileName.slice(0, -".md".length) }));
-  if (agents.length === 0) return { ok: true, agents: [], resolutions: [], failures: [] };
+  /** @type {string[]} */
+  const invalid = [];
+  const agents = listMarkdownAgentFiles(directory, logger, {
+    onInvalid: (filePath, error) => {
+      invalid.push(filePath);
+      logger(`codex sub-agent file ${filePath}: cannot read or parse the staged workflow sub-agent: ${getErrorMessage(error)}.`);
+    },
+  }).map(agent => ({ ...agent, name: agent.fileName.slice(0, -".md".length) }));
+  const names = agents.map(agent => agent.name);
+  if (invalid.length > 0) {
+    logger(`Refusing to start Codex: ${invalid.length} workflow-declared sub-agent file(s) cannot be read or parsed, so their native role files cannot be generated.`);
+    return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
+  }
+  if (agents.length === 0) return { ok: true, agents: [], resolutions: [], failures: [], roleFiles: [] };
   if (
     rejectReservedDeclaredNames(
       "codex",
@@ -506,29 +528,76 @@ async function declareCodexSubagentModels(options) {
       logger
     )
   ) {
-    return { ok: false, agents: agents.map(agent => agent.name), resolutions: [], failures: [] };
+    return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
   }
-  logger(
-    `warning: Codex discovers custom agents only from TOML role files (verified for Codex 0.163.0); the ${agents.length} workflow-declared Markdown sub-agent(s) in ${directory} (${agents.map(agent => agent.name).join(", ")}) are not loaded by Codex, and their declared models are recorded but not applied.`
-  );
+  const codexHome = String(options.codexHome || "").trim();
+  if (!codexHome) {
+    logger(`Refusing to start Codex: CODEX_HOME is not set, so the ${agents.length} workflow-declared sub-agent(s) (${names.join(", ")}) cannot be registered as native Codex roles.`);
+    return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
+  }
+
+  /** @type {Array<{ name: string, path: string, description: string, instructions: string, configuredModel: string, effort: string | null }>} */
+  const definitions = [];
+  for (const agent of agents) {
+    try {
+      const content = fs.readFileSync(agent.path, "utf8");
+      const frontmatter = parseAgentFrontmatter(content);
+      const description = typeof frontmatter.description === "string" ? frontmatter.description.trim() : "";
+      if (!description) throw new Error("the frontmatter has no nonblank 'description', which Codex requires for a custom role");
+      const instructions = extractFrontmatterAndBody(content).markdown.trim();
+      if (!instructions) throw new Error("the agent has no instructions after its frontmatter, which Codex requires for a custom role");
+      if (!/^[a-z][a-z0-9_-]*$/.test(agent.name)) throw new Error(`'${agent.name}' is not a valid sub-agent name`);
+      const configuredModel = typeof agent.model === "string" ? agent.model : "";
+      const declaredEffort = configuredModel ? splitModelIdentifier(configuredModel).params.get("effort") : null;
+      const mapped = mapAWFRoutingEffort("codex", declaredEffort ? declaredEffort.trim().toLowerCase() : null);
+      if (mapped.error) throw new Error(`model '${configuredModel}': ${mapped.error}`);
+      definitions.push({ name: agent.name, path: agent.path, description, instructions, configuredModel, effort: mapped.effort });
+    } catch (error) {
+      logger(`codex sub-agent file ${agent.path}: ${getErrorMessage(error)}. Refusing to start Codex without the declared sub-agent.`);
+      return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
+    }
+  }
+
   const { resolutions, failures } = await resolveEngineSubagentModels({
     engine: "codex",
-    agents: agents.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: false, origin: "workflow sub-agent" })),
+    agents: agents.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
     provider: options.provider,
     normalize: model => normalizeCodexModel(model, options.provider, { env, logger }),
     reflectData: options.reflectData,
     refetchReflectData: options.refetchReflectData,
     aliasMap: options.aliasMap,
-    nonFatalOutcome: "Codex does not load the Markdown agent, so the run continues",
+    nonFatalOutcome: "Codex does not start",
     env,
     logger,
   });
-  return { ok: true, agents: agents.map(agent => agent.name), resolutions, failures };
+  if (failures.length > 0) return { ok: false, agents: names, resolutions, failures, roleFiles: [] };
+
+  const rolesDir = path.join(codexHome, "agents");
+  /** @type {string[]} */
+  const roleFiles = [];
+  for (const definition of definitions) {
+    const resolution = resolutions.find(candidate => candidate.name === definition.name);
+    /** @type {Record<string, string>} */
+    const role = { name: definition.name, description: definition.description, developer_instructions: definition.instructions };
+    if (resolution) role.model = resolution.model;
+    if (definition.effort) role.model_reasoning_effort = definition.effort;
+    const rolePath = path.join(rolesDir, `${definition.name}.toml`);
+    try {
+      fs.mkdirSync(rolesDir, { recursive: true });
+      fs.writeFileSync(rolePath, serializeConfig(role), { mode: 0o600 });
+    } catch (error) {
+      logger(`codex sub-agent '${definition.name}': cannot write the native role file ${rolePath}: ${getErrorMessage(error)}. Refusing to start Codex without the declared sub-agent.`);
+      return { ok: false, agents: names, resolutions, failures, roleFiles };
+    }
+    roleFiles.push(rolePath);
+    logger(`codex sub-agent '${definition.name}': wrote native role ${rolePath} (model: ${resolution ? resolution.model : "inherits the main model"}${definition.effort ? `, effort: ${definition.effort}` : ""})`);
+  }
+  return { ok: true, agents: names, resolutions, failures, roleFiles };
 }
 
 module.exports = {
   applyClaudeSubagentModels,
-  declareCodexSubagentModels,
+  applyCodexSubagentModels,
   isDetectionPhase,
   listMarkdownAgentFiles,
   replaceAgentModel,

@@ -7,7 +7,7 @@ import path from "path";
 
 const require = createRequire(import.meta.url);
 global.core = { info: () => {}, warning: () => {}, error: () => {}, setFailed: () => {} };
-const { applyClaudeSubagentModels, declareCodexSubagentModels, isDetectionPhase, replaceAgentModel } = require("./engine_subagent_models.cjs");
+const { applyClaudeSubagentModels, applyCodexSubagentModels, isDetectionPhase, replaceAgentModel } = require("./engine_subagent_models.cjs");
 const { extractInlineSubAgents, writeInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 const { claudeBareCapabilities, removeClaudePlugin } = require("./claude_runtime.cjs");
 const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
@@ -339,13 +339,56 @@ describe("Claude sub-agent models (Typist run 39415087125)", () => {
   });
 });
 
+/** Parse a generated Codex role file: top-level `key = "basic string"` lines only. */
+function parseRoleToml(content) {
+  const role = {};
+  for (const line of content.split("\n").filter(Boolean)) {
+    const match = line.match(/^([a-z_]+) = (".*")$/);
+    if (!match) throw new Error(`unexpected role file line: ${line}`);
+    role[match[1]] = JSON.parse(match[2]);
+  }
+  return role;
+}
+
 describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () => {
-  it("codex_live_prefixed_model_is_exact", async () => {
+  const codexLayout = () => {
     const run = layout();
-    stageInline(run, "codex", arxivAgents());
+    return { ...run, codexHome: path.join(run.dir, "codex-home") };
+  };
+  const apply = (run, options = {}) => applyCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", codexHome: run.codexHome, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger, ...options });
+  const roleFiles = run => (fs.existsSync(path.join(run.codexHome, "agents")) ? fs.readdirSync(path.join(run.codexHome, "agents")).sort() : []);
+  const readRole = (run, name) => parseRoleToml(fs.readFileSync(path.join(run.codexHome, "agents", `${name}.toml`), "utf8"));
+  const bodyOf = content => extractFrontmatterAndBody(content).markdown.trim();
 
-    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+  it("codex_declared_small_writes_native_toml_before_spawn", async () => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded paper-screener with its selector changed to `small`.
+    const agent = arxivAgents()["paper-screener"].replace("model: openai/gpt-5.4-mini", "model: small");
+    stageInline(run, "codex", { "paper-screener": agent });
 
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.resolutions).toEqual([{ name: "paper-screener", configuredModel: "small", model: "gpt-5-mini-2025-08-07", status: "resolved" }]);
+    expect(roleFiles(run)).toEqual(["paper-screener.toml"]);
+    expect(readRole(run, "paper-screener")).toEqual({
+      name: "paper-screener",
+      description: frontmatterOf(agent).description,
+      developer_instructions: bodyOf(agent),
+      model: "gpt-5-mini-2025-08-07",
+    });
+    expect(run.records()).toEqual([{ engine: "codex", role: "paper-screener", configured_model: "small", resolved_model: "gpt-5-mini-2025-08-07", provider: "openai", status: "resolved", cause: null }]);
+    expect(run.logs.join("\n")).not.toMatch(/not applied|not loaded/);
+  });
+
+  it("writes one native role per recorded arXiv agent with the exact live ids", async () => {
+    const run = codexLayout();
+    const agents = arxivAgents();
+    stageInline(run, "codex", agents);
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
     expect(outcome.failures).toEqual([]);
     expect(outcome.resolutions.map(resolution => [resolution.name, resolution.configuredModel, resolution.model, resolution.status])).toEqual([
       ["opportunity-extractor", "openai/gpt-5.6-sol", "gpt-5.6-sol", "exact"],
@@ -353,82 +396,125 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
       ["preliminary-investigator", "openai/gpt-5.4-mini", "gpt-5.4-mini", "exact"],
       ["relevance-ranker", "openai/gpt-5.4-mini", "gpt-5.4-mini", "exact"],
     ]);
+    expect(roleFiles(run)).toEqual(["opportunity-extractor.toml", "paper-screener.toml", "preliminary-investigator.toml", "relevance-ranker.toml"]);
+    for (const [name, content] of Object.entries(agents)) {
+      expect(readRole(run, name)).toEqual({ name, description: frontmatterOf(content).description, developer_instructions: bodyOf(content), model: outcome.resolutions.find(resolution => resolution.name === name).model });
+    }
     // Same record fields as the run's recorded main-role model.resolution.
     for (const record of run.records()) {
       expect(Object.keys(record)).toEqual(Object.keys(runs.arxivMainModelResolution.data));
       expect(record).toMatchObject({ engine: "codex", provider: runs.arxivMainModelResolution.data.provider, status: "exact", cause: null });
-      expect(record.configured_model).toMatch(/^openai\//);
     }
-    expect(run.records().map(record => record.role)).toEqual(["opportunity-extractor", "paper-screener", "preliminary-investigator", "relevance-ranker"]);
+    // The staged Markdown and its workspace copy are left unchanged.
+    for (const [name, content] of Object.entries(agents)) {
+      const expected = content.endsWith("\n") ? content : `${content}\n`;
+      expect(fs.readFileSync(path.join(run.agentsBaseDir, ".codex/agents", `${name}.md`), "utf8")).toBe(expected);
+      expect(fs.readFileSync(path.join(run.workspaceDir, ".codex/agents", `${name}.md`), "utf8")).toBe(expected);
+    }
   });
 
-  it("codex_dead_model_fails_closed_when_native_agent_is_active: declare-and-warn branch (Markdown agents are not native)", async () => {
-    const run = layout();
-    stageInline(run, "codex", arxivAgents());
-    // Fixture mutation: the recorded catalogue with gpt-5.6-sol removed.
+  it("round-trips quotes, backslashes, multi-line instructions and a declared effort", async () => {
+    const run = codexLayout();
+    // Fixture mutation: an effort parameter and an instruction line with quotes and backslashes.
+    const agent = `${arxivAgents()["relevance-ranker"].replace("model: openai/gpt-5.4-mini", "model: openai/gpt-5.4-mini?effort=low").trimEnd()}\n\nQuote "this" and keep C:\\path\\to and \\n literally.\n`;
+    stageInline(run, "codex", { "relevance-ranker": agent });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    const role = readRole(run, "relevance-ranker");
+    expect(role.developer_instructions).toBe(bodyOf(agent));
+    expect(role.developer_instructions).toContain('Quote "this" and keep C:\\path\\to and \\n literally.');
+    expect(role).toMatchObject({ model: "gpt-5.4-mini", model_reasoning_effort: "low" });
+  });
+
+  it("codex_declared_dead_model_fails_before_spawn", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+    // Fixture mutation: the recorded catalogue (and its refresh) with gpt-5.4-mini removed.
     const reflectData = runs.arxivReflect();
-    reflectData.endpoints.forEach(endpoint => endpoint.models && (endpoint.models = endpoint.models.filter(model => model !== "gpt-5.6-sol")));
+    reflectData.endpoints.forEach(endpoint => endpoint.models && (endpoint.models = endpoint.models.filter(model => model !== "gpt-5.4-mini")));
+    let refreshes = 0;
 
-    const outcome = await declareCodexSubagentModels({ reflectData, refetchReflectData: async () => reflectData, provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+    const outcome = await apply(run, { reflectData, refetchReflectData: async () => (refreshes++, reflectData) });
 
-    expect(outcome.failures.map(failure => failure.name)).toEqual(["opportunity-extractor"]);
-    expect(run.records()).toContainEqual({ engine: "codex", role: "opportunity-extractor", configured_model: "openai/gpt-5.6-sol", resolved_model: null, provider: "openai", status: "failed", cause: "model_unavailable" });
-    expect(run.logs).toContainEqual(expect.stringContaining("warning: workflow sub-agent 'opportunity-extractor'"));
-    expect(run.logs.join("\n")).not.toMatch(/The requested model is not supported|Refusing to start/);
+    expect(outcome.ok).toBe(false);
+    expect(refreshes).toBe(1);
+    expect(run.records()).toEqual([{ engine: "codex", role: "paper-screener", configured_model: "openai/gpt-5.4-mini", resolved_model: null, provider: "openai", status: "failed", cause: "model_unavailable" }]);
+    expect(run.logs).toContainEqual(expect.stringContaining("Refusing to start Codex with a different sub-agent model."));
+    expect(roleFiles(run)).toEqual([]);
   });
 
-  it("codex_markdown_agents_are_not_loaded_and_warn", async () => {
-    const run = layout();
-    stageInline(run, "codex", arxivAgents());
-    const staged = Object.fromEntries(fs.readdirSync(path.join(run.agentsBaseDir, ".codex/agents")).map(name => [name, fs.readFileSync(path.join(run.agentsBaseDir, ".codex/agents", name), "utf8")]));
-    // The staged files are the recorded Markdown (Codex 0.163.0 discovers `.toml` only).
-    expect(Object.keys(staged).every(name => name.endsWith(".md"))).toBe(true);
-    expect(staged).toEqual(Object.fromEntries(Object.entries(arxivAgents()).map(([name, content]) => [`${name}.md`, content.endsWith("\n") ? content : `${content}\n`])));
+  it("records catalog_unavailable when the provider's catalogue is missing", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+    // Fixture mutation: model discovery incomplete with no OpenAI models.
+    const reflectData = runs.arxivReflect();
+    reflectData.models_fetch_complete = false;
+    reflectData.endpoints.forEach(endpoint => (endpoint.models = null));
 
-    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+    const outcome = await apply(run, { reflectData });
 
-    expect(outcome.agents).toEqual(["opportunity-extractor", "paper-screener", "preliminary-investigator", "relevance-ranker"]);
-    expect(run.logs).toContainEqual(
-      expect.stringMatching(
-        /^warning: Codex discovers custom agents only from TOML role files \(verified for Codex 0\.163\.0\); the 4 workflow-declared Markdown sub-agent\(s\) .* are not loaded by Codex, and their declared models are recorded but not applied\.$/
-      )
-    );
-    for (const [name, content] of Object.entries(staged)) {
-      expect(fs.readFileSync(path.join(run.agentsBaseDir, ".codex/agents", name), "utf8")).toBe(content);
-      expect(fs.readFileSync(path.join(run.workspaceDir, ".codex/agents", name), "utf8")).toBe(content);
-    }
-    expect(fs.readdirSync(path.join(run.workspaceDir, ".codex/agents")).some(name => name.endsWith(".toml"))).toBe(false);
+    expect(outcome.ok).toBe(false);
+    expect(run.records()).toEqual([expect.objectContaining({ role: "paper-screener", resolved_model: null, status: "failed", cause: "catalog_unavailable" })]);
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("fails closed for a staged agent without a description", async () => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded paper-screener without its description.
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"].replace(/^description:.*\n/m, "") });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(false);
+    expect(run.logs).toContainEqual(expect.stringContaining("no nonblank 'description'"));
+    expect(run.records()).toEqual([]);
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("fails closed when CODEX_HOME is unknown", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+
+    const outcome = await apply(run, { codexHome: "" });
+
+    expect(outcome.ok).toBe(false);
+    expect(run.logs).toContainEqual(expect.stringContaining("CODEX_HOME is not set"));
   });
 
   it("fails closed for a workflow-declared sub-agent named main and keeps the main record", async () => {
-    const run = layout();
+    const run = codexLayout();
     const agents = arxivAgents();
     stageInline(run, "codex", { main: agents["paper-screener"], "paper-screener": agents["paper-screener"] });
     recordModelResolution(runs.arxivMainModelResolution.data, run.env);
 
-    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+    const outcome = await apply(run);
 
-    expect(outcome).toEqual({ ok: false, agents: ["main", "paper-screener"], resolutions: [], failures: [] });
+    expect(outcome).toEqual({ ok: false, agents: ["main", "paper-screener"], resolutions: [], failures: [], roleFiles: [] });
     expect(run.records()).toEqual([runs.arxivMainModelResolution.data]);
     expect(run.logs).toContainEqual(expect.stringContaining("the sub-agent name 'main' is reserved for the Codex main model's resolution record. Rename the agent in the workflow. Refusing to start Codex."));
+    expect(roleFiles(run)).toEqual([]);
   });
 
   it("records the worker next to the main record", async () => {
-    const run = layout();
+    const run = codexLayout();
     stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
     recordModelResolution(runs.arxivMainModelResolution.data, run.env);
 
-    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+    const outcome = await apply(run);
 
     expect(outcome.ok).toBe(true);
     expect(run.records()).toEqual([runs.arxivMainModelResolution.data, { engine: "codex", role: "paper-screener", configured_model: "openai/gpt-5.4-mini", resolved_model: "gpt-5.4-mini", provider: "openai", status: "exact", cause: null }]);
   });
 
-  it("does nothing without staged Codex agents", async () => {
-    const run = layout();
-    const outcome = await declareCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
-    expect(outcome).toEqual({ ok: true, agents: [], resolutions: [], failures: [] });
+  it("codex_no_declared_agents_is_noop", async () => {
+    const run = codexLayout();
+    const outcome = await apply(run);
+    expect(outcome).toEqual({ ok: true, agents: [], resolutions: [], failures: [], roleFiles: [] });
     expect(run.logs).toEqual([]);
+    expect(run.records()).toEqual([]);
+    expect(fs.existsSync(run.codexHome)).toBe(false);
   });
 });
 
