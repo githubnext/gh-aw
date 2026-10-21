@@ -166,6 +166,7 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     const routes = [...dispatcher.matchAll(/^      - ([a-z-]+)$/gm)].map(match => match[1]);
     expect(routes).toEqual(REPORT_PROFILES);
     expect(dispatcher).toContain("if: github.run_attempt == 1");
+    expect(dispatcher).toContain("schedule: daily around 12:00");
     expect(dispatcher).toContain("Date.parse(run.created_at) - 86400000");
     expect(dispatcher).toContain("stagePlanIntents(");
     expect(dispatcher).toContain("shared/work-queue-staged-plan.md");
@@ -180,6 +181,8 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(activation.if).toContain("needs.admission.result == 'success' || needs.admission.result == 'skipped'");
     expect(activation.needs).toBe("admission");
     expect(lock).toContain("daily_report_portfolio.cjs");
+    expect(lock).toContain("name: Restore daily AIC scan observations");
+    expect(lock).toContain("name: Check daily workflow token guardrail");
     for (const profile of REPORT_PROFILES) {
       const worker = source(profile);
       const frontmatter = worker.split("\n---")[0];

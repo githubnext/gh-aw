@@ -79,6 +79,13 @@ describe("engine conformance queue portfolio", () => {
     const source = name => fs.readFileSync(new URL(`../../../.github/workflows/${name}.md`, import.meta.url), "utf8");
     const compiled = name => fs.readFileSync(new URL(`../../../.github/workflows/${name}.lock.yml`, import.meta.url), "utf8");
     const dispatcher = source("engine-conformance-dispatcher");
+    const shared = source("shared/engine-conformance");
+    expect(shared).not.toMatch(/^\s+staged:\s*true$/m);
+    expect(shared).toContain("noop:\n    report-as-issue: false");
+    expect(shared).toContain("activation-comments: false");
+    expect(shared).toContain("report-failure-as-issue: false");
+    expect(shared).toContain("report-failed-jobs: false");
+    expect(shared).toContain("missing-tool:\n    create-issue: false");
     expect(dispatcher.match(/^      - engine-conformance-[a-z-]+$/gm)).toHaveLength(ENGINES.length);
     expect(dispatcher).toContain("if: github.run_attempt == 1");
     expect(dispatcher).toContain("stagePlanIntents(");
@@ -89,9 +96,13 @@ describe("engine conformance queue portfolio", () => {
       const worker = source(`engine-conformance-${engine}`);
       expect(worker).toContain("shared/engine-conformance-worker.md");
       expect(worker).not.toMatch(/^  schedule:/m);
+      expect(worker).not.toMatch(/^\s+staged:\s*true$/m);
       expect(compiled(`engine-conformance-${engine}`)).toContain("work_queue_assignment:");
       expect(compiled(`engine-conformance-${engine}`)).toContain('GH_AW_WORK_QUEUE_ROLE: "worker"');
       expect(compiled(`engine-conformance-${engine}`)).toContain("work_queue_claim_finish");
+      expect(compiled(`engine-conformance-${engine}`)).not.toMatch(/GH_AW_(?:SAFE_OUTPUTS_STAGED|INFO_STAGED):\s*"?true"?/);
+      expect(compiled(`engine-conformance-${engine}`)).toContain("name: Terminate work queue worker");
+      expect(compiled(`engine-conformance-${engine}`)).toContain('\\"report-as-issue\\":\\"false\\"');
     }
     expect(() => buildEngineConformancePolicy({ ...policyOptions, ref: "main" })).toThrow();
   });
