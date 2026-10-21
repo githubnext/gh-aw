@@ -106,7 +106,11 @@ post-steps:
         assert.ok(proxyFile, "Missing api-proxy token usage evidence");
         const onModel = readJsonl(proxyFile).filter(request => request.model === model);
         assert.ok(onModel.length > 0, `${worker}: the proxy served no request on ${model}`);
-        assert.ok(onModel.every(request => Number(request.status) === 200), `${worker}: a request on ${model} failed: ${JSON.stringify(onModel.map(request => request.status))}`);
+        // token-usage.jsonl records only 2xx responses; AWF writes failed requests to the sibling
+        // upstream-errors.jsonl, which exists only when a request failed.
+        const errorFile = path.join(path.dirname(proxyFile), "upstream-errors.jsonl");
+        const failed = fs.existsSync(errorFile) ? readJsonl(errorFile).filter(record => record.model === model) : [];
+        assert.equal(failed.length, 0, `${worker}: a request on ${model} failed: ${JSON.stringify(failed.map(record => record.status))}`);
 ---
 
 # Smoke Test: Claude Inline Sub-Agents
