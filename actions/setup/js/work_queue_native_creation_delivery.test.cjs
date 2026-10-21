@@ -523,6 +523,36 @@ describe("native creation Claim delivery", () => {
     expect(f.queue.state.works.get(f.member.work_id).barrier).not.toBe("verified");
   });
 
+  it.each(["create_discussion", "create_pull_request"])("does not settle a %s contract from a successful fallback Issue", async type => {
+    const f = fixture(type);
+    await f.execute(async () => {
+      await f.capture();
+      Object.assign(f.result, { fallback_used: true, url: `https://github.com/${REPOSITORY}/issues/19` });
+      f.client.graphql.mockClear();
+      f.client.rest.pulls.get.mockClear();
+      f.client.rest.git.getRef.mockClear();
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe("unknown");
+      expect(delivery.disposition).toBe("unknown");
+      expect(delivery.reason).toBe("Independent scoped resource verification failed");
+    });
+    expect((await f.finalize()).claims.h1).toMatchObject({ state: "pending", effects: "unknown" });
+    expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("pending");
+    f.client.rest.actions.getWorkflowRunAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...f.queue.nativeRun(), status: "completed", conclusion: "failure" } });
+    expect((await f.finalize()).claims.h1).toMatchObject({ state: "delivery_failed", effects: "unknown" });
+    expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("failed");
+    const operations = () => f.queue.transactions.flatMap(commit => commit.operations);
+    const failure = operations().find(operation => operation.kind === "DeliveryFailure");
+    expect(failure).toMatchObject({ reason: "verification_exhausted", disposition: "unknown" });
+    expect((await f.finalize()).claims.h1).toMatchObject({ state: "delivery_failed", effects: "unknown" });
+    expect(operations().filter(operation => operation.kind === "DeliveryFailure")).toEqual([failure]);
+    expect(operations().some(operation => operation.kind === "Result")).toBe(false);
+    expect(f.client.graphql).not.toHaveBeenCalled();
+    expect(f.client.rest.pulls.get).not.toHaveBeenCalled();
+    expect(f.client.rest.git.getRef).not.toHaveBeenCalled();
+    expect(f.client.rest.pulls.create).toHaveBeenCalledTimes(type === "create_pull_request" ? 1 : 0);
+  });
+
   it.each(["id", "repository", "category", "title", "body", "labels", "unavailable"])("rejects mismatched discussion %s evidence", async mismatch => {
     const f = fixture("create_discussion");
     await f.execute(async () => {
