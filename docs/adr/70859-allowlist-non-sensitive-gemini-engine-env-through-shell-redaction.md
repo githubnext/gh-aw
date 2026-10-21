@@ -12,7 +12,7 @@ The Gemini CLI strictly filters the environment passed to shell commands when it
 
 ### Decision
 
-The compiler will add a `security.environmentVariableRedaction` block (`enabled: true`, plus an `allowed` list) to the generated Gemini `settings.json`. The list contains only those `engine.env` variable names that meet all three rules: the name is not in the AWF credential exclude list, it does not match a sensitive-name pattern (`token|secret|password|passwd|key|auth|credential|creds|private|cert`, case-insensitive), and its value is a literal with no `${{` runtime expression. Only names are written to the settings file, never values, and the list is sorted so compiled output is deterministic. We chose to keep Gemini's redaction turned on and allowlist explicit, safe names. Turning redaction off, or forwarding every configured variable, would restore the setting but would also widen what could leak.
+The compiler will add a `security.environmentVariableRedaction` block (`enabled: true`, plus an `allowed` list) to the generated Gemini `settings.json`. The list contains only those `engine.env` variable names that meet all three rules: the name is not in the AWF credential exclude list, it does not match a sensitive-name pattern (`token|secret|password|passwd|key|auth|credential|creds|private|cert`, case-insensitive), and its effective value is a literal with no `${{` runtime expression. Effective values follow execution precedence: where permitted, `sandbox.agent.env` overrides `engine.env`. Only names are written to the settings file, never values, and the list is sorted so compiled output is deterministic. We chose to keep Gemini's redaction turned on and allowlist explicit, safe names. Turning redaction off, or forwarding every configured variable, would restore the setting but would also widen what could leak.
 
 ### Alternatives Considered
 
@@ -36,7 +36,7 @@ Add a new frontmatter field so authors list the variables to preserve. This is m
 - Only variable names appear in the generated settings, never values, and sorted output keeps lock files stable.
 
 #### Negative
-- The sensitive-name regex is a heuristic. It can wrongly exclude harmless names (for example, anything containing `key` or `auth`), and it can miss secrets stored under neutral names with literal values.
+- The sensitive-name regex is intentionally conservative and follows Gemini's substring-based sensitive-name filtering. It can exclude harmless names such as `AUTHOR_NAME` or `KEYSTONE_REGION`; retaining these false positives avoids weakening credential filtering. It can still miss secrets stored under neutral names with literal values, so authors must use secret references rather than embedding credentials.
 - Gemini now applies one more environment policy that the other engines do not share, so the behaviour per engine diverges and needs maintaining.
 - This depends on Gemini CLI's `security.environmentVariableRedaction` settings schema. If upstream changes that schema, this code must change too.
 

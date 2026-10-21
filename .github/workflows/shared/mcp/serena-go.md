@@ -19,10 +19,11 @@ imports:
     with:
       languages: ["go"]
       path: '${{ env.GH_AW_SERENA_GO_PATH }}:\${PATH}'
-runtimes:
-  node:
-    version: "24"
 pre-agent-steps:
+  - name: Setup Node.js for Serena
+    uses: actions/setup-node@v7.1.0
+    with:
+      node-version: "24"
   - name: Setup Go
     uses: actions/setup-go@v7.0.0
     with:
@@ -88,6 +89,8 @@ and appending the gateway's existing PATH. No additional host paths are mounted.
 The existing runner tool-cache mount remains read-only. Setup provisions
 Node.js 24 in that mounted cache so project-level TypeScript and Bash language
 servers do not depend on the runner's unmounted system Node installation.
+Node setup runs only on the host before PATH capture; it does not add Node or npm
+domains to the agent or detection sandbox network policy.
 Setup installs pinned gopls v0.22.0 there as a static binary and checks that it
 starts. Before the MCP
 gateway or agent starts, Serena's project health check runs in the same image

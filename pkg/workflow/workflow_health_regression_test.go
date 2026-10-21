@@ -24,6 +24,8 @@ func TestGeminiShellLiteralEngineEnvironment(t *testing.T) {
 			"INDIRECT":                    "${{ env.SOMETHING }}",
 			"APP_VALUE":                   "${{ needs.activation.outputs.token }}",
 			"EXCLUDED":                    "literal",
+			"AUTHOR_NAME":                 "contributor",
+			"KEYSTONE_REGION":             "region",
 		}},
 		ExcludedEnv: []string{"EXCLUDED"},
 	}
@@ -46,6 +48,47 @@ func TestGeminiShellLiteralEngineEnvironment(t *testing.T) {
 	require.Equal(t, []string{"ANOTHER_SETTING", "ENGINE_CONFORMANCE_SENTINEL"}, config.Security.Redaction.Allowed)
 	require.NotContains(t, parsed[0].Env["GH_AW_GEMINI_BASE_CONFIG"], "not-for-shell")
 	require.NotContains(t, parsed[0].Env["GH_AW_GEMINI_BASE_CONFIG"], "conformance-gemini")
+}
+
+func TestGeminiShellEnvironmentAgentOverrides(t *testing.T) {
+	engine := NewGeminiEngine()
+	for _, tt := range []struct {
+		name     string
+		override string
+		allowed  bool
+	}{
+		{name: "literal", override: "replacement", allowed: true},
+		{name: "empty literal", override: "", allowed: true},
+		{name: "environment expression", override: "${{ env.OTHER }}"},
+		{name: "input expression", override: "${{ inputs.setting }}"},
+		{name: "secret expression", override: "${{ secrets.OTHER }}"},
+		{name: "job output expression", override: "${{ needs.activation.outputs.setting }}"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				EngineConfig: &EngineConfig{Env: map[string]string{
+					"SETTING":        "literal",
+					"ACCESS_TOKEN":   "literal",
+					"GEMINI_API_KEY": "literal",
+					"EXCLUDED":       "literal",
+				}},
+				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{Env: map[string]string{
+					"SETTING":        tt.override,
+					"ACCESS_TOKEN":   "replacement",
+					"GEMINI_API_KEY": "replacement",
+					"EXCLUDED":       "replacement",
+					"AGENT_ONLY":     "literal",
+				}}},
+				ExcludedEnv: []string{"EXCLUDED"},
+			}
+			allowed := engine.geminiShellEnvironment(data)
+			if tt.allowed {
+				require.Equal(t, []string{"SETTING"}, allowed)
+			} else {
+				require.Empty(t, allowed)
+			}
+		})
+	}
 }
 
 func TestConcurrencyAuditLedgerPromptExample(t *testing.T) {
@@ -75,6 +118,6 @@ func TestConcurrencyAuditLedgerPromptExample(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, schema.Validate(request.Record))
 	request.Record["tool"] = request.Record["analyzed_tool"]
-	delete(request.Record, "analyzed_tool")
-	require.Error(t, schema.Validate(request.Record))
+	err = schema.Validate(request.Record)
+	require.ErrorContains(t, err, "additional properties 'tool' not allowed")
 }

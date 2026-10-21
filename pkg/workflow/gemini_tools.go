@@ -31,6 +31,10 @@ import (
 
 var geminiToolsLog = logger.New("workflow:gemini_tools")
 
+// Match Gemini CLI's NEVER_ALLOWED_NAME_PATTERNS substring policy, deliberately
+// excluding benign names such as AUTHOR_NAME and KEYSTONE_REGION rather than
+// allowing an explicit allowlist to bypass sensitive-name redaction.
+// See packages/core/src/services/environmentSanitization.ts in google-gemini/gemini-cli.
 var geminiSensitiveEnvName = regexp.MustCompile(`(?i)token|secret|password|passwd|key|auth|credential|creds|private|cert`)
 
 // computeGeminiToolsCore maps neutral tool names to Gemini CLI built-in tool names
@@ -184,14 +188,21 @@ fi`
 }
 
 // Gemini strictly filters shell environments in GitHub Actions. Preserve
-// explicit literal engine settings, never credentials or runtime expressions.
+// explicit literal engine settings after agent overrides, never credentials or
+// runtime expressions.
 func (e *GeminiEngine) geminiShellEnvironment(data *WorkflowData) []string {
 	if data.EngineConfig == nil {
 		return nil
 	}
 	excluded := ComputeAWFExcludeEnvVarNames(data, e.GetRequiredSecretNames(data))
+	agentConfig := getAgentConfig(data)
 	var allowed []string
 	for name, value := range data.EngineConfig.Env {
+		if agentConfig != nil {
+			if override, ok := agentConfig.Env[name]; ok {
+				value = override
+			}
+		}
 		if !slices.Contains(excluded, name) && !geminiSensitiveEnvName.MatchString(name) && !strings.Contains(value, "${{") {
 			allowed = append(allowed, name)
 		}
