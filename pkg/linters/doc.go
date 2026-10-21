@@ -62,6 +62,7 @@
 //   - sprintferrorsnew — flags errors.New(fmt.Sprintf(...)) calls that should use fmt.Errorf instead
 //   - sprintfbool — flags fmt.Sprintf("%t", b) calls where b is a single bool value and suggests using strconv.FormatBool(b) instead
 //   - sprintfint — flags fmt.Sprintf calls that format integers that should use strconv.Itoa
+//   - sprintfstring — flags fmt.Sprintf("%s", s) calls where s is a single string value
 //   - ssljson — validates ssl.json skill artifacts in .github/skills/ against the SSL spec
 //   - strconvparseignorederror — flags strconv parsing calls where the error is discarded with _
 //   - stringbytesroundtrip — reports redundant string/[]byte round-trip conversions such as string([]byte(s)) or []byte(string(b)) that produce a wasteful intermediate copy
