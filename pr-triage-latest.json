@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-10-21T12:42:14Z",
-  "run_id": "39600432091",
+  "run_date": "2026-10-21T18:34:34Z",
+  "run_id": "39652840494",
   "source": "pr-triage",
   "eligible_total": 5,
   "cooldown_skipped": 0,
@@ -145,5 +145,5 @@
     }
   ],
   "skipped_prs": [],
-  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T12:35:11Z."
+  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T18:29:47Z."
 }
