@@ -433,6 +433,10 @@ async function buildClaudeChildEnv(reflectData, env = process.env, logger = log,
   }
   const provider = normalizeReflectProviderName(env.GH_AW_LLM_PROVIDER, "anthropic");
   const copilotProvider = REFLECT_PROVIDER_ALIASES.github.has(provider);
+  if (env.GH_AW_MODEL_ROUTING !== "1" && env.GH_AW_LLM_PROVIDER_EXPLICIT === "1" && !copilotProvider) {
+    const overriddenModel = /^copilot\/(.+)$/i.exec(String(childEnv.ANTHROPIC_MODEL || "").trim());
+    if (overriddenModel) childEnv.ANTHROPIC_MODEL = overriddenModel[1];
+  }
   if (childEnv.ANTHROPIC_MODEL && env.GH_AW_MODEL_ROUTING !== "1") {
     const resolution = await resolveEngineModel({
       engine: "claude",
