@@ -1,10 +1,10 @@
 {
-  "run_date": "2026-10-21T00:54:46Z",
-  "run_id": "39523925787",
+  "run_date": "2026-10-21T06:38:51Z",
+  "run_id": "39556488936",
   "source": "pr-triage",
   "eligible_total": 5,
-  "cooldown_skipped": 5,
-  "open_copilot_prs": 11,
+  "cooldown_skipped": 1,
+  "open_copilot_prs": 6,
   "category_counts": {
     "bug": 5
   },
@@ -20,8 +20,8 @@
   "action_counts": {
     "auto_merge": 2,
     "fast_track": 1,
-    "defer": 2,
     "batch_review": 0,
+    "defer": 2,
     "close": 0
   },
   "batches": [
@@ -103,14 +103,7 @@
     }
   ],
   "skipped_prs": [
-    70697,
-    70696,
-    70688,
-    70672,
-    70671,
-    70653,
-    70712,
-    70711
+    70672
   ],
-  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T00:54:46Z."
+  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T06:38:51Z."
 }

@@ -1,9 +1,9 @@
 # PR Triage Summary
 
-- Run: 2026-10-21T00:54:46Z
+- Run: 2026-10-21T06:38:51Z
 - Eligible PRs: 5
-- Skipped by cooldown: 8
-- Open Copilot PRs: 11
+- Skipped by cooldown: 1
+- Open Copilot PRs: 6
 
 ## Result
 - #70347 — fast_track — bug / medium — total 65
@@ -16,7 +16,7 @@
 - Category distribution: bug=5
 - Risk distribution: low=2, medium=1, high=2
 - Priority distribution: medium=4, high=1
-- Recommended actions: auto_merge=2, fast_track=1, defer=2, batch_review=0, close=0
+- Recommended actions: auto_merge=2, fast_track=1, batch_review=0, defer=2, close=0
 - Batch opportunities: guardrails (70343, 70346, 70347)
 
 ## Next action
