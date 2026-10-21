@@ -669,7 +669,7 @@ function normalizeTool(name) {
  */
 function normalizeServerToolName(server, name) {
   const normalized = normalizeTool(name);
-  return server.serverInfo.name === "safeoutputs" ? normalizeSafeOutputName(normalized) : normalized;
+  return server.serverInfo?.name === "safeoutputs" ? normalizeSafeOutputName(normalized) : normalized;
 }
 
 /**

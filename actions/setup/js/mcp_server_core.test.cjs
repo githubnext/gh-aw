@@ -36,6 +36,29 @@ describe("mcp_server_core.cjs", () => {
   });
 
   describe("registerTool", () => {
+    it("should preserve generic tools on servers without metadata", async () => {
+      const { registerTool, handleRequest } = await import("./mcp_server_core.cjs");
+      const server = { tools: {}, debug() {} };
+
+      registerTool(server, {
+        name: "Missing-Tool",
+        description: "A generic tool",
+        inputSchema: { type: "object", properties: {} },
+        handler: () => ({ content: [{ type: "text", text: "ok" }] }),
+      });
+
+      const listed = await handleRequest(server, { jsonrpc: "2.0", id: 1, method: "tools/list" });
+      expect(listed.result.tools.map(tool => tool.name)).toEqual(["missing_tool"]);
+
+      const called = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "Missing-Tool", arguments: {} },
+      });
+      expect(called.result.content).toEqual([{ type: "text", text: "ok" }]);
+    });
+
     it("should register a tool with the server", async () => {
       const { createServer, registerTool } = await import("./mcp_server_core.cjs");
       const server = createServer({ name: "test-server", version: "1.0.0" });
