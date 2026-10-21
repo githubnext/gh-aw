@@ -32,6 +32,8 @@ const fs = require("fs");
 const path = require("path");
 const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
+const normalizeToolName = name => normalizeSafeOutputName(String(name).replace(/-/g, "_").toLowerCase());
 const ADD_COMMENT_DEFAULT_DISCUSSIONS_NOTE =
   "NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_DISCUSSIONS_ENABLED_NOTE = "NOTE: Discussion comments are enabled for this workflow because discussions:write permission is available.";
@@ -282,7 +284,7 @@ async function main() {
     throw new Error(`${ERR_SYSTEM}: Failed to read config file ${configPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
-    config = JSON.parse(configRaw);
+    config = Object.fromEntries(Object.entries(JSON.parse(configRaw)).map(([key, value]) => [normalizeToolName(key), value]));
   } catch (err) {
     throw new Error(`${ERR_PARSE}: ` + "Failed to parse config file " + configPath + ": " + getErrorMessage(err), { cause: err });
   }
@@ -306,7 +308,6 @@ async function main() {
   }
 
   // Build set of source tool names (predefined/static tools only)
-  const normalizeToolName = name => String(name).replace(/-/g, "_").toLowerCase();
   const sourceToolNames = new Set(allTools.map(t => normalizeToolName(t.name)));
 
   // Determine enabled tools: config keys that match source tool names

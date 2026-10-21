@@ -144,7 +144,7 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 		{name: "conflicting work selector", execution: "success", mutate: `noop.work_id = "foreign"; saveNoop();`, wantFailed: "staged-safe-output"},
 		{name: "extra field in noop", execution: "success", mutate: `noop.passed = true; saveNoop();`, wantFailed: "staged-safe-output"},
 		{name: "extra scope", execution: "success", mutate: `noop.assignment = {}; saveNoop();`, wantFailed: "staged-safe-output"},
-		{name: "wrong safe-output type", execution: "success", mutate: `noop.type = "missing_tool"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "wrong safe-output type", execution: "success", mutate: `noop.type = "report_missing_tool"; saveNoop();`, wantFailed: "staged-safe-output"},
 		{name: "wrong noop message", execution: "success", mutate: `noop.message = "guessed"; saveNoop();`, wantFailed: "staged-safe-output"},
 		{name: "duplicate noop", execution: "success", mutate: `fs.appendFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, fs.readFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS));`, wantFailed: "staged-safe-output"},
 		{name: "symlink safe output", execution: "success", mutate: `fs.renameSync(process.env.CONFORMANCE_SAFE_OUTPUTS, process.env.CONFORMANCE_SAFE_OUTPUTS + ".real"); fs.symlinkSync(process.env.CONFORMANCE_SAFE_OUTPUTS + ".real", process.env.CONFORMANCE_SAFE_OUTPUTS);`, wantFailed: "staged-safe-output"},
@@ -311,7 +311,7 @@ func TestAgyNativeConformanceRequiresStagedNoop(t *testing.T) {
 		{name: "null scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":null}`},
 		{name: "extra scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy","work_id":"foreign"}`},
 		{name: "empty placeholder"},
-		{name: "wrong type", output: `{"type":"missing_tool","message":"Conformance probes completed","claim_handle":"original-agy"}`},
+		{name: "wrong type", output: `{"type":"report_missing_tool","message":"Conformance probes completed","claim_handle":"original-agy"}`},
 		{name: "wrong message", output: `{"type":"noop","message":"guessed","claim_handle":"original-agy"}`},
 		{name: "duplicate noop", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}` + "\n" + `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}`},
 	} {

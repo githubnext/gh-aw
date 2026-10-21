@@ -10,6 +10,7 @@
  */
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { normalizeSafeOutputConfig } = require("./safe_output_names.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getStalePullRequestReason } = require("./pr_lifecycle.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
@@ -107,9 +108,9 @@ const HANDLER_MAP = {
   dispatch_repository: "./dispatch_repository.cjs",
   call_workflow: "./call_workflow.cjs",
   create_missing_tool_issue: "./create_missing_tool_issue.cjs",
-  missing_tool: "./missing_tool.cjs",
+  report_missing_tool: "./missing_tool.cjs",
   create_missing_data_issue: "./create_missing_data_issue.cjs",
-  missing_data: "./missing_data.cjs",
+  report_missing_data: "./missing_data.cjs",
   ledger_append: "./ledger_append.cjs",
   ledger_request_compaction: "./ledger_request_compaction.cjs",
   ledger_mutation: "./ledger_mutation.cjs",
@@ -187,9 +188,9 @@ const THREAT_WARNING_REVIEWABLE_TYPES = new Set([
   "create_code_scanning_alert",
   "create_check_run",
   "create_missing_tool_issue",
-  "missing_tool",
+  "report_missing_tool",
   "create_missing_data_issue",
-  "missing_data",
+  "report_missing_data",
   // Log-only: the ledger append already happened in the agent job, and the handler
   // only echoes redacted audit metadata, so it stays reviewable in warn mode.
   "ledger_mutation",
@@ -342,7 +343,7 @@ function loadConfig() {
     const config = JSON.parse(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
     core.info(`Loaded config from GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${JSON.stringify(redactSensitiveConfig(config))}`);
     // Normalize config keys: convert hyphens to underscores
-    return Object.fromEntries(Object.entries(config).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+    return normalizeSafeOutputConfig(config);
   } catch (error) {
     throw new Error(`${ERR_PARSE}: Failed to parse GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ${getErrorMessage(error)}`, { cause: error });
   }
@@ -437,6 +438,7 @@ function bindHandlerToFactoryScope(handler) {
  * @returns {Promise<Map<string, Function>>} Map of type to message handler function
  */
 async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMentionAliases, activationCommentLinks = []) {
+  config = normalizeSafeOutputConfig(config);
   const messageHandlers = new Map();
 
   /** @type {Map<string, string>} */
@@ -650,7 +652,7 @@ async function loadHandlers(config, prReviewBufferRegistry, resolvedAllowedMenti
 }
 
 /**
- * Collect missing_tool, missing_data, noop, and report_incomplete messages from the messages array
+ * Collect report_missing_tool, report_missing_data, noop, and report_incomplete messages from the messages array
  * @param {Array<Object>} messages - Array of safe output messages
  * @returns {{missingTools: Array<any>, missingData: Array<any>, noopMessages: Array<any>, reportIncomplete: Array<any>}} Object with collected missing items, noop messages, and incomplete signals
  */
@@ -661,8 +663,8 @@ function collectMissingMessages(messages) {
   const reportIncomplete = [];
 
   for (const message of messages) {
-    if (message.type === "missing_tool") {
-      // Extract relevant fields from missing_tool message
+    if (message.type === "report_missing_tool") {
+      // Extract relevant fields from report_missing_tool message
       if (message.tool && message.reason) {
         missingTools.push({
           tool: message.tool,
@@ -670,8 +672,8 @@ function collectMissingMessages(messages) {
           alternatives: message.alternatives || null,
         });
       }
-    } else if (message.type === "missing_data") {
-      // Extract relevant fields from missing_data message
+    } else if (message.type === "report_missing_data") {
+      // Extract relevant fields from report_missing_data message
       if (message.data_type && message.reason) {
         missingData.push({
           data_type: message.data_type,
@@ -1025,7 +1027,7 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   const detectionConclusion = getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, process.env.GH_AW_DETECTION_REASON);
   const detectionConclusionMissing = String(process.env.GH_AW_RUN_DETECTION || "").trim() === "true" && detectionConclusion === "";
 
-  // Collect missing_tool, missing_data, noop, and report_incomplete messages first
+  // Collect report_missing_tool, report_missing_data, noop, and report_incomplete messages first
   const missings = collectMissingMessages(messages.filter(message => !currentClaimHandle() || !message._claimScopeError));
   if (currentClaimHandle()) setCollectedMissings(missings);
 

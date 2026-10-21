@@ -436,14 +436,7 @@ func validateManifestWorkflowPrivateSetting(spec, resolvedSpec *WorkflowSpec, co
 }
 
 func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resolutionWarnings []string) (*resolvedBootstrapProfile, []string) {
-	switch len(bootstrapProfiles) {
-	case 0:
-		return nil, resolutionWarnings
-	case 1:
-		bootstrapProfile := bootstrapProfiles[0]
-		resolutionLog.Printf("Bootstrap profile found: packageID=%s", bootstrapProfile.PackageID)
-		return bootstrapProfile, resolutionWarnings
-	default:
+	if len(bootstrapProfiles) > 1 {
 		ids := make([]string, 0, len(bootstrapProfiles))
 		for _, p := range bootstrapProfiles {
 			ids = append(ids, p.PackageID)
@@ -452,6 +445,12 @@ func selectBootstrapProfile(bootstrapProfiles []*resolvedBootstrapProfile, resol
 		return nil, append(resolutionWarnings,
 			fmt.Sprintf("multiple bootstrap profiles found (%s); bootstrap config will be skipped — run each package separately to apply its config", strings.Join(ids, ", ")))
 	}
+	if len(bootstrapProfiles) > 0 {
+		bootstrapProfile := bootstrapProfiles[0]
+		resolutionLog.Printf("Bootstrap profile found: packageID=%s", bootstrapProfile.PackageID)
+		return bootstrapProfile, resolutionWarnings
+	}
+	return nil, resolutionWarnings
 }
 
 func resolveLocalRepositoryPackage(source string) (*resolvedRepositoryPackage, error) {
@@ -980,11 +979,9 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 		// name is derived from the install destination so that source-to-destination
 		// mappings install under their declared destination name.
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug:    repoSpec.RepoSlug,
-				Version:     effectiveVersion,
-				PackagePath: repoSpec.PackagePath,
-			},
+			RepoSlug:               repoSpec.RepoSlug,
+			Version:                effectiveVersion,
+			PackagePath:            repoSpec.PackagePath,
 			WorkflowPath:           installable.SourcePath,
 			WorkflowName:           packageInstallableWorkflowName(installable),
 			DestinationPath:        installable.DestinationPath,
@@ -994,11 +991,9 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 	}
 	for _, resource := range pkg.ResourceFiles {
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug:    repoSpec.RepoSlug,
-				Version:     effectiveVersion,
-				PackagePath: repoSpec.PackagePath,
-			},
+			RepoSlug:               repoSpec.RepoSlug,
+			Version:                effectiveVersion,
+			PackagePath:            repoSpec.PackagePath,
 			WorkflowPath:           resource.SourcePath,
 			WorkflowName:           packageResourceName(resource),
 			DestinationPath:        resource.DestinationPath,
@@ -1009,11 +1004,9 @@ func appendRepositoryPackageWorkflowSpecs(parsedSpecs []*WorkflowSpec, repoSpec 
 	}
 	if pkg.ProjectFile != nil {
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug:    repoSpec.RepoSlug,
-				Version:     effectiveVersion,
-				PackagePath: repoSpec.PackagePath,
-			},
+			RepoSlug:               repoSpec.RepoSlug,
+			Version:                effectiveVersion,
+			PackagePath:            repoSpec.PackagePath,
 			WorkflowPath:           pkg.ProjectFile.SourcePath,
 			WorkflowName:           "aw.json",
 			DestinationPath:        pkg.ProjectFile.DestinationPath,
@@ -1030,11 +1023,9 @@ func appendRepositoryPackageExtensionSpecs(parsedSpecs []*WorkflowSpec, repoSpec
 		base := filepath.Base(skillFile.SourcePath)
 		workflowName := filepath.Join(skillFile.SkillName, strings.TrimSuffix(base, filepath.Ext(base)))
 		parsedSpecs = append(parsedSpecs, &WorkflowSpec{
-			RepoSpec: RepoSpec{
-				RepoSlug:    repoSpec.RepoSlug,
-				Version:     effectiveVersion,
-				PackagePath: repoSpec.PackagePath,
-			},
+			RepoSlug:           repoSpec.RepoSlug,
+			Version:            effectiveVersion,
+			PackagePath:        repoSpec.PackagePath,
 			WorkflowPath:       skillFile.SourcePath,
 			WorkflowName:       workflowName,
 			Host:               host,

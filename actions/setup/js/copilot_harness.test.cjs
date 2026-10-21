@@ -686,18 +686,18 @@ describe("copilot_harness.cjs", () => {
       const tempDir = makeHarnessTempDir("terminal-safeoutput-diagnostic-");
       const filePath = path.join(tempDir, "safe-outputs.jsonl");
       try {
-        fs.writeFileSync(filePath, JSON.stringify({ type: "missing_tool", reason: "missing permission" }) + "\n", "utf8");
+        fs.writeFileSync(filePath, JSON.stringify({ type: "report_missing_tool", reason: "missing permission" }) + "\n", "utf8");
         expect(hasTerminalSafeOutput(filePath)).toBe(false);
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
     });
 
-    it("returns false for missing_data diagnostic output", () => {
+    it("returns false for report_missing_data diagnostic output", () => {
       const tempDir = makeHarnessTempDir("terminal-safeoutput-missing-data-");
       const filePath = path.join(tempDir, "safe-outputs.jsonl");
       try {
-        fs.writeFileSync(filePath, JSON.stringify({ type: "missing_data", reason: "metadata only" }) + "\n", "utf8");
+        fs.writeFileSync(filePath, JSON.stringify({ type: "report_missing_data", reason: "metadata only" }) + "\n", "utf8");
         expect(hasTerminalSafeOutput(filePath)).toBe(false);
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
@@ -1559,20 +1559,20 @@ describe("copilot_harness.cjs", () => {
       expect(hasNumerousPermissionDeniedIssues(output)).toBe(false);
     });
 
-    it("builds missing_tool payload for permission issues", () => {
+    it("builds report_missing_tool payload for permission issues", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.reason).toContain("missing tool/permission issue");
       expect(payload.denied_commands).toEqual([]);
     });
 
-    it("builds missing_tool payload with denied commands", () => {
+    it("builds report_missing_tool payload with denied commands", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload(["go version", "ls /usr/local/go/bin/go"]));
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.denied_commands).toEqual(["go version", "ls /usr/local/go/bin/go"]);
     });
 
-    it("builds missing_tool alternatives with denied command details", () => {
+    it("builds report_missing_tool alternatives with denied command details", () => {
       const base = "Verify token scopes, repository permissions, and MCP/tool access configuration.";
       const alternatives = buildMissingToolAlternatives(base, ["go version"]);
       expect(alternatives).toContain("Denied commands: go version");
@@ -1602,11 +1602,11 @@ describe("copilot_harness.cjs", () => {
         logger: message => logs.push(message),
       });
       expect(calls).toHaveLength(1);
-      expect(calls[0].toolName).toBe("missing_tool");
+      expect(calls[0].toolName).toBe("report_missing_tool");
       expect(calls[0].args.tool).toBe("tool/permission");
       expect(calls[0].args.reason).toContain("missing tool/permission issue");
       expect(calls[0].args.alternatives).toContain("Denied commands: go version");
-      expect(logs.some(message => message.includes("missing_tool emitted"))).toBe(true);
+      expect(logs.some(message => message.includes("report_missing_tool emitted"))).toBe(true);
     });
   });
 
@@ -3193,7 +3193,7 @@ process.exit(1);`,
       expect(result.stderr).toContain("suppressing terminal verdict (false-red: core work succeeded)");
     });
 
-    it("exits 1 and emits missing_tool when numerous permission-denied occurs with no expected safe-outputs", () => {
+    it("exits 1 and emits report_missing_tool when numerous permission-denied occurs with no expected safe-outputs", () => {
       const tempDir = makeHarnessTempDir("copilot-perm-denied-no-outputs-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
       const stubPath = path.join(tempDir, "stub.cjs");

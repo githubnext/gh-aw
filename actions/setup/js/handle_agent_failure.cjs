@@ -5,6 +5,7 @@ const { createReportIssue, renderIssueParameters } = require("./issue_report.cjs
 
 const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureCommentMessage } = require("./messages.cjs");
@@ -1303,7 +1304,7 @@ function loadMissingDataMessages(items) {
     // Extract missing_data messages from agent output
     const missingDataMessages = [];
     for (const item of resolvedItems) {
-      if (item.type === "missing_data") {
+      if (normalizeSafeOutputName(item.type) === "report_missing_data") {
         // Accept items with at least a reason; data_type may be absent for cache-miss signals
         if (item.reason) {
           missingDataMessages.push({
@@ -1550,7 +1551,7 @@ function loadMissingToolMessages(items) {
 
     const missingToolMessages = [];
     for (const item of resolvedItems) {
-      if (item.type === "missing_tool") {
+      if (normalizeSafeOutputName(item.type) === "report_missing_tool") {
         if (item.reason) {
           const deniedCommandsFromItem = Array.isArray(item.denied_commands) ? item.denied_commands.filter(cmd => typeof cmd === "string" && cmd.trim()) : [];
           const deniedCommands = deniedCommandsFromItem.length > 0 ? deniedCommandsFromItem : extractDeniedCommandsFromAlternatives(item.alternatives);
@@ -4294,7 +4295,7 @@ async function main() {
     // are surfaced in the failure issue comment rather than only in the output footer.
     let hasMissingTool = false;
     if (missingToolReportAsFailure && agentOutputResult.items) {
-      const missingToolItems = agentOutputResult.items.filter(item => item.type === "missing_tool" && item.reason);
+      const missingToolItems = agentOutputResult.items.filter(item => normalizeSafeOutputName(item.type) === "report_missing_tool" && item.reason);
       if (missingToolItems.length > 0) {
         hasMissingTool = true;
         core.info(`Agent emitted ${missingToolItems.length} missing_tool message(s) - activating failure handling`);
@@ -4307,7 +4308,7 @@ async function main() {
     // are surfaced in the failure issue comment rather than only in the output footer.
     let hasMissingData = false;
     if (missingDataReportAsFailure && agentOutputResult.items) {
-      const missingDataItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason);
+      const missingDataItems = agentOutputResult.items.filter(item => normalizeSafeOutputName(item.type) === "report_missing_data" && item.reason);
       if (missingDataItems.length > 0) {
         hasMissingData = true;
         core.info(`Agent emitted ${missingDataItems.length} missing_data message(s) - activating failure handling`);
@@ -4333,7 +4334,7 @@ async function main() {
     // emitted alongside other output are not missed when the agent job also fails.
     let hasCacheMissMisconfiguration = false;
     if (cacheMemoryEnabled && cacheMemoryRestored && agentOutputResult.items) {
-      const cacheMissItems = agentOutputResult.items.filter(item => item.type === "missing_data" && item.reason === "cache_memory_miss");
+      const cacheMissItems = agentOutputResult.items.filter(item => normalizeSafeOutputName(item.type) === "report_missing_data" && item.reason === "cache_memory_miss");
       if (cacheMissItems.length > 0) {
         hasCacheMissMisconfiguration = true;
         core.info(`Cache-miss misconfiguration detected: ${cacheMissItems.length} missing_data item(s) with reason "cache_memory_miss" after cache restore matched an existing key`);

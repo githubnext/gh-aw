@@ -2,7 +2,7 @@
 /**
  * Missing Messages Helper
  *
- * This module provides access to collected missing_tool, missing_data,
+ * This module provides access to collected report_missing_tool, report_missing_data,
  * and report_incomplete messages for use by safe output handlers.
  */
 

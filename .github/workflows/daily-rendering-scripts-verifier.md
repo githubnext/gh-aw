@@ -130,7 +130,7 @@ Each day:
 
 DO NOT USE `gh aw` CLI directly for GitHub API operations — it is not authenticated in this environment. Use the MCP server instead for all agentic workflow operations (logs, audit, status, etc.).
 
-The deterministic setup steps install `actions/setup/js/package-lock.json` dependencies before entering the sandbox, including Vitest. Do not install dependencies inside the sandbox, change the package lock, rewrite Git URLs, disable TLS verification, or widen the network allowlist to repair the environment. If the installed test harness cannot run, report `missing_tool` and `report_incomplete`; do not claim successful verification.
+The deterministic setup steps install `actions/setup/js/package-lock.json` dependencies before entering the sandbox, including Vitest. Do not install dependencies inside the sandbox, change the package lock, rewrite Git URLs, disable TLS verification, or widen the network allowlist to repair the environment. If the installed test harness cannot run, report `report_missing_tool` and `report_incomplete`; do not claim successful verification.
 
 Verify the agentic-workflows MCP server is operational:
 ```
@@ -241,7 +241,7 @@ Review the outputs from Phases 4 and 5 and determine:
 
 ### No Issues Found
 
-Only if the dedicated real-file harness and render tests pass cleanly with no errors or warnings, store the result in cache memory and exit without creating a PR. A blocked install, missing artifact, unsupported engine, skipped real-file test, or static-only inspection is incomplete verification: report `missing_tool` or `missing_data` as appropriate and `report_incomplete`, never `noop` or `"status": "ok"`.
+Only if the dedicated real-file harness and render tests pass cleanly with no errors or warnings, store the result in cache memory and exit without creating a PR. A blocked install, missing artifact, unsupported engine, skipped real-file test, or static-only inspection is incomplete verification: report `report_missing_tool` or `report_missing_data` as appropriate and `report_incomplete`, never `noop` or `"status": "ok"`.
 
 Use the Write tool to save `/tmp/gh-aw/cache-memory/rendering-scripts-verifier/latest.json` with the actual date, run ID, engine, `"status": "ok"`, and the recognized-event/rendered-byte counts from the successful real-file check.
 

@@ -1662,7 +1662,7 @@
     }
   },
   {
-    "name": "missing_tool",
+    "name": "report_missing_tool",
     "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this reporting tool when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
     "inputSchema": {
       "type": "object",
@@ -2006,7 +2006,7 @@
     }
   },
   {
-    "name": "missing_data",
+    "name": "report_missing_data",
     "description": "Report that data or information needed to complete the task is not available. Use this reporting tool when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {
       "type": "object",

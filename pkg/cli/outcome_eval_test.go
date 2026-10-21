@@ -315,6 +315,8 @@ func TestEvaluateOutcomesSkipsNoopAndMetadata(t *testing.T) {
 		{Type: "noop", Timestamp: "2026-05-12T00:00:00Z"},
 		{Type: "missing_tool", Timestamp: "2026-05-12T00:00:00Z"},
 		{Type: "missing_data", Timestamp: "2026-05-12T00:00:00Z"},
+		{Type: "report_missing_tool", Timestamp: "2026-05-12T00:00:00Z"},
+		{Type: "report_missing_data", Timestamp: "2026-05-12T00:00:00Z"},
 		{Type: "report_incomplete", Timestamp: "2026-05-12T00:00:00Z"},
 	}
 

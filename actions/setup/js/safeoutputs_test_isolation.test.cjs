@@ -28,7 +28,7 @@ emitMissingToolPermissionIssue({deniedCommands: ["test command"]});`,
     expect(items).toEqual([
       { type: "report_incomplete", reason: "infrastructure_error", details: "child fixture failure" },
       {
-        type: "missing_tool",
+        type: "report_missing_tool",
         tool: "tool/permission",
         reason: "missing tool/permission issue: numerous permission denied errors detected",
         alternatives: expect.stringContaining("Denied commands: test command"),

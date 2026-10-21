@@ -2089,7 +2089,7 @@ describe("copilot_sdk_driver.cjs", () => {
       const result = handler({
         kind: "shell",
         commands: [],
-        fullCommandText: 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"',
+        fullCommandText: 'safeoutputs report_missing_data --help 2>/dev/null || echo "unavailable"',
       });
       expect(result).toEqual({ kind: "approve-once" });
     });

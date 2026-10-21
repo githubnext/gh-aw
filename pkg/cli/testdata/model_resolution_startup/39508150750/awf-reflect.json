@@ -1,0 +1,209 @@
+{
+  "models_fetch_complete": true,
+  "endpoints": [
+    {
+      "provider": "openai",
+      "configured": false
+    },
+    {
+      "provider": "anthropic",
+      "configured": false
+    },
+    {
+      "provider": "copilot",
+      "configured": true,
+      "models": [
+        "claude-haiku-4.5",
+        "claude-haiku-5.5",
+        "claude-opus-5",
+        "claude-opus-5.5",
+        "claude-sonnet-5",
+        "claude-sonnet-5.5",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0613",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-4-o-preview",
+        "gpt-4.1",
+        "gpt-4.1-2025-04-14",
+        "gpt-41-copilot",
+        "gpt-4o",
+        "gpt-4o-2024-05-13",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-11-20",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-5.3-codex",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-utility",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-6-astra",
+        "gpt-6-luna",
+        "gpt-6-sol",
+        "gpt-6.1-sol",
+        "grok-4.6",
+        "grok-4.7",
+        "mai-code-1.1-flash",
+        "text-embedding-3-small",
+        "text-embedding-3-small-inference",
+        "text-embedding-ada-002",
+        "trajectory-compaction"
+      ],
+      "routing_models": [
+        {
+          "model_id": "claude-haiku-4.5",
+          "supported_endpoints": ["/chat/completions", "/v1/messages"]
+        },
+        {
+          "model_id": "claude-haiku-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"]
+        },
+        {
+          "model_id": "claude-opus-5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"]
+        },
+        {
+          "model_id": "claude-opus-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"]
+        },
+        {
+          "model_id": "claude-sonnet-5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"]
+        },
+        {
+          "model_id": "claude-sonnet-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"]
+        },
+        {
+          "model_id": "gpt-3.5-turbo",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-3.5-turbo-0613",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4-0613",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4-o-preview",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4.1",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4.1-2025-04-14",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-41-copilot",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o-2024-05-13",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o-2024-08-06",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o-2024-11-20",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o-mini",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-4o-mini-2024-07-18",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "gpt-5.3-codex",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-5.6-luna",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-5.6-luna-utility",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-5.6-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-5.6-terra",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-6-astra",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-6-luna",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-6-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "gpt-6.1-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "grok-4.6",
+          "supported_endpoints": ["/responses"]
+        },
+        {
+          "model_id": "grok-4.7",
+          "supported_endpoints": ["/responses"]
+        },
+        {
+          "model_id": "mai-code-1.1-flash",
+          "supported_endpoints": ["/responses", "ws:/responses"]
+        },
+        {
+          "model_id": "text-embedding-3-small",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "text-embedding-3-small-inference",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "text-embedding-ada-002",
+          "supported_endpoints": []
+        },
+        {
+          "model_id": "trajectory-compaction",
+          "supported_endpoints": ["/chat/completions"]
+        }
+      ]
+    },
+    {
+      "provider": "gemini",
+      "configured": false
+    },
+    {
+      "provider": "vertex",
+      "configured": false
+    }
+  ]
+}

@@ -35,6 +35,7 @@ const { validateRequiredFields, validateStringInputLengths, buildStringLengthVal
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 const encoder = new TextEncoder();
 const PARAMETER_SIMILARITY_DISTANCE_BONUS = 2;
@@ -505,7 +506,7 @@ function loadToolHandlers(server, tools, basePath) {
  * @param {Tool} tool - The tool to register
  */
 function registerTool(server, tool) {
-  const normalizedName = normalizeTool(tool.name);
+  const normalizedName = normalizeServerToolName(server, tool.name);
   const existing = server.tools[normalizedName];
   if (existing && existing._rawName !== tool.name) {
     throw new Error(`${ERR_VALIDATION}: Tool name collision: '${existing._rawName}' and '${tool.name}' both normalize to '${normalizedName}'`);
@@ -662,6 +663,16 @@ function normalizeTool(name) {
 }
 
 /**
+ * @param {MCPServer} server
+ * @param {string} name
+ * @returns {string}
+ */
+function normalizeServerToolName(server, name) {
+  const normalized = normalizeTool(name);
+  return server.serverInfo?.name === "safeoutputs" ? normalizeSafeOutputName(normalized) : normalized;
+}
+
+/**
  * Detect local file reference notation in tool arguments (e.g. "@/tmp/file.md", "@./file.txt").
  * @param {unknown} value
  * @returns {boolean}
@@ -747,7 +758,7 @@ async function handleRequest(server, request, defaultHandler) {
           message: "Invalid params: 'name' must be a string",
         };
       }
-      const tool = server.tools[normalizeTool(name)];
+      const tool = server.tools[normalizeServerToolName(server, name)];
       if (!tool) {
         // Find similar tools to suggest
         const similarTools = findSimilarTools(name, server.tools);
@@ -932,7 +943,7 @@ async function handleMessage(server, req, defaultHandler) {
         server.replyError(id, -32602, "Invalid params: 'name' must be a string");
         return;
       }
-      const tool = server.tools[normalizeTool(name)];
+      const tool = server.tools[normalizeServerToolName(server, name)];
       if (!tool) {
         // Find similar tools to suggest
         const similarTools = findSimilarTools(name, server.tools);

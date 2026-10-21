@@ -44,6 +44,7 @@ REQUIRED_DEPS=(
   "issue_title_dedup.cjs"
   "safe_outputs_tools_loader.cjs"
   "safe_outputs_config.cjs"
+  "safe_output_names.cjs"
   "safe_outputs_config_redact.cjs"
   "checkout_manifest.cjs"
 )

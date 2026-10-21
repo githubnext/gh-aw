@@ -115,7 +115,7 @@ For shell environment filtering, use either `[shell_environment_policy.filters]`
 
 ## Context-rebuild circuit breaker
 
-The Codex harness enables a context-rebuild circuit breaker by default to limit excessive repeated input processing, such as runaway context-rebuilding loops. It stops a run when **both** `rebuild_factor >= 25` and `cumulative_input_tokens >= 1,000,000`. The factor is cumulative input tokens divided by the largest single request's input tokens, calculated from token-usage records. It is not a count of actual context resets or compactions: a long run making steady progress can also cross the threshold. After this attempt emits `noop`, any non-diagnostic task output, or a `missing_data` or `report_incomplete` diagnostic, the breaker allows Codex to finish; `missing_tool` does not exempt the run. A separate post-result watchdog handles slow shutdown.
+The Codex harness enables a context-rebuild circuit breaker by default to limit excessive repeated input processing, such as runaway context-rebuilding loops. It stops a run when **both** `rebuild_factor >= 25` and `cumulative_input_tokens >= 1,000,000`. The factor is cumulative input tokens divided by the largest single request's input tokens, calculated from token-usage records. It is not a count of actual context resets or compactions: a long run making steady progress can also cross the threshold. After this attempt emits `noop`, any non-diagnostic task output, or a `report_missing_data` or `report_incomplete` diagnostic, the breaker allows Codex to finish; `report_missing_tool` does not exempt the run. A separate post-result watchdog handles slow shutdown.
 
 Configure these harness controls through `engine.env`, not through Codex's TOML configuration:
 

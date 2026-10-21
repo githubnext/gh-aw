@@ -227,7 +227,11 @@ Debug generated delegated workflow jobs.
 					assert.NotEqual(t, false, compiled.Jobs["call-worker"]["if"])
 				}
 			} else {
-				assert.Empty(t, compiled.Jobs["conclusion"]["outputs"])
+				assert.Equal(t, map[string]any{
+					"admission_compact_session": "${{ steps.admission-conclusion-metadata.outputs.compact_session }}",
+					"usage_artifact_id":         "${{ steps.upload-usage-artifact.outputs.artifact-id }}",
+					"usage_artifact_retry_id":   "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}",
+				}, compiled.Jobs["conclusion"]["outputs"])
 				if !enabled {
 					assert.Contains(t, string(content), "Snapshot work queue state")
 					assert.Contains(t, string(content), "Reconcile work queue claim")

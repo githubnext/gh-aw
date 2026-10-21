@@ -61,8 +61,8 @@ describe("safe_output_manifest", () => {
   describe("NOT_LOGGED_TYPES", () => {
     it("should contain only noop and internal meta types", () => {
       expect(NOT_LOGGED_TYPES.has("noop")).toBe(true);
-      expect(NOT_LOGGED_TYPES.has("missing_tool")).toBe(true);
-      expect(NOT_LOGGED_TYPES.has("missing_data")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("report_missing_tool")).toBe(true);
+      expect(NOT_LOGGED_TYPES.has("report_missing_data")).toBe(true);
       expect(NOT_LOGGED_TYPES.has("report_incomplete")).toBe(true);
     });
 
@@ -418,8 +418,8 @@ describe("safe_output_manifest", () => {
     it("should return null for excluded types (noop and internal meta types)", () => {
       const result = { success: true, url: "https://github.com/owner/repo/issues/1" };
       expect(extractCreatedItemFromResult("noop", result)).toBeNull();
-      expect(extractCreatedItemFromResult("missing_tool", result)).toBeNull();
-      expect(extractCreatedItemFromResult("missing_data", result)).toBeNull();
+      expect(extractCreatedItemFromResult("report_missing_tool", result)).toBeNull();
+      expect(extractCreatedItemFromResult("report_missing_data", result)).toBeNull();
       expect(extractCreatedItemFromResult("report_incomplete", result)).toBeNull();
     });
 

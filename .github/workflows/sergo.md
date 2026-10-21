@@ -127,8 +127,8 @@ Do not inline large code/template examples in this workflow. Only when output-fo
 
 ## Missing Data Rules
 
-Call `missing_data` only when external dependencies are unavailable and block completion (for example Serena MCP unreachable).
-Do not call `missing_data` for absent local cache files on startup.
+Call `report_missing_data` only when external dependencies are unavailable and block completion (for example Serena MCP unreachable).
+Do not call `report_missing_data` for absent local cache files on startup.
 
 ## Success Criteria
 
