@@ -262,6 +262,8 @@ func TestWebhookLabelArrayConformance(t *testing.T) {
 }
 
 func TestWebhookTypedValues(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	minInt := -maxInt - 1
 	tests := []struct {
 		name   string
 		value  any
@@ -271,9 +273,14 @@ func TestWebhookTypedValues(t *testing.T) {
 		{"boolean", true, WebhookFilter{Type: "boolean"}, false},
 		{"boolean string", "true", WebhookFilter{Type: "boolean"}, true},
 		{"integer", 42, WebhookFilter{Type: "integer"}, false},
+		{"maximum native integer", maxInt, WebhookFilter{Type: "integer"}, int64(maxInt) > 9007199254740991},
+		{"minimum native integer", minInt, WebhookFilter{Type: "integer"}, int64(minInt) < -9007199254740991},
+		{"maximum safe JSON integer", int64(9007199254740991), WebhookFilter{Type: "integer"}, false},
+		{"minimum safe JSON integer", int64(-9007199254740991), WebhookFilter{Type: "integer"}, false},
 		{"integer string", "42", WebhookFilter{Type: "integer"}, true},
 		{"fraction", 1.5, WebhookFilter{Type: "integer"}, true},
 		{"unsafe JSON integer", int64(9007199254740992), WebhookFilter{Type: "integer"}, true},
+		{"unsafe negative JSON integer", int64(-9007199254740992), WebhookFilter{Type: "integer"}, true},
 		{"enum valid", "Issue", WebhookFilter{Type: "string", Enum: []any{"Issue", "PullRequest", "DraftIssue"}}, false},
 		{"enum invalid", "issue", WebhookFilter{Type: "string", Enum: []any{"Issue", "PullRequest", "DraftIssue"}}, true},
 	}
