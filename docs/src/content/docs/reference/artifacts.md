@@ -7,6 +7,8 @@ sidebar:
 
 GitHub Agentic Workflows upload several artifacts during workflow execution. This reference documents every artifact name, its contents, and how to access the data — especially for downstream workflows that use `gh run download` directly instead of `gh aw logs`.
 
+The `agent` and `agent-output-fallback` uploads require successful built-in secret redaction and every configured custom secret-masking step, regardless of whether the agent firewall is enabled. Failed, skipped, cancelled, or missing redaction steps block both uploads, including custom steps with `continue-on-error: true`. An engine failure alone does not block these uploads when redaction succeeds.
+
 ## Quick Reference
 
 | Artifact Name | Constant | Type | Description |
