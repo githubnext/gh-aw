@@ -1,45 +1,52 @@
 # ADR-70875: Require Successful Redaction for All Agent Artifact Uploads
 
-**Date**: 2026-10-22
-**Status**: Draft
-**Deciders**: pelikhan, Unknown
+**Date**: 2026-10-21
+**Status**: Proposed (implemented in PR #70875; maintainer acceptance pending)
+**Deciders**: pelikhan (PR author); maintainer acceptance pending
 
 ---
 
 ### Context
 
-The compiled agent job uploads two artifacts after the engine runs: the unified `agent` artifact and the `agent-output-fallback` artifact. Before an upload runs, the job runs the built-in secret redactor (`redact_secrets`) and any custom `secret-masking` steps. Before this PR, only some uploads had to wait for redaction to succeed. The unified upload required it only when there were custom safe-job artifact paths, when the work queue was enabled, or when the paths included the AWF resolved config file. The fallback upload required it only when the agent firewall (AWF) was enabled. In every other case, both uploads ran under a plain `if: always()`. That meant a workflow without AWF could upload agent artifacts even when redaction had failed, been skipped, or been cancelled. For example, run 39025245757 ran out of JavaScript heap during redaction, and run 38987303689 hit read-permission failures. A custom hook with `continue-on-error: true` could also hide a masking failure.
+The compiled agent job can upload a unified `agent` artifact and, when applicable, a smaller `agent-output-fallback` artifact used by downstream safe-output processing. Built-in secret redaction and configured custom `secret-masking` steps precede these uploads, but their presence alone does not prevent an upload after redaction fails.
+
+Before this PR, the unified upload required successful redaction only for custom safe-job artifact paths, work-queue workflows, or paths containing the AWF resolved config. The fallback upload required it only when the agent firewall (AWF) was enabled. Otherwise, the upload used plain `if: always()`, allowing publication even if redaction failed, was skipped, or was cancelled. Reported heap exhaustion and file-permission failures motivated closing this gap; this decision does not diagnose or repair those runtime failures.
 
 ### Decision
 
-We will gate both the `agent` and `agent-output-fallback` uploads on the same rule every time: `always() && secretRedactionSuccessCondition(data)`. This rule requires `steps.redact_secrets.outcome == 'success'` and a `success` outcome for every configured custom secret-masking step. We will remove the `requireSuccessfulRedaction` parameter from `generateUnifiedArtifactUpload`, the special case for the AWF resolved config path, and the `isFirewallEnabled` branch in `generateAgentOutputFallbackUpload`. The main reason is safety by default: no artifact leaves the runner without successful redaction, whatever the sandbox, artifact paths, or features are. We will check `outcome` rather than `conclusion`, so a custom hook marked `continue-on-error` still blocks uploads when it fails. An engine failure on its own still allows diagnostic uploads, as long as redaction succeeded.
+Whenever either upload is generated, gate it with `always() && ` followed by `secretRedactionSuccessCondition(data)`. The generated condition requires `steps.redact_secrets.outcome == 'success'` and a `success` outcome for every configured custom secret-masking step, independently of AWF, artifact paths, or work-queue configuration.
+
+Use `outcome`, not `conclusion`, so a failed custom hook still blocks upload when it has `continue-on-error: true`. Preserve the existing explicit custom-hook IDs and stable, non-conflicting IDs assigned to unnamed hooks. Retain the existing single built-in step with ID `redact_secrets` before the uploads so their conditions reference the actual redaction step; the historical missing-ID issue was already corrected before this PR.
+
+Remove the unified upload's `requireSuccessfulRedaction` parameter and the path- and firewall-dependent choice of upload condition. AWF-specific artifact path collection remains unchanged. This makes successful redaction a prerequisite for these two uploads rather than a feature-dependent exception. An engine failure alone still permits diagnostic uploads if redaction succeeds.
 
 ### Alternatives Considered
 
 #### Alternative 1: Keep conditional gating and add more trigger cases
 
-We could keep the existing approach, where gating turns on when AWF is enabled, a sensitive path is present, or safe-job or work-queue artifacts exist, and then add the cases that are missing today. This would keep diagnostic uploads available in more failure modes for low-risk configurations. We rejected it because every new artifact path or feature would need someone to remember to add a gate. The gap this PR fixes is exactly that kind of omission, in the no-AWF path.
+Retaining feature- or path-specific gates would preserve more diagnostic uploads when redaction fails in configurations treated as lower risk. It would also require each new artifact path or feature to opt into the prerequisite. The unconditional rule avoids repeating the no-AWF gap and does not assume that other agent output is safe without redaction.
 
-#### Alternative 2: Upload unredacted artifacts to a restricted location, or drop only the unredacted files, when redaction fails
+#### Alternative 2: Require only built-in redaction success
 
-We could keep uploading on redaction failure but quarantine or strip the files that might hold secrets. This would keep more debugging data available. We rejected it because it adds complexity, and because a partly failed redaction pass gives no reliable signal about which files are safe. Blocking the whole upload is simpler and fails closed.
+Checking only the built-in step would simplify the condition and allow uploads when an optional custom hook is skipped or fails. However, custom hooks may provide masking beyond the built-in redactor. Requiring every configured hook's actual successful outcome preserves that contract rather than treating `continue-on-error` as permission to publish.
 
 ### Consequences
 
 #### Positive
-- Every workflow configuration fails closed: no `agent` or `agent-output-fallback` upload happens unless built-in and custom redaction both succeed.
-- The upload code is simpler: there is one shared condition, and path- and firewall-specific branches are gone.
+- Both uploads fail closed across AWF and no-AWF configurations unless built-in redaction and every configured custom hook succeed.
+- The upload generators share one condition without path- or firewall-specific gating branches.
 - Custom masking hooks with `continue-on-error: true` can no longer hide a failure from the upload gate.
 
 #### Negative
 - When redaction fails (for example, from heap exhaustion or permission errors), no-AWF workflows lose the diagnostic artifacts they used to get, which makes those failures harder to debug.
-- Upload availability now depends on how reliable the redactor is. The PR explicitly does not fix the redactor's underlying memory and ownership problems.
+- A deliberately skipped custom hook also blocks these uploads. Redaction heap exhaustion and EACCES failures remain unresolved by this change.
+- Losing both artifacts can also leave downstream safe-output processing without its normal artifact inputs.
 
 #### Neutral
 - An engine failure alone still allows uploads after successful redaction, so normal failure diagnostics are unchanged.
-- The regression matrix in `redaction_upload_gating_test.go` now covers both AWF and no-AWF configurations for every custom-hook outcome, and checks that exactly one tracked redaction step runs before the uploads.
-- This builds on the detection-side policy in [ADR-69520](69520-gate-detection-publication-on-host-redaction.md), which applies the same fail-closed approach to agent-job uploads.
+- `redaction_upload_gating_test.go` checks compiled conditions and ordering for AWF and no-AWF configurations, including failed, skipped, cancelled, and missing outcome values. These are compiler/expression checks, not live-run verification or proof that successful redaction removes every secret.
+- This extends the fail-closed publication principle described for the separate detection job in [ADR-69520](69520-gate-detection-publication-on-host-redaction.md) to these agent-job uploads; it does not change detection-job behavior.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Proposed for maintainer review with this pull request.*
