@@ -273,6 +273,18 @@ describe("Claude sub-agent models (Typist run 39415087125)", () => {
     expect(run.records()).toEqual([expect.objectContaining({ role: "duplicate-type-finder", status: "failed", cause: "model_unavailable", provider: "openai" })]);
   });
 
+  it("fails closed for a workflow sub-agent model that is not a string", async () => {
+    const run = layout();
+    // Fixture mutation: the recorded Typist agent with its selector wrapped in a list.
+    stageInline(run, "claude", { "duplicate-type-finder": typistAgent().replace("model: small", "model: [small]") });
+
+    const outcome = await applyClaudeSubagentModels({ reflectData: runs.typistReflect(), provider: "anthropic", workspaceDir: run.workspaceDir, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger });
+
+    expect(outcome.ok).toBe(false);
+    expect(run.records()).toEqual([expect.objectContaining({ role: "duplicate-type-finder", configured_model: '["small"]', status: "failed", cause: "model_unavailable" })]);
+    expect(run.logs).toContainEqual(expect.stringMatching(/claude sub-agent 'duplicate-type-finder': .*is not a string.*Refusing to start Claude/));
+  });
+
   it("gives the bare-mode plugin a run-local copy of the resolved definitions", async () => {
     const run = layout();
     stageInline(run, "claude", { "duplicate-type-finder": typistAgent(), "persona-evaluator": "---\ndescription: Evaluates\nmodel: inherit\n---\nEvaluate.\n" });
@@ -351,6 +363,10 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
   const apply = (run, options = {}) => applyCodexSubagentModels({ reflectData: runs.arxivReflect(), provider: "openai", codexHome: run.codexHome, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger, ...options });
   const roleFiles = run => (fs.existsSync(path.join(run.codexHome, "agents")) ? fs.readdirSync(path.join(run.codexHome, "agents")).sort() : []);
   const readRole = (run, name) => parseRoleToml(fs.readFileSync(path.join(run.codexHome, "agents", `${name}.toml`), "utf8"));
+  const writeCodexConfig = (run, content) => {
+    fs.mkdirSync(run.codexHome, { recursive: true });
+    fs.writeFileSync(path.join(run.codexHome, "config.toml"), content);
+  };
   const bodyOf = content => extractFrontmatterAndBody(content).markdown.trim();
 
   it("codex_declared_small_writes_native_toml_before_spawn", async () => {
@@ -526,6 +542,80 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
     expect(run.records()).toEqual([runs.arxivMainModelResolution.data, { engine: "codex", role: "paper-screener", configured_model: "openai/gpt-5.4-mini", resolved_model: "gpt-5.4-mini", provider: "openai", status: "exact", cause: null }]);
   });
 
+  it.each([
+    ["a list", "model: [small]", '["small"]'],
+    ["a boolean", "model: false", "false"],
+  ])("fails closed for a model declared as %s instead of inheriting the main model", async (_label, declaration, configured) => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded paper-screener with a non-string model declaration.
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"].replace("model: openai/gpt-5.4-mini", declaration) });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(false);
+    expect(run.records()).toEqual([{ engine: "codex", role: "paper-screener", configured_model: configured, resolved_model: null, provider: "openai", status: "failed", cause: "model_unavailable" }]);
+    expect(run.logs).toContainEqual(expect.stringMatching(/codex sub-agent 'paper-screener': .*is not a string.*Refusing to start Codex/));
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it.each([
+    ["the alias's effort", "fast", "low"],
+    ["the agent's effort over the alias's", "fast?effort=high", "high"],
+  ])("writes %s into model_reasoning_effort", async (_label, model, effort) => {
+    const run = codexLayout();
+    run.env.GH_AW_MODEL_ALIASES = JSON.stringify({ fast: ["openai/gpt-5.4-mini?effort=low"] });
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"].replace("model: openai/gpt-5.4-mini", `model: ${model}`) });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.resolutions).toEqual([{ name: "paper-screener", configuredModel: model, model: "gpt-5.4-mini", status: "resolved", params: { effort } }]);
+    expect(readRole(run, "paper-screener")).toMatchObject({ model: "gpt-5.4-mini", model_reasoning_effort: effort });
+    expect(run.logs.join("\n")).not.toMatch(/not applied/);
+  });
+
+  it("fails closed for an alias effort Codex does not accept", async () => {
+    const run = codexLayout();
+    run.env.GH_AW_MODEL_ALIASES = JSON.stringify({ fast: ["openai/gpt-5.4-mini?effort=none"] });
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"].replace("model: openai/gpt-5.4-mini", "model: fast") });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(false);
+    expect(run.logs).toContainEqual(expect.stringMatching(/codex sub-agent 'paper-screener': model 'fast' resolves with effort 'none': .*not supported by the codex engine.*Refusing to start Codex/));
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it.each([
+    ["engine.config", run => (run.env.GH_AW_CODEX_CONFIG_JSON = JSON.stringify({ defaults: {}, overrides: { agents: { max_threads: 4, "paper-screener": { description: "Other role", model: "gpt-5.6-sol" } } }, disablePlugins: false }))],
+    ["a config.toml table", run => writeCodexConfig(run, '[agents]\nmax_threads = 4\n\n[agents.paper-screener]\ndescription = "Other role"\n')],
+    ["a config.toml dotted key", run => writeCodexConfig(run, 'agents."paper-screener".description = "Other role"\n')],
+    ["a config.toml inline table", run => writeCodexConfig(run, '[agents]\npaper-screener = { description = "Other role" }\n')],
+  ])("fails closed when %s defines a role with a generated name", async (_label, configure) => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+    configure(run);
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(false);
+    expect(run.logs).toContainEqual(expect.stringMatching(/already defines the role \[agents\.paper-screener\], which Codex loads instead of the generated role file.*Refusing to start Codex/));
+    expect(run.records()).toEqual([]);
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("keeps [agents] settings and other roles that do not collide", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "paper-screener": arxivAgents()["paper-screener"] });
+    run.env.GH_AW_CODEX_CONFIG_JSON = JSON.stringify({ defaults: {}, overrides: { agents: { max_threads: 4, reviewer: { description: "Reviewer" } } }, disablePlugins: false });
+    writeCodexConfig(run, '[agents]\nmax_threads = 4\n\n[agents.reviewer]\ndescription = "Reviewer"\ndeveloper_instructions = """\n[agents.paper-screener]\n"""\n');
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    expect(roleFiles(run)).toEqual(["paper-screener.toml"]);
+  });
+
   it("codex_no_declared_agents_is_noop", async () => {
     const run = codexLayout();
     const outcome = await apply(run);
@@ -595,6 +685,62 @@ describe("Codex sub-agent endpoint compatibility (purelock run 39601756922)", ()
     expect(run.logs).toContainEqual(expect.stringContaining("(resolved to 'claude-haiku-5.5') does not list /responses"));
     expect(run.logs.join("\n")).not.toMatch(/The requested model is not supported/);
     expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("checks a live exact id before an alias of the same name, also after a refresh", async () => {
+    const run = codexLayout();
+    // Fixture mutation: a workflow alias named like the live model the run resolved `large` to.
+    run.env.GH_AW_MODEL_ALIASES = JSON.stringify({ "claude-sonnet-5.5": ["copilot/gpt-6.1-sol"] });
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: claude-sonnet-5.5") });
+    // The first catalogue failed to list the Copilot models; the refresh lists them.
+    const incomplete = runs.purelockReflect();
+    incomplete.models_fetch_complete = false;
+    incomplete.endpoints.forEach(endpoint => endpoint.configured && (endpoint.models = null));
+
+    for (const options of [{}, { reflectData: incomplete, refetchReflectData: async () => runs.purelockReflect() }]) {
+      const outcome = await apply(run, options);
+
+      expect(outcome.ok).toBe(false);
+      expect(outcome.resolutions).toEqual([]);
+      expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "claude-sonnet-5.5", resolved_model: null, provider: "copilot", status: "failed", cause: "unsupported_endpoint" }]);
+      expect(roleFiles(run)).toEqual([]);
+    }
+  });
+
+  it.each([
+    ["incomplete metadata", reflect => reflect],
+    ["no routing entry", reflect => (reflect.endpoints.forEach(endpoint => endpoint.routing_models && (endpoint.routing_models = endpoint.routing_models.filter(candidate => candidate.model_id !== "gpt-4o"))), reflect)],
+  ])("fails an exact model with %s as unverifiable, not unsupported_endpoint", async (_label, mutate) => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded test-writer pinned to gpt-4o, whose recorded entry is incomplete.
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: gpt-4o") });
+    let refreshes = 0;
+
+    const outcome = await apply(run, { reflectData: mutate(runs.purelockReflect()), refetchReflectData: async () => (refreshes++, mutate(runs.purelockReflect())) });
+
+    expect(outcome.ok).toBe(false);
+    expect(refreshes).toBe(1);
+    expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "gpt-4o", resolved_model: null, provider: "copilot", status: "failed", cause: "catalog_unavailable" }]);
+    expect(run.logs).toContainEqual(expect.stringMatching(/has no complete endpoint metadata .*cannot be verified that it supports \/responses/));
+    expect(run.logs.join("\n")).not.toMatch(/does not list \/responses/);
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("keeps alias candidates with unknown endpoints and accepts them once a refresh verifies them", async () => {
+    const run = codexLayout();
+    // Fixture mutation: an alias whose first candidate has incomplete recorded metadata.
+    run.env.GH_AW_MODEL_ALIASES = JSON.stringify({ fast: ["copilot/gpt-4o", "copilot/gpt-6.1-sol"] });
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: fast") });
+    const verified = runs.purelockReflect();
+    verified.endpoints
+      .flatMap(endpoint => endpoint.routing_models || [])
+      .forEach(candidate => candidate.model_id === "gpt-4o" && Object.assign(candidate, { candidate_metadata_complete: true, supported_endpoints: ["/chat/completions", "/responses"] }));
+
+    const outcome = await apply(run, { refetchReflectData: async () => verified });
+
+    expect(outcome.ok).toBe(true);
+    expect(outcome.resolutions).toEqual([{ name: "test-writer", configuredModel: "fast", model: "gpt-4o", status: "resolved" }]);
+    expect(roleFiles(run)).toEqual(["test-writer.toml"]);
   });
 
   it("keeps an exact /responses model", async () => {

@@ -146,6 +146,7 @@ Parent workflow success does not imply successful delegation. `metrics.error_cou
 | `tools_not_available` | Requested tools were unavailable |
 | `model_unavailable` | Pi rejected a model at startup and the same run's complete provider inventory confirms it was not advertised |
 | `model_availability_unknown` | Pi rejected a model at startup, but saved reflection cannot confirm its absence |
+| `model_endpoint_unsupported` | Startup recorded `unsupported_endpoint`: the model is live, but the engine cannot call its endpoint; choose a compatible model |
 | `blocked_network_requests` | The firewall blocked network requests |
 | `workflow_succeeded` | The parent workflow completed successfully; the description qualifies any observed delegated failures |
 | `subagent_failed` | One or more invocations of a sub-agent failed, regardless of the parent conclusion |

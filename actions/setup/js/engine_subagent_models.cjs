@@ -98,14 +98,16 @@ function parseAgentFrontmatter(content) {
 /**
  * Read the Markdown agent files (`*.md`) in one directory.
  * `name` is the trimmed frontmatter `name` string, or null when absent;
- * `model` is the trimmed frontmatter `model` string, when declared.
+ * `model` is the trimmed frontmatter `model` string, when declared; a declared model that is
+ * not a string (for example `model: [small]` or `model: false`) is reported as
+ * `invalidModel`, its JSON form, so callers can fail instead of inheriting the main model.
  * A directory or file that cannot be read or parsed is skipped with a warning, unless
  * `onInvalid` is given: it then receives the path and error instead, so the caller can
  * fail closed.
  * @param {string} directory
  * @param {(msg: string) => void} logger
  * @param {{ onInvalid?: (filePath: string, error: unknown) => void }} [options]
- * @returns {Array<{ fileName: string, path: string, name: string | null, model?: string }>}
+ * @returns {Array<{ fileName: string, path: string, name: string | null, model?: string, invalidModel?: string }>}
  */
 function listMarkdownAgentFiles(directory, logger, options = {}) {
   const invalid = options.onInvalid || ((/** @type {string} */ filePath, /** @type {unknown} */ error) => logger(`warning: cannot read custom agent ${filePath}: ${getErrorMessage(error)}`));
@@ -123,7 +125,9 @@ function listMarkdownAgentFiles(directory, logger, options = {}) {
     try {
       const frontmatter = parseAgentFrontmatter(fs.readFileSync(agentPath, "utf8"));
       const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : null;
-      agents.push({ fileName: entry.name, path: agentPath, name, ...(typeof frontmatter.model === "string" ? { model: frontmatter.model.trim() } : {}) });
+      const model = frontmatter.model;
+      const declared = typeof model === "string" ? { model: model.trim() } : model !== undefined && model !== null ? { invalidModel: JSON.stringify(model) } : {};
+      agents.push({ fileName: entry.name, path: agentPath, name, ...declared });
     } catch (error) {
       invalid(agentPath, error);
     }
@@ -187,25 +191,43 @@ function routingModelsFor(reflectData, providers) {
 }
 
 /**
- * Whether `/reflect` lists `wireApi` in the `supported_endpoints` of `model` on the engine's
- * providers. Null when those providers publish no per-model endpoint metadata.
+ * What the `routing_models` entries of one model say about `wireApi`: "supported" when an
+ * entry lists it, "unsupported" when every entry has complete metadata
+ * (`candidate_metadata_complete: true`) without it, otherwise "unknown" (no entry, or
+ * incomplete metadata, as `copilot_wire_api.cjs` and `awf_model_routing.cjs` treat it).
+ * @param {string} model
+ * @param {any[]} routingModels
+ * @param {string} wireApi
+ * @returns {"supported" | "unsupported" | "unknown"}
+ */
+function endpointSupportIn(model, routingModels, wireApi) {
+  const id = String(model || "").toLowerCase();
+  const entries = routingModels.filter(candidate => typeof candidate?.model_id === "string" && candidate.model_id.toLowerCase() === id);
+  if (entries.some(entry => Array.isArray(entry.supported_endpoints) && entry.supported_endpoints.includes(wireApi))) return "supported";
+  const complete =
+    entries.length > 0 && entries.every(entry => entry.candidate_metadata_complete === true && Array.isArray(entry.supported_endpoints) && entry.supported_endpoints.every(/** @param {unknown} value */ value => typeof value === "string"));
+  return complete ? "unsupported" : "unknown";
+}
+
+/**
+ * Whether `/reflect` shows that `model` supports `wireApi` on the engine's providers (see
+ * `endpointSupportIn`). Null when those providers publish no per-model endpoint metadata.
  * @param {string} model
  * @param {any} reflectData
  * @param {Set<string>} providers
  * @param {string} wireApi
- * @returns {boolean | null}
+ * @returns {"supported" | "unsupported" | "unknown" | null}
  */
-function modelSupportsEndpoint(model, reflectData, providers, wireApi) {
+function modelEndpointSupport(model, reflectData, providers, wireApi) {
   const routingModels = routingModelsFor(reflectData, providers);
-  if (!routingModels) return null;
-  const id = String(model || "").toLowerCase();
-  return routingModels.some(candidate => typeof candidate?.model_id === "string" && candidate.model_id.toLowerCase() === id && Array.isArray(candidate.supported_endpoints) && candidate.supported_endpoints.includes(wireApi));
+  return routingModels ? endpointSupportIn(model, routingModels, wireApi) : null;
 }
 
 /**
  * A copy of `/reflect` data whose model lists, on the engine's providers that publish
- * per-model endpoint metadata, keep only models that support `wireApi`, so aliases resolve
- * among models the engine can call.
+ * per-model endpoint metadata, drop the models confirmed not to support `wireApi`, so
+ * aliases resolve among models the engine can call. Models whose endpoints cannot be
+ * verified stay candidates.
  * @param {any} reflectData
  * @param {Set<string>} providers
  * @param {string} wireApi
@@ -217,12 +239,7 @@ function restrictReflectToEndpoint(reflectData, providers, wireApi) {
     ...reflectData,
     endpoints: reflectData.endpoints.map(endpoint => {
       if (endpoint?.configured !== true || !providers.has(normalizeReflectProviderName(endpoint.provider)) || !Array.isArray(endpoint.routing_models) || !Array.isArray(endpoint.models)) return endpoint;
-      const supported = new Set(
-        endpoint.routing_models
-          .filter(/** @param {any} candidate */ candidate => typeof candidate?.model_id === "string" && Array.isArray(candidate.supported_endpoints) && candidate.supported_endpoints.includes(wireApi))
-          .map(/** @param {any} candidate */ candidate => candidate.model_id.toLowerCase())
-      );
-      return { ...endpoint, models: endpoint.models.filter(/** @param {any} model */ model => supported.has(String(model).toLowerCase())) };
+      return { ...endpoint, models: endpoint.models.filter(/** @param {any} model */ model => endpointSupportIn(String(model), endpoint.routing_models, wireApi) !== "unsupported") };
     }),
   };
 }
@@ -231,7 +248,9 @@ function restrictReflectToEndpoint(reflectData, providers, wireApi) {
  * Resolve the models of Claude or Codex sub-agents in one batch. Agents without a model or
  * with `inherit` are skipped without a record. A `<provider>/` prefix must name the engine's
  * provider; another credential route is never opened. The returned `model` is the bare,
- * engine-normalized id; model parameters are not carried into agent definitions.
+ * engine-normalized id; the effective model parameters (the caller's over an alias's, for
+ * example `?effort=low`) are returned as `params` when there are any. A declared model that
+ * is not a string (`invalidModel`) fails with cause `model_unavailable`.
  *
  * Failures are recorded as `failed` and returned, never thrown. `fatal` agents log the shared
  * ModelAliasResolutionError diagnostic; other agents get a warning without it, so a failure
@@ -239,25 +258,31 @@ function restrictReflectToEndpoint(reflectData, providers, wireApi) {
  *
  * With `wireApi`, the engine calls sub-agent models only through that endpoint (Codex:
  * `/responses`). Where the provider's `/reflect` endpoint publishes per-model
- * `supported_endpoints`, aliases resolve only among models that list `wireApi`, and a model
- * that does not list it fails with cause `unsupported_endpoint`, also when an alias would
- * resolve only to such models. Providers without per-model endpoint metadata are not filtered.
+ * `supported_endpoints`, a configured value that is a live exact id is checked against the
+ * unfiltered catalogue first, so it is never resolved through an alias of the same name;
+ * aliases resolve among models not confirmed to lack `wireApi`. A selected model whose
+ * complete metadata omits `wireApi` fails with cause `unsupported_endpoint`, also when an
+ * alias would resolve only to such models; a selected model whose endpoints cannot be
+ * verified (no routing entry or incomplete metadata, also after one refresh) fails with cause
+ * `catalog_unavailable`. Providers without per-model endpoint metadata are not filtered.
  *
  * @param {{
  *   engine: "claude" | "codex",
- *   agents: Array<{ name: string, model?: string, path?: string, fatal: boolean, origin: string }>,
+ *   agents: Array<{ name: string, model?: string, invalidModel?: string, path?: string, fatal: boolean, origin: string }>,
  *   provider: string,
  *   normalize: (model: string) => string,
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   aliasMap?: Record<string, string[]> | null,
  *   wireApi?: string,
+ *   appliedParams?: string[],
  *   nonFatalOutcome: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger: (msg: string) => void,
- * }} options `nonFatalOutcome` says what happens to a non-fatal agent whose model fails.
+ * }} options `nonFatalOutcome` says what happens to a non-fatal agent whose model fails;
+ *   `appliedParams` names the model parameters the engine applies to the agent definition.
  * @returns {Promise<{
- *   resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>,
+ *   resolutions: Array<{ name: string, configuredModel: string, model: string, status: string, params?: Record<string, string> }>,
  *   failures: Array<{ name: string, configuredModel: string, fatal: boolean, failure: InstanceType<typeof ModelAliasResolutionError> }>,
  * }>}
  */
@@ -265,7 +290,7 @@ async function resolveEngineSubagentModels(options) {
   const { engine, logger } = options;
   const env = options.env || process.env;
   const providers = reflectProvidersFor(options.provider);
-  const withModel = options.agents.filter(agent => typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherit");
+  const withModel = options.agents.filter(agent => agent.invalidModel !== undefined || (typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherit"));
   /** @type {Awaited<ReturnType<typeof resolveEngineSubagentModels>>} */
   const outcome = { resolutions: [], failures: [] };
   if (withModel.length === 0) return outcome;
@@ -292,7 +317,7 @@ async function resolveEngineSubagentModels(options) {
   };
   const liveCheck = env.AWF_REFLECT_ENABLED === "1" || Boolean(options.reflectData);
   const wireApi = options.wireApi || "";
-  const constrain = (/** @type {any} */ data) => (wireApi ? restrictReflectToEndpoint(data, providers, wireApi) : data);
+  const appliedParams = new Set(options.appliedParams || []);
   // The engine id an alias resolves to without the endpoint constraint, or null; never recorded.
   const resolveUnconstrained = (/** @type {string} */ configuredModel, /** @type {any} */ data, /** @type {(resolution: { resolvedModel: string }) => string} */ engineId) => {
     try {
@@ -308,7 +333,7 @@ async function resolveEngineSubagentModels(options) {
   };
 
   for (const agent of withModel) {
-    const configuredModel = String(agent.model).trim();
+    const configuredModel = agent.invalidModel !== undefined ? agent.invalidModel : String(agent.model).trim();
     const agentLogger = agent.fatal ? logger : (/** @type {string} */ message) => (MODEL_NOT_SUPPORTED_PATTERN.test(message) ? undefined : logger(message));
     const fail = (/** @type {InstanceType<typeof ModelAliasResolutionError>} */ failure, /** @type {string} */ detail) => {
       recordModelResolution({ engine, role: agent.name, configured_model: configuredModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason }, env);
@@ -320,6 +345,11 @@ async function resolveEngineSubagentModels(options) {
       }
     };
 
+    if (agent.invalidModel !== undefined) {
+      fail(new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: options.provider }), `Sub-agent model ${configuredModel} is not a string; declare a model id or alias, or omit 'model' to inherit the main model.`);
+      continue;
+    }
+
     const { base } = splitModelIdentifier(configuredModel);
     const slash = base.indexOf("/");
     const prefix = slash > 0 ? base.slice(0, slash) : "";
@@ -329,6 +359,16 @@ async function resolveEngineSubagentModels(options) {
     }
 
     const engineId = (/** @type {{ resolvedModel: string }} */ resolution) => stripProvider(options.normalize(resolution.resolvedModel));
+    // A live exact id (checked against the unfiltered catalogue) is never filtered, so it is
+    // not resolved through an alias of the same name; only alias lookups are restricted.
+    const isLiveExact = (/** @type {any} */ data) => {
+      try {
+        return resolveConfiguredModel({ configuredModel, aliasMap, reflectData: data, provider: options.provider }).status === "exact";
+      } catch {
+        return false;
+      }
+    };
+    const constrain = (/** @type {any} */ data) => (wireApi && !isLiveExact(data) ? restrictReflectToEndpoint(data, providers, wireApi) : data);
     const failEndpoint = (/** @type {string} */ model) =>
       fail(
         new ModelAliasResolutionError(configuredModel, "unsupported_endpoint", { provider: options.provider }),
@@ -339,7 +379,7 @@ async function resolveEngineSubagentModels(options) {
     const endpointOnlyMatch = () => {
       if (!wireApi || resolveUnconstrained(configuredModel, constrain(reflectData), engineId)) return null;
       const unconstrained = resolveUnconstrained(configuredModel, reflectData, engineId);
-      return unconstrained && modelSupportsEndpoint(unconstrained, reflectData, providers, wireApi) === false ? unconstrained : null;
+      return unconstrained && modelEndpointSupport(unconstrained, reflectData, providers, wireApi) === "unsupported" ? unconstrained : null;
     };
     const blocked = endpointOnlyMatch();
     if (blocked) {
@@ -389,14 +429,26 @@ async function resolveEngineSubagentModels(options) {
         continue;
       }
     }
-    if (wireApi && modelSupportsEndpoint(model, reflectData, providers, wireApi) === false) {
-      failEndpoint(model);
-      continue;
+    if (wireApi) {
+      let support = modelEndpointSupport(model, reflectData, providers, wireApi);
+      if (support === "unknown" && (await refreshOnce())) support = modelEndpointSupport(model, reflectData, providers, wireApi);
+      if (support === "unsupported") {
+        failEndpoint(model);
+        continue;
+      }
+      if (support === "unknown") {
+        fail(
+          new ModelAliasResolutionError(configuredModel, "catalog_unavailable", { provider: result.provider || options.provider }),
+          `Sub-agent model '${configuredModel}'${resolvedNote} has no complete endpoint metadata on the configured awf-reflect endpoints, so it cannot be verified that it supports ${wireApi}, the only endpoint ${engine === "claude" ? "Claude" : "Codex"} sub-agents call.`
+        );
+        continue;
+      }
     }
-    const { params } = splitModelIdentifier(configuredModel);
-    if ([...params.keys()].length > 0) logger(`${engine} sub-agent '${agent.name}': model parameters in '${configuredModel}' are not applied to the agent definition`);
+    const params = Object.fromEntries(splitModelIdentifier(result.resolvedModel).params);
+    const unapplied = Object.keys(params).filter(key => !appliedParams.has(key));
+    if (unapplied.length > 0) logger(`${engine} sub-agent '${agent.name}': model parameters (${unapplied.join(", ")}) in '${result.resolvedModel}' are not applied to the agent definition`);
     logger(`${engine} sub-agent '${agent.name}': model '${configuredModel}' -> '${model}'`);
-    outcome.resolutions.push({ name: agent.name, configuredModel, model, status: result.status });
+    outcome.resolutions.push({ name: agent.name, configuredModel, model, status: result.status, ...(Object.keys(params).length > 0 ? { params } : {}) });
   }
   return outcome;
 }
@@ -484,8 +536,8 @@ async function applyClaudeSubagentModels(options) {
   const { resolutions, failures } = await resolveEngineSubagentModels({
     engine: "claude",
     agents: [
-      ...declared.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
-      ...repository.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: false, origin: "repository agent" })),
+      ...declared.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
+      ...repository.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: false, origin: "repository agent" })),
     ],
     provider: options.provider,
     normalize: model => normalizeClaudeModel(model, options.provider, env, { reflectData: options.reflectData, logger }),
@@ -574,18 +626,106 @@ function writePluginAgents(pluginDir, stagedDir, resolvedDefinitions, logger) {
 }
 
 /**
+ * Split a TOML dotted key (bare or quoted parts) into its parts, or null when it is not one.
+ * @param {string} key
+ * @returns {string[] | null}
+ */
+function splitTomlDottedKey(key) {
+  /** @type {string[]} */
+  const parts = [];
+  const pattern = /\s*("(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_-]+)\s*(\.|$)/y;
+  let match;
+  while (pattern.lastIndex < key.length && (match = pattern.exec(key))) {
+    const part = match[1];
+    parts.push(part.startsWith('"') ? JSON.parse(part) : part.startsWith("'") ? part.slice(1, -1) : part);
+    if (!match[2]) return pattern.lastIndex === key.length ? parts : null;
+  }
+  return null;
+}
+
+/**
+ * The role names of explicit `[agents.<name>]` entries in a Codex `config.toml`. Table
+ * headers, dotted keys and inline tables are recognized; multi-line strings are skipped.
+ * @param {string} content
+ * @returns {string[]}
+ */
+function tomlAgentRoleNames(content) {
+  /** @type {Set<string>} */
+  const names = new Set();
+  /** @type {string[]} */
+  let table = [];
+  /** @type {string | null} */
+  let multiline = null;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (multiline) {
+      if (line.split(multiline).length % 2 === 0) multiline = null;
+      continue;
+    }
+    const header = /^\[\[?([^\]]+)\]\]?\s*(?:#.*)?$/.exec(line);
+    if (header) {
+      table = splitTomlDottedKey(header[1]) || [];
+      if (table[0] === "agents" && table.length >= 2) names.add(table[1]);
+      continue;
+    }
+    const assignment = /^((?:"(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_.\s-])+?)\s*=\s*(.*)$/.exec(line);
+    if (!assignment) continue;
+    const key = [...table, ...(splitTomlDottedKey(assignment[1]) || [])];
+    if (key[0] === "agents" && (key.length >= 3 || (key.length === 2 && assignment[2].startsWith("{")))) names.add(key[1]);
+    const delimiter = ['"""', "'''"].find(candidate => assignment[2].startsWith(candidate));
+    if (delimiter && assignment[2].split(delimiter).length % 2 === 0) multiline = delimiter;
+  }
+  return [...names];
+}
+
+/**
+ * The explicit `[agents.<name>]` roles Codex loads from its configuration: the compiled
+ * `engine.config` (`GH_AW_CODEX_CONFIG_JSON` or the `GH_AW_CODEX_CONFIG` file) and
+ * `$CODEX_HOME/config.toml`, mapped to where each is defined. Scalar `[agents]` settings
+ * such as `max_threads` are not roles.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} codexHome
+ * @returns {Map<string, string>}
+ */
+function explicitCodexAgentRoles(env, codexHome) {
+  const { isTable } = require("./codex_config.cjs");
+  /** @type {Map<string, string>} */
+  const roles = new Map();
+  const inline = env.GH_AW_CODEX_CONFIG_JSON;
+  const compiledPath = env.GH_AW_CODEX_CONFIG;
+  if (inline || (compiledPath && fs.existsSync(compiledPath))) {
+    const compiled = JSON.parse(inline || fs.readFileSync(compiledPath || "", "utf8"));
+    for (const layer of [compiled?.defaults, compiled?.overrides]) {
+      const agents = isTable(layer) ? layer.agents : null;
+      if (!isTable(agents)) continue;
+      for (const [name, value] of Object.entries(agents)) if (isTable(value)) roles.set(name, "engine.config");
+    }
+  }
+  const configPath = path.join(codexHome, "config.toml");
+  if (fs.existsSync(configPath)) {
+    for (const name of tomlAgentRoleNames(fs.readFileSync(configPath, "utf8"))) if (!roles.has(name)) roles.set(name, configPath);
+  }
+  return roles;
+}
+
+/**
  * Codex: generate one native TOML role file per workflow-declared sub-agent before Codex
  * starts. Codex discovers custom agents only from `.toml` role files (verified for Codex
  * 0.163.0), so the Markdown agents staged by the activation job in
  * `<agentsBaseDir>/.codex/agents` are converted into `<codexHome>/agents/<name>.toml` with
  * the declared block name, the frontmatter `description`, the Markdown body as
- * `developer_instructions` and the resolved concrete model. A model `?effort=` parameter
- * becomes `model_reasoning_effort`; an agent without a model (or with `inherit`) inherits the
- * main model. Roles inherit the main agent's provider, tools and MCP servers, so no tool list
- * is written.
+ * `developer_instructions` and the resolved concrete model. The effective `?effort=` model
+ * parameter (the agent's own, else the one its alias carries) becomes
+ * `model_reasoning_effort`; an agent without a model (or with `inherit`) inherits the main
+ * model. Roles inherit the main agent's provider, tools and MCP servers, so no tool list is
+ * written.
  *
  * Workflow-declared agents fail closed: when one cannot be read, parsed, resolved or written,
- * or uses the reserved name `main`, `ok` is false and Codex must not start.
+ * declares a non-string model or an effort Codex does not accept, uses the reserved name
+ * `main`, or has the name of an explicit `[agents.<name>]` role in the Codex configuration
+ * (`engine.config` or `$CODEX_HOME/config.toml`), `ok` is false and Codex must not start.
+ * Codex 0.163.0 loads explicit `[agents.<name>]` entries before discovered role files and
+ * ignores a discovered duplicate, so the generated role would not be used.
  *
  * @param {{
  *   reflectData: any,
@@ -637,6 +777,23 @@ async function applyCodexSubagentModels(options) {
     return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
   }
 
+  let explicitRoles;
+  try {
+    explicitRoles = explicitCodexAgentRoles(env, codexHome);
+  } catch (error) {
+    logger(`Refusing to start Codex: cannot read the Codex configuration to check the sub-agent role names: ${getErrorMessage(error)}.`);
+    return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
+  }
+  const collisions = agents.filter(agent => explicitRoles.has(agent.name));
+  if (collisions.length > 0) {
+    for (const agent of collisions) {
+      logger(
+        `codex sub-agent file ${agent.path}: the Codex configuration (${explicitRoles.get(agent.name)}) already defines the role [agents.${agent.name}], which Codex loads instead of the generated role file. Rename the workflow sub-agent or remove the explicit role. Refusing to start Codex.`
+      );
+    }
+    return { ok: false, agents: names, resolutions: [], failures: [], roleFiles: [] };
+  }
+
   /** @type {Array<{ name: string, path: string, description: string, instructions: string, configuredModel: string, effort: string | null }>} */
   const definitions = [];
   for (const agent of agents) {
@@ -661,18 +818,31 @@ async function applyCodexSubagentModels(options) {
 
   const { resolutions, failures } = await resolveEngineSubagentModels({
     engine: "codex",
-    agents: agents.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
+    agents: agents.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
     provider: options.provider,
     normalize: model => normalizeCodexModel(model, options.provider, { env, logger }),
     reflectData: options.reflectData,
     refetchReflectData: options.refetchReflectData,
     aliasMap: options.aliasMap,
     wireApi: getAWFModelRoutingPolicy("codex").endpoints[0],
+    appliedParams: ["effort"],
     nonFatalOutcome: "Codex does not start",
     env,
     logger,
   });
   if (failures.length > 0) return { ok: false, agents: names, resolutions, failures, roleFiles: [] };
+
+  // The effective effort is the resolved one: the agent's own parameter wins over its alias's.
+  for (const definition of definitions) {
+    const resolvedEffort = resolutions.find(candidate => candidate.name === definition.name)?.params?.effort;
+    if (resolvedEffort === undefined) continue;
+    const mapped = mapAWFRoutingEffort("codex", resolvedEffort.trim().toLowerCase());
+    if (mapped.error) {
+      logger(`codex sub-agent '${definition.name}': model '${definition.configuredModel}' resolves with effort '${resolvedEffort}': ${mapped.error}. Refusing to start Codex without the declared sub-agent.`);
+      return { ok: false, agents: names, resolutions, failures, roleFiles: [] };
+    }
+    definition.effort = mapped.effort;
+  }
 
   const rolesDir = path.join(codexHome, "agents");
   /** @type {string[]} */
