@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, readJsonlFile } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -12,6 +12,19 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 function modelID(value) {
   return validateModelIdentifier(normalizeForCopilotCLI(splitModelIdentifier(String(value || "")).base));
+}
+
+function modelSubstitutionDiagnostic(expected, model) {
+  return `Model '${expected}' is not available as configured: Copilot substituted '${model}'. Refusing silent model substitution. Select a model offered to this workflow's agentic-workflows integration; do not change the integration ID to bypass model access policy.`;
+}
+
+function verificationFailureDiagnostic(error) {
+  return `Copilot model verification failed: ${getErrorMessage(error)}. Refusing to report an unverified run as successful.`;
+}
+
+function copilotSessionStateDirectories(env = process.env) {
+  const root = env.GH_AW_TMP_DIR || "/tmp/gh-aw";
+  return [path.join(env.COPILOT_HOME || path.join(env.HOME || os.homedir(), ".copilot"), "session-state"), path.join(root, "sandbox/agent/session-state"), path.join(root, "sandbox/agent/logs/copilot-session-state")];
 }
 
 function recordCopilotModelSelection(selection, env = process.env) {
@@ -66,12 +79,7 @@ function persistCopilotModelSelection(env = process.env) {
  * @param {{ configuredModel: string, resolvedModel: string, sessionId?: string, env?: NodeJS.ProcessEnv, sessionDirs?: string[], logger?: (message: string) => void }} options
  */
 function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId, env = process.env, sessionDirs, logger = () => {} }) {
-  const root = env.GH_AW_TMP_DIR || "/tmp/gh-aw";
-  const directories = sessionDirs || [
-    path.join(env.COPILOT_HOME || path.join(env.HOME || os.homedir(), ".copilot"), "session-state"),
-    path.join(root, "sandbox/agent/session-state"),
-    path.join(root, "sandbox/agent/logs/copilot-session-state"),
-  ];
+  const directories = sessionDirs || copilotSessionStateDirectories(env);
   /** @type {Map<string, number>} */
   const offsets = new Map();
   /** @type {Map<string, string>} */
@@ -135,7 +143,7 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
           const substituted = expected.toLowerCase() !== "auto" && model.toLowerCase() !== expected.toLowerCase();
           recordCopilotModelSelection({ status: substituted ? "substituted" : "observed", configured_model: configuredModel, resolved_model: resolvedModel, effective_model: model }, env);
           if (substituted) {
-            diagnostic = `Model '${expected}' is not available as configured: Copilot substituted '${model}'. Refusing silent model substitution. Select a model offered to this workflow's agentic-workflows integration; do not change the integration ID to bypass model access policy.`;
+            diagnostic = modelSubstitutionDiagnostic(expected, model);
             logger(diagnostic);
             return diagnostic;
           }
@@ -143,7 +151,7 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
       }
       return "";
     } catch (error) {
-      diagnostic = `Copilot model verification failed: ${getErrorMessage(error)}. Refusing to report an unverified run as successful.`;
+      diagnostic = verificationFailureDiagnostic(error);
       logger(diagnostic);
       return diagnostic;
     }
@@ -151,4 +159,117 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
   return { check };
 }
 
-module.exports = { createCopilotModelObserver, recordCopilotModelSelection, persistCopilotModelSelection };
+/** @param {any} event */
+function sdkEventModel(event) {
+  const data = event?.data;
+  switch (event?.type) {
+    case "session.start":
+      return data?.selectedModel;
+    case "session.model_change":
+      return data?.newModel;
+    case "assistant.message":
+      return data?.model;
+    case "session.shutdown":
+      return data?.currentModel;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Observe the Copilot SDK main session's native model-bearing events; sub-agent events are ignored.
+ * The expected model is the qualified session model (the router's wire model on routed runs);
+ * the configured SDK provider mapping reconciles provider-qualified and bare identifiers.
+ * A recorded substitution is final: later matching events cannot clear it.
+ * @param {{ configuredModel: string, expectedModel: string, providerConfig?: { providers: Array<{ name: string }>, models: Array<{ provider: string, id: string }> } | null, env?: NodeJS.ProcessEnv, sessionDirs?: string[], logger?: (message: string) => void }} options
+ */
+function createCopilotSDKModelObserver({ configuredModel, expectedModel, providerConfig = null, env = process.env, sessionDirs, logger = () => {} }) {
+  if (!configuredModel || (env.GH_AW_PHASE && env.GH_AW_PHASE !== "agent")) return { observe: () => "", finalize: () => "", setSessionId: () => {} };
+  const rows = providerConfig ? providerConfig.models.filter(entry => providerConfig.providers.some(provider => provider.name === entry.provider)) : [];
+  /** @param {string} base */
+  const providerRow = base => rows.find(entry => `${entry.provider}/${entry.id}` === base);
+  const expectedBase = splitModelIdentifier(String(expectedModel || "").trim()).base;
+  const expectedRow = providerRow(expectedBase);
+  const expected = modelID(expectedRow ? expectedRow.id : expectedBase);
+  const unconstrained = !expected || expected.toLowerCase() === "auto";
+  const resolvedModel = expected || "auto";
+  let sessionId = "";
+  let diagnostic = "";
+  let recorded = "";
+
+  /** @param {any} event */
+  function observe(event) {
+    if (diagnostic) return diagnostic;
+    try {
+      const context = copilotSessionContext(event);
+      if (context.agentId !== undefined || context.parentToolUseId || (sessionId && context.sessionId !== undefined && context.sessionId !== sessionId)) return "";
+      const value = sdkEventModel(event);
+      if (typeof value !== "string" || !value.trim()) return "";
+      const base = splitModelIdentifier(value.trim()).base;
+      const row = providerRow(base);
+      const model = modelID(row ? row.id : base);
+      if (!model) return "";
+      const matches = unconstrained || (row && expectedRow ? row === expectedRow : model.toLowerCase() === expected.toLowerCase());
+      const effective = matches ? (unconstrained ? model : expected) : modelID(base);
+      if (effective === recorded) return "";
+      recorded = effective;
+      recordCopilotModelSelection({ status: matches ? "observed" : "substituted", configured_model: configuredModel, resolved_model: resolvedModel, effective_model: effective }, env);
+      if (matches) return "";
+      diagnostic = modelSubstitutionDiagnostic(expected, effective);
+    } catch (error) {
+      diagnostic = verificationFailureDiagnostic(error);
+    }
+    logger(diagnostic);
+    return diagnostic;
+  }
+
+  /**
+   * Scope observation to the main session and replay its native records, including the
+   * shutdown written while disconnecting, before success is reported.
+   * @param {string} id
+   */
+  function finalize(id) {
+    if (diagnostic) return diagnostic;
+    try {
+      if (!id || !/^[a-z0-9_-]+$/i.test(id)) throw new Error("Copilot model verification requires the SDK session ID");
+      sessionId = id;
+      for (const directory of sessionDirs || copilotSessionStateDirectories(env)) {
+        const file = path.join(directory, id, "events.jsonl");
+        if (!fs.existsSync(file)) continue;
+        for (const event of readJsonlFile(file)) if (observe(event)) return diagnostic;
+      }
+    } catch (error) {
+      diagnostic = verificationFailureDiagnostic(error);
+      logger(diagnostic);
+    }
+    return diagnostic;
+  }
+
+  return {
+    observe,
+    finalize,
+    /** @param {string} id */
+    setSessionId: id => {
+      sessionId = id;
+    },
+  };
+}
+
+/**
+ * The refusal diagnostic for a substitution the SDK driver recorded in this agent phase.
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+function readCopilotModelSubstitution(env = process.env) {
+  if (env.GH_AW_PHASE && env.GH_AW_PHASE !== "agent") return "";
+  const file = path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "sandbox/agent/logs/copilot-model-selection.json");
+  try {
+    if (!fs.existsSync(file)) return "";
+    const record = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (record?.status !== "substituted") return "";
+    return modelSubstitutionDiagnostic(modelID(record.resolved_model) || "(unknown)", modelID(record.effective_model) || "(unknown)");
+  } catch (error) {
+    return verificationFailureDiagnostic(error);
+  }
+}
+
+module.exports = { copilotSessionStateDirectories, createCopilotModelObserver, createCopilotSDKModelObserver, readCopilotModelSubstitution, recordCopilotModelSelection, persistCopilotModelSelection };

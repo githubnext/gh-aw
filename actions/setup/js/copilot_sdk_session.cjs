@@ -37,6 +37,7 @@ const { COPILOT_WORKFLOW_EVENT_TYPES } = require("./copilot_workflow_events.cjs"
 const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 const { qualifyModelForMultiProvider, parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
+const { createCopilotSDKModelObserver, copilotSessionStateDirectories } = require("./copilot_model_selection.cjs");
 
 const CAPTURED_EPHEMERAL_EVENTS = new Set([...COPILOT_WORKFLOW_EVENT_TYPES, "assistant.usage", "assistant.message_delta", "assistant.reasoning_delta", "model.call_failure", "model.call_final_result", "model.call_finished"]);
 
@@ -170,7 +171,21 @@ function parseSubagentModelsJson(value) {
  * }} options
  * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
  */
-async function runWithCopilotSDK({
+async function runWithCopilotSDK(options) {
+  /** @type {{ modelObserver: ReturnType<typeof createCopilotSDKModelObserver> | null, sessionId: string }} */
+  const verification = { modelObserver: null, sessionId: "" };
+  const result = await runCopilotSDKSession({ ...options, verification });
+  // Native shutdown records arrive while disconnecting, after the session result is known.
+  const modelSubstitution = verification.modelObserver && verification.sessionId ? verification.modelObserver.finalize(verification.sessionId) : "";
+  if (!modelSubstitution) return result;
+  return { ...result, exitCode: 1, output: result.output.includes(modelSubstitution) ? result.output : `${result.output}\n${modelSubstitution}` };
+}
+
+/**
+ * @param {Parameters<typeof runWithCopilotSDK>[0] & { verification: { modelObserver: ReturnType<typeof createCopilotSDKModelObserver> | null, sessionId: string } }} options
+ * @returns {Promise<{exitCode: number, output: string, hasOutput: boolean, durationMs: number}>}
+ */
+async function runCopilotSDKSession({
   sdkUri,
   prompt,
   logger,
@@ -191,6 +206,7 @@ async function runWithCopilotSDK({
   workingDirectory = resolveCopilotSDKWorkingDirectory(),
   agentsBaseDir = path.join(os.tmpdir(), "gh-aw"),
   bare = isCopilotSDKBareMode(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, logger),
+  verification,
 }) {
   // Lazy-require to avoid loading the SDK when it is not needed.
   // The SDK is large and has side-effects on import (worker threads, etc.).
@@ -251,6 +267,8 @@ async function runWithCopilotSDK({
   /** @type {any} */
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
+  /** @type {Error | null} */
+  let modelSubstitutionError = null;
   /**
    * Rejects `denialGuardPromise` once the tool-denial threshold is exceeded and the
    * bounded force-exit interval elapses. Declared here so `recordToolDenial` (defined
@@ -402,6 +420,15 @@ async function runWithCopilotSDK({
       unavailableModels.push({ agentName: agent.name, declaredModel: agent.model, model: sessionModel || undefined });
       return { ...agent, model: sessionModel || undefined };
     });
+    // The harness supplies the requested model (`auto` on routed runs); the session model is the expectation.
+    const modelObserver = createCopilotSDKModelObserver({
+      configuredModel: process.env.GH_AW_COPILOT_CONFIGURED_MODEL || "",
+      expectedModel: sessionModel || "",
+      providerConfig,
+      sessionDirs: [...new Set([sessionStateBase, ...copilotSessionStateDirectories()])],
+      logger: log,
+    });
+    verification.modelObserver = modelObserver;
     const skillsDirectory = path.resolve(agentsBaseDir, ".github", "skills");
     const skillsStat = fs.lstatSync(skillsDirectory, { throwIfNoEntry: false });
     if (skillsStat && !skillsStat.isDirectory()) throw new Error(`Staged Copilot skills must be a directory: ${skillsDirectory}`);
@@ -426,6 +453,8 @@ async function runWithCopilotSDK({
     log(`creating session with model="${sessionConfig.model || "(none)"}" providers=${providers?.length ?? 0} models=${providerModels?.length ?? 0}`);
     session = await client.createSession(sessionConfig);
     log(`session created: sessionId=${session.sessionId}`);
+    verification.sessionId = session.sessionId;
+    modelObserver.setSessionId(session.sessionId);
 
     // Prepare JSONL output file for this session.
     const sessionDir = path.join(sessionStateBase, session.sessionId);
@@ -455,6 +484,18 @@ async function runWithCopilotSDK({
     }
 
     session.on(event => {
+      // Observe the main-session model before capture so records delivered while disconnecting count too.
+      const modelDiagnostic = modelObserver.observe(event);
+      if (modelDiagnostic && !modelSubstitutionError) {
+        modelSubstitutionError = new Error(modelDiagnostic);
+        log("stopping SDK session: Copilot model verification failed");
+        if (session) {
+          void session.disconnect().catch(() => {
+            // best-effort early stop
+          });
+        }
+        if (denialGuardReject) denialGuardReject(modelSubstitutionError);
+      }
       if (stream.writableEnded || stream.destroyed) return;
       // Defer shell chunks until redaction can protect credentials spanning chunks.
       // Background output must not extend the post-completion watchdog either.
@@ -556,6 +597,8 @@ async function runWithCopilotSDK({
     if (catastrophicToolDenialsError) {
       throw catastrophicToolDenialsError;
     }
+    if (result) modelObserver.observe(result);
+    if (modelSubstitutionError) throw modelSubstitutionError;
 
     const resultContext = result ? copilotSessionContext(result) : {};
     if (result && resultContext.agentId === undefined && !resultContext.parentToolUseId && getCopilotMessageRefusal(result.data)?.reason === "content_filter") {
@@ -583,13 +626,13 @@ async function runWithCopilotSDK({
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    const failure = catastrophicToolDenialsError ?? (contentFiltered ? contentFilterError() : err instanceof Error ? err : new Error(String(err)));
+    const failure = catastrophicToolDenialsError ?? modelSubstitutionError ?? (contentFiltered ? contentFilterError() : err instanceof Error ? err : new Error(String(err)));
     log(`error: ${failure.message}`);
 
     // When the post-completion idle watchdog force-disconnected the session, the
     // agent's work is done — the SDK simply failed to resolve sendAndWait after
     // the final tool result was returned.  Treat it as a successful completion.
-    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && !contentFiltered && hasOutput && pendingToolCalls.size === 0) {
+    if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && !modelSubstitutionError && !contentFiltered && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: post-completion watchdog triggered disconnect — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
       return { exitCode: 0, output, hasOutput, durationMs };
@@ -599,7 +642,7 @@ async function runWithCopilotSDK({
     // output and all tracked tool calls have already completed, the session work is
     // done — the SDK simply failed to emit the idle signal.  Treat it as a successful
     // run so the harness does not classify it as a failure or waste retry attempts.
-    const isIdleTimeout = !catastrophicToolDenialsError && !contentFiltered && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
+    const isIdleTimeout = !catastrophicToolDenialsError && !modelSubstitutionError && !contentFiltered && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
     if (isIdleTimeout && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: SDK idle-timeout with collected output and no pending tool calls — treating as completed`);
       log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
