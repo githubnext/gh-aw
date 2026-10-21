@@ -24,7 +24,7 @@ model: copilot/auto
 engine:
   id: pi
   fallback-models:
-    - copilot/gpt-5.4
+    - copilot/gpt-5.6-luna
     - copilot/claude-sonnet-5
 max-tool-calls: 80
 strict: true
