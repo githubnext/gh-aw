@@ -24,14 +24,6 @@ func (f *Frontmatter) MergeSequence(path, destination []string) error {
 	if !found || !ok {
 		return errors.New("frontmatter sequence merge requires a destination sequence")
 	}
-	_, sourceNode, err := f.entry(path)
-	if err != nil {
-		return err
-	}
-	_, targetNode, err := f.entry(destination)
-	if err != nil {
-		return err
-	}
 	var additions []int
 	merged := slices.Clone(target)
 	for index, value := range source {
@@ -45,12 +37,29 @@ func (f *Frontmatter) MergeSequence(path, destination []string) error {
 		}
 	}
 	if len(additions) > 0 {
-		if sourceNode.Style&yamlv3.FlowStyle != 0 || targetNode.Style&yamlv3.FlowStyle != 0 {
+		root, err := f.syntax()
+		if err != nil {
+			return err
+		}
+		if hasAliases(root) {
 			if err := f.Set(destination, merged); err != nil {
 				return err
 			}
 		} else {
-			if err := f.appendSequenceEntries(sourceNode, targetNode, additions); err != nil {
+			_, sourceNode, err := f.entry(path)
+			if err != nil {
+				return err
+			}
+			_, targetNode, err := f.entry(destination)
+			if err != nil {
+				return err
+			}
+			if sourceNode.Style&yamlv3.FlowStyle != 0 || targetNode.Style&yamlv3.FlowStyle != 0 {
+				err = f.Set(destination, merged)
+			} else {
+				err = f.appendSequenceEntries(sourceNode, targetNode, additions)
+			}
+			if err != nil {
 				return err
 			}
 		}
@@ -74,7 +83,11 @@ func (f *Frontmatter) appendSequenceEntries(source, target *yamlv3.Node, additio
 			return errors.New("source sequence does not match its authored syntax")
 		}
 		node := source.Content[index]
-		start, err := f.offset(node.Line, 1)
+		startLine := node.Line
+		if node.HeadComment != "" {
+			startLine -= strings.Count(node.HeadComment, "\n") + 1
+		}
+		start, err := f.offset(startLine, 1)
 		if err != nil {
 			return err
 		}

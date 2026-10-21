@@ -127,32 +127,7 @@ func TestDiscussionTriggerCategoriesCodemod_LowercasesQuotedOnAndTriggerKeys(t *
 	assert.NotContains(t, result, "types: [General]")
 }
 
-func TestGetBlockMappingKey(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		line    string
-		wantKey string
-		wantOK  bool
-	}{
-		{name: "plain key", line: "on:", wantKey: "on", wantOK: true},
-		{name: "quoted key", line: `"on":`, wantKey: "on", wantOK: true},
-		{name: "inline comment with extra spaces", line: `"discussion":    # category`, wantKey: "discussion", wantOK: true},
-		{name: "inline value", line: "on: push", wantKey: "", wantOK: false},
-		{name: "list item", line: "- on:", wantKey: "", wantOK: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			gotKey, gotOK := getBlockMappingKey(tt.line)
-			assert.Equal(t, tt.wantKey, gotKey)
-			assert.Equal(t, tt.wantOK, gotOK)
-		})
-	}
-}
-
-func TestLowercaseDiscussionTriggerTypesInLines(t *testing.T) {
+func TestDiscussionTriggerCategoriesCodemod_FrontmatterCases(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -358,23 +333,24 @@ func TestLowercaseDiscussionTriggerTypesInLines(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			var inputLines []string
-			if tt.lines != nil {
-				inputLines = make([]string, len(tt.lines))
-				copy(inputLines, tt.lines)
-			}
-			gotLines, gotModified := lowercaseDiscussionTriggerTypesInLines(tt.lines)
+			content := "---\n" + strings.Join(tt.lines, "\n") + "\n---\n\n# Prompt\n"
+			gotContent, gotModified, err := getDiscussionTriggerCategoriesLowercaseCodemod().Apply(content, nil)
+			require.NoError(t, err)
 			assert.Equal(t, tt.wantModified, gotModified)
 			if gotModified {
 				want, err := aw.Parse("---\n" + strings.Join(tt.wantLines, "\n") + "\n---\n")
 				require.NoError(t, err)
-				got, err := aw.Parse("---\n" + strings.Join(gotLines, "\n") + "\n---\n")
+				got, err := aw.Parse(gotContent)
 				require.NoError(t, err)
 				assert.Equal(t, want.Frontmatter, got.Frontmatter)
 			} else {
-				assert.Equal(t, tt.wantLines, gotLines)
+				assert.Equal(t, content, gotContent)
 			}
-			assert.Equal(t, inputLines, tt.lines)
+			assert.True(t, strings.HasSuffix(gotContent, "\n---\n\n# Prompt\n"))
+			second, applied, err := getDiscussionTriggerCategoriesLowercaseCodemod().Apply(gotContent, nil)
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, gotContent, second)
 		})
 	}
 }

@@ -5,9 +5,48 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPullRequestTargetCheckoutFalseCodemod_PreservesSequences(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name     string
+		checkout string
+	}{
+		{
+			name: "block sequence",
+			checkout: `checkout:
+  - repository: owner/secondary
+    path: secondary
+    ref: release # retain ref
+  - repository: owner/another
+    path: another
+`,
+		},
+		{
+			name:     "flow sequence",
+			checkout: "checkout: [{repository: owner/secondary, path: secondary, ref: release}]\n",
+		},
+		{
+			name:     "empty sequence",
+			checkout: "checkout: []\n",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			content := "---\non: pull_request_target\n" + tt.checkout + "---\n\n# Prompt\n"
+			document, err := aw.Parse(content)
+			require.NoError(t, err)
+			result, applied, err := getPullRequestTargetCheckoutFalseCodemod().Apply(content, document.Frontmatter)
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, content, result)
+		})
+	}
+}
 
 func TestPullRequestTargetCheckoutFalseCodemod(t *testing.T) {
 	t.Parallel()

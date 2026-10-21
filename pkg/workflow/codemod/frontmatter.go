@@ -25,12 +25,14 @@ type Frontmatter struct {
 // Apply runs an atomic transformation. Errors return the original content, even
 // if earlier operations in the callback succeeded. No-op input is byte-identical.
 func Apply(content string, transform func(*Frontmatter) error) (string, bool, error) {
-	if !utf8.ValidString(content) {
-		return content, false, errors.New("workflow source must be valid UTF-8")
-	}
 	document, err := aw.Parse(content)
 	if err != nil {
 		return content, false, err
+	}
+	for _, line := range document.Location.FrontmatterLines {
+		if !utf8.ValidString(line) {
+			return content, false, errors.New("workflow frontmatter must be valid UTF-8")
+		}
 	}
 	editor := &Frontmatter{Document: document, content: content}
 	if err := transform(editor); err != nil {

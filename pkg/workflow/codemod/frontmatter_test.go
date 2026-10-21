@@ -59,6 +59,75 @@ func TestFrontmatterNoOp(t *testing.T) {
 	}
 }
 
+func TestFrontmatterInvalidBodyBytes(t *testing.T) {
+	body := "\n# Body \x93quoted\x94 \xff\r\n"
+	for _, header := range []string{"", "---\nold: true\n---\n"} {
+		for _, migrate := range []bool{false, true} {
+			content := header + body
+			updated, applied, err := Apply(content, func(f *Frontmatter) error {
+				if migrate {
+					return f.Set([]string{"old"}, false)
+				}
+				return nil
+			})
+			require.NoError(t, err)
+			assert.Equal(t, migrate, applied)
+			document, err := aw.Parse(updated)
+			require.NoError(t, err)
+			assert.Equal(t, body, document.Markdown)
+			if migrate {
+				assert.Equal(t, false, document.Frontmatter["old"])
+			} else {
+				assert.Equal(t, content, updated)
+			}
+		}
+	}
+}
+
+func TestFrontmatterRejectsInvalidUTF8(t *testing.T) {
+	for _, source := range []string{"old: \xff\n", "# \xff\nold: true\n"} {
+		content := "---\n" + source + "---\n# Body\n"
+		called := false
+		updated, applied, err := Apply(content, func(f *Frontmatter) error {
+			called = true
+			return f.Set([]string{"old"}, false)
+		})
+		require.Error(t, err)
+		assert.False(t, called)
+		assert.False(t, applied)
+		assert.Equal(t, content, updated)
+	}
+}
+
+func TestFrontmatterSetStringContexts(t *testing.T) {
+	for _, source := range []string{
+		"tools: {github: {allowed-repos: current}}\n",
+		"tools: {github: {allowed-repos: 'current'}}\n",
+		"tools: {github: {allowed-repos: \"current\"}}\n",
+		"tools:\n  github:\n    allowed-repos: current\n",
+	} {
+		for _, value := range []string{"${{ github.repository }}", "one,two", "one[two]", "one{two}", "normal", "true"} {
+			t.Run(source+value, func(t *testing.T) {
+				content := "---\n" + source + "---\n# Body\n"
+				updated, applied, err := Apply(content, func(f *Frontmatter) error {
+					return f.Set([]string{"tools", "github", "allowed-repos"}, value)
+				})
+				require.NoError(t, err)
+				assert.True(t, applied)
+				document, err := aw.Parse(updated)
+				require.NoError(t, err)
+				tools := document.Frontmatter["tools"].(map[string]any)
+				github := tools["github"].(map[string]any)
+				assert.Equal(t, value, github["allowed-repos"])
+				assert.Equal(t, "# Body\n", document.Markdown)
+				if !strings.Contains(source, "{") && value == "normal" {
+					assert.Contains(t, updated, "allowed-repos: normal\n")
+				}
+			})
+		}
+	}
+}
+
 func TestFrontmatterAtomicity(t *testing.T) {
 	content := "---\nold: true\n---\n\n# Body\n"
 	failure := errors.New("transform failed")
@@ -109,6 +178,26 @@ func TestFrontmatterCRLF(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.Equal(t, "---\r\ntools: {github: {allowed-repos: []}}\r\n---\r\n\r\n# Body\r\n", updated)
+}
+
+func TestFrontmatterCRLFScalarSpan(t *testing.T) {
+	content := "---\r\nbots:\r\n  - dependabot # duplicate\r\n  # Unique bot\r\n  # Keep this explanation\r\n  - renovate # source inline\r\n  # Another unique bot\r\n  - other\r\non:\r\n  bots:\r\n    # Destination explanation\r\n    - dependabot # destination inline\r\n---\r\n\r\n# Body\r\n"
+	updated, applied, err := Apply(content, func(f *Frontmatter) error {
+		_, node, err := f.entry([]string{"on", "bots"})
+		require.NoError(t, err)
+		start, end, found := f.scalarSpan(node.Content[0])
+		require.True(t, found)
+		assert.Equal(t, "dependabot", content[start:end])
+		return f.MergeSequence([]string{"bots"}, []string{"on", "bots"})
+	})
+	require.NoError(t, err)
+	assert.True(t, applied)
+	assert.NotContains(t, strings.ReplaceAll(updated, "\r\n", ""), "\n")
+	document, err := aw.Parse(updated)
+	require.NoError(t, err)
+	assert.NotContains(t, document.Frontmatter, "bots")
+	assert.Equal(t, []any{"dependabot", "renovate", "other"}, document.Frontmatter["on"].(map[string]any)["bots"])
+	assert.Equal(t, "\r\n# Body\r\n", document.Markdown)
 }
 
 func TestFrontmatterSetNewDocument(t *testing.T) {

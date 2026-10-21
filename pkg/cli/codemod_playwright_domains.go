@@ -31,11 +31,18 @@ func getPlaywrightDomainsToNetworkAllowedCodemod() Codemod {
 			}
 			if network, ok := frontmatter["network"].(map[string]any); ok {
 				domains = append(networkDomainStrings(network["allowed"]), domains...)
+			} else if network, ok := frontmatter["network"].(string); ok {
+				domains = append([]string{network}, domains...)
 			}
 			domains = sliceutil.Deduplicate(domains)
 			return codemod.Apply(content, func(f *codemod.Frontmatter) error {
 				if err := f.Remove("tools", "playwright", "allowed_domains"); err != nil {
 					return err
+				}
+				if network, exists := f.Lookup("network"); exists {
+					if _, ok := network.(map[string]any); !ok {
+						return f.Set([]string{"network"}, map[string]any{"allowed": domains})
+					}
 				}
 				return f.Set([]string{"network", "allowed"}, domains)
 			})

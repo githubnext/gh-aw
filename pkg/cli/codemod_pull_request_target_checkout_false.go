@@ -28,8 +28,8 @@ func getPullRequestTargetCheckoutFalseCodemod() Codemod {
 				return content, false, nil
 			}
 
-			if isCheckoutMapping(frontmatter) {
-				pullRequestTargetCheckoutFalseCodemodLog.Print("Skipping pull_request_target checkout codemod: checkout is already a mapping with sub-keys")
+			if isCheckoutConfigured(frontmatter) {
+				pullRequestTargetCheckoutFalseCodemodLog.Print("Skipping pull_request_target checkout codemod: checkout is already a mapping or sequence")
 				return content, false, nil
 			}
 
@@ -89,17 +89,15 @@ func isPullRequestTargetCheckoutDisabled(frontmatter map[string]any) bool {
 	return ok && !checkoutDisabled
 }
 
-// isCheckoutMapping returns true when the frontmatter "checkout" key is a YAML
-// mapping (e.g. sparse-checkout:, fetch-depth:) rather than a scalar or absent.
-// Overwriting a mapping with a scalar would orphan the child keys and produce
-// invalid YAML, so callers should skip the codemod in this case.
-func isCheckoutMapping(frontmatter map[string]any) bool {
-	checkoutAny, hasCheckout := frontmatter["checkout"]
-	if !hasCheckout {
+// isCheckoutConfigured protects explicit repository configurations from being
+// overwritten with a scalar.
+func isCheckoutConfigured(frontmatter map[string]any) bool {
+	switch frontmatter["checkout"].(type) {
+	case map[string]any, []any:
+		return true
+	default:
 		return false
 	}
-	_, isMap := checkoutAny.(map[string]any)
-	return isMap
 }
 
 func hasExplicitCheckoutCommands(content string) bool {

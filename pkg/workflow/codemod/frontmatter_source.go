@@ -65,7 +65,8 @@ func (f *Frontmatter) scalarSpan(node *yamlv3.Node) (int, int, bool) {
 		return 0, 0, false
 	}
 	offset := -1
-	for _, item := range lexer.Tokenize(f.content[start:end]) {
+	// Normalize line endings for lexer positions; offsets still use the original source.
+	for _, item := range lexer.Tokenize(strings.ReplaceAll(f.content[start:end], "\r\n", "\n")) {
 		if offset >= 0 {
 			next, err := f.offset(item.Position.Line, item.Position.Column)
 			if err != nil || next < offset {
@@ -106,7 +107,7 @@ func (f *Frontmatter) nodeEnd(node *yamlv3.Node) (int, error) {
 			return 0, err
 		}
 		depth, active := 0, false
-		for _, item := range lexer.Tokenize(f.content[start:end]) {
+		for _, item := range lexer.Tokenize(strings.ReplaceAll(f.content[start:end], "\r\n", "\n")) {
 			if item.Position.Line == node.Line && item.Position.Column == node.Column {
 				active = true
 			}
@@ -198,7 +199,7 @@ func (f *Frontmatter) setScalarSource(parent, keyNode, node *yamlv3.Node, value 
 		}
 	} else if stringValue, ok := value.(string); ok && node.Style == yamlv3.SingleQuotedStyle {
 		text = "'" + strings.ReplaceAll(stringValue, "'", "''") + "'"
-	} else if _, ok := value.(string); ok && node.Style == yamlv3.DoubleQuotedStyle {
+	} else if _, ok := value.(string); ok && (node.Style == yamlv3.DoubleQuotedStyle || parent.Style&yamlv3.FlowStyle != 0) {
 		encoded, err = yaml.MarshalWithOptions(value, yaml.JSON())
 		if err != nil {
 			return true, err
@@ -249,6 +250,7 @@ func (f *Frontmatter) insertSource(parent *yamlv3.Node, key string, value any) (
 	indent := strings.Repeat(" ", first.Column-1)
 	field := strings.TrimSuffix(string(encoded), "\n")
 	if key == "on" {
+		// AW/Actions convention leaves the reserved trigger key unquoted, unlike other YAML boolean-like keys.
 		field = strings.TrimPrefix(field, `"on"`)
 		field = "on" + field
 	}
