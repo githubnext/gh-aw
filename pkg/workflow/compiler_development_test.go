@@ -210,6 +210,7 @@ Debug generated delegated workflow jobs.
 		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 		compiler.SetApprove(true)
+		compiler.gitRoot = dir
 		for _, enabled := range []bool{true, false} {
 			compiler.SetDryRun(enabled)
 			require.NoError(t, compiler.CompileWorkflow(path))

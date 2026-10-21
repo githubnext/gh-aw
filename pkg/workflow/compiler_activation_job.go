@@ -24,6 +24,7 @@ const (
 const pullRequestBaseSHAExpression = "(github.event_name == 'pull_request' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment') && github.event.pull_request != null && github.event.pull_request.base.sha"
 
 var activationMetadataTriggerFields = map[string]struct{}{
+	"admission":      {},
 	"reaction":       {},
 	"status-comment": {},
 	"command":        {},
@@ -82,7 +83,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if env == nil {
 		env = map[string]string{}
 	}
-	env["GH_AW_ADMISSION_RESULT"] = "${{ needs.admission.outputs.result }}"
+	if data.AdmissionEnabled {
+		env["GH_AW_ADMISSION_RESULT"] = "${{ needs.admission.outputs.result }}"
+	}
 	return &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,

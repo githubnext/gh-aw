@@ -37,6 +37,7 @@ func TestFormalPM10a_PreActivationJobPrecedesActivation(t *testing.T) {
 	yamlOut := compileFormalPM10Workflow(t, `---
 name: formal-pm10a
 on:
+  admission: true
   pull_request:
     types: [opened]
   roles: [triage]
@@ -59,6 +60,7 @@ func TestFormalPM10b_ActivatedOutputExistsAndGatesActivation(t *testing.T) {
 	yamlOut := compileFormalPM10Workflow(t, `---
 name: formal-pm10b
 on:
+  admission: true
   pull_request:
     types: [opened]
   roles: [triage]
