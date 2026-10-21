@@ -51,7 +51,7 @@ function assertRepository(repository) {
 
 /** @param {string} profile */
 function reportContract(profile) {
-  const outputs = [{ type: "create_discussion", min: 1, max: 1 }, ...["noop", "report_incomplete", "missing_tool", "missing_data"].map(type => ({ type, min: 0, max: 1 }))];
+  const outputs = [{ type: "create_discussion", min: 1, max: 1 }, ...["noop", "report_incomplete", "report_missing_tool", "report_missing_data"].map(type => ({ type, min: 0, max: 1 }))];
   if (["daily-firewall-report", "daily-repo-chronicle"].includes(profile)) outputs.push({ type: "upload_asset", min: 0, max: 3 });
   if (profile === "daily-regulatory") outputs.push({ type: "close_discussion", min: 0, max: 1 });
   if (profile === "deep-report") outputs.push({ type: "create_issue", min: 0, max: 7 }, { type: "add_comment", min: 0, max: 3 }, { type: "upload_artifact", min: 0, max: 3 });

@@ -98,7 +98,7 @@ var toolConstraintBuilders = map[string]toolConstraintBuilder{
 	"update_release": func(safeOutputs *SafeOutputsConfig) []string {
 		return updateReleaseConstraints(safeOutputs.UpdateRelease)
 	},
-	"missing_tool": func(safeOutputs *SafeOutputsConfig) []string { return missingToolConstraints(safeOutputs.MissingTool) },
+	"report_missing_tool": func(safeOutputs *SafeOutputsConfig) []string { return missingToolConstraints(safeOutputs.MissingTool) },
 	"link_sub_issue": func(safeOutputs *SafeOutputsConfig) []string {
 		return linkSubIssueConstraints(safeOutputs.LinkSubIssue)
 	},

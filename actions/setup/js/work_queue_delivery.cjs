@@ -19,8 +19,9 @@ const {
 } = require("./work_queue_claim_scope.cjs");
 const { digest, canonical, canonicalBytes } = require("./work_queue_codec.cjs");
 const { BUILTIN_EFFECT_FIELDS, builtinTargetNumber } = require("./work_queue_declared_verification.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
-const NO_WRITE_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NO_WRITE_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "missing_tool", "missing_data", "report_incomplete"]);
 const controlInventories = new WeakMap();
 const deliveryReceipts = new WeakMap();
 const deliveryAttestations = new WeakMap();
@@ -196,7 +197,7 @@ function validateDeliveryContract(value) {
       !output ||
       typeof output.type !== "string" ||
       !output.type ||
-      types.has(output.type) ||
+      types.has(normalizeSafeOutputName(output.type)) ||
       !Number.isSafeInteger(output.min) ||
       !Number.isSafeInteger(output.max) ||
       output.min < 0 ||
@@ -223,7 +224,7 @@ function validateDeliveryContract(value) {
       )
         throw new Error("Invalid declarative effect_contract verification intent");
     }
-    types.add(output.type);
+    types.add(normalizeSafeOutputName(output.type));
   }
   if (value.no_writes !== undefined && typeof value.no_writes !== "boolean") throw new Error("effect_contract.no_writes must be boolean");
   if (value.outputs.length === 0 && value.no_writes !== true) throw new Error("Empty output contracts must explicitly declare no_writes");
@@ -259,7 +260,7 @@ async function inspectClaimDelivery(options) {
   const claim = assignment.claims.find(member => member.handle === claim_handle);
   if (!claim) throw new Error("Delivery handle is foreign to the immutable assignment");
   const receipt = { version: 3, claim_handle, dispatch_id: assignment.dispatch_id, work_id: claim.work_id, claim_id: claim.claim_id, verification: "unknown", disposition: "unknown", descriptor: null };
-  const normalized = messages.map(message => normalizeClaimScope(message, assignment));
+  const normalized = messages.map(message => normalizeClaimScope({ ...message, type: normalizeSafeOutputName(message.type) }, assignment));
   if (normalized.some(message => message.claim_handle !== claim_handle)) throw new Error("Delivery cannot consume another Claim's messages");
   try {
     await assertClaimAuthorized({ type: "work_queue_result", claim_handle }, { authorize, context: options.context, github: options.github, requireCompletion: !options.staged });
@@ -299,13 +300,14 @@ async function inspectClaimDelivery(options) {
     log.failure("delivery.contract.invalid", error);
     return { ...receipt, reason: error.message };
   }
-  const known = new Set(contract.outputs.map(output => output.type));
+  const declaredOutputs = contract.outputs.map(output => ({ ...output, type: normalizeSafeOutputName(output.type) }));
+  const known = new Set(declaredOutputs.map(output => output.type));
   log.debug("delivery.contract.checked", { outputs: contract.outputs.length, messages: normalized.length, no_writes: contract.no_writes === true });
   if (normalized.some(message => !known.has(message.type) && !(contract.no_writes === true && NO_WRITE_TYPES.has(message.type)))) {
     log.debug("delivery.contract.undeclared_output");
     return { ...receipt, reason: "Undeclared output type in immutable effect_contract" };
   }
-  for (const [index, expected] of contract.outputs.entries()) {
+  for (const [index, expected] of declaredOutputs.entries()) {
     const count = normalized.filter(message => message.type === expected.type).length;
     if (count < expected.min || count > expected.max) {
       log.debug("delivery.contract.cardinality_mismatch", { index, count, min: expected.min, max: expected.max });
@@ -341,7 +343,7 @@ async function inspectClaimDelivery(options) {
       return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Missing exact nondelegated delivery receipt" };
     }
     if (outcome.claim_handle && outcome.claim_handle !== claim_handle) throw new Error("Foreign Claim delivery receipt");
-    const verification = contract.outputs.find(expected => expected.type === message.type)?.verification;
+    const verification = declaredOutputs.find(expected => expected.type === message.type)?.verification;
     const verify = verification === undefined ? verifyOutput : options.verifyDeclaredOutput;
     if (verification !== undefined && (NO_WRITE_TYPES.has(message.type) || !require("./work_queue_claim_adapters.cjs").isDeclaredAdapterVerifier(verify, message.type, verification))) {
       log.debug("delivery.output.verifier_binding_invalid", { index });

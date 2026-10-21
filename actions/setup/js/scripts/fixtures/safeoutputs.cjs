@@ -6,7 +6,7 @@
 const fs = require("node:fs");
 
 const [toolName, ...args] = process.argv.slice(2);
-if (toolName !== "report_incomplete" && toolName !== "missing_tool") {
+if (!["report_incomplete", "report_missing_tool", "missing_tool"].includes(toolName)) {
   throw new Error(`Unsupported test safeoutputs tool: ${toolName}`);
 }
 const outputPath = process.env.GH_AW_SAFE_OUTPUTS;

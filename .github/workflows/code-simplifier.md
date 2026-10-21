@@ -261,8 +261,8 @@ You MUST finish by calling exactly one safe-output tool:
 2. `noop` with the no-beneficial-simplifications message above
 3. `noop` with the run-budget-ceiling message above
 4. `create_pull_request` when meaningful validated simplifications are ready
-5. `missing_tool` when blocked by unavailable tooling
-6. `missing_data` when blocked by missing required data
+5. `report_missing_tool` when blocked by unavailable tooling
+6. `report_missing_data` when blocked by missing required data
 
 Do not finish with plain text only. The safe-output tool call is required.
 ## agent: `scope-filter`

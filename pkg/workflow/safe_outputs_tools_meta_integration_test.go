@@ -70,8 +70,8 @@ Test workflow to verify tools_meta in compiled output.
 	meta := extractToolsMetaFromLockFile(t, yamlStr)
 
 	// Verify tools without constraints do NOT get description suffixes
-	_, hasMissingTool := meta.DescriptionSuffixes["missing_tool"]
-	assert.False(t, hasMissingTool, "missing_tool should not have a description suffix")
+	_, hasMissingTool := meta.DescriptionSuffixes["report_missing_tool"]
+	assert.False(t, hasMissingTool, "report_missing_tool should not have a description suffix")
 	_, hasNoop := meta.DescriptionSuffixes["noop"]
 	assert.False(t, hasNoop, "noop should not have a description suffix")
 }

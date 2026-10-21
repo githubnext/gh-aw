@@ -231,7 +231,7 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(deepReport.depends_on).toEqual([]);
     expect(deepReport.payload.effect_contract.outputs).toEqual([
       { type: "create_discussion", min: 1, max: 1 },
-      ...["noop", "report_incomplete", "missing_tool", "missing_data"].map(type => ({ type, min: 0, max: 1 })),
+      ...["noop", "report_incomplete", "report_missing_tool", "report_missing_data"].map(type => ({ type, min: 0, max: 1 })),
       { type: "create_issue", min: 0, max: 7 },
       { type: "add_comment", min: 0, max: 3 },
       { type: "upload_artifact", min: 0, max: 3 },

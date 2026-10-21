@@ -2108,10 +2108,10 @@ describe("Safe Output Handler Manager", () => {
       expect(trackedPR.result.number).toBe(10);
     });
 
-    it("should collect missing_tool and missing_data messages and include in result", async () => {
+    it("should collect report_missing_tool and report_missing_data messages and include in result", async () => {
       const messages = [
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
           alternatives: "Use VM",
@@ -2122,13 +2122,13 @@ describe("Safe Output Handler Manager", () => {
           body: "Issue body",
         },
         {
-          type: "missing_data",
+          type: "report_missing_data",
           data_type: "api_key",
           reason: "API credentials missing",
           context: "GitHub API access",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "kubectl",
           reason: "Kubernetes management",
         },
@@ -2141,8 +2141,8 @@ describe("Safe Output Handler Manager", () => {
 
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
-        ["missing_data", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_data", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
       const result = await processMessages(handlers, messages);
@@ -2167,7 +2167,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.missingData[0].context).toBe("GitHub API access");
     });
 
-    it("should collect noop messages alongside missing_tool and missing_data", async () => {
+    it("should collect noop messages alongside report_missing_tool and report_missing_data", async () => {
       const messages = [
         {
           type: "noop",
@@ -2179,7 +2179,7 @@ describe("Safe Output Handler Manager", () => {
           body: "Issue body",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
         },
@@ -2196,7 +2196,7 @@ describe("Safe Output Handler Manager", () => {
 
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
         ["noop", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
@@ -2234,7 +2234,7 @@ describe("Safe Output Handler Manager", () => {
           reason: "Missing authentication token",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
         },
@@ -2248,7 +2248,7 @@ describe("Safe Output Handler Manager", () => {
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
         ["report_incomplete", vi.fn().mockResolvedValue({ success: true })],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
       const result = await processMessages(handlers, messages);

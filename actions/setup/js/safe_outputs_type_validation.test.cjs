@@ -38,7 +38,6 @@ describe("Safe Output Type Validation", () => {
         "create_pull_request_review_comment",
         "submit_pull_request_review",
         "create_discussion",
-        "missing_tool",
         "create_code_scanning_alert",
       ].forEach(type => {
         const hasType = schemaContent.includes(`"const": "${type}"`);
@@ -47,6 +46,9 @@ describe("Safe Output Type Validation", () => {
           hasDashType = schemaContent.includes(`"const": "${dashType}"`);
         expect(hasDashType).toBe(!1);
       });
+      const definitions = JSON.parse(schemaContent).$defs;
+      expect(definitions.MissingToolOutput.properties.type.enum).toEqual(["report_missing_tool", "missing_tool"]);
+      expect(definitions.MissingDataOutput.properties.type.enum).toEqual(["report_missing_data", "missing_data"]);
     }),
     it("should validate MCP server normalizes types to underscores", () => {
       const appendPath = path.join(process.cwd(), "safe_outputs_append.cjs"),

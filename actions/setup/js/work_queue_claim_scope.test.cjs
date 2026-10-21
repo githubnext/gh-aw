@@ -1,6 +1,6 @@
 // @ts-check
-import { describe, expect, it } from "vitest";
-import { normalizeAssignment, normalizeClaimScope, assertClaimAuthorized, withClaimExecution, claimArtifactPath, scopedArtifactFilename } from "./work_queue_claim_scope.cjs";
+import { describe, expect, it, vi } from "vitest";
+import { normalizeAssignment, normalizeClaimScope, normalizeRuntimeMessage, assertClaimAuthorized, withClaimExecution, claimArtifactPath, scopedArtifactFilename } from "./work_queue_claim_scope.cjs";
 import sharedChecks from "./work_queue_claim_scope_checks.cjs";
 
 const assignment = count => ({
@@ -15,10 +15,29 @@ const assignment = count => ({
 });
 
 describe("immutable Claim scope", () => {
+  it("preserves unscoped message identity unless normalizing a historical alias", () => {
+    vi.stubEnv("GH_AW_WORK_QUEUE_ENABLED", "false");
+    try {
+      for (const type of ["report_missing_tool", "report_missing_data", "report_incomplete", "create_issue", "custom_output"]) {
+        const message = Object.freeze({ type, body: "unchanged" });
+        expect(normalizeRuntimeMessage(message)).toBe(message);
+      }
+      for (const type of ["missing_tool", "missing_data"]) {
+        const message = Object.freeze({ type, body: "unchanged" });
+        const normalized = normalizeRuntimeMessage(message);
+        expect(normalized).not.toBe(message);
+        expect(normalized).toEqual({ type: `report_${type}`, body: "unchanged" });
+        expect(message.type).toBe(type);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("matches the canonical shared identity fixtures and preserves opaque domain values", sharedChecks.checkSharedIdentityFixtures);
 
   it("defaults every output type only for an original singleton", () => {
-    for (const type of ["create_issue", "custom_job", "custom_action", "upload_asset", "noop", "report_incomplete", "missing_tool", "missing_data", "work_queue_submit", "work_queue_dispatch_next", "work_queue_claim_finish"]) {
+    for (const type of ["create_issue", "custom_job", "custom_action", "upload_asset", "noop", "report_incomplete", "report_missing_tool", "report_missing_data", "work_queue_submit", "work_queue_dispatch_next", "work_queue_claim_finish"]) {
       expect(normalizeClaimScope({ type }, assignment(1))).toEqual({ type, claim_handle: "h1" });
       expect(() => normalizeClaimScope({ type }, assignment(2))).toThrow(/original multi-Claim/);
     }
@@ -69,7 +88,7 @@ describe("immutable Claim scope", () => {
     const authorize = async request => ({ authorized: request.claim_handle === "h1", claim_handle: request.claim_handle });
     await withClaimExecution({ assignment: assignment(2), claim_handle: "h1", authorize }, async () => {
       expect(await assertClaimAuthorized({ type: "noop", claim_handle: "h1" })).toEqual({ type: "noop", claim_handle: "h1" });
-      await expect(assertClaimAuthorized({ type: "missing_tool", claim_handle: "h2" })).rejects.toThrow(/escape/);
+      await expect(assertClaimAuthorized({ type: "report_missing_tool", claim_handle: "h2" })).rejects.toThrow(/escape/);
       await expect(assertClaimAuthorized({ type: "noop", claim_handle: "h1" }, { authorize: async () => ({ authorized: true, claim_handle: "h2" }) })).rejects.toThrow(/same-Claim/);
     });
     await withClaimExecution({ assignment: assignment(2), claim_handle: "h2", authorize }, async () => {

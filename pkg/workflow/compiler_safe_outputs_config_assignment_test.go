@@ -15,7 +15,7 @@ import (
 // Auto-Enabled Handlers and Assignment Tests
 // ========================================
 
-// TestAutoEnabledHandlers tests that missing_tool and missing_data
+// TestAutoEnabledHandlers tests that report_missing_tool and report_missing_data
 // are automatically enabled even when not explicitly configured.
 // Note: noop is NOT included here because it is always processed by a dedicated
 // standalone step (see notify_comment.go) and should never be in the handler manager config.
@@ -26,7 +26,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 		expectedKeys []string
 	}{
 		{
-			name: "missing_tool auto-enabled",
+			name: "report_missing_tool auto-enabled",
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -34,10 +34,10 @@ func TestAutoEnabledHandlers(t *testing.T) {
 					},
 				},
 			},
-			expectedKeys: []string{"missing_tool"},
+			expectedKeys: []string{"report_missing_tool"},
 		},
 		{
-			name: "missing_data auto-enabled",
+			name: "report_missing_data auto-enabled",
 			safeOutputs: &SafeOutputsConfig{
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -45,7 +45,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 					},
 				},
 			},
-			expectedKeys: []string{"missing_data"},
+			expectedKeys: []string{"report_missing_data"},
 		},
 		{
 			name: "all auto-enabled handlers together",
@@ -61,7 +61,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 					},
 				},
 			},
-			expectedKeys: []string{"missing_tool", "missing_data"},
+			expectedKeys: []string{"report_missing_tool", "report_missing_data"},
 		},
 		{
 			name: "auto-enabled with other handlers",
@@ -75,7 +75,7 @@ func TestAutoEnabledHandlers(t *testing.T) {
 					},
 				},
 			},
-			expectedKeys: []string{"create_issue", "missing_tool"},
+			expectedKeys: []string{"create_issue", "report_missing_tool"},
 		},
 	}
 

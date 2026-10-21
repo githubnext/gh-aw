@@ -146,7 +146,7 @@ The script outputs:
 
 Use these values directly for the rest of the workflow. Do **not** re-derive or re-compute them manually.
 
-**On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue.
+**On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `report_missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue.
 
 ## Step 2: Enumerate All Functions in the Package
 

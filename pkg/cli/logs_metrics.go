@@ -378,7 +378,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, ex
 			}
 
 			// Check if this is a missing-tool entry
-			if item.Type == "missing_tool" {
+			if item.Type == "report_missing_tool" || item.Type == "missing_tool" {
 				missingTool := MissingToolReport{
 					Tool:             item.Tool,
 					Reason:           item.Reason,
@@ -639,7 +639,7 @@ func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, exp
 			}
 
 			// Check if this is a missing_data entry
-			if item.Type == "missing_data" {
+			if item.Type == "report_missing_data" || item.Type == "missing_data" {
 				missingDataItem := MissingDataReport{
 					DataType:         item.DataType,
 					Reason:           item.Reason,

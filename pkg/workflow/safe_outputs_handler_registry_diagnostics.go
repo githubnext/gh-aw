@@ -2,25 +2,25 @@ package workflow
 
 // diagnosticHandlerRegistry contains diagnostic, reporting, and no-op handler builders.
 var diagnosticHandlerRegistry = map[string]handlerBuilder{
-	"missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
+	"report_missing_tool": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.MissingTool == nil {
 			return nil
 		}
 		c := cfg.MissingTool
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "missing-tool", c.GitHubToken)).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "report-missing-tool", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	"missing_data": func(cfg *SafeOutputsConfig) map[string]any {
+	"report_missing_data": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.MissingData == nil {
 			return nil
 		}
 		c := cfg.MissingData
 		return newHandlerConfigBuilder().
 			AddTemplatableInt("max", c.Max).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "missing-data", c.GitHubToken)).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "report-missing-data", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},

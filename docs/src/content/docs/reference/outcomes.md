@@ -90,7 +90,7 @@ Outcome evaluation is based on visible repository state and visible actor identi
 | `update_project` | none; target existence is unknown | fallback rule |
 | `update_release` | none; target existence is unknown | fallback rule |
 | `noop` | skipped | skipped |
-| `missing_tool` | skipped | skipped |
+| `report_missing_tool` | skipped | skipped |
 
 ## Evaluating Outcomes in Practice
 
