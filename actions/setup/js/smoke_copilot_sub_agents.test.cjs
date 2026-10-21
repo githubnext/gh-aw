@@ -127,4 +127,27 @@ describe("Copilot sub-agent smoke evidence", () => {
     Object.assign(data.events.find(event => event.data.role === "gpt5-whoami").data, { resolved_model: null, status: "failed", cause: "model_unavailable" });
     await expect(assertEvidence({ events: data.events, requests: [] }, "failure")).rejects.toThrow("gpt5-whoami model.resolution status is failed, expected resolved (cause: model_unavailable)");
   });
+
+  test("reports a changed dead child pin's model.resolution cause before the pin mismatch", async () => {
+    const data = evidence();
+    data.events = data.events.filter(event => event.type === "model.resolution");
+    Object.assign(data.events.find(event => event.data.role === "terra-whoami").data, { configured_model: "dead-child-pin", resolved_model: null, status: "failed", cause: "model_unavailable" });
+    await expect(assertEvidence({ events: data.events, requests: [] }, "failure")).rejects.toThrow("terra-whoami model.resolution status is failed, expected exact (cause: model_unavailable)");
+  });
+
+  test("still rejects a changed child pin that resolves", async () => {
+    const data = evidence();
+    data.events.find(event => event.type === "model.resolution" && event.data.role === "gpt5-whoami").data.configured_model = "gpt-5-mini";
+    await expect(assertEvidence(data)).rejects.toThrow("gpt5-whoami model.resolution is for gpt-5-mini, expected gpt-5");
+  });
+
+  test("reports a failed main-model resolution instead of missing child records", async () => {
+    const events = [{ type: "model.resolution", data: { engine: "copilot", role: "main", configured_model: "gpt-5.3-codex", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" } }];
+    const result = assertEvidence({ events, requests: [] }, "failure");
+    await expect(result).rejects.toThrow("Copilot SDK execution failed (outcome: failure) before haiku-whoami model.resolution was recorded; recorded resolution causes: main: model_unavailable");
+  });
+
+  test("reports skipped execution with an empty session instead of missing child records", async () => {
+    await expect(assertEvidence({ events: [], requests: [] }, "skipped")).rejects.toThrow("Copilot SDK execution failed (outcome: skipped) before haiku-whoami model.resolution was recorded; recorded resolution causes: none");
+  });
 });

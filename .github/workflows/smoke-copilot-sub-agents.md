@@ -20,8 +20,8 @@ experiments:
   sub_agent_strategy:
     variants: [inline_strict, delegated_sequential]
     description: "Measure whether inline sub-agent orchestration is the best reliability/cost tradeoff for a model-identity smoke test. Both variants run the mandatory sub-agent contract; the experiment outcome is scored separately and never relaxes the smoke post-step gate."
-    hypothesis: "H0: no change in the sub_agent_strategy_goal_met YES rate between inline_strict and delegated_sequential. H1: delegated_sequential improves it by >= 0.15 absolute versus inline_strict."
-    metric: eval:sub_agent_strategy_goal_met
+    hypothesis: "H0: no change in the sub_agent_strategy_contract_met YES rate between inline_strict and delegated_sequential. H1: delegated_sequential improves it by >= 0.15 absolute versus inline_strict."
+    metric: eval:sub_agent_strategy_contract_met
     secondary_metrics: [run_duration_seconds, output_validity_rate]
     guardrail_metrics:
       - name: empty_output_rate
@@ -48,7 +48,7 @@ features:
 imports:
   - shared/reporting.md
 evals:
-  - id: sub_agent_strategy_goal_met
+  - id: sub_agent_strategy_contract_met
     question: Does the agent output show that the orchestration objective for experiment sub_agent_strategy was met, with all three sub-agents invoked exactly once and their exact identities validated using the assigned orchestration style?
 
 sandbox:
@@ -82,14 +82,20 @@ post-steps:
           .replace(/^copilot(?:-(?:responses|completions))?(?:-\d+)?\//, "")
           .replace(/-[0-9]{4}(?:-[0-9]{2}-[0-9]{2}|[0-9]{4})$/, "")
           .replace(/^(claude-.+)-([0-9]+)-([0-9]+)$/, "$1-$2.$3");
+        const resolutionRecords = events.filter(event => event.type === "model.resolution" && event.data?.engine === "copilot");
+        const executionSucceeded = process.env.SMOKE_EXECUTION === "success";
         // Check model resolution for every sub-agent first so a startup failure reports its cause.
         const servedModels = new Map();
         for (const [agentName, configuredModel, status] of expected) {
-          const resolutions = events.filter(event => event.type === "model.resolution" && event.data?.engine === "copilot" && event.data?.role === agentName);
+          const resolutions = resolutionRecords.filter(event => event.data.role === agentName);
+          if (resolutions.length === 0 && !executionSucceeded) {
+            const causes = resolutionRecords.filter(event => event.data.cause).map(event => `${event.data.role}: ${event.data.cause}`);
+            assert.fail(`Copilot SDK execution failed (outcome: ${process.env.SMOKE_EXECUTION || "unknown"}) before ${agentName} model.resolution was recorded; recorded resolution causes: ${causes.join(", ") || "none"}`);
+          }
           assert.equal(resolutions.length, 1, `${agentName} must have exactly one model.resolution record`);
           const resolution = resolutions[0].data;
-          assert.equal(resolution.configured_model, configuredModel, `${agentName} model.resolution is for ${resolution.configured_model}, expected ${configuredModel}`);
           assert.equal(resolution.status, status, `${agentName} model.resolution status is ${resolution.status}, expected ${status} (cause: ${resolution.cause || "none"})`);
+          assert.equal(resolution.configured_model, configuredModel, `${agentName} model.resolution is for ${resolution.configured_model}, expected ${configuredModel}`);
           const model = servedModel(resolution.resolved_model);
           assert.ok(model, `${agentName} has no resolved model`);
           assert.ok(![...servedModels.values()].includes(model), `${agentName} resolved to ${model}, which another sub-agent also uses, so its proxy requests are indistinguishable`);
