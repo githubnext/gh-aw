@@ -142,7 +142,7 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 }
 
 func compareEpisodeArtifacts(a, b episodeArtifact) int {
-	if aOutcome, bOutcome := episodeArtifactKind(a.Name) == "outcomes", episodeArtifactKind(b.Name) == "outcomes"; aOutcome != bOutcome {
+	if aOutcome, bOutcome := isEpisodeOutcomeArtifact(a.Name), isEpisodeOutcomeArtifact(b.Name); aOutcome != bOutcome {
 		if aOutcome {
 			return 1
 		}
@@ -161,9 +161,12 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 	var dirs []string
 	var priorAttempt bool
 	for _, artifact := range artifacts {
-		if episodeArtifactKind(artifact.Name) == "outcomes" {
+		if isEpisodeOutcomeArtifact(artifact.Name) {
 			info, err := selectEpisodeInfo(infos)
-			if err != nil || c.report.EpisodeID != "" && strings.TrimSpace(info.Context.EpisodeID) != c.report.EpisodeID {
+			if err != nil {
+				continue
+			}
+			if c.report.EpisodeID != "" && strings.TrimSpace(info.Context.EpisodeID) != c.report.EpisodeID {
 				continue
 			}
 			if run.Attempt > 1 && (run.StartedAt.IsZero() || artifact.CreatedAt.IsZero() || artifact.CreatedAt.Before(run.StartedAt)) {
@@ -187,7 +190,7 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 			}
 			return nil, nil, err
 		}
-		if episodeArtifactKind(artifact.Name) == "outcomes" {
+		if isEpisodeOutcomeArtifact(artifact.Name) {
 			dirs = append(dirs, dir)
 			continue
 		}
@@ -216,7 +219,7 @@ func episodeArtifactUnavailable(err error) bool {
 // collection. Older collections keep their own inventory and cached evidence.
 func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
 	id, kind, artifactDir := strings.Cut(filepath.Base(filepath.Clean(runDir)), "-")
-	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage" || kind == "outcomes") {
+	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage" || kind == "outcomes" || kind == "outcome-enrichment") {
 		return nil, false, nil // An archive cannot supply its own trusted collection inventory.
 	}
 	data, err := os.ReadFile(filepath.Join(runDir, ".episode-artifacts.json"))
@@ -234,7 +237,7 @@ func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
 	for _, relative := range inventory {
 		name := filepath.Base(relative)
 		id, kind, valid := strings.Cut(name, "-")
-		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" && kind != "outcomes" || relative != filepath.Join("..", name) {
+		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" && kind != "outcomes" && kind != "outcome-enrichment" || relative != filepath.Join("..", name) {
 			return nil, true, fmt.Errorf("invalid episode artifact inventory entry %q", relative)
 		}
 		dir := filepath.Join(runDir, relative)
@@ -276,10 +279,18 @@ func episodeArtifactKind(name string) string {
 	if artifactMatchesFilter(name, []string{"safe-outputs-items"}) {
 		return "outcomes"
 	}
+	if artifactMatchesFilter(name, []string{"agent-output-fallback"}) {
+		return "outcome-enrichment"
+	}
 	if artifactMatchesFilter(name, []string{"info"}) {
 		return "info"
 	}
 	return "usage"
+}
+
+func isEpisodeOutcomeArtifact(name string) bool {
+	kind := episodeArtifactKind(name)
+	return kind == "outcomes" || kind == "outcome-enrichment"
 }
 
 func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func TestLogsOutcomeOptions(t *testing.T) {
 	assert.True(t, options.Outcomes)
 	assert.Equal(t, "observations", options.OutcomesDir)
 	assert.Equal(t, []string{"usage", "outcomes"}, options.ArtifactSets)
-	assert.Equal(t, []string{"usage", "safe-outputs-items"}, ResolveArtifactFilter(options.ArtifactSets))
+	assert.Equal(t, []string{"usage", "safe-outputs-items", "agent-output-fallback"}, ResolveArtifactFilter(options.ArtifactSets))
 	assert.False(t, shouldDownloadWorkflowRunLogs(ResolveArtifactFilter(options.ArtifactSets)))
 	assert.False(t, cachedJSONLCanSatisfy(ResolveArtifactFilter(options.ArtifactSets), false, false, false))
 	stdin, err := loadStdinLogsOptions(cmd)
@@ -72,6 +73,8 @@ func TestLogsOutcomeRepository(t *testing.T) {
 	} {
 		assert.Equal(t, tc.want, logsOutcomeRepository(WorkflowRun{URL: tc.url, Repository: tc.repo}))
 	}
+	assert.Equal(t, "github.example.com/org/repo", logsOutcomeItemRepository("org/repo", "github.example.com/org/repo"))
+	assert.Equal(t, "other.example.com/other/repo", logsOutcomeItemRepository("other.example.com/other/repo", "github.example.com/org/repo"))
 }
 
 func TestLogsOutcomeManifestEvidence(t *testing.T) {
@@ -114,6 +117,83 @@ func TestLogsOutcomeManifestEvidence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLogsOutcomeUsesRunHostForManifestRepository(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename),
+		[]byte(`{"type":"create_issue","repo":"org/repo","number":42}`+"\n"), 0o600))
+	oldGet := outcomeEvidenceGHAPIGet
+	t.Cleanup(func() { outcomeEvidenceGHAPIGet = oldGet })
+	var requestRepo string
+	outcomeEvidenceGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+		require.Equal(t, "issues/42", endpoint)
+		requestRepo = repo
+		return map[string]any{"state": "open"}, nil
+	}
+	run := ProcessedRun{Run: WorkflowRun{
+		DatabaseID: 42, Repository: "org/repo", URL: "https://github.example.com/org/repo/actions/runs/42", LogsPath: dir,
+	}}
+	report, err := collectRunOutcomes(context.Background(), run, nil, false)
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	assert.Equal(t, "github.example.com/org/repo", requestRepo)
+	assert.Equal(t, requestRepo, report.Items[0].Repo)
+}
+
+func TestLogsOutcomeAggregatesDistinctEpisodeManifests(t *testing.T) {
+	runDir := t.TempDir()
+	collectionDir := filepath.Join(runDir, "collection")
+	require.NoError(t, os.Mkdir(collectionDir, 0o700))
+	first := []byte(`{"type":"create_issue","number":1}` + "\n")
+	second := []byte(`{"type":"close_issue","number":2}` + "\n")
+	for name, content := range map[string][]byte{"10-outcomes": first, "11-outcomes": second} {
+		dir := filepath.Join(runDir, name)
+		require.NoError(t, os.Mkdir(dir, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), content, 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".episode-complete"), []byte("v1\n"), 0o600))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, ".episode-artifacts.json"),
+		[]byte(`["../10-outcomes","../11-outcomes"]`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, safeOutputItemsManifestFilename), first, 0o600))
+	items, found, err := readLogsOutcomeItems(ProcessedRun{Run: WorkflowRun{LogsPath: collectionDir}})
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Len(t, items, 2)
+	assert.Equal(t, []string{"create_issue", "close_issue"}, []string{items[0].Type, items[1].Type})
+}
+
+func TestLogsOutcomeAssignmentUsesFallbackArtifactEvidence(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename),
+		[]byte(`{"type":"assign_to_agent","success":true}`+"\n"), 0o600))
+	fallbackDir := filepath.Join(dir, "agent-output-fallback")
+	require.NoError(t, os.Mkdir(fallbackDir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(fallbackDir, "safeoutputs.jsonl"),
+		[]byte(`{"type":"assign_to_agent","issue_number":42}`+"\n"), 0o600))
+	oldGet, oldArray := outcomeEvidenceGHAPIGet, outcomeEvidenceGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeEvidenceGHAPIGet, outcomeEvidenceGHAPIGetArray = oldGet, oldArray
+	})
+	var requests []string
+	outcomeEvidenceGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+		assert.Equal(t, "org/repo", repo)
+		requests = append(requests, endpoint)
+		return map[string]any{"state": "open"}, nil
+	}
+	outcomeEvidenceGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+		assert.Equal(t, "org/repo", repo)
+		requests = append(requests, endpoint)
+		return nil, nil
+	}
+	report, err := collectRunOutcomes(context.Background(), ProcessedRun{Run: WorkflowRun{
+		DatabaseID: 7, Repository: "org/repo", LogsPath: dir,
+	}}, nil, false)
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	assert.Equal(t, OutcomeStatusUnknown, report.Items[0].OutcomeStatus)
+	assert.NotEqual(t, "missing_reference", report.Items[0].Signal)
+	assert.Equal(t, []string{"issues/42", "issues/42/timeline"}, requests)
 }
 
 func TestLogsOutcomePersistenceErrorsAndCancellation(t *testing.T) {
@@ -178,15 +258,49 @@ func TestLogsOutcomeReportAndEpisodeJoin(t *testing.T) {
 	assert.Contains(t, string(markdown), "1 accepted")
 }
 
+func TestPrettyLogsOutcomeSectionUsesStderr(t *testing.T) {
+	oldStdout, oldStderr := os.Stdout, os.Stderr
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	require.NoError(t, err)
+	stderrReader, stderrWriter, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout, os.Stderr = stdoutWriter, stderrWriter
+	renderErr := renderLogsOutput(nil, renderLogsOutputOptions{
+		format: "pretty",
+		outcomeReports: []OutcomesData{{
+			RunID: 1, Workflow: "workflow", Items: []OutcomeReport{},
+		}},
+	})
+	_ = stdoutWriter.Close()
+	_ = stderrWriter.Close()
+	os.Stdout, os.Stderr = oldStdout, oldStderr
+	stdout, stdoutErr := io.ReadAll(stdoutReader)
+	stderr, stderrErr := io.ReadAll(stderrReader)
+	_ = stdoutReader.Close()
+	_ = stderrReader.Close()
+	require.NoError(t, renderErr)
+	require.NoError(t, stdoutErr)
+	require.NoError(t, stderrErr)
+	assert.Empty(t, stdout)
+	assert.Contains(t, string(stderr), "Outcomes for workflow (run 1)")
+}
+
 func TestEpisodeOutcomesCollectManifestsOnlyForMembers(t *testing.T) {
 	fixture := newEpisodeRetrievalFixture(t)
 	fixture.add("org/one", 2, "canonical", "", 0)
 	fixture.add("org/one", 3, "unrelated", "", 0)
-	var archive bytes.Buffer
-	writer := zip.NewWriter(&archive)
+	var manifestArchive bytes.Buffer
+	writer := zip.NewWriter(&manifestArchive)
 	file, err := writer.Create(safeOutputItemsManifestFilename)
 	require.NoError(t, err)
-	_, err = fmt.Fprintln(file, `{"type":"noop"}`)
+	_, err = fmt.Fprintln(file, `{"type":"assign_to_agent","success":true}`)
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	var fallbackArchive bytes.Buffer
+	writer = zip.NewWriter(&fallbackArchive)
+	file, err = writer.Create("safeoutputs.jsonl")
+	require.NoError(t, err)
+	_, err = fmt.Fprintln(file, `{"type":"assign_to_agent","issue_number":42}`)
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 	var downloads []string
@@ -196,12 +310,17 @@ func TestEpisodeOutcomesCollectManifestsOnlyForMembers(t *testing.T) {
 				return json.Marshal(map[string]any{"artifacts": []episodeArtifact{
 					{ID: id * 10, Name: "usage"},
 					{ID: id*10 + 1, Name: "safe-outputs-items"},
+					{ID: id*10 + 2, Name: "agent-output-fallback"},
 				}})
 			}
 		}
 		if strings.HasSuffix(endpoint, "/21/zip") || strings.HasSuffix(endpoint, "/31/zip") {
 			downloads = append(downloads, endpoint)
-			return archive.Bytes(), nil
+			return manifestArchive.Bytes(), nil
+		}
+		if strings.HasSuffix(endpoint, "/22/zip") || strings.HasSuffix(endpoint, "/32/zip") {
+			downloads = append(downloads, endpoint)
+			return fallbackArchive.Bytes(), nil
 		}
 		return fixture.request(ctx, host, endpoint)
 	}
@@ -210,12 +329,41 @@ func TestEpisodeOutcomesCollectManifestsOnlyForMembers(t *testing.T) {
 	data, err := retrieveCachedEpisodeLogs(context.Background(), options, request)
 	require.NoError(t, err)
 	require.Len(t, data.Runs, 1)
-	assert.Equal(t, []string{"repos/org/one/actions/artifacts/21/zip"}, downloads)
-	items, found, err := readLogsOutcomeItems(ProcessedRun{Run: WorkflowRun{LogsPath: data.Runs[0].LogsPath}})
+	assert.ElementsMatch(t, []string{"repos/org/one/actions/artifacts/21/zip", "repos/org/one/actions/artifacts/22/zip"}, downloads)
+	run := ProcessedRun{Run: WorkflowRun{DatabaseID: 2, Repository: "org/one", LogsPath: data.Runs[0].LogsPath}}
+	items, found, err := readLogsOutcomeItems(run)
 	require.NoError(t, err)
 	assert.True(t, found)
 	require.Len(t, items, 1)
-	assert.Equal(t, "noop", items[0].Type)
+	assert.Equal(t, "assign_to_agent", items[0].Type)
+	artifactDirs, verified, err := readEpisodeArtifactDirs(run.Run.LogsPath)
+	require.NoError(t, err)
+	require.True(t, verified)
+	require.Len(t, artifactDirs, 3)
+	enrichmentDirs := logsOutcomeAgentOutputDirs(run.Run.LogsPath)
+	require.Len(t, enrichmentDirs, 1)
+	assert.FileExists(t, filepath.Join(enrichmentDirs[0], "safeoutputs.jsonl"))
+	items = enrichItemsFromAgentOutput(items, run.Run.LogsPath, run.Run.Repository, enrichmentDirs...)
+	require.Len(t, items, 1)
+	assert.Equal(t, 42, items[0].Number)
+	oldGet, oldArray := outcomeEvidenceGHAPIGet, outcomeEvidenceGHAPIGetArray
+	t.Cleanup(func() {
+		outcomeEvidenceGHAPIGet, outcomeEvidenceGHAPIGetArray = oldGet, oldArray
+	})
+	outcomeEvidenceGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+		assert.Equal(t, "org/one", repo)
+		assert.Equal(t, "issues/42", endpoint)
+		return map[string]any{"state": "open"}, nil
+	}
+	outcomeEvidenceGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
+		assert.Equal(t, "org/one", repo)
+		assert.Equal(t, "issues/42/timeline", endpoint)
+		return nil, nil
+	}
+	report, err := collectRunOutcomes(context.Background(), run, nil, false)
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	assert.NotEqual(t, "missing_reference", report.Items[0].Signal)
 	cached, err := retrieveCachedEpisodeLogs(context.Background(), options, func(context.Context, string, string) ([]byte, error) {
 		t.Fatal("cached membership must not make API requests")
 		return nil, nil

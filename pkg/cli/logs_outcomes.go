@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/github"
@@ -82,7 +85,11 @@ func collectRunOutcomes(ctx context.Context, run ProcessedRun, mapping *github.O
 		return report, nil
 	}
 	repository := logsOutcomeRepository(run.Run)
-	items = enrichItemsFromAgentOutput(items, run.Run.LogsPath, repository)
+	for i := range items {
+		items[i].Repo = logsOutcomeItemRepository(items[i].Repo, repository)
+	}
+	enrichmentDirs := logsOutcomeAgentOutputDirs(run.Run.LogsPath)
+	items = enrichItemsFromAgentOutput(items, run.Run.LogsPath, repository, enrichmentDirs...)
 	report.Items = EvaluateOutcomes(ctx, items, repository, mapping)
 	if err := ctx.Err(); err != nil {
 		return report, err
@@ -111,6 +118,34 @@ func logsOutcomeRepository(run WorkflowRun) string {
 	return path.Join(runURL.Host, repository)
 }
 
+func logsOutcomeItemRepository(repository, runRepository string) string {
+	ownerRepo, host := repoutil.NormalizeRepoForAPI(repository)
+	if ownerRepo == "" || host != "" {
+		return repository
+	}
+	_, runHost := repoutil.NormalizeRepoForAPI(runRepository)
+	if runHost == "" {
+		return repository
+	}
+	return path.Join(runHost, ownerRepo)
+}
+
+func logsOutcomeAgentOutputDirs(runDir string) []string {
+	var dirs []string
+	artifactDirs, _, err := readEpisodeArtifactDirs(runDir)
+	if err == nil {
+		for _, dir := range artifactDirs {
+			if strings.HasSuffix(filepath.Base(dir), "-outcome-enrichment") {
+				dirs = append(dirs, dir)
+			}
+		}
+	}
+	if fallbackDir := findArtifactDir(runDir, "agent-output-fallback", ""); fallbackDir != "" {
+		dirs = append(dirs, fallbackDir)
+	}
+	return dirs
+}
+
 func readLogsOutcomeItems(run ProcessedRun) ([]CreatedItemReport, bool, error) {
 	if run.Run.LogsPath == "" {
 		return nil, false, nil
@@ -121,31 +156,45 @@ func readLogsOutcomeItems(run ProcessedRun) ([]CreatedItemReport, bool, error) {
 		return nil, false, err
 	}
 	dirs = append(dirs, artifacts...)
+	items := []CreatedItemReport{}
+	seenManifests := make(map[[sha256.Size]byte]struct{})
+	found := false
 	for _, dir := range dirs {
 		path := filepath.Join(dir, safeOutputItemsManifestFilename)
-		items, err := readLogsOutcomeManifest(path)
+		manifestItems, digest, err := readLogsOutcomeManifest(path)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
 		if err != nil {
 			return nil, false, fmt.Errorf("read safe-output manifest %s: %w", path, err)
 		}
-		return items, true, nil
+		found = true
+		if _, duplicate := seenManifests[digest]; duplicate {
+			continue
+		}
+		seenManifests[digest] = struct{}{}
+		items = append(items, manifestItems...)
 	}
-	return nil, false, nil
+	return items, found, nil
 }
 
-func readLogsOutcomeManifest(path string) (items []CreatedItemReport, returnErr error) {
+func readLogsOutcomeManifest(path string) (items []CreatedItemReport, digest [sha256.Size]byte, returnErr error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, digest, err
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
 			returnErr = errors.Join(returnErr, fmt.Errorf("close safe-output manifest %s: %w", path, err))
 		}
 	}()
-	return decodeLogsOutcomeItems(file)
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return nil, digest, err
+	}
+	digest = sha256.Sum256(content)
+	items, returnErr = decodeLogsOutcomeItems(bytes.NewReader(content))
+	return items, digest, returnErr
 }
 
 func collectEpisodeOutcomes(ctx context.Context, data *LogsData, outcomesDir string, verbose bool) error {
@@ -218,6 +267,11 @@ func attachLogsOutcomes(data *LogsData, reports []OutcomesData) error {
 				Reasons: coverage.Reasons, CollectionTruncated: coverage.CollectionTruncated,
 			},
 		})
+	}
+	for _, report := range reports {
+		if report.EvalError == "" {
+			logs.OutcomeRunIDs = append(logs.OutcomeRunIDs, report.RunID)
+		}
 	}
 	joined, err := buildEpisodeOutcomes(logs, observations, costs)
 	if err != nil {

@@ -98,6 +98,26 @@ describe("CLI-backed impact report outcomes", () => {
     expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8"))).toMatchObject({ outcome_status: "accepted", signal: "completed" });
   });
 
+  it("publishes available observations with explicit partial coverage for runs missing manifests", () => {
+    writeRuns([{ run_id: 1 }, { run_id: 2 }]);
+    exec.mockReturnValue(
+      JSON.stringify({
+        outcomes: [
+          { run_id: 1, items: [{ type: "create_issue", outcome_status: "accepted", object_number: 42 }] },
+          { run_id: 2, items: [], eval_error: "safe-output manifest unavailable; outcome coverage is unknown" },
+        ],
+      })
+    );
+    prepareIssueOutcomes(root, "acme/repo");
+    const rows = fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ run_id: 1, object_number: 42, outcome_status: "accepted" });
+    expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-summary.json"), "utf8"))).toMatchObject({
+      coverage_status: "partial",
+      missing_evidence: [{ run_id: 2, error: "safe-output manifest unavailable; outcome coverage is unknown" }],
+    });
+  });
+
   it("surfaces CLI failures without publishing a successful empty report", () => {
     writeRuns([{ run_id: 1 }]);
     exec.mockImplementation(() => {
@@ -112,7 +132,7 @@ describe("CLI-backed impact report outcomes", () => {
     '{"run_id":1}',
     '{"outcomes":[{"run_id":2,"items":[]}]}',
     '{"outcomes":[{"run_id":1,"items":[null]}]}',
-    '{"outcomes":[{"run_id":1,"items":[],"eval_error":"missing manifest"}]}',
+    '{"outcomes":[{"run_id":1,"items":[],"eval_error":true}]}',
     '{"outcomes":[null]}',
     '{"outcomes":[{"run_id":1,"items":[]},{"run_id":1,"items":[]}]}',
   ])("rejects malformed CLI output: %s", output => {

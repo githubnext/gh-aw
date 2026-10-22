@@ -76,10 +76,21 @@ function prepareIssueOutcomes(dataDir, repo) {
   }
   const reports = collectOutcomeReports(repo, path.join(dataDir, "safe-output-runs"), [...runs.keys()]);
   const rows = [];
+  const missingEvidence = [];
   for (const [id, run] of runs) {
     const report = reports.get(id);
-    if (!report || report.eval_error || report.run_id !== id || !Array.isArray(report.items) || report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")) {
+    if (
+      !report ||
+      report.run_id !== id ||
+      !Array.isArray(report.items) ||
+      (report.eval_error !== undefined && typeof report.eval_error !== "string") ||
+      report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")
+    ) {
       throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report for run ${id}`);
+    }
+    if (report.eval_error) {
+      missingEvidence.push({ run_id: id, error: report.eval_error });
+      continue;
     }
     for (const item of report.items) {
       if (item.type !== "create_issue" && item.type !== "close_issue") continue;
@@ -98,6 +109,8 @@ function prepareIssueOutcomes(dataDir, repo) {
   }
 
   const summary = {
+    coverage_status: missingEvidence.length ? "partial" : "complete",
+    missing_evidence: missingEvidence,
     total_issue_outcomes: rows.length,
     create_issue_count: rows.filter(row => row.type === "create_issue").length,
     close_issue_count: rows.filter(row => row.type === "close_issue").length,
