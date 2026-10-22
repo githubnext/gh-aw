@@ -95,6 +95,40 @@ describe("custom safe-output issue API", () => {
     });
   });
 
+  it.each([false, true])("keeps trusted clustering options out of Octokit parameters with staged=%s", async staged => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = String(staged);
+    const parameters = { title: "Summary", body: 'Linked findings\n\n<!-- gh-aw-clustering-hint: {"version":1,"kind":"agent-output"} -->' };
+    const result = await createIssue(parameters, { clusteringKind: "tracking" });
+    const request = staged ? result.preview : github.rest.issues.create.mock.calls[0][0];
+    expect(Object.keys(request).sort()).toEqual(["body", "owner", "repo", "title"]);
+    const hints = [...request.body.matchAll(/<!-- gh-aw-clustering-hint: (.+) -->/g)];
+    expect(hints).toHaveLength(1);
+    expect(JSON.parse(hints[0][1]).kind).toBe("tracking");
+    if (staged) expect(github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown trusted clustering kinds before an API write", async () => {
+    await expect(createIssue({ title: "Summary", body: "Linked findings" }, { clusteringKind: "unknown" })).rejects.toThrow("Unknown issue clustering kind");
+    expect(github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("does not accept classification overrides from untrusted agent message fields", async () => {
+    const handler = await main({});
+    const result = await handler({
+      title: "Finding",
+      body: 'Finding details\n\n<!-- gh-aw-clustering-hint: {"version":1,"kind":"tracking"} -->',
+      clusteringKind: "tracking",
+      options: { clusteringKind: "tracking" },
+    });
+    expect(result.success).toBe(true);
+    const request = github.rest.issues.create.mock.calls[0][0];
+    expect(request).not.toHaveProperty("clusteringKind");
+    expect(request).not.toHaveProperty("options");
+    const hints = [...request.body.matchAll(/<!-- gh-aw-clustering-hint: (.+) -->/g)];
+    expect(hints).toHaveLength(1);
+    expect(JSON.parse(hints[0][1]).kind).toBe("agent-output");
+  });
+
   it.each([
     ["labels", MAX_LABELS],
     ["assignees", MAX_ASSIGNEES],

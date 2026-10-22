@@ -285,6 +285,10 @@ test("new summaries use attributed issue creation and preserve managed metadata"
     assert.ok(calls[0].body.includes("https://github.com/github/gh-aw/actions/runs/123"));
     assert.equal(calls[0].title, "[AW Top 10] 01 Repair shared ledger persistence");
     assert.deepEqual(calls[0].labels, ["aw-essential", "automation", "agentic-workflows", "cookie"]);
+    const hints = [...calls[0].body.matchAll(/<!-- gh-aw-clustering-hint: (.+) -->/g)];
+    assert.equal(hints.length, 1);
+    assert.equal(JSON.parse(hints[0][1]).kind, "tracking");
+    assert.equal(Object.hasOwn(calls[0], "clusteringKind"), false);
     assert.equal(result[0][2], `https://github.com/${repo}/issues/20`);
     assert.equal(buildCorpus(repo, [issue(20, calls[0])], [], cutoff).managed.length, 1);
   } finally {

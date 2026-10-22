@@ -49,9 +49,10 @@ const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION = 0.2;
  * Call setupGlobals before using this API. Title and body must be trusted or
  * sanitized by the custom job; this helper does not enforce agent tool policies.
  * @param {Omit<IssueParameters, "owner" | "repo" | "title" | "body"> & {owner?: string, repo?: string, title: string, body: string}} parameters
+ * @param {{clusteringKind?: import("./issue_clustering.cjs").IssueClusteringKind}} [options] Trusted classification, separate from Octokit parameters and agent messages.
  * @returns {Promise<{staged: false, issue: Issue} | {staged: true, preview: IssueParameters}>}
  */
-async function createIssue(parameters) {
+async function createIssue(parameters, { clusteringKind = "agent-output" } = {}) {
   if (typeof github === "undefined" || typeof context === "undefined" || typeof core === "undefined") {
     throw new Error(`${ERR_VALIDATION}: Call setupGlobals(core, github, context, exec, io, getOctokit) from index.cjs before creating an issue`);
   }
@@ -90,7 +91,7 @@ async function createIssue(parameters) {
   if (issueArrayLimitError) {
     throw new Error(`${ERR_VALIDATION}: ${issueArrayLimitError}`);
   }
-  const report = buildIssueBodyReport(parameters.title, parameters.body, { repo: { owner, repo } });
+  const report = buildIssueBodyReport(parameters.title, parameters.body, { repo: { owner, repo }, clusteringKind });
   /** @type {IssueParameters & {title: string, body: string}} */
   const request = renderIssueParameters({ ...parameters, owner, repo }, report);
   if (labels) request.labels = labels;

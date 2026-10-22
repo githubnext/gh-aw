@@ -6,7 +6,8 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { buildIssueClusteringHint, generateIssueClusteringHint } = require("./issue_clustering.cjs");
 const { buildIssueReport } = require("./issue_report.cjs");
-const { renderSizedReport } = require("./report_size.cjs");
+const { renderReport } = require("./report_ast.cjs");
+const { MAX_BODY_LENGTH, SIZE_NOTICE, renderSizedReport } = require("./report_size.cjs");
 const { redactReport } = require("./report_redaction.cjs");
 
 function readHint(body) {
@@ -54,9 +55,19 @@ describe("runtime issue clustering hints", () => {
   it("preserves framework hints through redaction, size fitting, and publication parsing", () => {
     const report = buildIssueReport("Finding", "x".repeat(100000));
     report.children.push(buildIssueClusteringHint("agent-output"));
-    const { body } = renderSizedReport(redactReport(report, () => true));
-    expect(body.length).toBeLessThanOrEqual(65536);
-    expect(readHint(body).kind).toBe("agent-output");
+    const originalBody = renderReport(report).body;
+    const hint = readHint(originalBody);
+    expect(originalBody.length).toBeGreaterThan(MAX_BODY_LENGTH);
+    expect(hint.kind).toBe("agent-output");
+
+    const redactedBody = renderReport(redactReport(report, () => true)).body;
+    expect(redactedBody).toContain("Content redacted.");
+    expect(readHint(redactedBody)).toEqual(hint);
+
+    const { body } = renderSizedReport(report);
+    expect(body).toContain(SIZE_NOTICE);
+    expect(body.length).toBeLessThanOrEqual(MAX_BODY_LENGTH);
+    expect(readHint(body)).toEqual(hint);
     expect(readHint(renderSizedReport(buildIssueReport("Finding", body)).body)).toEqual(readHint(body));
   });
 

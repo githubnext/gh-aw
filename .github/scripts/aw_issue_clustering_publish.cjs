@@ -389,7 +389,7 @@ async function reconcile(github, owner, repo, clusters, corpus, staged, core, cr
       const live = await collectIssues(github, owner, repo);
       requireValid(live.filter(issue => issue.state === "open" && managed(issue)).length < 10, "Active queue is full; refusing an eleventh issue");
       requireValid(typeof createIssue === "function", "Attributed issue-creation API is required");
-      const created = await createIssue({ owner, repo, title, body: content, labels: [label, "automation", "agentic-workflows", "cookie"] });
+      const created = await createIssue({ owner, repo, title, body: content, labels: [label, "automation", "agentic-workflows", "cookie"] }, { clusteringKind: "tracking" });
       requireValid(!created.staged, "Issue creation was unexpectedly staged during live reconciliation");
       url = created.issue.html_url;
     }

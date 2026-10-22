@@ -16,7 +16,7 @@ const { redactReport } = require("./report_redaction.cjs");
 const { buildIssueClusteringHint } = require("./issue_clustering.cjs");
 
 /**
- * @typedef {{repo: {owner: string, repo: string}, footer?: boolean, bodyFooter?: string, expiresHours?: number, closeOlderKey?: string, allowedMentions?: string[], redact?: import("./report_redaction.cjs").ReportRedactionPolicy}} IssueBodyOptions
+ * @typedef {{repo: {owner: string, repo: string}, footer?: boolean, bodyFooter?: string, expiresHours?: number, closeOlderKey?: string, allowedMentions?: string[], clusteringKind?: import("./issue_clustering.cjs").IssueClusteringKind, redact?: import("./report_redaction.cjs").ReportRedactionPolicy}} IssueBodyOptions
  */
 
 /**
@@ -37,7 +37,7 @@ function formatIssueBody(body, options) {
  * @param {IssueBodyOptions} options
  * @returns {import("./report_ast.cjs").Report}
  */
-function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, expiresHours = 0, closeOlderKey, allowedMentions = [], redact }) {
+function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, expiresHours = 0, closeOlderKey, allowedMentions = [], clusteringKind = "agent-output", redact }) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME ?? "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
@@ -104,7 +104,7 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   if (Object.keys(blockSlots).some(key => !consumedSlots.has(key))) throw new TypeError("Issue body wrappers must preserve report content slots; check bodyHeader and bodyFooter for code fences");
 
   children.push(...parseReportMarkdown(appendExecutionProvenance("", workflowName, runUrl), { minimumHeadingLevel: 2, allowMetadata: true, agentTainted: false }));
-  children.push(buildIssueClusteringHint("agent-output"));
+  children.push(buildIssueClusteringHint(clusteringKind));
   /** @type {import("./report_ast.cjs").Report} */
   const report = { type: "report", title, agentTainted: true, children };
   return redact ? redactReport(report, redact) : report;

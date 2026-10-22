@@ -155,6 +155,15 @@ describe("issue report builder slots", () => {
     expect(body.match(/Ignore this finding/g)).toHaveLength(1);
   });
 
+  it.each([true, false])("uses a trusted tracking classification instead of supplied hints with footer=%s", footer => {
+    const source = 'Linked source issues\n\n<!-- gh-aw-clustering-hint: {"version":1,"kind":"agent-output"} -->';
+    const body = formatIssueBody(source, { repo, footer, clusteringKind: "tracking" });
+    const hint = JSON.parse(body.match(/<!-- gh-aw-clustering-hint: (.+) -->/)[1]);
+    expect(hint).toMatchObject({ version: 1, kind: "tracking", categories: [] });
+    expect(hint.guidance).toContain("Inspect the linked work or child issues");
+    expect(body.match(/<!-- gh-aw-clustering-hint:/g)).toHaveLength(1);
+  });
+
   it("redacts every collected diagnostic family but preserves summaries, attribution, expiration, and metadata", () => {
     setCollectedMissings(diagnostics);
     const candidates = [];
