@@ -410,6 +410,7 @@ type Stats struct {
 }
 
 type Projection struct {
+	resourceHost         string
 	timeWatermark        int64
 	expiringWorks        map[string]bool
 	SchedulingProfiles   []string                                `json:"-"`

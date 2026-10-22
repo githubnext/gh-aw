@@ -16,10 +16,14 @@ func resourceKey(resource Resource, condition string) string {
 }
 
 func validateResource(resource Resource, pool PoolPolicy) error {
+	return validateResourceForHost(resource, pool, "")
+}
+
+func validateResourceForHost(resource Resource, pool PoolPolicy, selectedHost string) error {
 	if resource.Kind != "issue" && resource.Kind != "pull_request" {
 		return queueError("resource_invalid", "expected Issue or PR type")
 	}
-	host, err := expectedResourceHost()
+	host, err := resourceHost(selectedHost)
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,7 @@ func (state Projection) validatePredecessors(work *WorkState, vertices identityS
 			if edge.Resource == nil || edge.Resource.Kind != edge.Kind {
 				return queueError("resource_invalid", "dependency type does not match resource")
 			}
-			if err := validateResource(*edge.Resource, state.Policy.Pools[work.Pool]); err != nil {
+			if err := validateResourceForHost(*edge.Resource, state.Policy.Pools[work.Pool], state.resourceHost); err != nil {
 				return err
 			}
 			if edge.Kind == "issue" && edge.Condition != "completed" && edge.Condition != "closed" ||
@@ -178,7 +182,7 @@ func (state Projection) admitWork(node WorkDefinition, commit QueueCommit, posit
 		return queueError("payload_limit", "invalid or oversized Work payload")
 	}
 	if node.Subject != nil {
-		if err := validateResource(*node.Subject, pool); err != nil {
+		if err := validateResourceForHost(*node.Subject, pool, state.resourceHost); err != nil {
 			return err
 		}
 	}
@@ -344,7 +348,7 @@ func (state Projection) recordObservation(observation Observation, commit QueueC
 	key := resourceKey(observation.Resource, observation.Condition)
 	authorized := false
 	for _, pool := range state.Policy.Pools {
-		if validateResource(observation.Resource, pool) == nil {
+		if validateResourceForHost(observation.Resource, pool, state.resourceHost) == nil {
 			authorized = true
 		}
 	}
