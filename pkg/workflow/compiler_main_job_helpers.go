@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 )
 
 // buildMainJobCondition computes the if-condition string for the main agent job.
@@ -51,20 +52,20 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
-	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
+	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent.
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
-	if data.Jobs != nil {
-		for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
-			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-			if isBuiltinJobName(jobName) {
-				continue
-			}
-			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
-					depends = append(depends, jobName)
-				}
+	graph := aw.AuthoredJobDependencies(data.Jobs)
+	for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
+		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
+		if isBuiltinJobName(jobName) {
+			continue
+		}
+		if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
+			beforeActivation := jobDependsOnPreActivation(configMap) && !jobDependsOnActivation(configMap)
+			if !beforeActivation && !graph.DependsOn(jobName, string(constants.AgentJobName)) {
+				depends = append(depends, jobName)
 			}
 		}
 	}

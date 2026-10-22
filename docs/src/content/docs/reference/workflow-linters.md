@@ -37,7 +37,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `gateway-dispatch-literals` | — | AW | Every key and value inside `on.gateway-dispatch` is literal. Rejects strings containing `${{`, including incomplete expressions, throughout nested objects and lists. Shares the compiler's mandatory check before gateway normalization/lowering. Expressions outside this section and compiler-generated dispatch metadata are unaffected. |
 | `safe-output-shell-expansion` | `CTR-009` | AW | Authored `safe-outputs.steps[*].run` scripts avoid the shell expansion patterns blocked by the compiler/harness: parameter transformation, indirect expansion, command substitution, and backticks. Arithmetic and ordinary variables remain allowed. |
 | `firewall-ssl-bump` | `CTR-011` | AW | Nonempty literal `--allow-urls` in `sandbox.agent.args` requires `--ssl-bump` in the same list. Unsupported legacy `network.firewall` blocks require migration, even with `ssl-bump: true`. Does not prove runtime HTTPS enforcement. |
-| `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
+| `custom-job-detection` | — | AW, Actions | Custom jobs run before `agent` or after successful `detection`, including transitive dependencies. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
 | `grader-file-io` | — | AW | Custom `graders.<id>.script` JavaScript ASTs do not access filesystem/host capabilities or load modules. Requires the optional native JavaScript parser; missing parser configuration produces a visible coverage warning. |
 | `grader-shell-file-write` | — | AW | Repository-owned `graders.operational-value.run` Bash ASTs avoid detected file writes and unchecked shell execution. Loads confined evaluator source without executing it; no optional JavaScript parser required. |
 | `artipacked` | — | AW, Actions | `actions/checkout` explicitly disables credential persistence. Omitted, enabled, or dynamic persistence produces a review warning; later authenticated Git operations may require it. |
@@ -107,7 +107,7 @@ gh aw lint --rules needs-consistency .github/workflows/example.md
 
 ### Custom job detection gates
 
-`custom-job-detection` is an error in either strict mode. A custom job that directly needs `agent` must also directly need `detection`. Without a status function, Actions implicitly requires all dependencies to succeed. Conditions using `always()`, `failure()`, or `cancelled()` must additionally require `needs.detection.result == 'success'` on every runnable branch:
+`custom-job-detection` is an error in either strict mode. Custom jobs must run before `agent` or after `detection`, never between them. A custom job downstream of `agent`, including through another custom job or a compiler-owned post-agent job, must directly need `detection`. Jobs that need only `detection` are checked too. Without a status function, Actions implicitly requires all dependencies to succeed. Conditions using `always()`, `failure()`, or `cancelled()` must additionally require `needs.detection.result == 'success'` on every runnable branch:
 
 ```aw wrap
 jobs:
@@ -121,7 +121,9 @@ jobs:
 
 `needs.detection.result != 'skipped'` is insufficient: failed detection must block the job too. The rule parses Actions expressions rather than matching text; quoted guards and an unguarded `||` branch do not satisfy it. Complex equivalent predicates that cannot be proven safe should use the explicit equality guard.
 
-This rule inspects authored top-level `jobs`, not compiler-managed jobs or `safe-outputs.jobs`, which receive compiler-generated guards. It does not resolve imports or infer transitive dependencies; lint shared fragments explicitly as well as their consumers. Fragments assume detection is enabled unless their source explicitly disables it. For paired lock files, an absent compiled detection job confirms the exemption.
+The compiler independently adds a direct `detection` dependency and an outer guard requiring both `needs.detection.result == 'success'` and `needs.detection.outputs.detection_success == 'true'` to downstream custom jobs, including reusable workflow calls. This blocks failed, cancelled, skipped, or missing detection results and warn-mode findings even when detection's job status is successful. Custom `if` expressions cannot override this guard. A job required by detection that also depends on agent is rejected because adding the guard would create a cycle.
+
+The rule follows transitive dependencies in the supplied graph. It inspects top-level custom `jobs`, not compiler-managed jobs or `safe-outputs.jobs`, which receive compiler-generated guards. When a compiled Actions AST is supplied, its dependencies and conditions are authoritative; a companion AW document identifies which jobs are authored. Without a companion, jobs with known built-in names are exempt. AW-only analysis does not resolve imports; lint shared fragments explicitly as well as their consumers. Fragments assume detection is enabled unless their source explicitly disables it. An absent compiled detection job confirms the exemption.
 
 ### Custom grader file operations
 

@@ -138,6 +138,15 @@ func TestBuildMainJobDependencies(t *testing.T) {
 		assert.Equal(t, 1, count, "activation should appear exactly once in depends")
 	})
 
+	t.Run("job depending on both activation phases still runs before agent", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{Jobs: map[string]any{
+			"prepare": map[string]any{"needs": []any{"pre_activation", "activation"}},
+		}}
+		depends, _ := c.buildMainJobDependencies(data, true)
+		assert.Contains(t, depends, "prepare")
+	})
+
 	t.Run("engine env content is returned for builtin-reference warning use", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{

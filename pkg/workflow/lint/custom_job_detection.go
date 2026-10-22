@@ -10,13 +10,14 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow/actions"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/rhysd/actionlint"
 )
 
 func CustomJobDetectionRule() Rule {
 	return Rule{
 		ID: "custom-job-detection", Description: "Require custom jobs downstream of agent to wait for successful threat detection",
-		Severity: Error, Targets: AWAST, Check: checkCustomJobDetection,
+		Severity: Error, Targets: ActionsAST | AWAST, Check: checkCustomJobDetection,
 	}
 }
 
@@ -24,14 +25,11 @@ func checkCustomJobDetection(ctx context.Context, input Input) ([]Diagnostic, er
 	if err := integrityInput(ctx, input); err != nil {
 		return nil, err
 	}
-	if input.Document == nil {
-		return nil, nil
-	}
 	disabled, err := customJobDetectionDisabled(input)
 	if err != nil || disabled {
 		return nil, err
 	}
-	jobs, err := policyMapping(input.Document.Frontmatter["jobs"], "jobs")
+	jobs, graph, err := customJobDetectionJobs(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +45,23 @@ func checkCustomJobDetection(ctx context.Context, input Input) ([]Diagnostic, er
 		if err != nil {
 			return diagnostics, err
 		}
+		if !graph.DependsOn(id, string(constants.AgentJobName)) && !graph.DependsOn(id, string(constants.DetectionJobName)) {
+			_, hasAgent := graph[string(constants.AgentJobName)]
+			if input.Workflow != nil && hasAgent && !graph.DependsOn(string(constants.AgentJobName), id) {
+				diagnostics = append(diagnostics, Diagnostic{
+					Path:    "jobs." + id + ".needs",
+					Message: "Custom jobs must run before agent or after detection; make agent depend on this job or add detection to this job's needs",
+				})
+			}
+			continue
+		}
+		if graph.DependsOn(string(constants.DetectionJobName), id) {
+			diagnostics = append(diagnostics, Diagnostic{
+				Path:    "jobs." + id + ".needs",
+				Message: "Custom jobs cannot run between agent and detection; move this job before agent or after detection",
+			})
+			continue
+		}
 		found, err := customJobDetectionDiagnostics(ctx, fields, "jobs."+id)
 		diagnostics = append(diagnostics, found...)
 		if err != nil {
@@ -54,6 +69,64 @@ func checkCustomJobDetection(ctx context.Context, input Input) ([]Diagnostic, er
 		}
 	}
 	return diagnostics, nil
+}
+
+func customJobDetectionJobs(ctx context.Context, input Input) (map[string]any, aw.JobDependencyGraph, error) {
+	if input.Workflow != nil {
+		return customJobDetectionActions(input)
+	}
+	jobs, err := policyMapping(input.Document.Frontmatter["jobs"], "jobs")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, id := range sliceutil.SortedKeys(jobs) {
+		fields, err := policyMapping(jobs[id], "jobs."+id)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, err := customJobDetectionNeeds(ctx, fields, "jobs."+id); err != nil {
+			return nil, nil, err
+		}
+	}
+	return jobs, aw.AuthoredJobDependencies(jobs), nil
+}
+
+func customJobDetectionActions(input Input) (map[string]any, aw.JobDependencyGraph, error) {
+	jobs := make(map[string]any)
+	graph := make(aw.JobDependencyGraph)
+	var authored map[string]any
+	if input.Document != nil {
+		var err error
+		authored, err = policyMapping(input.Document.Frontmatter["jobs"], "jobs")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	for _, job := range input.Workflow.Jobs {
+		id := string(job.ID)
+		graph[id] = []string{}
+		var needs []any
+		for _, dependency := range job.Needs {
+			needs = append(needs, string(dependency))
+			graph[id] = append(graph[id], string(dependency))
+		}
+		// With a companion source, only authored top-level jobs are custom.
+		if input.Document != nil {
+			if _, exists := authored[id]; !exists {
+				continue
+			}
+		}
+		fields := map[string]any{"needs": needs}
+		if job.If != nil {
+			condition, err := actions.RenderExpression(job.If, job.ID, input.Workflow, false)
+			if err != nil {
+				return nil, nil, fmt.Errorf("cannot inspect jobs.%s.if: correct the Actions condition before linting", id)
+			}
+			fields["if"] = condition
+		}
+		jobs[id] = fields
+	}
+	return jobs, graph, nil
 }
 
 func customJobDetectionDisabled(input Input) (bool, error) {
@@ -93,7 +166,7 @@ func customJobDetectionDisabled(input Input) (bool, error) {
 	return true, nil
 }
 
-func customJobDetectionDiagnostics(ctx context.Context, fields map[string]any, path string) ([]Diagnostic, error) {
+func customJobDetectionNeeds(ctx context.Context, fields map[string]any, path string) ([]string, error) {
 	if fields["needs"] == nil {
 		return nil, nil
 	}
@@ -104,13 +177,23 @@ func customJobDetectionDiagnostics(ctx context.Context, fields map[string]any, p
 	if !valid {
 		return nil, fmt.Errorf("custom-job-detection requires literal job IDs at %s.needs; correct the job dependencies before linting", path)
 	}
-	if !slices.Contains(needs, string(constants.AgentJobName)) {
-		return nil, nil
+	for _, need := range needs {
+		if strings.TrimSpace(need) == "" || strings.Contains(need, "${{") {
+			return nil, fmt.Errorf("custom-job-detection requires literal job IDs at %s.needs; correct the job dependencies before linting", path)
+		}
+	}
+	return needs, nil
+}
+
+func customJobDetectionDiagnostics(ctx context.Context, fields map[string]any, path string) ([]Diagnostic, error) {
+	needs, err := customJobDetectionNeeds(ctx, fields, path)
+	if err != nil {
+		return nil, err
 	}
 	if !slices.Contains(needs, string(constants.DetectionJobName)) {
 		return []Diagnostic{{
 			Path:    path + ".needs",
-			Message: "Custom jobs depending on agent must also need detection; add detection to needs and require needs.detection.result == 'success' when using a status override",
+			Message: "Custom jobs downstream of agent must also need detection; add detection to needs and require needs.detection.result == 'success' when using a status override",
 		}}, nil
 	}
 	gated, err := customJobDetectionCondition(fields["if"])

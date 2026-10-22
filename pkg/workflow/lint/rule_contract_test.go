@@ -85,10 +85,12 @@ func builtInRuleContracts() map[string]ruleContract {
 			path:   "graders.custom.script",
 		},
 		"custom-job-detection": {
-			targets: AWAST,
-			unsafe:  contractJob + "    needs: agent\n" + contractSafeSteps,
-			safe:    contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
-			path:    "jobs.check.needs",
+			targets:       ActionsAST | AWAST,
+			unsafe:        contractJob + "    needs: agent\n" + contractSafeSteps,
+			safe:          contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
+			path:          "jobs.check.needs",
+			actionsUnsafe: "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps: [{run: echo agent}]\n  detection:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo detection}]\n  check:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo check}]\n",
+			actionsSafe:   "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps: [{run: echo agent}]\n  detection:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo detection}]\n  check:\n    needs: [agent, detection]\n    runs-on: ubuntu-latest\n    steps: [{run: echo check}]\n",
 		},
 		"secret-leak": {
 			threatRuleID: "CTR-017",
