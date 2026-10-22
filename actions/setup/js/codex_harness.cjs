@@ -61,7 +61,7 @@ const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const { applyModelFallback, injectModelFlagAfterExec, normalizeCodexModel, normalizeCodexModelArgs } = require("./model_fallback.cjs");
 const { resolveEngineModel } = require("./resolve_model_alias.cjs");
-const { declareCodexSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
+const { applyCodexSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 const { resolveAWFModelRoutingSelection, mapAWFRoutingEffort, recordAWFModelRoutingOutcome, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
@@ -967,11 +967,11 @@ async function main() {
     codexChildEnv[codexModelEnvVar] = resolvedModel;
   }
 
-  // Declare and warn only: Codex does not load the staged Markdown sub-agents, so their
-  // models are resolved and recorded for audits, never applied and never fatal. Only a
-  // sub-agent using the reserved name `main` stops Codex. Threat detection uses no sub-agents.
+  // Workflow-declared sub-agents become native Codex TOML roles in $CODEX_HOME/agents with
+  // their resolved models before Codex starts; any failure stops the run before spawn.
+  // Threat detection uses no sub-agents.
   if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
-    const subagents = await declareCodexSubagentModels({
+    const subagents = await applyCodexSubagentModels({
       reflectData,
       refetchReflectData: async () => {
         if (process.env.AWF_REFLECT_ENABLED !== "1") return null;
@@ -979,6 +979,7 @@ async function main() {
         return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
       },
       provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+      codexHome: process.env.CODEX_HOME || "",
       env: process.env,
       logger: log,
     });

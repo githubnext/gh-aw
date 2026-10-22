@@ -1862,13 +1862,37 @@ func TestSafeOutputClaimArtifactsRequireWorkerAndSuccessfulRedaction(t *testing.
 				require.Contains(t, content, "id: redact_secrets")
 				require.Contains(t, content, "steps.redact_secrets.outcome == 'success'")
 				require.Contains(t, content, "SECRET_PRIVATE_TOKEN: ${{ secrets.PRIVATE_TOKEN }}")
-				require.Contains(t, content, "retention-days: 1")
+				require.Contains(t, content, "retention-days: ${{ job.status == 'failure' && 7 || 1 }}")
 				require.Less(t, strings.Index(content, "id: redact_secrets"), strings.Index(content, "Upload Safe Outputs Items"))
 			} else {
 				require.NotContains(t, content, "/claims/")
 				require.NotContains(t, content, "redact_secrets")
 				require.NotContains(t, content, "retention-days:")
 			}
+		})
+	}
+}
+
+func TestClaimDiagnosticRetentionPreservesRepositoryOverrides(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		config *RepoConfig
+		want   any
+	}{
+		{name: "default", want: "${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || (job.status == 'failure' && 7 || 1) }}"},
+		{name: "repository", config: &RepoConfig{ArtifactRetentionDays: new(TemplatableInt32("14"))}, want: 14},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			steps := buildSafeOutputItemsManifestUploadStep("", func(action string) string {
+				return action + "@v4"
+			}, true, &WorkflowData{})
+			output, err := applyArtifactRetention("jobs:\n  test:\n    steps:\n"+strings.Join(steps, ""), test.config)
+			require.NoError(t, err)
+			uploads := retentionTestSteps(t, output)
+			require.Len(t, uploads, 1)
+			assert.EqualValues(t, test.want, uploads[0]["with"].(map[string]any)["retention-days"])
+			assert.Contains(t, output, "steps.redact_secrets.outcome == 'success'")
+			assert.Contains(t, output, "/tmp/gh-aw/claims/*/claim-delivery-errors.json")
 		})
 	}
 }

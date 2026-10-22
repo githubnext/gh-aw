@@ -23,12 +23,13 @@ const MODEL_PROVIDER_PREFIXES = Object.freeze({
 /**
  * A known alias could not resolve because its catalog is unavailable or no
  * catalog entry matches. Keep those causes distinct; neither permits forwarding
- * an unresolved alias to Copilot.
+ * an unresolved alias to Copilot. `unsupported_endpoint` means the model is live but
+ * its catalogue `supported_endpoints` do not include the endpoint the engine calls.
  */
 class ModelAliasResolutionError extends Error {
   /**
    * @param {string} configuredModel
-   * @param {"catalog_unavailable" | "model_unavailable"} [reason]
+   * @param {"catalog_unavailable" | "model_unavailable" | "unsupported_endpoint"} [reason]
    * @param {{ provider?: string }} [options] The Copilot integration sentence appears only
    *   when the provider is Copilot or unknown.
    */
@@ -36,11 +37,13 @@ class ModelAliasResolutionError extends Error {
     const provider = canonicalModelProvider(options.provider || "");
     const copilot = !provider || provider === "copilot";
     super(
-      reason === "model_unavailable"
-        ? copilot
-          ? `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. For Copilot, availability also depends on the agentic-workflows integration, not just organization policy. Select a model offered to this workflow; enabling a missing model for that integration requires Copilot API support.`
-          : `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. Select a model offered to this workflow.`
-        : `model-catalog retrieval prevented alias resolution for '${configuredModel}'`
+      reason === "unsupported_endpoint"
+        ? `The requested model cannot be used by this engine: '${configuredModel}' does not support the endpoint the engine calls in the workflow's live model catalog. Select a model offered to this workflow for that endpoint.`
+        : reason === "model_unavailable"
+          ? copilot
+            ? `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. For Copilot, availability also depends on the agentic-workflows integration, not just organization policy. Select a model offered to this workflow; enabling a missing model for that integration requires Copilot API support.`
+            : `The requested model is not supported: '${configuredModel}' is not available in the workflow's live model catalog. Select a model offered to this workflow.`
+          : `model-catalog retrieval prevented alias resolution for '${configuredModel}'`
     );
     this.name = "ModelAliasResolutionError";
     this.configuredModel = configuredModel;
@@ -658,7 +661,7 @@ function loadModelAliasMap(options = {}) {
 /**
  * Append (or replace, per engine and role) one entry in agent/model-resolution.json.
  * Best effort: recording never changes the run outcome.
- * @param {{ engine: string, role: string, configured_model: string, resolved_model: string|null, provider: string|null, status: "resolved"|"exact"|"failed", cause: "model_unavailable"|"catalog_unavailable"|null }} record
+ * @param {{ engine: string, role: string, configured_model: string, resolved_model: string|null, provider: string|null, status: "resolved"|"exact"|"failed", cause: "model_unavailable"|"catalog_unavailable"|"unsupported_endpoint"|null }} record
  * @param {NodeJS.ProcessEnv} [env]
  * @returns {boolean}
  */

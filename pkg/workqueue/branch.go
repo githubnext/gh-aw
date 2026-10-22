@@ -28,6 +28,7 @@ var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 type Branch struct {
 	Remote              string
 	Name                string
+	Host                string
 	DependencyClients   map[string]*api.RESTClient
 	DeliveryVerifier    DeliveryVerifier
 	RemediationVerifier RemediationVerifier
@@ -65,7 +66,7 @@ func (b Branch) withClient() (Branch, error) {
 		return b, err
 	}
 	if b.client == nil {
-		client, err := api.NewRESTClient(githubapi.ClientOptions("", ""))
+		client, err := api.NewRESTClient(githubapi.ClientOptions(b.Host, ""))
 		if err != nil {
 			return b, err
 		}
@@ -218,7 +219,7 @@ func (b Branch) verifyCheckpointHistory(ctx context.Context, head string, commit
 		if tip != checkpoint.PriorTip {
 			return invalid()
 		}
-		reconstructed, err := reconstructCheckpoint(previous, parent, root.Actor, root.At, checkpoint.StateSHA256)
+		reconstructed, err := reconstructCheckpointForHost(previous, parent, root.Actor, root.At, checkpoint.StateSHA256, b.Host)
 		if err != nil {
 			return invalid()
 		}
@@ -280,7 +281,7 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 				return nil, nil, queueError("repository_scope_invalid", "ledger actor belongs to another repository")
 			}
 		}
-		_, err = Replay(transactions)
+		_, err = ReplayForHost(transactions, b.Host)
 		return transactions, data, err
 	}
 	return nil, nil, errors.New("queue branch is missing " + FileName)

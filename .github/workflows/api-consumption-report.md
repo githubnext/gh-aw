@@ -264,7 +264,7 @@ If no discussion is needed (unlikely), call:
 
 ## agent: `metrics-aggregator`
 ---
-model: small
+model: gpt-5
 description: Parses aw log directories and writes aggregated API consumption summaries
 ---
 You are a metrics aggregation sub-agent for the API consumption report.
@@ -358,7 +358,7 @@ Requirements:
 
 ## agent: `history-appender`
 ---
-model: small
+model: gpt-5
 description: Merges today and optional backfill summaries into cache-memory trending history
 ---
 You are the cache-memory history append sub-agent for the API consumption report.
@@ -407,7 +407,7 @@ Return a concise summary including whether cache was restored and how many entri
 
 ## agent: `chart-script-writer`
 ---
-model: small
+model: gpt-5
 description: Writes the complete matplotlib and seaborn chart generator for API consumption reporting
 ---
 You are the chart-writing sub-agent for the API consumption report.

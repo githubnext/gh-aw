@@ -26,7 +26,10 @@ var (
 	modelResolutionCausePattern    = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 )
 
-const modelResolutionCauseModelUnavailable = "model_unavailable"
+const (
+	modelResolutionCauseModelUnavailable    = "model_unavailable"
+	modelResolutionCauseUnsupportedEndpoint = "unsupported_endpoint"
+)
 
 // sessionModelResolutionFailure is one failed model.resolution record. The record
 // does not persist whether the role was a declared sub-agent or an optional
@@ -391,7 +394,7 @@ func generateSessionModelResolutionFindings(run WorkflowRun, evidence *sessionMo
 	stopped, unproven := partitionModelResolutionStopEvidence(run.LogsPath, evidence.Failures)
 	var findings []AuditFinding
 	if len(stopped) > 0 {
-		confirmed, unverified := classifyModelResolutionGroups(run, groupModelResolutionFailures(stopped))
+		confirmed, unsupported, unverified := classifyModelResolutionGroups(run, groupModelResolutionFailures(stopped))
 		startup := modelResolutionStartupEvidence(evidence)
 		if len(confirmed) > 0 {
 			findings = append(findings, AuditFinding{
@@ -401,6 +404,16 @@ func generateSessionModelResolutionFindings(run WorkflowRun, evidence *sessionMo
 				Title:       "Model Unavailable",
 				Description: "Startup model resolution failed before the agent started inference. " + strings.Join(confirmed, " ") + startup,
 				Impact:      "The agent could not start inference. This evidence does not establish global model retirement or why provider availability changed.",
+			})
+		}
+		if len(unsupported) > 0 {
+			findings = append(findings, AuditFinding{
+				Code:        AuditFindingModelEndpointUnsupported,
+				Category:    "configuration",
+				Severity:    "high",
+				Title:       "Model Endpoint Unsupported",
+				Description: "Startup model resolution failed before the agent started inference. " + strings.Join(unsupported, " ") + startup,
+				Impact:      "The model is live, but the engine cannot call its endpoint. Choose a model that supports the engine's endpoint.",
 			})
 		}
 		if len(unverified) > 0 {
@@ -421,12 +434,17 @@ func generateSessionModelResolutionFindings(run WorkflowRun, evidence *sessionMo
 }
 
 // classifyModelResolutionGroups checks each failure group against this run's own
-// inventory, keeping the recorded cause when it is not model_unavailable.
-func classifyModelResolutionGroups(run WorkflowRun, groups []modelResolutionFailureGroup) (confirmed, unverified []string) {
+// inventory, keeping the recorded cause when it is not model_unavailable. Groups whose
+// recorded cause is unsupported_endpoint name a live model the engine cannot call.
+func classifyModelResolutionGroups(run WorkflowRun, groups []modelResolutionFailureGroup) (confirmed, unsupported, unverified []string) {
 	var reflection []byte
 	var reflectionErr error
 	reflectionRead := false
 	for _, group := range groups {
+		if group.Cause == modelResolutionCauseUnsupportedEndpoint {
+			unsupported = append(unsupported, group.describe()+": the model is live, but the engine cannot call its endpoint; choose a compatible model.")
+			continue
+		}
 		var detail string
 		isConfirmed := false
 		switch {
@@ -447,5 +465,5 @@ func classifyModelResolutionGroups(run WorkflowRun, groups []modelResolutionFail
 			unverified = append(unverified, group.describe()+": "+detail+"; model absence cannot be confirmed from this run's inventory.")
 		}
 	}
-	return confirmed, unverified
+	return confirmed, unsupported, unverified
 }
