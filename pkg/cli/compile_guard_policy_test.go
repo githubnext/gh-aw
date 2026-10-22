@@ -409,7 +409,8 @@ This workflow uses trusted-users alongside blocked-users.
 }
 
 // TestGuardPolicyTrustedBotCompiledOutput verifies compile-time policy handoff only.
-// It does not verify runtime bot-content elevation through the MCP gateway; see #70242.
+// Runtime bot-content elevation is covered by the MCP gateway's labeling/filtering tests:
+// https://github.com/github/gh-aw-mcpg/pull/15292 (released in v0.4.37).
 func TestGuardPolicyTrustedBotCompiledOutput(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
