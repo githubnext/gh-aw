@@ -218,10 +218,9 @@ Check producer/version, record location, completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md); inspect read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
+Inspect [queue playbook](work-queue.md) read-only: repo/branch/tip, epoch/fingerprint,
+Work/Claim/Delivery IDs, run-binding/receipts. Projection pending != claim failure.
+Never rewrite history/fabricate evidence, reuse credentials/request IDs across
 work or bypass profiles/effect scopes.
 
 | Codes | Check | Remedy |
@@ -235,7 +234,7 @@ work or bypass profiles/effect scopes.
 | `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; verifiable dispatch identity. | Fix approved deployment/credentials; never substitute unverified identity. |
 | `deployment_invalid`, `deployment_conflict` | Schema, revision, expected tip. | Fix trusted deployment; reconcile concurrency before CAS retry. |
 | `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; pause controls. | Respect pause; reconcile active work before authorized policy change. |
-| `work_expired` | Work deadline; queue time. | Refresh fair prefix; never revive expired Work. |
+| `work_expired` | Deadline/queue time. | Refresh fair prefix; never revive expired Work. |
 | `hard_clear_snapshot_invalid`, `hard_clear_conflict` | Preview revision; current tip/receipt. | Reconcile; freshly preview/authorize resets. Never automatically reset newer snapshots. |
 | `hard_clear_not_paused` | Admission/grant controls. | Pause both before authorized hard clear. |
 | `hard_clear_unresolved`, `hard_clear_uncertain` | Reservations, Claims, barriers, effects, request receipt. | Reconcile trusted evidence before retry; never discard unresolved effects. |
@@ -253,12 +252,13 @@ work or bypass profiles/effect scopes.
 | `claim_delivery_unverified`, `delivery_failed`, `verification_unresolved`, `delivery_conflict`, `delivery_barrier_conflict`, `delivery_contract_required`, `delivery_evidence_required`, `evidence_invalid`, `evidence_required`, `terminal_evidence_required`, `nonlaunch_evidence_required` | Claim state/effects; independent receipts; barrier/contract. | Reconcile before retry; never force terminal state. |
 | `result_invalid`, `completion_conflict`, `cancellation_conflict`, `ownership_terminal`, `work_terminal`, `work_missing` | Work/ownership state; finish/result intent. | Respect terminal transitions; reconcile duplicate/conflicting completion/cancellation. |
 | `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
-| `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
+| `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness/reconciliation. | Bounded refresh; unverified resources stay blocked. |
 | `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
-| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
-| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
-| `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue ownership/binding. | Correct authorized binding; never adopt others' issues. |
+| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity/scope/CAS. | Reconcile ledger/projection; preserve history. |
+| `projection_target_unavailable`, `projection_unavailable` | Target/visibility; journal; HTTP status/request ID. | Restore authorized access; inaccessible != deleted. |
+| `projection_write_ambiguous`, `projection_receipt_pending` | Native acknowledgement/immutable Issue/summary receipts. | Possibly executed; reconcile before retry. Preserve mirrors/uncertain locks. |
+| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint/pacing/pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
 
 ## Unmapped codes
 
