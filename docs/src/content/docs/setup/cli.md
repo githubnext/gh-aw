@@ -901,18 +901,6 @@ Standard logs JSON retains episode membership and outcome summaries with or
 without the explicit `--episodes` flag. Membership is limited to selected runs; this flag
 does not expand discovery to all episode members.
 
-##### `logs outcomes-history`
-
-Score recent issues and merged pull requests against the objective mapping. Gives a quick local historical view of what kinds of work the repository has been closing or merging under the current objective mapping.
-
-```bash wrap
-gh aw logs outcomes-history                               # Score recent issues and PRs
-gh aw logs outcomes-history --source issues --limit 100  # Only issues, limited to 100 items
-gh aw logs outcomes-history --repo owner/repo --json     # JSON output for another repo
-```
-
-**Options:** `--limit`, `--source`, `--json/-j`, `--repo/-r`
-
 ##### `logs outcomes-episodes`
 
 Join episode membership from a full logs JSON report with the latest recorded

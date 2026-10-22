@@ -63,7 +63,6 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | `gh aw deploy` | `NewDeployCommand` | Deploy agentic workflows to a target repository using a pull request |
 | `gh aw logs --outcomes` | `NewLogsCommand` | Check what happened to selected runs' safe outputs |
-| `gh aw logs outcomes-history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
 | `gh aw logs outcomes-episodes` | `NewOutcomesEpisodesSubcommand` | Join recorded outcomes with episode membership offline |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw doctor` | `NewDoctorCommand` | Run diagnostics to verify CLI authentication and repository setup |
@@ -324,7 +323,6 @@ The `cli` package exports many types used across its command implementations. Th
 | `OutcomeReport` | struct | Result of evaluating one safe output item — outcome, timing, human engagement, and objective value |
 | `OutcomeStatus` | string alias | Outcome classification: `accepted`, `rejected`, `ignored`, `pending`, `skipped`, `unknown`, `lifecycle`, `lifecycle_close`, `error` |
 | `OutcomeSummary` | struct | Aggregated outcome statistics across multiple safe output items |
-| `OutcomesHistoryConfig` | struct | Configuration for `RunOutcomesHistory` |
 | `PRCheckRun` | struct | A single CI check run attached to a pull request |
 | `PRCommitStatus` | struct | A commit status context for a pull request |
 | `PRInfo` | type alias | Backward-compatible alias for `PullRequest` |
@@ -894,7 +892,6 @@ This appendix is generated from the current non-test Go source files in this pac
 | `logs_metrics.go` | `ExtractLogMetricsFromRun` | `func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics` | Extracts log metrics from a processed run's log directory. |
 | `mcp_safe_update_cache.go` | `CollectLockFileManifests` | `func CollectLockFileManifests(workflowsDir string) map[string]*workflow.GHAWManifest` | Collects manifests from lock files so they cannot be tampered with by the agent. |
 | `mcp_safe_update_cache.go` | `WritePriorManifestFile` | `func WritePriorManifestFile(cache map[string]*workflow.GHAWManifest) (string, error)` | Writes a prior-manifest cache file and returns its path; caller must remove it when done. |
-| `outcomes_history.go` | `RunOutcomesHistory` | `func RunOutcomesHistory(config OutcomesHistoryConfig) error` | Runs the outcomes-history report for a given configuration. |
 | `project_command.go` | `RunProjectNew` | `func RunProjectNew(ctx context.Context, config ProjectConfig) error` | Executes the project creation logic. |
 | `remove_command.go` | `RemoveWorkflows` | `func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error` | Removes workflows matching a pattern. |
 | `run_interactive.go` | `RunSpecificWorkflowInteractively` | `func RunSpecificWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error` | Runs a known workflow interactively, collecting inputs if the workflow defines any. |

@@ -17,6 +17,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLogsOutcomeSubcommands(t *testing.T) {
+	t.Parallel()
+	cmd := NewLogsCommand()
+	for _, subcommand := range cmd.Commands() {
+		assert.NotEqual(t, "outcomes-history", subcommand.Name())
+	}
+	assert.NotContains(t, cmd.UsageString(), "outcomes-history")
+
+	episodes, _, err := cmd.Find([]string{"outcomes-episodes"})
+	require.NoError(t, err)
+	assert.Equal(t, "outcomes-episodes", episodes.Name())
+}
+
 func TestLogsOutcomeOptions(t *testing.T) {
 	t.Parallel()
 	cmd := NewLogsCommand()

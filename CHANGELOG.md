@@ -10,8 +10,8 @@ The `gh aw outcomes` command has been removed. Use `gh aw logs --outcomes`
 to evaluate selected runs, or pipe a run ID to
 `gh aw logs --stdin --repo owner/repo --outcomes`. JSON reports now carry
 per-run observations in `.outcomes[]` and episode rollups in `.episode_outcomes`.
-Historical scoring and offline episode joins moved to `gh aw logs outcomes-history`
-and `gh aw logs outcomes-episodes`. `--outcomes-dir` remains available for JSONL export.
+Historical repository scoring has also been removed. Offline episode joins moved
+to `gh aw logs outcomes-episodes`. `--outcomes-dir` remains available for JSONL export.
 
 `compile --dry-run` now rejects authored host steps, custom MCP servers/scripts,
 custom safe-output scripts, enabled Bash graders, and authored OIDC permissions,
