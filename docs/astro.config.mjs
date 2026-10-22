@@ -58,6 +58,7 @@ export default defineConfig({
   redirects: {
     // Hosted wizard
     "/wizard/": "https://githubnext.github.io/gh-aw-wizard/",
+    "/workshop/": "/gh-aw/guides/workshop/",
 
     // Examples renamed to Gallery
     "/examples/": "/gh-aw/gallery/",
@@ -76,6 +77,8 @@ export default defineConfig({
     "/examples/multi-repo/issue-tracking/": "/gh-aw/gallery/multi-repo/issue-tracking/",
     "/examples/multi-repo/triage-from-side-repo/": "/gh-aw/gallery/multi-repo/triage-from-side-repo/",
     "/examples/security-review/": "/gh-aw/gallery/security-review/",
+    "/patterns/daily-report-portfolio/": "/gh-aw/gallery/daily-report-portfolio/",
+    "/patterns/linter-factory/": "/gh-aw/gallery/linter-factory/",
 
     // Status → Labs → Agent Factory → Agent Factory Status chain
     "/status/": "/gh-aw/agent-factory-status/",
@@ -110,6 +113,7 @@ export default defineConfig({
     "/samples/research-planning/": "/gh-aw/patterns/deterministic-ops/",
 
     // Setup renames
+    "/guides/working-with-workflows/": "/gh-aw/setup/working-with-workflows/",
     "/setup/agentic-authoring/": "/gh-aw/setup/creating-workflows/",
     "/setup/mcp-server/": "/gh-aw/reference/gh-aw-as-mcp-server/",
 
@@ -119,9 +123,12 @@ export default defineConfig({
     "/reference/assign-to-copilot/": "/gh-aw/reference/copilot-cloud-agent/",
 
     // Organization Practices moved under Guides
-    "/organization-practices/": "/gh-aw/practices/organization-practices/",
-    "/organization-practices/safe-rollout/": "/gh-aw/practices/safe-rollout/",
-    "/organization-practices/sharing-workflows/": "/gh-aw/practices/sharing-workflows/",
+    "/organization-practices/": "/gh-aw/guides/using-at-scale/",
+    "/practices/safe-rollout/": "/gh-aw/guides/safe-rollout/",
+    "/practices/sharing-workflows/": "/gh-aw/guides/sharing-workflows/",
+    "/practices/measuring-impact/": "/gh-aw/guides/measuring-impact/",
+    "/organization-practices/safe-rollout/": "/gh-aw/guides/safe-rollout/",
+    "/organization-practices/sharing-workflows/": "/gh-aw/guides/sharing-workflows/",
 
     // Guides → Patterns renames
     "/guides/chatops/": "/gh-aw/patterns/chat-ops/",
@@ -171,17 +178,17 @@ export default defineConfig({
     "/guides/deploy-work-queue/": "/gh-aw/patterns/workqueue-ops/#deploy-a-native-queue",
     "/guides/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
     "/patterns/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
-    "/guides/organization-practices/safe-rollout/": "/gh-aw/practices/safe-rollout/",
-    "/guides/organization-practices/sharing-workflows/": "/gh-aw/practices/sharing-workflows/",
+    "/guides/organization-practices/safe-rollout/": "/gh-aw/guides/safe-rollout/",
+    "/guides/organization-practices/sharing-workflows/": "/gh-aw/guides/sharing-workflows/",
     "/guides/organization-practices/": "/gh-aw/guides/using-at-scale/",
     "/guides/maintaining-repos/": "/gh-aw/gallery/maintaining-repos/",
     "/practices/maintaining-repos/": "/gh-aw/gallery/maintaining-repos/",
     "/guides/self-hosted-runners/": "/gh-aw/reference/self-hosted-runners/",
-    "/guides/packaging-imports/": "/gh-aw/guides/working-with-workflows/#adding-existing-workflows",
-    "/guides/agentic-authoring/": "/gh-aw/guides/working-with-workflows/",
-    "/guides/editing-workflows/": "/gh-aw/guides/working-with-workflows/#editing-workflows",
-    "/guides/reusing-workflows/": "/gh-aw/guides/working-with-workflows/#adding-existing-workflows",
-    "/guides/upgrading/": "/gh-aw/guides/working-with-workflows/#upgrading-workflows",
+    "/guides/packaging-imports/": "/gh-aw/setup/working-with-workflows/#adding-existing-workflows",
+    "/guides/agentic-authoring/": "/gh-aw/setup/working-with-workflows/",
+    "/guides/editing-workflows/": "/gh-aw/setup/working-with-workflows/#editing-workflows",
+    "/guides/reusing-workflows/": "/gh-aw/setup/working-with-workflows/#adding-existing-workflows",
+    "/guides/upgrading/": "/gh-aw/setup/working-with-workflows/#upgrading-workflows",
     "/guides/web-search/": "/gh-aw/reference/web-search/",
     "/guides/custom-otlp-attributes/": "/gh-aw/reference/open-telemetry/",
     "/guides/telemetry/": "/gh-aw/reference/open-telemetry/",
@@ -248,7 +255,7 @@ export default defineConfig({
     "/guides/third-party-agent/": "/gh-aw/reference/third-party-agent/",
 
     // Reference → Practices and Experimental (moved)
-    "/reference/measuring-impact/": "/gh-aw/practices/measuring-impact/",
+    "/reference/measuring-impact/": "/gh-aw/guides/measuring-impact/",
     "/reference/qmd/": "/gh-aw/experimental/qmd/",
     "/reference/drive-memory/": "/gh-aw/experimental/drive-memory/",
     "/reference/trace-graders/": "/gh-aw/experimental/trace-graders/",
@@ -373,7 +380,7 @@ export default defineConfig({
           errorOnRelativeLinks: true,
           errorOnLocalLinks: true,
           exclude: ({ file, link }) =>
-            (file.includes("/src/generated/workshop-markdown/") && link.includes("?__gh_aw_workshop_local__=") && link.startsWith("/gh-aw/workshop/?__gh_aw_workshop_local__=")) ||
+            (file.includes("/src/generated/workshop-markdown/") && link.includes("?__gh_aw_workshop_local__=") && link.startsWith("/gh-aw/guides/workshop/?__gh_aw_workshop_local__=")) ||
             link === "/gh-aw/gallery/ai-issue-triage/" ||
             link === "/gh-aw/gallery/ci-failure-investigation/",
         }),
@@ -392,7 +399,7 @@ export default defineConfig({
           items: [
             { label: "Quick Start", link: "/setup/quick-start/" },
             { label: "Creating New Workflows", link: "/setup/creating-workflows/" },
-            { label: "Working with Workflows", link: "/guides/working-with-workflows/" },
+            { label: "Working with Workflows", link: "/setup/working-with-workflows/" },
             { label: "Creation Wizard", link: "/wizard/", attrs: { class: "sidebar-external", target: "_blank", rel: "noopener", "aria-label": "Creation Wizard (opens in a new tab)" } },
             { label: "CLI Commands", link: "/setup/cli/" },
           ],
@@ -420,6 +427,8 @@ export default defineConfig({
             { label: "Repository Reporting", link: "/gallery/ai-release-notes/" },
             { label: "Repository Maintenance", link: "/gallery/maintaining-repos/", attrs: { "data-gallery-preview": "" } },
             { label: "Security Review", link: "/gallery/security-review/" },
+            { label: "Daily Report Portfolio", link: "/gallery/daily-report-portfolio/" },
+            { label: "Linter Factory", link: "/gallery/linter-factory/" },
             { label: "Multi-Repository Examples", link: "/gallery/multi-repo/" },
             { label: "Triage from Side Repo", link: "/gallery/multi-repo/triage-from-side-repo/" },
             { label: "Code Quality Monitoring", link: "/gallery/multi-repo/code-quality-monitoring/" },
@@ -434,12 +443,12 @@ export default defineConfig({
           items: [
             { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
             { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
-            { label: "Safe Rollout in Organizations", link: "/practices/safe-rollout/" },
-            { label: "Sharing Workflows in Organizations", link: "/practices/sharing-workflows/" },
-            { label: "Measuring Impact", link: "/practices/measuring-impact/" },
+            { label: "Safe Rollout in Organizations", link: "/guides/safe-rollout/" },
+            { label: "Sharing Workflows in Organizations", link: "/guides/sharing-workflows/" },
+            { label: "Measuring Impact", link: "/guides/measuring-impact/" },
             { label: "Using MCPs", link: "/guides/mcps/" },
             { label: "Network Configuration", link: "/guides/network-configuration/" },
-            { label: "Agentic Automation Workshop", link: "/workshop/" },
+            { label: "Agentic Automation Workshop", link: "https://githubnext.github.io/gh-aw-workshop/", attrs: { class: "sidebar-external", target: "_blank", rel: "noopener", "aria-label": "Agentic Automation Workshop (opens in a new tab)" } },
           ],
         },
         {
@@ -448,12 +457,10 @@ export default defineConfig({
             { label: "BatchOps", link: "/patterns/batch-ops/" },
             { label: "CentralRepoOps", link: "/patterns/central-repo-ops/" },
             { label: "ChatOps", link: "/patterns/chat-ops/" },
-            { label: "Daily Report Portfolio", link: "/patterns/daily-report-portfolio/" },
             { label: "DeterministicOps", link: "/patterns/deterministic-ops/" },
             { label: "DispatchOps", link: "/patterns/dispatch-ops/" },
             { label: "IssueOps", link: "/patterns/issue-ops/" },
             { label: "LabelOps", link: "/patterns/label-ops/" },
-            { label: "Linter Factory", link: "/patterns/linter-factory/" },
             { label: "MemoryOps", link: "/patterns/memory-ops/" },
             { label: "MonitorOps", link: "/patterns/monitor-ops/" },
             { label: "FeatureOps", link: "/patterns/feature-grower/" },
@@ -467,7 +474,6 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          collapsed: false,
           items: [
             { label: "AI Engines", link: "/reference/engines/" },
             { label: "AI Engines (Copilot)", link: "/reference/engines/copilot/" },

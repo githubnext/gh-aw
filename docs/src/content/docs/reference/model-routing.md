@@ -210,7 +210,7 @@ The importing workflow must either omit `engine` or use its object form, such as
 
 ### Keeping up with new models
 
-The router chooses only among models it has benchmark data for. That data is part of the AWF release that gh-aw pins when it compiles the workflow. When gh-aw updates AWF with data for new models, run [`gh aw upgrade`](/gh-aw/guides/working-with-workflows/#upgrading-workflows) to recompile your workflows, and the new models become candidates if your settings allow them. Models that have been retired, or that your organization's Copilot plan doesn't offer, are skipped at run time.
+The router chooses only among models it has benchmark data for. That data is part of the AWF release that gh-aw pins when it compiles the workflow. When gh-aw updates AWF with data for new models, run [`gh aw upgrade`](/gh-aw/setup/working-with-workflows/#upgrading-workflows) to recompile your workflows, and the new models become candidates if your settings allow them. Models that have been retired, or that your organization's Copilot plan doesn't offer, are skipped at run time.
 
 To get the most from this, describe models with patterns in the model policy, or don't restrict them, rather than listing exact names in `allowed-models`.
 

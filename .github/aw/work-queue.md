@@ -129,7 +129,7 @@ Retries/checkpoints preserve submission identity; never delete queues to retry a
   must already be paused, without open Claims/pending deliveries.
   See [hard reset](../../docs/src/content/docs/reference/work-queue.md#hard-reset).
 - Daily report rotation and Claims:
-  [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
+  [portfolio example](../../docs/src/content/docs/gallery/daily-report-portfolio.md)
   and [shared worker instructions](../workflows/shared/daily-report-worker.md).
 - Contracts: [specification](../../docs/src/content/docs/specs/work-queue-specification.md#91-implementation-coverage-and-remaining-requirements).
 - Models/fixtures/bounded verification: [formal reference](../../specs/work-queue/README.md).

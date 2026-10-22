@@ -116,6 +116,16 @@ The immutable Work payload declares its output contract in `effect_contract`. A 
 
 Worker conclusion performs inline reservation cleanup. Scheduled `agentics-maintenance.yml` reconciliation handles stranded reservations and pending delivery before compaction. Maintenance never cancels active runs or manufactures Result; disabling it leaves dispatcher/operator reconciliation as the fallback.
 
+### Claim-scoped memory
+
+`tools.work-queue.memory` generates a structured output tool and protected Git-tree publication adapter for a worker. It is not standalone `tools.repo-memory`. Configuration fields are `name` (default `persist_work_queue_memory`), `path`, `target-repo`, `base-revision`, `branch-prefix`, `schema`, and `max-bytes` (default and maximum `262144`, including the final newline).
+
+Each call supplies the original `claim_handle` and a `memory` object matching the schema. Preparation validates the selector and any `memory.work_id` without repository credentials. Publication requires the immutable Work/profile/ancestor resource scope and independently verifies the resulting commit, tree, blobs, and Claim ref.
+
+Schemas are limited to 16 KiB and 16 nested levels. Supported keywords are `type`, `description`, `properties`, `required`, boolean `additionalProperties`, `items`, scalar `enum`, `minimum`, `maximum`, `minLength`, `maxLength`, `minItems`, and `maxItems`. Each nested schema declares one type; references, regexes, combinators, and executable validators are unsupported.
+
+Data is limited to 32 nested levels and 16384 members per array. Numbers must be safe integers; encode fractional or other exact quantities as strings. See the [Linter Factory example](/gh-aw/gallery/linter-factory/#refiner-memory) for its use.
+
 ## Work expiration
 
 `expires_at` is an immutable Unix-millisecond timestamp in `0..9007199254740991`, supplied per submission node or as `submit-work --expires-at`. Omission means no expiration.
@@ -321,7 +331,19 @@ Events go to stderr with elapsed timing and sanitized counts, flags, statuses, a
 
 Claim audit exports contain operations, temporary-ID references, and structured errors, not raw handler output or proof of Result. Default retention is one day; failed worker `safe-outputs-items` are retained for seven days. Repository policy or `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` can override retention. Uploads fail if redaction fails.
 
-The `safe_outputs` job exposes `work_queue_outcome`. Unverified Claims retain delivery state, effects disposition, and reconciliation reason in scoped `claim-delivery-errors.json`. See [Claim diagnostic artifacts](/gh-aw/patterns/daily-report-portfolio/#claim-diagnostic-artifacts) for file details and redaction limits.
+The `safe_outputs` job exposes `work_queue_outcome`. Unverified Claims retain delivery state, effects disposition, and reconciliation reason in scoped `claim-delivery-errors.json`.
+
+Claim files live under `/tmp/gh-aw/claims/<original-identity-hash>/` with directory/file modes `0700`/`0600`:
+
+| File | Contents |
+| --- | --- |
+| `safe-output-items.jsonl` | Executed operations and original Claim attribution |
+| `temporary-id-map.json` | Audit references; runtime resolution uses the in-memory map |
+| `safe-output-errors.json` | Structured failures, not raw handler output |
+
+No `delivery-receipt.json` is written or uploaded; protected in-memory evidence and the ledger establish delivery.
+
+Writers redact configured secrets, gateway tokens, and built-in credential patterns from decoded JSON keys/values. After verification, redaction also uses worker-job secrets and recoverable agent-log runtime masks. Redaction does not anonymize repository names, IDs, URLs, personal data, or unknown secrets. Masks registered only in the safe-output job cannot be recovered from agent logs. Limit diagnostic content and artifact access accordingly.
 
 ## Compatibility
 

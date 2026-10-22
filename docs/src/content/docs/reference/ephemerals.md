@@ -108,7 +108,7 @@ Available operations:
 
 **Details for select operations:**
 
-`update` and `upgrade` run `gh aw update` or `gh aw upgrade`, stage changed files, and open a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Workflows](/gh-aw/guides/working-with-workflows/#upgrading-workflows) for the manual process.
+`update` and `upgrade` run `gh aw update` or `gh aw upgrade`, stage changed files, and open a pull request for review. After merging, recompile lock files with `gh aw compile`. See [Upgrading Workflows](/gh-aw/setup/working-with-workflows/#upgrading-workflows) for the manual process.
 
 `safe_outputs` replays safe-output processing from a previous workflow run using a run URL or numeric run ID in `run_url`.
 

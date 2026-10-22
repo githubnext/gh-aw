@@ -1478,7 +1478,7 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 
 - [Quick Start](/gh-aw/setup/quick-start/) for your first workflow
 - [Frontmatter](/gh-aw/reference/frontmatter/) for configuration options
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
 - [Security Guide](/gh-aw/introduction/architecture/) for security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) for MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) for agent factory status

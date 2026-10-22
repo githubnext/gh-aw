@@ -39,7 +39,7 @@ flowchart LR
     result --> queue
 ```
 
-Native `tools.work-queue` supports Git storage only. Issues and pull requests can be dependency nodes, but they are not queue-storage backends. Use the [operator reference](/gh-aw/reference/work-queue/) to inspect and recover queue state, and the [protocol specification](/gh-aw/specs/work-queue-specification/) for implementation coverage and remaining security requirements. The [Linter Factory](/gh-aw/patterns/linter-factory/) shows dispatcher and worker workflows with Claim-scoped outputs.
+Native `tools.work-queue` supports Git storage only. Issues and pull requests can be dependency nodes, but they are not queue-storage backends. Use the [operator reference](/gh-aw/reference/work-queue/) to inspect and recover queue state, and the [protocol specification](/gh-aw/specs/work-queue-specification/) for implementation coverage and remaining security requirements. The [Linter Factory](/gh-aw/gallery/linter-factory/) shows dispatcher and worker workflows with Claim-scoped outputs.
 
 ## Deploy a native queue
 
@@ -151,7 +151,7 @@ gh aw work-queue --repo OWNER/REPO stats --json
 
 Inspect the worker run's summary for its findings. Completion and reservation release are not proof of Result: the queue records Result only after verifying the Claim's permitted effects. See [delivery rules](/gh-aw/reference/work-queue/#claim-scoped-effects-and-delivery) and [operator commands](/gh-aw/reference/work-queue/#operator-commands) for diagnosis and recovery.
 
-For write-capable examples, use [Linter Factory](/gh-aw/patterns/linter-factory/) or [Daily Report Portfolio](/gh-aw/patterns/daily-report-portfolio/). Worker updates, Issue mirroring, and compatibility requirements are covered by the [reference](/gh-aw/reference/work-queue/), not additional deployment steps here.
+For write-capable examples, use [Linter Factory](/gh-aw/gallery/linter-factory/) or [Daily Report Portfolio](/gh-aw/gallery/daily-report-portfolio/). Worker updates, Issue mirroring, and compatibility requirements are covered by the [reference](/gh-aw/reference/work-queue/), not additional deployment steps here.
 
 ## Alternative: Issue Checklist
 

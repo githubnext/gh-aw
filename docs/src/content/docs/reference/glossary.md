@@ -228,7 +228,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/practices/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/guides/measuring-impact/).
 
 ### Pwn Request
 
@@ -1286,7 +1286,7 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 ### Codemod
 
-An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/guides/working-with-workflows/#upgrading-workflows).
+An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/setup/working-with-workflows/#upgrading-workflows).
 
 ### Doctor (`gh aw doctor`)
 
