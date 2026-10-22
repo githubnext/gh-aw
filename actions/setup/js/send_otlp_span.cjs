@@ -1273,6 +1273,11 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
       }
       const reason = getOTLPExportFailureReason(response);
       const msg = formatOTLPExportFailureMessage(response, reason);
+      if (response.status === 401 || response.status === 403) {
+        console.warn(`OTLP export authorization failed: ${msg}. Check this collector's configured authorization header and write permissions; unchanged credentials will not be retried.`);
+        recordOTLPExportError({ endpoint, status: response.status, reason });
+        return;
+      }
       if (attempt < maxRetries) {
         console.warn(`OTLP export attempt ${attempt + 1}/${maxRetries + 1} failed: ${msg}, retrying…`);
       } else {
