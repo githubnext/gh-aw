@@ -194,7 +194,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData,
 
 	// Get the log file path for parsing (may be different from stdout/stderr log)
 	logFileForParsing := engine.GetLogFileForParsing()
-	if isArcDindTopology(data) && engine.GetID() == string(constants.PiEngine) {
+	if isArcDindTopology(data) && isFirewallEnabled(data) && engine.GetID() == string(constants.PiEngine) {
 		logFileForParsing = strings.ReplaceAll(logFileForParsing, constants.TmpGhAwDir, constants.GhAwRootDir)
 	}
 

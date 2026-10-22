@@ -14,23 +14,39 @@ import (
 )
 
 func TestCompilePiStreamingLogPaths(t *testing.T) {
-	for _, topology := range []string{"", string(RunnerTopologyArcDind)} {
+	for _, tc := range []struct {
+		name            string
+		topology        string
+		sandboxDisabled bool
+	}{
+		{name: "default"},
+		{name: "arc-dind", topology: string(RunnerTopologyArcDind)},
+		{name: "arc-dind-sandbox-disabled", topology: string(RunnerTopologyArcDind), sandboxDisabled: true},
+	} {
 		for _, driver := range []string{"", "pi_agent_core_driver.cjs", "pi_rpc_driver.cjs"} {
-			t.Run(topology+"/"+driver, func(t *testing.T) {
+			t.Run(tc.name+"/"+driver, func(t *testing.T) {
 				runner := ""
 				commandLog := PiStreamingLogFile
+				parserLog := PiStreamingLogFile
 				artifactLog := PiStreamingLogFile
-				if topology != "" {
-					runner = "runner:\n  topology: " + topology + "\n"
-					commandLog = rewriteArcDindPath(PiStreamingLogFile)
+				if tc.topology != "" {
+					runner = "runner:\n  topology: " + tc.topology + "\n"
 					artifactLog = "${{ runner.temp }}/gh-aw/sandbox/agent/logs/pi-streaming.jsonl"
+					if !tc.sandboxDisabled {
+						commandLog = rewriteArcDindPath(PiStreamingLogFile)
+						parserLog = artifactLog
+					}
+				}
+				sandboxConfig := ""
+				if tc.sandboxDisabled {
+					sandboxConfig = "features:\n  dangerously-disable-sandbox-agent: true\nsandbox:\n  agent: false\n"
 				}
 				driverConfig := ""
 				if driver != "" {
 					driverConfig = "  driver: " + driver + "\n"
 				}
 				source := filepath.Join(t.TempDir(), "pi-logs.md")
-				markdown := fmt.Sprintf("---\non: workflow_dispatch\npermissions:\n  contents: read\nstrict: false\n%sengine:\n  id: pi\n%s  config: '{\"session\":{\"enabled\":true,\"export\":true}}'\n---\nReport status.\n", runner, driverConfig)
+				markdown := fmt.Sprintf("---\non: workflow_dispatch\npermissions:\n  contents: read\nstrict: false\n%s%sengine:\n  id: pi\n%s  config: '{\"session\":{\"enabled\":true,\"export\":true}}'\n---\nReport status.\n", runner, sandboxConfig, driverConfig)
 				require.NoError(t, os.WriteFile(source, []byte(markdown), 0o600))
 				require.NoError(t, NewCompiler(WithVersion("dev")).CompileWorkflow(source))
 				lockBytes, err := os.ReadFile(filepath.Join(filepath.Dir(source), "pi-logs.lock.yml"))
@@ -47,13 +63,17 @@ func TestCompilePiStreamingLogPaths(t *testing.T) {
 					assert.Contains(t, execution, "/"+driver)
 				}
 				summary := extractWorkflowStepByName(t, lock, "Parse agent logs for step summary")
-				assert.Contains(t, summary, "GH_AW_AGENT_OUTPUT: "+artifactLog)
+				assert.Contains(t, summary, "GH_AW_AGENT_OUTPUT: "+parserLog)
 				upload := extractWorkflowStepByName(t, lock, "Upload agent artifacts")
 				assert.Contains(t, upload, artifactLog)
 				assert.Equal(t, constants.TmpSandboxAgentLogsDir+"pi-streaming.jsonl", PiStreamingLogFile)
-				if topology == string(RunnerTopologyArcDind) {
+				if tc.topology == string(RunnerTopologyArcDind) && !tc.sandboxDisabled {
 					assert.Contains(t, execution, `--mount "${RUNNER_TEMP}/gh-aw/sandbox/agent:${RUNNER_TEMP}/gh-aw/sandbox/agent:rw"`)
 					assert.Contains(t, commandLog, "${RUNNER_TEMP}/gh-aw/sandbox/agent/logs/")
+				}
+				if tc.sandboxDisabled {
+					assert.NotContains(t, execution, "awf ")
+					assert.NotContains(t, summary, "GH_AW_AGENT_OUTPUT: "+artifactLog)
 				}
 			})
 		}
