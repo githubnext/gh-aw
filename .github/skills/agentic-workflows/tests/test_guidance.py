@@ -2,8 +2,10 @@
 
 import json
 from pathlib import Path
+import posixpath
 import re
 import unittest
+from urllib.parse import urljoin
 
 
 SKILL = Path(__file__).resolve().parents[1]
@@ -23,6 +25,64 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_remote_readers_get_explicit_api_paths_and_size_guidance(self):
+        guide = BOOTSTRAP.read_text()
+        router = (ROOT / ".github/skills/debugging-workflows/SKILL.md").read_text()
+        for text in (guide, router):
+            for path in (
+                ".github/aw/debug-bootstrap.md",
+                ".github/aw/debug-agentic-workflow.md",
+                ".github/aw/debug-workflow-evidence.md",
+            ):
+                self.assertIn(path, text)
+            self.assertIn("owner=github", text)
+            self.assertIn("repo=gh-aw", text)
+            self.assertIn("refs containing slashes", text)
+        for required in ("download_url", "20 KB", "every chunk", "loading gap"):
+            self.assertIn(required, guide)
+
+    def test_bootstrap_uses_available_capabilities_before_cli_setup(self):
+        guide = BOOTSTRAP.read_text()
+        capability = guide.index("Use available evidence capabilities")
+        install = guide.index("gh extension install")
+        self.assertLess(capability, install)
+        for required in (
+            "[CLI/MCP mapping](cli-commands.md)",
+            "already-authorized",
+            "actual schemas",
+            "Explanation-only",
+            "browser address",
+            "discover its existing runs",
+        ):
+            self.assertIn(required, guide[capability:install])
+
+    def test_session_search_uses_parent_run_not_job_url(self):
+        guide = DEBUG_GUIDE.read_text()
+        commands = re.findall(r"gh aw audit ([^\n`]*--search[^\n`]+)", guide)
+        self.assertTrue(commands)
+        for command in commands:
+            self.assertIn("RUN_ID --repo HOST/OWNER/REPO", command)
+            self.assertNotIn("RUN_URL", command)
+        self.assertIn("Session search is run-wide", guide)
+        self.assertIn("Keep `RUN_URL`\nintact for scoped audits", guide)
+
+    def test_github_api_and_raw_paths_preserve_source_identity(self):
+        for case in FIXTURES["source_reading"]:
+            with self.subTest(case=case["id"]):
+                source = ROOT / case["source_path"]
+                self.assertIn(f"]({case['link']})", source.read_text())
+                api_path = posixpath.normpath(posixpath.join(
+                    posixpath.dirname(case["source_path"]), case["link"]
+                ))
+                self.assertEqual(api_path, case["api_path"])
+                self.assertFalse(api_path.startswith(("../", "/")))
+                self.assertTrue((ROOT / api_path).is_file())
+                raw_root = f"https://raw.githubusercontent.com/github/gh-aw/{case['guidance_ref']}/"
+                raw_url = urljoin(raw_root + case["source_path"], case["link"])
+                self.assertEqual(raw_url, raw_root + case["api_path"])
+                self.assertNotIn(case["workflow_repo"], raw_url)
+                self.assertNotEqual(case["guidance_ref"], case["workflow_ref"])
+
     def test_debug_bootstrap_loads_shared_strategy_before_setup(self):
         guide = BOOTSTRAP.read_text()
         load = guide.index("## 1. Load the Debugging Strategy First")

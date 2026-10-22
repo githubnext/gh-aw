@@ -46,6 +46,25 @@ keep every gh-aw reference at the same ref. Read linked guidance when the
 strategy calls for it, including the security-review instructions before
 executing changed code or starting MCP servers.
 
+For GitHub Contents API readers, use `owner=github`, `repo=gh-aw`, and the
+guidance `ref`, not the workflow's repository or branch. Normalize Markdown
+links against the containing file's repository-relative path, then remove any
+fragment; never send literal `../` segments as the API `path`:
+
+| Guide | Contents API `path` |
+| --- | --- |
+| Bootstrap | `.github/aw/debug-bootstrap.md` |
+| Shared strategy | `.github/aw/debug-agentic-workflow.md` |
+| Evidence reference | `.github/aw/debug-workflow-evidence.md` |
+
+Preserve refs containing slashes, such as `feature/debugger`, from supplied
+metadata; do not guess the ref by splitting a `/blob/` URL. Prefer the API's
+`download_url` or a known same-ref raw URL. Before `get_file_contents`, check
+file-size metadata; files over 20 KB require a supported bounded reader rather
+than a full-file MCP read. Read every chunk of required guidance, including
+truncated responses, before proceeding. If no supported reader can do that,
+report the specific loading gap.
+
 For public `github/gh-aw` instructions, prefer unauthenticated raw-content
 downloads, for example:
 
@@ -65,6 +84,16 @@ repository's overlay fetched as a default for another repository.
 
 ## 2. Check the CLI and Run Identity
 
+Use available evidence capabilities, not a mandatory installation checklist.
+With no shell, use already-authorized audit/logs/repository-read tools through
+the [CLI/MCP mapping](cli-commands.md), discovering their actual schemas first;
+do not start a new server. Cached evidence and static source also remain useful.
+Explanation-only requests authorize neither edits nor new workflow runs.
+If a beginner lacks a link, explain repository **Actions** > failing workflow >
+failed attempt and ask for its browser address, not an unexplained numeric ID.
+If a workflow name and repository are known, discover its existing runs instead.
+
+For necessary CLI-based collection, follow the checks below.
 Use `gh aw`, the GitHub CLI extension, not the separate `copilot` runtime CLI.
 Check that `gh` is available, inspect host/credential-source metadata with
 `gh auth status` without printing token values, and record the installed version:

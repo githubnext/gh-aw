@@ -291,8 +291,11 @@ not just aggregate metrics or matching HTTP codes. Count each matching run once;
 report matching/inspectable comparable runs and their IDs. Account for workflow,
 revision, trigger/input and configuration differences; missing evidence remains unknown.
 
-To locate a signature within a run, use
-`gh aw audit "$RUN_URL" --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
+To locate a signature within a run, use its parent `RUN_ID` and explicit
+repository, even when the supplied URL selects a job/step:
+`gh aw audit RUN_ID --repo HOST/OWNER/REPO --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
+Session search is run-wide; it does not accept job/step URLs. Keep `RUN_URL`
+intact for scoped audits and correlate search hits with that job/step.
 Read `evidence_search` source references and neighboring events, not relevance
 scores alone. Search ranks actual unified-session events with BM25. Drain3
 grouping activates automatically when repetitive top matches crowd the limit

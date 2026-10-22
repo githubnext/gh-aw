@@ -1,4 +1,33 @@
 {
+  "source_reading": [
+    {
+      "id": "legacy_raw_reader",
+      "source_path": "debug.md",
+      "guidance_ref": "feature/debugger",
+      "link": ".github/aw/debug-bootstrap.md",
+      "api_path": ".github/aw/debug-bootstrap.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
+    {
+      "id": "skill_contents_api_reader",
+      "source_path": ".github/skills/debugging-workflows/SKILL.md",
+      "guidance_ref": "feature/debugger",
+      "link": "../../aw/debug-workflow-evidence.md",
+      "api_path": ".github/aw/debug-workflow-evidence.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
+    {
+      "id": "canonical_raw_reader",
+      "source_path": ".github/aw/debug-bootstrap.md",
+      "guidance_ref": "feature/debugger",
+      "link": "debug-agentic-workflow.md",
+      "api_path": ".github/aw/debug-agentic-workflow.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    }
+  ],
   "bootstrap_routing": [
     {
       "id": "raw_url_fresh_session",
