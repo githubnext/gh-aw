@@ -153,6 +153,72 @@ func TestRemoveDryRunTelemetryEnvPreservesScalarText(t *testing.T) {
 	}
 }
 
+func TestDisableDryRunTelemetryEnv(t *testing.T) {
+	for _, workflowEnv := range []string{
+		"",
+		"env: {}\n",
+		"env: null\n",
+		"env: &shared\n  OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com\n  DO_NOT_TRACK: '0'\n  KEEP: workflow\n",
+	} {
+		t.Run(workflowEnv, func(t *testing.T) {
+			source := workflowEnv + `jobs:
+  test:
+    env:
+      OTEL_SDK_DISABLED: "false"
+      GH_TELEMETRY: "true"
+      KEEP: job
+    container:
+      image: node:24
+      env: {DISABLE_TELEMETRY: "0"}
+    services:
+      server:
+        image: node:24
+        env: {DISABLE_ERROR_REPORTING: "0"}
+    steps:
+      - run: echo test
+        env:
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "0"
+          KEEP: step
+      - run: echo inherited
+      - run: |
+          echo "env:"
+          echo "  DO_NOT_TRACK: 0"
+`
+			content, err := disableDryRunTelemetryEnv(source)
+			require.NoError(t, err)
+			var document map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(content), &document))
+			assertNoDryRunTelemetryEnv(t, document)
+			env := document["env"].(map[string]any)
+			assertDryRunTelemetryOptOuts(t, env, true)
+			if strings.Contains(workflowEnv, "KEEP") {
+				assert.Equal(t, "workflow", env["KEEP"])
+				assert.Contains(t, content, "env: &shared")
+			}
+			assert.Contains(t, content, `echo "  DO_NOT_TRACK: 0"`)
+			repeated, err := disableDryRunTelemetryEnv(content)
+			require.NoError(t, err)
+			assert.Equal(t, content, repeated)
+		})
+	}
+}
+
+func assertDryRunTelemetryOptOuts(t *testing.T, env map[string]any, requireAll bool) {
+	t.Helper()
+	for name, expected := range map[string]string{
+		"DO_NOT_TRACK":                             "1",
+		"OTEL_SDK_DISABLED":                        "true",
+		"GH_TELEMETRY":                             "false",
+		"DISABLE_TELEMETRY":                        "1",
+		"DISABLE_ERROR_REPORTING":                  "1",
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+	} {
+		if actual, exists := env[name]; exists || requireAll {
+			assert.Equal(t, expected, actual, name)
+		}
+	}
+}
+
 func TestDryRunTelemetryConfiguration(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{
@@ -249,10 +315,19 @@ engine:
     OTEL_SERVICE_NAME: engine
     TRACEPARENT: engine-parent
     CLAUDE_CODE_ENABLE_TELEMETRY: "1"
+    DO_NOT_TRACK: "0"
+    OTEL_SDK_DISABLED: "false"
+    GH_TELEMETRY: "true"
+    DISABLE_TELEMETRY: "0"
+    DISABLE_ERROR_REPORTING: "0"
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "0"
     ENGINE_KEEP: preserved
     START_DATE: "2026-01-01"
     ANTHROPIC_CUSTOM_HEADERS: "x-aw-gw-github-repo: ${{ github.repository }}"
 env:
+  DO_NOT_TRACK: "0"
+  OTEL_SDK_DISABLED: "false"
+  GH_TELEMETRY: "true"
   OTEL_CUSTOM: workflow
   OTEL_USER_SECRET: ${{ secrets.USER_TELEMETRY_ONLY }}
   GH_AW_OTLP_ENDPOINTS: '[{"url":"https://manual.example.com"}]'
@@ -295,6 +370,7 @@ tools:
 					var workflow map[string]any
 					require.NoError(t, yaml.Unmarshal(content, &workflow))
 					assertNoDryRunTelemetryEnv(t, workflow)
+					assertDryRunTelemetryOptOuts(t, workflow["env"].(map[string]any), true)
 					assert.NotContains(t, compiled, "secrets.GH_AW_DEFAULT_OTLP_")
 					assert.NotContains(t, compiled, "secrets.OTLP_HEADERS")
 					assert.NotContains(t, compiled, "USER_TELEMETRY_ONLY")
@@ -321,6 +397,8 @@ tools:
 					assert.Contains(t, compiled, "Mask OTLP telemetry headers")
 					assert.Contains(t, compiled, "Mask OTLP custom attribute values")
 					assert.Contains(t, compiled, "USER_TELEMETRY_ONLY")
+					assert.Contains(t, compiled, `GH_TELEMETRY: "true"`)
+					assert.Contains(t, compiled, `DO_NOT_TRACK: "0"`)
 					if normal == "" {
 						normal = compiled
 					} else {
@@ -482,8 +560,13 @@ func assertNoDryRunTelemetryEnv(t *testing.T, value any) {
 			if key == "env" {
 				if env, ok := child.(map[string]any); ok {
 					for name := range env {
+						if name == "OTEL_SDK_DISABLED" {
+							assert.Equal(t, "true", env[name])
+							continue
+						}
 						assert.False(t, strings.HasPrefix(name, "OTEL_") || strings.HasPrefix(name, "GH_AW_OTLP_"), name)
 					}
+					assertDryRunTelemetryOptOuts(t, env, false)
 				}
 			}
 			assertNoDryRunTelemetryEnv(t, child)
