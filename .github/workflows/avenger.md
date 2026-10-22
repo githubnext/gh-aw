@@ -117,7 +117,7 @@ safe-outputs:
     protected-files: fallback-to-issue
     excluded-files:
       - ".github/workflows/**"
-  missing-tool:
+  report-missing-tool:
 timeout-minutes: 45
 imports:
   - shared/otlp.md

@@ -9,7 +9,6 @@ permissions:
   issues: read
   pull-requests: read
 
-
 network:
   allowed:
   - defaults
@@ -43,7 +42,7 @@ tools:
   - go list -m all
   - find . -name "*.go" -type f
   - grep -r "func " --include="*.go"
-  - grep -c '.Analyzer,' pkg/linters/registry.go
+  - grep -c ".Analyzer," pkg/linters/registry.go
   - wc -l
   cli-proxy: true
   edit: null
