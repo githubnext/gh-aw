@@ -14,7 +14,11 @@ interface Props {
   [attr: string]: unknown;
 }
 const { name, size = 16, class: className, ...rest } = Astro.props;
-const svg = octicons[name].toSVG({ width: size, height: size });
+const icon = octicons[name];
+if (!icon) {
+  throw new Error(`Unknown Octicon name: "${name}". Use a name from @primer/octicons.`);
+}
+const svg = icon.toSVG({ width: size, height: size });
 ---
 
 <span class:list={['aw-octicon', className]} aria-hidden="true" {...rest} set:html={svg} />

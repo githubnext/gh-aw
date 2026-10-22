@@ -14,17 +14,19 @@ const engines = [
 
 <div class="aw-hero-inner">
   <div class="aw-hero-text">
-    <h1><span class="aw-line">AI-powered workflows</span> <span class="aw-line">for GitHub, <span class="aw-muted">with your</span></span> <span class="aw-line aw-muted">own agents.</span></h1>
+    <h1><span class="aw-line">AI-powered workflows</span> <span class="aw-line">for GitHub</span></h1>
     <p class="aw-hero-sub">
-      {engines.map((e, i) => {
-        const logo = engineLogos[e.id];
+      Use {engines.map((e, i) => {
         const sep = i === engines.length - 1 ? '' : i === engines.length - 2 ? ' or ' : ', ';
         return (
           <Fragment>
-            <span class="aw-engine"><svg class="aw-engine-logo" viewBox={logo.viewBox} aria-hidden="true" focusable="false">{logo.paths.map((d) => <path d={d} />)}</svg>{e.name}</span>{sep}
+            <span class="aw-engine">{e.name}</span>{sep}
           </Fragment>
         );
-      })} can help triage issues, investigate failures and open pull requests across your repos. Runs follow your configured triggers, permissions and cost controls in GitHub Actions.
+      })} to automatically triage issues, investigate failures and open pull requests across your repos.
+    </p>
+    <p class="aw-hero-sub">
+      With strong guardrails, permissions, audit and cost controls, in GitHub Actions.
     </p>
     <div class="aw-hero-cta"><CtaRow /></div>
   </div>
@@ -34,12 +36,5 @@ const engines = [
 <style>
   .aw-engine {
     white-space: nowrap;
-  }
-  .aw-engine-logo {
-    width: 0.8em;
-    height: 0.8em;
-    margin-right: 0.25em;
-    vertical-align: -0.05em;
-    fill: var(--aw-color-text-muted);
   }
 </style>
