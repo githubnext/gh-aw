@@ -135,7 +135,6 @@ func NewLogsCommand() *cobra.Command {
 	addLogsCommandFlags(logsCmd, validArtifactSets)
 	registerLogsCommandCompletions(logsCmd)
 	logsCmd.AddCommand(newLogsEpisodeCommand())
-	logsCmd.AddCommand(NewOutcomesEpisodesSubcommand())
 	return logsCmd
 }
 
@@ -163,7 +162,7 @@ Use --outcomes-dir to persist the observations as JSONL for downstream processin
 Use --episodes to include recorded episode membership and hops in text reports.
 Combine --episodes --outcomes to join the selected episodes with live outcome
 observations and downloaded usage in the same invocation; no separate
-outcomes-episodes command or JSONL export is needed. Membership remains limited
+command or JSONL export is needed. Membership remains limited
 to the selected runs; this flag does not discover additional episode members.
 
 Use --cached-jsonl to reuse matching run records without downloading and processing their

@@ -200,17 +200,11 @@ runs. `gh aw logs episode <seed> --outcomes` also checks outcomes live when
 membership comes from a cached snapshot; its retrieval API cap covers artifacts
 and discovery, not the additional live outcome queries.
 
-`gh aw logs outcomes-episodes` joins previously recorded outcome observations to the episode
-membership from a logs report. It is an offline report, not another evaluator:
-
 ```bash wrap
-gh aw logs --outcomes --outcomes-dir ./outcomes --verbose --json > logs.json
-gh aw logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes --json
+gh aw logs --episodes --outcomes --json > logs.json
 ```
 
-Record outcomes for each selected source run. Use `--output <directory>` on
-both commands when downloaded `run-*` artifacts are outside the default
-`.github/aw/logs` directory. The episode command reads usage artifacts directly,
+The join reads each selected run's downloaded usage artifacts directly,
 including detection usage, rather than summing agent-only cached cost.
 Accounting sources are selected separately for each execution phase before
 summing independent stream totals. Agent JSON remains a fallback when agent
@@ -223,16 +217,14 @@ keeps outcome coverage partial.
 
 Membership can also come from [`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
 Its bounded retrieval report uses the same episode contract. The outcome join
-reads each run's recorded `logs_path` beneath `--output`, including isolated
-repository/attempt directories; conflicting paths or paths outside that root
-are errors. Collection limits remain membership gaps and suppress efficiency
-claims; this offline join does not perform additional discovery.
+uses the collected run directories, including isolated repository/attempt
+directories. Collection limits remain membership gaps and suppress efficiency
+claims; the join does not perform additional discovery.
 
-The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
-per-item records include `item_id` (a SHA-256 digest of the source action record,
+Exported per-item JSONL records include `item_id` (a SHA-256 digest of the source action record,
 with an occurrence number for indistinguishable records) and
 `run_item_count` (the number of evaluated actions). The join matches `run_id`
-against episode `run_ids`, selects the latest `checked_at` for each source-run
+against episode `run_ids`, selects the latest collected `checked_at` for each source-run
 item, and reuses CLI outcome classifications. Repeated snapshots do not add
 accepted outcomes, and a later rejection replaces a previous acceptance.
 Conflicting evaluation fields at the latest observation time, including
@@ -241,7 +233,8 @@ than an arbitrary verdict. A newer observation supersedes older conflicts.
 Reordering or reserializing unchanged source records does not change action
 identities; distinct actions against the same object remain distinct items.
 
-JSON returns `episodes[]` and `unmatched_outcome_run_ids`. Each episode contains
+The `.episode_outcomes` JSON field contains `episodes[]` and
+`unmatched_outcome_run_ids`. Each episode contains
 the selected `run_ids`, latest `items`, the existing outcome `summary`, and:
 
 | Field | Meaning |
@@ -263,21 +256,9 @@ efficiency verdict. Partial AIC is never divided by accepted items to imply a
 complete cost result. Outcomes whose source runs are outside selected
 membership are listed separately and excluded from all episode counts.
 
-Older JSONL without `item_id` is conservatively coalesced by source run, action
-type, repository, target, and creation time only when no precise item identities
-exist for that group. Precise observations supersede matching legacy rows once
-each item's latest observation is at least as recent as the latest legacy row.
-A newer legacy row produces an error requiring reevaluation rather than
-overriding ambiguous precise items or adding an extra item.
-Indistinguishable legacy-only actions can be undercounted, so these reports are
-qualified and efficiency is unavailable; reevaluate those runs to record action
-identities and counts. Earlier positional IDs (`item-1`, `item-2`, and so on)
-also lack reorder-stable identity and disable efficiency when retained.
-Content-derived identities supersede matching positional observations under
-the same timestamp rule, rather than counting them again. The report does
-not infer missing episode members, reevaluate GitHub objects, or automatically
-schedule observations. Generate its schema with
-`gh aw json-schema outcomes-episodes`.
+The join does not infer missing episode members or automatically schedule
+observations. Outcome evaluation happens through `--outcomes` during collection.
+Generate the schema, including `.episode_outcomes`, with `gh aw json-schema logs`.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.
 

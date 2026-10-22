@@ -8,15 +8,15 @@
 
 ### Context
 
-Live outcome evaluation checks the current GitHub state of safe outputs produced by workflow runs. A separate `gh aw outcomes` command exposed this evaluation independently of the run selection and artifact collection provided by `gh aw logs`. Users need outcome observations for the same runs selected through workflow discovery, multiple targets, stdin, or episode retrieval, without a second selection and collection command. The requested CLI direction is to bring `--outcomes` to `logs` and remove `gh aw outcomes` and historical repository scoring, while preserving offline episode joins and JSONL export.
+Live outcome evaluation checks the current GitHub state of safe outputs produced by workflow runs. A separate `gh aw outcomes` command exposed this evaluation independently of the run selection and artifact collection provided by `gh aw logs`. Users need outcome observations for the same runs selected through workflow discovery, multiple targets, stdin, or episode retrieval, without a second selection and collection command. The requested CLI direction is to bring `--outcomes` to `logs`, remove standalone outcome commands and historical repository scoring, and preserve episode summaries and JSONL export.
 
 ### Decision
 
-Make live outcome evaluation opt-in through `gh aw logs --outcomes`, including `logs episode --outcomes`, and remove the standalone `gh aw outcomes` command rather than retain an alias. Composability is the primary driver: evaluate the runs already selected and collected by `logs`, reuse their safe-output manifests, and include the `outcomes` artifact set when needed. Expose per-run reports in `.outcomes[]` and selected-episode rollups in `.episode_outcomes` of the logs JSON document; move offline episode joins to `gh aw logs outcomes-episodes`, with JSONL observations exported through `--outcomes-dir` or `GH_AW_OUTCOMES_DIR`. Remove historical repository scoring, which has no workflow or script consumers in this repository.
+Make live outcome evaluation opt-in through `gh aw logs --outcomes`, including `logs episode --outcomes`, and remove the standalone `gh aw outcomes` command rather than retain an alias. Composability is the primary driver: evaluate the runs already selected and collected by `logs`, reuse their safe-output manifests, and include the `outcomes` artifact set when needed. Expose per-run reports in `.outcomes[]` and selected-episode rollups in `.episode_outcomes` of the logs JSON document, with JSONL observations exported through `--outcomes-dir` or `GH_AW_OUTCOMES_DIR`. Remove historical repository scoring, which has no workflow or script consumers in this repository, and the separate offline episode-join command and its standalone schema.
 
 Keep collection lightweight: the `outcomes` artifact set downloads the compact executed safe-output manifest, not full agent logs. Episode retrieval collects outcome manifests only for verified episode members, after validating identity and run-attempt evidence; already collected manifests are reused. Missing manifests produce explicit `eval_error` coverage diagnostics rather than an apparently successful empty result.
 
-Combine `--episodes --outcomes` to include recorded episode membership and hops alongside the in-memory outcome join. The same join powers `logs outcomes-episodes` for separately persisted reports; the combined flags do not launch that command, require JSONL export, make additional join-specific GitHub requests, or expand the selected membership.
+Combine `--episodes --outcomes` to include recorded episode membership and hops alongside the in-memory outcome join. The combined flags do not require a separate command or JSONL export, make additional join-specific GitHub requests, or expand the selected membership. The `logs` JSON schema includes the episode-outcome contract.
 
 Evaluate current state on each invocation, even when artifact data is cached. Reuse successful, validated live API responses across the selected runs within that invocation, with request identity including the GitHub host; coalesce identical in-flight reads and reuse labels already present on fetched issue or PR objects. Do not persist this live-response cache across invocations or retain failed responses as reusable observations. Paginated REST reads request 100 items per page, and the objective impact report batches selected runs into one CLI invocation so that this reuse applies across the report.
 
@@ -46,10 +46,10 @@ An evaluator consuming `logs --json` or a collected directory could share run se
 
 - Removing `gh aw outcomes` breaks existing scripts and requires a major release. For one run, migrate to `printf '%s\n' <run-id> | gh aw logs --stdin --repo owner/repo --outcomes --json`.
 - Opt-in evaluation adds live API requests and latency. Episode outcome checks are additional to the episode retrieval bounds; request reuse does not make evaluation free or guarantee a transactionally consistent snapshot.
-- Logs gains outcome-specific flags, offline subcommands, and JSON fields that must remain consistent across its collection and rendering paths.
+- Logs gains outcome-specific flags and JSON fields that must remain consistent across its collection and rendering paths.
 
 #### Neutral
 
-- Offline episode joins remain available under `logs outcomes-episodes`; historical repository scoring is no longer exposed.
+- Episode joins run in memory within logs collection; historical repository scoring and offline episode-join commands are no longer exposed.
 - JSONL export remains available for downstream processing. Missing evidence and individual evaluation failures remain explicit rather than being interpreted as rejection or zero coverage.
 - This record documents the implementation for review; it does not claim maintainer approval.

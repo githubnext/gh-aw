@@ -1,7 +1,7 @@
 # ADR-70281: Offline Join of Episode Usage with Recorded Outcome Observations
 
 **Date**: 2026-10-19
-**Status**: Proposed (PR #70281 is unmerged; maintainer acceptance is not recorded)
+**Status**: Superseded proposal; see [ADR-71218](71218-move-outcome-evaluation-into-logs-command.md) for the in-memory logs join that replaces the separate command and schema.
 **Deciders**: Not recorded
 
 ---

@@ -896,27 +896,10 @@ The standalone `gh aw outcomes` command has been removed.
 `--episodes` adds recorded episode membership and hops to text reports. Combine
 `--episodes --outcomes` to perform the episode-outcome join in the same
 invocation, using collected membership, live observations, and downloaded
-usage. No separate `logs outcomes-episodes` command or JSONL export is needed.
+usage. No separate command or JSONL export is needed.
 Standard logs JSON retains episode membership and outcome summaries with or
 without the explicit `--episodes` flag. Membership is limited to selected runs; this flag
 does not expand discovery to all episode members.
-
-##### `logs outcomes-episodes`
-
-Join episode membership from a full logs JSON report with the latest recorded
-safe-output outcome observations. Reads downloaded usage artifacts locally;
-does not query GitHub or evaluate outcomes.
-
-```bash wrap
-gh aw logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes
-gh aw logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json
-```
-
-**Required:** `--logs` (generated with `gh aw logs --verbose --json`),
-`--outcomes-dir` (JSONL written by `gh aw logs --outcomes`).
-
-**Options:** `--output/-o` (downloaded `run-*` directory, default
-`.github/aw/logs`), `--json/-j`.
 
 Reports are scoped to selected runs and qualify missing membership, outcomes,
 and cost. See [Episode Outcome Summaries](/gh-aw/reference/outcomes/#episode-outcome-summaries)
@@ -1370,7 +1353,6 @@ Print the JSON Schema for structured command output.
 gh aw json-schema audit        # Schema for gh aw audit --json
 gh aw json-schema logs         # Schema for gh aw logs --json
 gh aw json-schema logs-jsonl   # Schema for each gh aw logs --cached-jsonl line
-gh aw json-schema outcomes-episodes # Schema for gh aw logs outcomes-episodes --json
 ```
 
 **Schema arguments:** `audit`, `logs`, `logs-jsonl`. The schema is written to stdout. See [JSON output schemas](/gh-aw/reference/audit/#json-output-schemas).

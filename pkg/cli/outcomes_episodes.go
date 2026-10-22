@@ -21,7 +21,7 @@ type EpisodeOutcomeObservation struct {
 	OutcomeReport
 }
 
-// EpisodeOutcomesData is an offline join of selected episode members and outcomes.
+// EpisodeOutcomesData joins selected episode members and outcomes.
 type EpisodeOutcomesData struct {
 	Episodes               []EpisodeOutcomeData `json:"episodes"`
 	UnmatchedOutcomeRunIDs []int64              `json:"unmatched_outcome_run_ids"`

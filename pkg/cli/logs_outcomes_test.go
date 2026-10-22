@@ -22,12 +22,14 @@ func TestLogsOutcomeSubcommands(t *testing.T) {
 	cmd := NewLogsCommand()
 	for _, subcommand := range cmd.Commands() {
 		assert.NotEqual(t, "outcomes-history", subcommand.Name())
+		assert.NotEqual(t, "outcomes-episodes", subcommand.Name())
 	}
 	assert.NotContains(t, cmd.UsageString(), "outcomes-history")
+	assert.NotContains(t, cmd.UsageString(), "outcomes-episodes")
 
-	episodes, _, err := cmd.Find([]string{"outcomes-episodes"})
+	episode, _, err := cmd.Find([]string{"episode"})
 	require.NoError(t, err)
-	assert.Equal(t, "outcomes-episodes", episodes.Name())
+	assert.Equal(t, "episode", episode.Name())
 }
 
 func TestLogsOutcomeOptions(t *testing.T) {

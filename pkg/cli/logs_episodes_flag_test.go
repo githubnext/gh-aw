@@ -59,17 +59,20 @@ func TestLogsEpisodesImplicitOutcomeJoin(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, data.EpisodeOutcomes)
 	collectedCalls := outcomeAPICalls(t, calls)
-	outcomesDir := filepath.Join(dir, "observations")
-	for _, report := range reports {
-		require.NoError(t, writeOutcomeJSONL(outcomesDir, report.RunID, report.Items))
-	}
-	var offlineJSON, diagnostics bytes.Buffer
-	require.NoError(t, runOutcomesEpisodes(filepath.Join(dir, "summary.json"), outcomesDir, dir, true, &offlineJSON, &diagnostics))
-	var offline EpisodeOutcomesData
-	require.NoError(t, json.Unmarshal(offlineJSON.Bytes(), &offline))
-	assert.Equal(t, offline, *data.EpisodeOutcomes, "combined flags must reuse the offline join semantics")
+	joined := data.EpisodeOutcomes
+	require.Len(t, joined.Episodes, 1)
+	episode := joined.Episodes[0]
+	assert.Equal(t, []int64{1}, episode.RunIDs)
+	assert.Equal(t, 1, episode.Summary.Accepted)
+	assert.Equal(t, "complete", episode.OutcomeCoverage)
+	assert.Equal(t, "available", episode.CostCoverage)
+	require.NotNil(t, episode.ObservedAIC)
+	assert.InDelta(t, 2.5, *episode.ObservedAIC, 1e-9)
+	require.NotNil(t, episode.CostPerAcceptedOutcome)
+	assert.InDelta(t, 2.5, *episode.CostPerAcceptedOutcome, 1e-9)
 	require.NoError(t, attachLogsOutcomes(&data, reports))
-	assert.Equal(t, collectedCalls, outcomeAPICalls(t, calls), "neither join must make additional GitHub requests")
+	assert.Equal(t, joined, data.EpisodeOutcomes, "repeated joins must not duplicate outcomes")
+	assert.Equal(t, collectedCalls, outcomeAPICalls(t, calls), "the join must not make additional GitHub requests")
 }
 
 func TestLogsEpisodesTextFormats(t *testing.T) {
