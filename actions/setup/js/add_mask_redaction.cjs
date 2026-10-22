@@ -142,9 +142,10 @@ function decodeJSONString(encoded) {
  * @param {string[]} maskedValues
  * @param {(value: string) => string} replacementForValue
  * @param {boolean} [matchRawText] - Include raw matches inside quoted spans of invalid artifacts
+ * @param {Array<{start: number, end: number, value: string, replacement: string}>} [extraMatches]
  * @returns {string}
  */
-function redactMixedMaskedValues(text, maskedValues, replacementForValue, matchRawText = false) {
+function redactMixedMaskedValues(text, maskedValues, replacementForValue, matchRawText = false, extraMatches = []) {
   const commandLines = new Set();
   if (matchRawText) {
     const lines = text.split("\n");
@@ -239,17 +240,21 @@ function redactMixedMaskedValues(text, maskedValues, replacementForValue, matchR
       }
     }
   }
+  function* combinedMatches() {
+    const matches = [...sourceMatches(), ...extraMatches].sort((a, b) => a.start - b.start || b.end - a.end);
+    yield* matches;
+  }
   const parts = [];
   let cursor = 0;
   let ambiguous = false;
   let repeated = "";
   let repetitions = 0;
-  for (const match of overlappingMatchGroups(sourceMatches())) {
+  for (const match of overlappingMatchGroups(combinedMatches())) {
     const token = tokenAt(match.start);
     const insideToken = token >= 0 && match.start > tokens[token] && match.end < tokens[token + 1];
     const wholeLine = commandLines.has(match.value) || ((match.start === 0 || text[match.start - 1] === "\n") && (match.end === text.length || text[match.end] === "\n") && maskedValues.includes(text.slice(match.start, match.end)));
     ambiguous ||= match.ambiguous && !wholeLine;
-    const marker = commandLines.has(match.value) ? "" : replacementForValue(match.value);
+    const marker = commandLines.has(match.value) ? "" : (match.replacement ?? replacementForValue(match.value));
     const replacement = insideToken ? JSON.stringify(marker).slice(1, -1) : marker;
     if (match.start > cursor || replacement !== repeated) {
       if (repetitions) parts.push(repeated.repeat(repetitions));
@@ -280,11 +285,11 @@ function redactMixedMaskedValues(text, maskedValues, replacementForValue, matchR
  * @param {string[]} maskedValues
  * @param {(value: any) => any} [redactJSONValue] - Structured protocol redactor for valid JSON records
  * @param {(value: string) => string} [replacementForValue] - Marker for each matched registered value
- * @param {{textMode?: boolean}} [options] - Match invalid artifacts as raw and escaped text without splitting multiline secrets
+ * @param {{textMode?: boolean, patternMatches?: Array<{start: number, end: number, value: string, replacement: string}>}} [options] - Match raw credential patterns together with registered secret values
  * @returns {string}
  */
 function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, replacementForValue, options = {}) {
-  if (!content || (!maskedValues.length && !redactJSONValue)) return content;
+  if (!content || (!maskedValues.length && !redactJSONValue && !options.patternMatches?.length)) return content;
   const preserveLexemes = !!replacementForValue && !redactJSONValue;
   const replacement = replacementForValue || (() => MASK_REPLACEMENT);
   if (options.textMode && preserveLexemes) {
@@ -295,7 +300,7 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, repl
         .filter(line => !isAddMaskCommandLine(line))
         .join("\n");
     }
-    return redactMixedMaskedValues(content, maskedValues, replacement, true);
+    return redactMixedMaskedValues(content, maskedValues, replacement, true, options.patternMatches);
   }
   const redactValue = value => {
     if (typeof value === "string") return applyAddMaskRedaction(value, maskedValues, replacementForValue);

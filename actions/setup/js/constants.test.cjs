@@ -18,6 +18,7 @@ const {
   MAX_RESTORE_RUNS,
   MAX_RESTORE_PAGES,
   SCAN_WINDOW_MS,
+  PROXY_ENV_NAMES,
 } = require("./constants.cjs");
 
 describe("constants", () => {
@@ -103,6 +104,12 @@ describe("constants", () => {
     });
   });
 
+  describe("proxy environment variables", () => {
+    it("should export the supported proxy variable names", () => {
+      expect(PROXY_ENV_NAMES).toEqual(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]);
+    });
+  });
+
   describe("module exports", () => {
     it("should export all expected constants", () => {
       const exported = require("./constants.cjs");
@@ -124,6 +131,7 @@ describe("constants", () => {
         "MAX_RESTORE_RUNS",
         "MAX_RESTORE_PAGES",
         "SCAN_WINDOW_MS",
+        "PROXY_ENV_NAMES",
       ];
       for (const key of expectedKeys) {
         expect(exported).toHaveProperty(key);

@@ -1,5 +1,6 @@
 // @ts-check
 const fs = require("node:fs");
+const { PROXY_ENV_NAMES } = require("./constants.cjs");
 const { redactArtifactContent } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -10,10 +11,10 @@ const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
  * @param {NodeJS.ProcessEnv} env
  * @returns {string}
  */
-function redactCliProxyDiagnostics(content, env) {
+function redactCliProxyDiagnostics(content, env, credentialPatterns = []) {
   // Bash command substitution removes NUL bytes; normalize before matching.
   content = content.replaceAll("\0", "");
-  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
+  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...PROXY_ENV_NAMES, ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
   for (const name of (env.GH_AW_SECRET_NAMES || "")
     .split(",")
     .map(name => name.trim())
@@ -38,7 +39,17 @@ function redactCliProxyDiagnostics(content, env) {
   // separately so that representation cannot hide lines from the publication cap.
   return content
     .split("\n")
-    .map(line => redactArtifactContent(line, [], values).content)
+    .map(line => {
+      const patternMatches = credentialPatterns.flatMap(({ pattern, replacement }) =>
+        Array.from(line.matchAll(pattern), match => ({
+          start: match.index,
+          end: match.index + match[0].length,
+          value: match[0],
+          replacement: match[0].replace(pattern, replacement),
+        }))
+      );
+      return redactArtifactContent(line, [], values, { patternMatches }).content;
+    })
     .join("\n");
 }
 

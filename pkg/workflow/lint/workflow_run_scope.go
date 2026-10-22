@@ -97,28 +97,82 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 	if err != nil || !valid {
 		return false, err
 	}
-	hasPositive, broad := false, false
+	live := make(map[string]struct{}, len(patterns))
+	broad := false
 	for _, pattern := range patterns {
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
 		pattern = strings.TrimSpace(pattern)
 		if excluded, negative := strings.CutPrefix(pattern, "!"); negative {
-			// GitHub applies filters in order. A universal exclusion
-			// clears earlier matches before later patterns re-include.
+			excluded = strings.TrimSpace(excluded)
+			// GitHub applies filters in order. A universal exclusion clears earlier
+			// positive scope before later allowlist entries can re-include it.
 			if len(excluded) >= 2 && strings.Trim(excluded, "*") == "" {
+				clear(live)
 				broad = false
+				continue
+			}
+			for positive := range live {
+				if err := ctx.Err(); err != nil {
+					return false, err
+				}
+				if workflowRunExclusionMayCover(positive, excluded) {
+					delete(live, positive)
+				}
 			}
 			continue
 		}
-		hasPositive = true
-		// A broad positive pattern also defeats narrower entries in the
-		// same allowlist. Exclusions alone are not a positive trust scope.
+		live[pattern] = struct{}{}
+		// A broad positive pattern defeats narrower entries in the same allowlist,
+		// unless a later universal exclusion clears the whole set.
 		if strings.Trim(pattern, "*?/+") == "" {
 			broad = true
 		}
 	}
-	return hasPositive && !broad, nil
+	return !broad && len(live) > 0, nil
+}
+
+// Reject potentially covering exclusions rather than approximating the full
+// Actions glob language with a filesystem matcher (notably, ? is optional).
+func workflowRunExclusionMayCover(positive, excluded string) bool {
+	if positive == excluded {
+		return true
+	}
+	positivePrefix := workflowRunGlobPrefix(positive)
+	excludedPrefix := workflowRunGlobPrefix(excluded)
+	if positivePrefix == positive {
+		if excludedPrefix == excluded {
+			return false
+		}
+		return strings.HasPrefix(positive, excludedPrefix)
+	}
+	if !strings.HasPrefix(positivePrefix, excludedPrefix) && !strings.HasPrefix(excludedPrefix, positivePrefix) {
+		return false
+	}
+	// A trailing star admits direct children. Exclusions confined to deeper
+	// subdirectories cannot exhaust these, even when several are combined.
+	suffix := strings.TrimPrefix(positive, positivePrefix)
+	if (suffix == "*" || suffix == "**") && strings.HasSuffix(positivePrefix, "/") &&
+		strings.Contains(strings.TrimPrefix(excludedPrefix, positivePrefix), "/") {
+		return false
+	}
+	return true
+}
+
+func workflowRunGlobPrefix(pattern string) string {
+	previous := 0
+	for index, char := range pattern {
+		switch char {
+		case '?':
+			// Actions ? makes the preceding character optional.
+			return pattern[:previous]
+		case '*', '+', '[', '\\':
+			return pattern[:index]
+		}
+		previous = index
+	}
+	return pattern
 }
 
 func workflowRunTrigger(ctx context.Context, on any) (any, string, bool, error) {
