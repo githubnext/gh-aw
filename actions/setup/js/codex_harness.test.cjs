@@ -2365,7 +2365,7 @@ describe("Codex native sub-agent roles before spawn (github/gh-aw#70939)", () =>
     fs.mkdirSync(codexHome, { recursive: true });
     for (const [name, content] of Object.entries(agents)) fs.writeFileSync(path.join(staged, name), content);
     const { result, calls } = runHarnessFixture(
-      `const p=require("path");const d=p.join(process.env.CODEX_HOME,"agents");fs.writeFileSync(p.join(process.env.CODEX_HOME,"roles-at-spawn.json"),JSON.stringify(fs.existsSync(d)?Object.fromEntries(fs.readdirSync(d).sort().map(n=>[n,fs.readFileSync(p.join(d,n),"utf8")])):null));`,
+      `const p=require("path");const d=p.join(process.env.CODEX_HOME,"agents");fs.writeFileSync(p.join(process.env.CODEX_HOME,"roles-at-spawn.json"),JSON.stringify(fs.existsSync(d)?Object.fromEntries(fs.readdirSync(d).filter(n=>n.endsWith(".toml")).sort().map(n=>[n,fs.readFileSync(p.join(d,n),"utf8")])):null));`,
       {
         reflectData,
         env: { TMPDIR: ostmp, CODEX_HOME: codexHome, AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai", GH_AW_TMP_DIR: recordsDir, GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"), GH_AW_PHASE: "", ...env },
