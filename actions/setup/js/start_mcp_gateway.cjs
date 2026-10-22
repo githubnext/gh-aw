@@ -507,6 +507,10 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
  * @returns {string[]}
  */
 function injectProxyEnvArgs(args, env = process.env) {
+  const hasProxy = proxyEnvNames.some(name => name.toLowerCase() !== "no_proxy" && env[name]);
+  if (hasProxy && env.NO_PROXY === undefined && env.no_proxy === undefined) {
+    env.NO_PROXY = "";
+  }
   for (const name of ["NO_PROXY", "no_proxy"]) {
     if (env[name] === undefined) continue;
     const exclusions = new Set(env[name].split(",").map(host => host.trim().toLowerCase()));

@@ -39,10 +39,17 @@ import { writeMcpConfiguration } from "./mcp_configuration.cjs";
 import { applyGatewayRuntimeTimeouts } from "./tool_timeouts.cjs";
 
 describe("MCP gateway runner proxy environment", () => {
-  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("forwards %s by name without putting values in Docker arguments", name => {
+  it.each([
+    ["HTTP_PROXY", ["HTTP_PROXY", "NO_PROXY"]],
+    ["HTTPS_PROXY", ["HTTPS_PROXY", "NO_PROXY"]],
+    ["NO_PROXY", ["NO_PROXY"]],
+    ["http_proxy", ["NO_PROXY", "http_proxy"]],
+    ["https_proxy", ["NO_PROXY", "https_proxy"]],
+    ["no_proxy", ["no_proxy"]],
+  ])("forwards %s by name without putting values in Docker arguments", (name, names) => {
     const args = ["run", "--rm", "gateway:latest"];
     const value = "synthetic-proxy-value with spaces";
-    expect(injectProxyEnvArgs(args, { [name]: value })).toEqual(["run", "-e", name, "--rm", "gateway:latest"]);
+    expect(injectProxyEnvArgs(args, { [name]: value })).toEqual(["run", ...names.flatMap(name => ["-e", name]), "--rm", "gateway:latest"]);
     expect(args).toEqual(["run", "--rm", "gateway:latest"]);
   });
 
@@ -78,6 +85,36 @@ describe("MCP gateway runner proxy environment", () => {
     expect(args).toEqual(["run", "-e", "HTTP_PROXY", "-e", "NO_PROXY", "--rm", "gateway:latest"]);
     expect(env.NO_PROXY).toBe("localhost,127.0.0.1,host.docker.internal,awf-enclave-mcp");
     expect(injectProxyEnvArgs(["run", "--rm", "gateway:latest"], {})).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"])("adds local MCP backend exclusions with only %s set", name => {
+    const env = { [name]: "http://proxy.example:8080" };
+    const args = ["run", "--rm", "gateway:latest"];
+    const result = injectProxyEnvArgs(args, env);
+
+    expect(env.NO_PROXY).toBe("host.docker.internal,awf-enclave-mcp");
+    expect(env.no_proxy).toBeUndefined();
+    expect(result).toContain(name);
+    expect(result).toContain("NO_PROXY");
+    expect(result).not.toContain(env[name]);
+    expect(injectProxyEnvArgs(args, env)).toEqual(result);
+  });
+
+  it("preserves lowercase runner exclusions without synthesizing uppercase exclusions", () => {
+    const env = { HTTP_PROXY: "http://proxy.example:8080", no_proxy: "localhost,.example.com" };
+    expect(injectProxyEnvArgs(["run", "gateway:latest"], env)).toEqual(["run", "-e", "HTTP_PROXY", "-e", "no_proxy", "gateway:latest"]);
+    expect(env.NO_PROXY).toBeUndefined();
+    expect(env.no_proxy).toBe("localhost,.example.com,host.docker.internal,awf-enclave-mcp");
+  });
+
+  it("keeps explicit gateway exclusions after synthesized proxy-only exclusions", () => {
+    const env = {
+      HTTP_PROXY: "http://proxy.example:8080",
+      [customGatewayEnvNamesVar]: '["NO_PROXY"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "explicit-no-proxy",
+    };
+    const args = injectCustomGatewayEnvArgs(["run", "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__", "gateway:latest"], env);
+    expect(injectProxyEnvArgs(args, env)).toEqual(["run", "-e", "HTTP_PROXY", "-e", "NO_PROXY", "-e", "NO_PROXY=explicit-no-proxy", "gateway:latest"]);
   });
 
   it("adds runner proxy flags before launching the gateway", () => {
