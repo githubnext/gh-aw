@@ -3,8 +3,11 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
+    "@nanonets/graft": "0.8.0",
     "@sentry/mcp-server": "0.37.0",
     "@your-org/otel-query-mcp": "latest",
-    "agentdb": "alpha"
+    "agentdb": "3.0.0-alpha.20",
+    "ast-grep-mcp": "0.0.2",
+    "mcp": "latest"
   }
 }
