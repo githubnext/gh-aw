@@ -9,7 +9,7 @@ Run Codex on GitHub events using an OpenAI API key or GitHub Copilot inference. 
 
 Set `engine: codex`, choose an OpenAI model, and add a [`CODEX_API_KEY` or `OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) repository secret.
 
-To use Copilot inference instead, select a Codex-compatible `copilot/` model and grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission). Keep the default agent sandbox enabled. See [provider configuration](/gh-aw/reference/engines/codex/#github-copilot-inference) for details.
+To use Copilot inference instead, select a Codex-compatible `copilot/` model and grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission). This requires no OpenAI key. See [provider configuration](/gh-aw/reference/engines/codex/#github-copilot-inference) for details.
 
 ## Run a daily report
 

@@ -7,11 +7,11 @@ For first-time setup, see [Using Claude Code](/gh-aw/engines/claude/). Shared op
 
 ## Selection and authentication
 
-Use `engine: claude` with [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif). Subscription OAuth tokens are unsupported. Copilot inference uses the configuration below.
+Use `engine: claude` with [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) or [Anthropic WIF](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif) to use an Anthropic-hosted model. Subscription OAuth tokens are unsupported.
 
 ## GitHub Copilot inference
 
-Select a Copilot-hosted Anthropic model to run Claude Code with inference billed through GitHub Copilot:
+Alternatively, select a Copilot-hosted Anthropic model with inference billed through GitHub Copilot:
 
 ```aw wrap
 engine: claude
