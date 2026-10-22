@@ -499,10 +499,15 @@ jobs:
     needs:
       - activation
       - config
+      - defender
+      - push_tag
       - release
+      - sync_actions
+      - validate_container_pins
     if: >
-      ((!cancelled()) && needs.activation.result == 'success' && needs.config.result == 'success' && needs.release.result == 'success') &&
-      (needs.activation.outputs.daily_ai_credits_exceeded != 'true')
+      ((!cancelled()) && needs.activation.result == 'success' && needs.config.result == 'success' && needs.defender.result == 'success' &&
+      needs.push_tag.result == 'success' && needs.release.result == 'success' && needs.sync_actions.result == 'success' &&
+      needs.validate_container_pins.result == 'success') && (needs.activation.outputs.daily_ai_credits_exceeded != 'true')
     runs-on: ubuntu-latest
     # Permissions for the agent job (workflow permissions default to none).
     permissions:
