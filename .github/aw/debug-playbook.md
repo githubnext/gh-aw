@@ -255,10 +255,10 @@ work or bypass profiles/effect scopes.
 | `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
 | `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
-| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
-| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
-| `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding/ownership. | Correct authorized binding; never adopt others' issues. |
+| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope/CAS. | Reconcile ledger/projection; preserve conflict history. |
+| `projection_target_unavailable` | Target existence/visibility/journal. | Restore authorized access; inaccessible != deleted. |
+| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending`, `projection_write_ambiguous`, `projection_receipt_pending`, `projection_unavailable` | Checkpoint/pacing/pages, immutable receipts/acknowledgements. | Bounded reconciliation; preserve locks; no duplicate writes/mirrors; never mistake pending for terminal failure. |
 
 ## Unmapped codes
 
