@@ -8,7 +8,7 @@ function galleryGroup(page: Page) {
   });
 }
 
-test("Gallery keeps its five featured entries and More button outside gallery pages", async ({ page }) => {
+test("Gallery generates a More button after its five featured entries outside gallery pages", async ({ page }) => {
   await page.goto("/gh-aw/introduction/overview/");
 
   const group = galleryGroup(page);

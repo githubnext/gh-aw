@@ -435,7 +435,6 @@ export default defineConfig({
             { label: "Feature Synchronization", link: "/gallery/multi-repo/feature-sync/" },
             { label: "Cross-Repository Issue Tracking", link: "/gallery/multi-repo/issue-tracking/" },
             { label: "Dependabot Rollout", link: "/gallery/multi-repo/dependabot-rollout/", attrs: { "data-gallery-preview": "" } },
-            { label: "More...", link: "/gallery/" },
           ],
         },
         {
@@ -443,11 +442,11 @@ export default defineConfig({
           items: [
             { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
             { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
+            { label: "Using MCPs", link: "/guides/mcps/" },
+            { label: "Network Configuration", link: "/guides/network-configuration/" },
             { label: "Safe Rollout in Organizations", link: "/guides/safe-rollout/" },
             { label: "Sharing Workflows in Organizations", link: "/guides/sharing-workflows/" },
             { label: "Measuring Impact", link: "/guides/measuring-impact/" },
-            { label: "Using MCPs", link: "/guides/mcps/" },
-            { label: "Network Configuration", link: "/guides/network-configuration/" },
             { label: "Agentic Automation Workshop", link: "https://githubnext.github.io/gh-aw-workshop/", attrs: { class: "sidebar-external", target: "_blank", rel: "noopener", "aria-label": "Agentic Automation Workshop (opens in a new tab)" } },
           ],
         },

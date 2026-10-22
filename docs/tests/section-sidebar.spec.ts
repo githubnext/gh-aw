@@ -4,8 +4,8 @@ const sections = [
   {
     label: "Guides",
     preview: ["GitHub Actions Primer", "Using at Scale in Organizations", "More..."],
-    more: "/gh-aw/guides/safe-rollout/",
-    other: "/gh-aw/guides/mcps/",
+    more: "/gh-aw/guides/mcps/",
+    other: "/gh-aw/guides/network-configuration/",
     count: 8,
   },
   {
@@ -103,6 +103,19 @@ for (const section of sections) {
     }
   });
 }
+
+test("Guides keeps Using MCPs and Network Configuration in positions three and four", async ({ page }) => {
+  for (const route of ["/gh-aw/guides/mcps/", "/gh-aw/introduction/overview/"]) {
+    await page.goto(route);
+    const group = sidebarGroup(page, "Guides");
+    if (route === "/gh-aw/introduction/overview/") {
+      if ((await group.getAttribute("open")) === null) await group.locator("summary").click();
+      await group.getByRole("button", { name: "More...", exact: true }).click();
+    }
+    await expect(group.locator("a").nth(2)).toHaveText("Using MCPs");
+    await expect(group.locator("a").nth(3)).toHaveText("Network Configuration");
+  }
+});
 
 test("Working with Workflows belongs to Setup and keeps Guides compact", async ({ page }) => {
   await page.goto("/gh-aw/setup/working-with-workflows/");

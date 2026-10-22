@@ -46,18 +46,22 @@ Astro.locals.starlightRoute.sidebar = Astro.locals.starlightRoute.sidebar.map((e
 		};
 	}
 	if (entry.label !== 'Gallery') return entry;
-	const fullCatalog = entry.entries.map((item) => item.type === 'link' && item.label === 'More...'
-		? { ...item, label: 'All workflows' }
-		: item);
+	const overview: (typeof entry.entries)[number] = {
+		type: 'link',
+		label: 'All workflows',
+		href: `${import.meta.env.BASE_URL.replace(/\/$/, '')}/gallery/`,
+		isCurrent: Astro.locals.starlightRoute.id === 'gallery',
+		attrs: {},
+	};
+	const fullCatalog = [...entry.entries, overview];
 	if (section === 'gallery') return { ...entry, collapsed: false, entries: fullCatalog };
 	catalogs.set('gallery', fullCatalog);
 	return {
 		...entry,
-		entries: entry.entries.filter((item) => item.type === 'link' &&
-			('data-gallery-preview' in item.attrs || item.label === 'More...'))
-			.map((item) => item.type === 'link' && item.label === 'More...'
-				? { ...item, attrs: { ...item.attrs, 'data-sidebar-more': 'gallery' } }
-				: item),
+		entries: [
+			...entry.entries.filter((item) => item.type === 'link' && 'data-gallery-preview' in item.attrs),
+			{ ...overview, label: 'More...', attrs: { 'data-sidebar-more': 'gallery' } },
+		],
 	};
 });
 ---
