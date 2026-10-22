@@ -146,6 +146,11 @@ Use this to suppress content from known-bad accounts — automated bots, comprom
 
 `trusted-users` elevates content from listed GitHub usernames to `approved` integrity, regardless of their author association. This is useful for contractors, partner developers, or external contributors who should be treated as trusted even though GitHub classifies them as `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`.
 
+Bot logins such as `github-actions[bot]` are also valid. Use the full login, including the `[bot]` suffix. Trust is configured per author and does not extend to other authors' comments on a trusted bot's issue or pull request. Listing a bot does not require lowering `min-integrity` to `none`.
+
+> [!NOTE]
+> MCP gateway v0.4.37 fixes author-trust handling for wrapped `issue_read` responses. Earlier versions could filter trusted authors' issue bodies as `DIFC_FILTERED` at `min-integrity: approved`. Workflows compiled with an earlier gateway version must be recompiled with an updated CLI to use the fix; see the [runtime fix and regression coverage](https://github.com/github/gh-aw-mcpg/pull/15292).
+
 ```aw wrap
 tools:
   github:
@@ -153,6 +158,7 @@ tools:
     trusted-users:
       - "contractor-1"
       - "partner-dev"
+      - "github-actions[bot]"
 ```
 
 Trust elevation only raises integrity — it never lowers it. A user already at `merged` stays at `merged`. `blocked-users` always takes precedence: if a user appears in both `blocked-users` and `trusted-users`, they are blocked.

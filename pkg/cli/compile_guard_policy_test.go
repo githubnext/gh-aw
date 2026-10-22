@@ -408,6 +408,63 @@ This workflow uses trusted-users alongside blocked-users.
 	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
 }
 
+// TestGuardPolicyTrustedBotCompiledOutput verifies compile-time policy handoff only.
+// Runtime bot-content elevation is covered by the MCP gateway's labeling/filtering tests:
+// https://github.com/github/gh-aw-mcpg/pull/15292 (released in v0.4.37).
+func TestGuardPolicyTrustedBotCompiledOutput(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		value   string
+		imports bool
+	}{
+		{name: "string", value: `"github-actions[bot]"`},
+		{name: "array", value: `["github-actions[bot]"]`},
+		{name: "shared defaults", value: `"github-actions[bot]"`, imports: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tmpDir := t.TempDir()
+			tools := `tools:
+  github:
+    min-integrity: approved
+    trusted-users: ` + tc.value + "\n"
+			configuration := tools
+			if tc.imports {
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "shared.md"), []byte("---\n"+tools+"---\n"), 0o644))
+				configuration = "imports:\n  - shared.md\n"
+			}
+			workflowPath := filepath.Join(tmpDir, "trusted-bot.md")
+			content := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+` + configuration + `---
+
+# Implement an issue
+
+Read the triggering issue using issue_read and implement it.
+`
+			require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+			compiler := workflow.NewCompiler()
+			require.NoError(t, CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{}))
+			lockBytes, err := os.ReadFile(filepath.Join(tmpDir, "trusted-bot.lock.yml"))
+			require.NoError(t, err)
+			lock := string(lockBytes)
+			assert.Contains(t, lock, `GH_AW_TRUSTED_USERS_EXTRA: github-actions[bot]`)
+			assert.Contains(t, lock, `GH_AW_GUARD_TRUSTED_USERS: ${{ steps.parse-guard-vars.outputs.trusted_users }}`)
+			assert.Contains(t, lock, `"trusted-users": ${GH_AW_GUARD_TRUSTED_USERS}`)
+			assert.Contains(t, lock, `"min-integrity": "approved"`)
+			assert.NotContains(t, lock, `"min-integrity": "none"`)
+			assert.NotContains(t, lock, `additional-instructions:`)
+		})
+	}
+}
+
 // TestGuardPolicyTrustedUsersExpressionCompiledOutput verifies that a trusted-users GitHub
 // Actions expression is passed through as a string in the compiled guard-policies block.
 func TestGuardPolicyTrustedUsersExpressionCompiledOutput(t *testing.T) {
