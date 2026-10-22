@@ -64,7 +64,7 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 		}
 		if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
 			beforeActivation := jobDependsOnPreActivation(configMap) && !jobDependsOnActivation(configMap)
-			if !beforeActivation && !setutil.Contains(postAgentJobs, jobName) && !graph.DependsOn(jobName, string(constants.AgentJobName)) {
+			if !beforeActivation && !graph.DependsOn(jobName, string(constants.AgentJobName)) {
 				depends = append(depends, jobName)
 			}
 		}
