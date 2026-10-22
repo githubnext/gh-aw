@@ -66,17 +66,13 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	}
 
 	engine := &BehaviorDefinedEngine{
-		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
-			BaseEngine: BaseEngine{
-				id:               def.ID,
-				displayName:      def.DisplayName,
-				description:      def.Description,
-				experimental:     def.Experimental,
-				ghSkillAgentName: def.GHSkillAgentName,
-				capabilities:     capabilities,
-			},
-		},
-		definition: def,
+		id:               def.ID,
+		displayName:      def.DisplayName,
+		description:      def.Description,
+		experimental:     def.Experimental,
+		ghSkillAgentName: def.GHSkillAgentName,
+		capabilities:     capabilities,
+		definition:       def,
 	}
 	if engine.protectedSessionCaptureEnabled() && engine.buildWrappedLogParserScript() == "" {
 		return nil, fmt.Errorf("engine definition %q enables protected-session-capture without a usable log-parser", def.ID)
