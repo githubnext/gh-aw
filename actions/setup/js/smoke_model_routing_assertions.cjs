@@ -42,6 +42,9 @@ const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
  *   the proxy selection record's selected effort. This is the harness's record
  *   of the effort it passed to the client, kept separate from runner/proxy
  *   evidence; it is not evidence of the effort on the upstream wire.
+ * - H2 coverage effort (only when `expectSelectedEffort` is set): the proxy
+ *   selection record's selected effort equals the expected effort, so a run
+ *   that routed to a different effort is not mistaken for coverage of it.
  * - S1 sub-agent ran exactly once; S2 completed without failing; S3 status 200 on
  *   the declared model and endpoint; S4 events carry the declared agent name
  *   (when configured)
@@ -131,6 +134,7 @@ const RESOLVED_STATUSES = ["exact", "resolved"];
  *   executionOutcome?: string,
  *   steering?: SteeringExpectation,
  *   expectAppliedEffort?: boolean,
+ *   expectSelectedEffort?: string,
  * }} RoutingExpectations
  * @typedef {{ passes: string[], failures: string[], info?: string[] }} RoutingAssertionResults
  */
@@ -532,6 +536,21 @@ function evaluateAppliedEffortEvidence({ events, harnessOutcome }) {
   return results;
 }
 
+/**
+ * H2: the proxy-selected effort is the effort this smoke exists to cover.
+ * @param {{ events: any[], expectedEffort: string }} evidence
+ * @returns {RoutingAssertionResults}
+ */
+function evaluateSelectedEffortCoverage({ events, expectedEffort }) {
+  /** @type {RoutingAssertionResults} */
+  const results = { passes: [], failures: [], info: [] };
+  const selection = events.filter(event => event?.type === "firewall.model_routing" && event.provenance?.component === "firewall" && event.data?.stage === "selection" && event.data?.selectedModel).at(-1)?.data;
+  const selectedEffort = selection?.selectedEffort ?? null;
+  if (selectedEffort === expectedEffort) results.passes.push(`PASS H2 proxy-selected effort ${selectedEffort} is the covered effort`);
+  else results.failures.push(`FAIL H2 proxy-selected effort ${selectedEffort ?? "null"}, expected ${expectedEffort}: this run does not cover the ${expectedEffort} path`);
+  return results;
+}
+
 /** @param {unknown} value @returns {number | undefined} */
 function finiteNumber(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -898,6 +917,11 @@ function checkModelRoutingEvidence(options) {
     results.passes.push(...applied.passes);
     results.failures.push(...applied.failures);
   }
+  if (expectations.expectSelectedEffort) {
+    const coverage = evaluateSelectedEffortCoverage({ events: evidence.events, expectedEffort: expectations.expectSelectedEffort });
+    results.passes.push(...coverage.passes);
+    results.failures.push(...coverage.failures);
+  }
   if (hasSessionContract(expectations)) appendSessionContract(results, evidence, expectations);
   if (expectations.steering) {
     // T4: the existing checks still pass alongside the steering checks.
@@ -1152,6 +1176,7 @@ module.exports = {
   evaluateModelRoutingEvidence,
   evaluateSteeringEvidence,
   evaluateAppliedEffortEvidence,
+  evaluateSelectedEffortCoverage,
   collectModelRoutingEvidence,
   checkModelRoutingEvidence,
   main,

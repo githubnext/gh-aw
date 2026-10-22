@@ -26,7 +26,7 @@ engine:
   model-provider: github
   model-routing:
     goal: cost
-    mode: auto
+    mode: robust
     allowed-models: [gpt-5.6-luna, gpt-5.6-terra, gpt-5.6-sol]
 imports:
   - shared/smoke-test-brevity.md
@@ -64,6 +64,7 @@ post-steps:
           allowedModels: ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
           mainEndpoint: "/responses",
           expectAppliedEffort: true,
+          expectSelectedEffort: "max",
         });
 ---
 
@@ -81,4 +82,4 @@ Create an issue titled **"Smoke Test: Codex Routed - ${{ github.run_id }}"** wit
 - ✅ for the task above
 - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-The routing verdict comes from the post-step, which checks runner- and proxy-written evidence and the harness-recorded applied effort, not this report.
+The routing verdict comes from the post-step, which checks runner- and proxy-written evidence and the harness-recorded applied effort, not this report. It fails (H2) when the proxy selected an effort other than `max`, so a run that did not exercise `max` is never counted as coverage.

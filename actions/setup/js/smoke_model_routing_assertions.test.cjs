@@ -531,7 +531,7 @@ describe("smoke_model_routing_assertions", () => {
     const ROUTING = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
     const golden = file => fs.readFileSync(path.join(goldenDir, file), "utf8");
     const GPT_56 = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
-    const codexExpectations = { engine: "codex", allowedModels: GPT_56, mainEndpoint: "/responses", executionOutcome: "success", expectAppliedEffort: true };
+    const codexExpectations = { engine: "codex", allowedModels: GPT_56, mainEndpoint: "/responses", executionOutcome: "success", expectAppliedEffort: true, expectSelectedEffort: "max" };
     const lunaReflect = {
       endpoints: [{ provider: "copilot", routing_models: [{ model_id: "gpt-5.6-luna", supported_endpoints: ["/responses", "ws:/responses"], supported_reasoning_efforts: ["none", "low", "medium", "high", "xhigh", "max"] }] }],
     };
@@ -556,9 +556,10 @@ describe("smoke_model_routing_assertions", () => {
 
     it.each(["max", "none"])("routed_codex_smoke_records_selected_effort_as_applied (%s)", effort => {
       codexFixture({ selectedEffort: effort });
-      const results = codexCheck();
+      const results = codexCheck({ expectSelectedEffort: effort });
       expect(results.failures).toEqual([]);
-      expect(checkIds(results.passes)).toEqual(["E2", "E1", "R1", "R2", "R3", "R4", "M1", "H1"]);
+      expect(checkIds(results.passes)).toEqual(["E2", "E1", "R1", "R2", "R3", "R4", "M1", "H1", "H2"]);
+      expect(results.passes).toContain(`PASS H2 proxy-selected effort ${effort} is the covered effort`);
       expect(results.passes).toContain(`PASS H1 harness-written outcome applied_effort=${effort} matches the proxy-selected effort for gpt-5.6-luna (harness record, not upstream wire evidence)`);
       expect(results.passes).toContain("PASS R3 main-agent request on selected model: gpt-5.6-luna /responses 200");
     });
@@ -572,11 +573,18 @@ describe("smoke_model_routing_assertions", () => {
         .join("\n");
       expect(engine).toContain("  id: codex");
       expect(engine).toContain("  model-provider: github");
+      expect(engine).toContain("    mode: robust");
       expect(engine).toMatch(/\n {2}model-routing:\n(?: {4}.*\n)* {4}allowed-models: \[gpt-5\.6-luna, gpt-5\.6-terra, gpt-5\.6-sol\]/);
       expect(workflow).toContain('engine: "codex"');
       expect(workflow).toContain('allowedModels: ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]');
       expect(workflow).toContain('mainEndpoint: "/responses"');
       expect(workflow).toContain("expectAppliedEffort: true");
+      expect(workflow).toContain('expectSelectedEffort: "max"');
+    });
+
+    it("fails only H2 when the proxy selected high instead of the covered max", () => {
+      codexFixture({ selectedEffort: "high" });
+      expect(codexCheck().failures).toEqual(["FAIL H2 proxy-selected effort high, expected max: this run does not cover the max path"]);
     });
 
     it("fails only H1 when the harness applied a different effort than the proxy selected", () => {
@@ -600,9 +608,10 @@ describe("smoke_model_routing_assertions", () => {
 
     it("does not read the harness outcome or add H1 unless expectAppliedEffort is set", () => {
       codexFixture({ outcome: null });
-      const results = codexCheck({ expectAppliedEffort: undefined });
+      const results = codexCheck({ expectAppliedEffort: undefined, expectSelectedEffort: undefined });
       expect(results.failures).toEqual([]);
       expect(checkIds(results.passes)).not.toContain("H1");
+      expect(checkIds(results.passes)).not.toContain("H2");
     });
   });
 
