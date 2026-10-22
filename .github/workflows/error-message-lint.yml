@@ -7,7 +7,7 @@ on:
       - '.github/workflows/error-message-lint.yml'
       - 'pkg/linters/**'
       - '.github/skills/error-messages/SKILL.md'
-      - 'docs/src/content/docs/contributing/error-messages.md'
+      - 'docs/src/content/docs/troubleshooting/error-messages.md'
       - 'CONTRIBUTING.md'
   workflow_dispatch:
 

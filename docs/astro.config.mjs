@@ -164,6 +164,9 @@ export default defineConfig({
     "/patterns/trialops/": "/gh-aw/experimental/trial-ops/",
     "/patterns/workqueueops/": "/gh-aw/patterns/workqueue-ops/",
 
+    // Contributing → Troubleshooting
+    "/contributing/error-messages/": "/gh-aw/troubleshooting/error-messages/",
+
     // Guides → new locations
     "/guides/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
     "/patterns/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
@@ -400,45 +403,38 @@ export default defineConfig({
             { label: "Claude Code", link: "/engines/claude/" },
             { label: "OpenAI Codex", link: "/engines/codex/" },
             { label: "Google Gemini", link: "/engines/gemini/" },
-            { label: "Agy (experimental)", link: "/engines/agy/" },
             { label: "Pi", link: "/engines/pi/" },
-          ],
-        },
-        {
-          label: "Guides",
-          items: [
-            { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
-            { label: "Using MCPs", link: "/guides/mcps/" },
-            { label: "Network Configuration", link: "/guides/network-configuration/" },
-            { label: "Deploying a Work Queue", link: "/guides/deploy-work-queue/" },
-            { label: "Agentic Automation Workshop", link: "/workshop/" },
-            { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
           ],
         },
         {
           label: "Gallery",
           items: [
-            { label: "Gallery Overview", link: "/gallery/" },
             { label: "Issue Triage", link: "/gallery/ai-issue-triage/" },
             { label: "Pull Request Review", link: "/gallery/automated-pr-review/" },
             { label: "Documentation Maintenance", link: "/gallery/docs-automation/" },
             { label: "Repository Maintenance", link: "/gallery/maintaining-repos/" },
-            { label: "CI Failure Investigation", link: "/gallery/ci-failure-investigation/" },
-            { label: "Code Improvement", link: "/gallery/code-improvement/" },
-            { label: "Dependency Analysis", link: "/gallery/dependency-analysis/" },
-            { label: "Metrics and Analytics", link: "/gallery/metrics-analytics/" },
-            { label: "Repository Reporting", link: "/gallery/ai-release-notes/" },
-            { label: "Security Review", link: "/gallery/security-review/" },
-            { label: "Multi-Repository Examples", link: "/gallery/multi-repo/" },
-            { label: "Triage from Side Repo", link: "/gallery/multi-repo/triage-from-side-repo/" },
-            { label: "Code Quality Monitoring", link: "/gallery/multi-repo/code-quality-monitoring/" },
-            { label: "Feature Synchronization", link: "/gallery/multi-repo/feature-sync/" },
-            { label: "Cross-Repository Issue Tracking", link: "/gallery/multi-repo/issue-tracking/" },
             { label: "Dependabot Rollout", link: "/gallery/multi-repo/dependabot-rollout/" },
+            { label: "More...", link: "/gallery/" },
+          ],
+        },
+        {
+          label: "Guides",
+          collapsed: true,
+          items: [
+            { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
+            { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
+            { label: "Safe Rollout in Organizations", link: "/practices/safe-rollout/" },
+            { label: "Sharing Workflows in Organizations", link: "/practices/sharing-workflows/" },
+            { label: "Measuring Impact", link: "/practices/measuring-impact/" },
+            { label: "Using MCPs", link: "/guides/mcps/" },
+            { label: "Network Configuration", link: "/guides/network-configuration/" },
+            { label: "Deploying a Work Queue", link: "/guides/deploy-work-queue/" },
+            { label: "Agentic Automation Workshop", link: "/workshop/" },
           ],
         },
         {
           label: "Design Patterns",
+          collapsed: true,
           items: [
             { label: "BatchOps", link: "/patterns/batch-ops/" },
             { label: "CentralRepoOps", link: "/patterns/central-repo-ops/" },
@@ -461,15 +457,8 @@ export default defineConfig({
           ],
         },
         {
-          label: "Practices",
-          items: [
-            { label: "Measuring Impact", link: "/practices/measuring-impact/" },
-            { label: "Safe Rollout in Organizations", link: "/practices/safe-rollout/" },
-            { label: "Sharing Workflows in Organizations", link: "/practices/sharing-workflows/" },
-          ],
-        },
-        {
           label: "Reference",
+          collapsed: true,
           items: [
             { label: "AI Engines", link: "/reference/engines/" },
             { label: "AI Engines (Custom)", link: "/reference/third-party-agent/" },
@@ -550,18 +539,15 @@ export default defineConfig({
           items: [{ autogenerate: { directory: "specs" } }],
         },
         {
-          label: "Contributing",
-          collapsed: true,
-          items: [{ label: "Error Message Style Guide", link: "/contributing/error-messages/" }],
-        },
-        {
           label: "Troubleshooting",
+          collapsed: true,
           items: [{ autogenerate: { directory: "troubleshooting" } }],
         },
         {
           label: "Experimental",
           collapsed: true,
           items: [
+            { label: "Agy Engine (experimental)", link: "/engines/agy/" },
             { label: "A/B Experiments", link: "/experimental/experiments/" },
             { label: "A/B Experiments (Spec)", link: "/experimental/experiments-specification/" },
             { label: "AWF Reflect Route", link: "/experimental/awf-reflect/" },
