@@ -48,7 +48,6 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "status command in analysis group", commandName: "status", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "list command in analysis group", commandName: "list", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "health command in analysis group", commandName: "health", expectedGroup: "analysis", shouldHaveGroup: true},
-		{name: "outcomes command in analysis group", commandName: "outcomes", expectedGroup: "analysis", shouldHaveGroup: true},
 		{name: "checks command in analysis group", commandName: "checks", expectedGroup: "analysis", shouldHaveGroup: true},
 		// Hidden commands should still be grouped so they appear in the correct
 		// section when explicitly shown (for example in full help/test contexts).
@@ -75,6 +74,9 @@ func TestCommandGroupAssignments(t *testing.T) {
 	commandMap := make(map[string]*cobra.Command, len(rootCmd.Commands()))
 	for _, cmd := range rootCmd.Commands() {
 		commandMap[cmd.Name()] = cmd
+	}
+	if commandMap["outcomes"] != nil {
+		t.Fatal("outcomes must be exposed through logs, not as a standalone command")
 	}
 
 	for _, tt := range tests {

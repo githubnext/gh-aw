@@ -77,6 +77,9 @@ const (
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
 
+	// ArtifactSetOutcomes downloads executed safe-output manifests.
+	ArtifactSetOutcomes ArtifactSet = "outcomes"
+
 	// ArtifactSetGraders downloads the artifacts that carry grader results
 	// (grader_results.json): built-ins in usage, combined custom results from the
 	// separate graders job, and historical agent/fallback layouts.
@@ -109,7 +112,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	// also carries a copy of the state and assignments staged by the conclusion job.
 	ArtifactSetExperiment: {constants.ExperimentArtifactName.String(), constants.UsageArtifactName.String()},
 	// usage: compact conclusion artifact for lightweight reporting/forecasting.
-	ArtifactSetUsage: {constants.UsageArtifactName.String()},
+	ArtifactSetUsage:    {constants.UsageArtifactName.String()},
+	ArtifactSetOutcomes: {constants.SafeOutputItemsArtifactName.String()},
 	// evals: evals results are now included in the usage artifact.
 	ArtifactSetEvals: {constants.UsageArtifactName.String()},
 	// graders: conclusion publishes built-ins in usage; the separate graders job

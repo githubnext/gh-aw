@@ -16,7 +16,7 @@ import (
 
 func NewOutcomesEpisodesSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "episodes",
+		Use:   "outcomes-episodes",
 		Short: "Join episode membership with recorded outcome observations",
 		Long: `Summarize the latest recorded outcomes for each episode in a logs JSON report.
 
@@ -24,9 +24,9 @@ This is an offline join, not a live evaluator. Membership is limited to the
 supplied logs selection. Usage is read from downloaded run-* directories,
 including detection usage; missing evidence and cost are explicitly qualified.
 Generate membership with gh aw logs --verbose --json and record observations
-with gh aw outcomes <run-id> --outcomes-dir <directory>.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` outcomes episodes --logs logs.json --outcomes-dir ./outcomes
-  ` + string(constants.CLIExtensionPrefix) + ` outcomes episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json`,
+with gh aw logs --outcomes --outcomes-dir <directory>.`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes
+  ` + string(constants.CLIExtensionPrefix) + ` logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			logsPath, _ := cmd.Flags().GetString("logs")
@@ -174,7 +174,7 @@ func readEpisodeOutcomeObservations(dir string) ([]EpisodeOutcomeObservation, er
 		observations = append(observations, reports...)
 	}
 	if len(observations) == 0 {
-		return nil, fmt.Errorf("no outcome observations found in %s; record them with gh aw outcomes <run-id> --outcomes-dir <directory>", dir)
+		return nil, fmt.Errorf("no outcome observations found in %s; record them with gh aw logs --outcomes --outcomes-dir <directory>", dir)
 	}
 	return observations, nil
 }

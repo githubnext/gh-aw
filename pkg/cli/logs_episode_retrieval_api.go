@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -66,10 +67,11 @@ func (c *episodeCollector) listRuns(ctx context.Context, repository string, page
 }
 
 type episodeArtifact struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Expired     bool   `json:"expired"`
-	SizeInBytes int64  `json:"size_in_bytes"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Expired     bool      `json:"expired"`
+	SizeInBytes int64     `json:"size_in_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (c *episodeCollector) listArtifacts(ctx context.Context, run WorkflowRun) ([]episodeArtifact, error) {
@@ -87,7 +89,11 @@ func (c *episodeCollector) listArtifacts(ctx context.Context, run WorkflowRun) (
 			return nil, fmt.Errorf("decode artifact discovery page: %w", err)
 		}
 		for _, artifact := range response.Artifacts {
-			if artifact.ID <= 0 || !artifactMatchesFilter(artifact.Name, []string{"info", "usage"}) {
+			filter := []string{"info", "usage"}
+			if c.opts.Outcomes {
+				filter = append(filter, "safe-outputs-items")
+			}
+			if artifact.ID <= 0 || !artifactMatchesFilter(artifact.Name, filter) {
 				continue
 			}
 			artifacts = append(artifacts, artifact)

@@ -46,10 +46,10 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 	run := func() (EpisodeOutcomesData, string) {
 		t.Helper()
 		var stdout, stderr bytes.Buffer
-		cmd := NewOutcomesCommand()
+		cmd := NewLogsCommand()
 		cmd.SetOut(&stdout)
 		cmd.SetErr(&stderr)
-		cmd.SetArgs([]string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
+		cmd.SetArgs([]string{"outcomes-episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
 		require.NoError(t, cmd.Execute())
 		content := stdout.Bytes()
 		var data EpisodeOutcomesData
@@ -168,7 +168,7 @@ func TestOutcomesEpisodesConfiguredWriters(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(usageDir, usageFile), []byte(tc.usage+"\n"), 0o600))
 			var stdout, stderr bytes.Buffer
 			writeErr := errors.New("writer failed")
-			cmd := NewOutcomesCommand()
+			cmd := NewLogsCommand()
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 			cmd.SetOut(&stdout)
@@ -179,7 +179,7 @@ func TestOutcomesEpisodesConfiguredWriters(t *testing.T) {
 			if tc.failStderr {
 				cmd.SetErr(episodeOutputErrorWriter{writeErr})
 			}
-			args := []string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir}
+			args := []string{"outcomes-episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir}
 			if tc.json {
 				args = append(args, "--json")
 			}
@@ -279,10 +279,10 @@ func TestEpisodeOutcomesOptionalCoverageInput(t *testing.T) {
 
 func TestNewOutcomesEpisodesSubcommand(t *testing.T) {
 	t.Parallel()
-	cmd := NewOutcomesCommand()
-	found, _, err := cmd.Find([]string{"episodes"})
+	cmd := NewLogsCommand()
+	found, _, err := cmd.Find([]string{"outcomes-episodes"})
 	require.NoError(t, err)
-	require.Equal(t, "episodes", found.Name())
+	require.Equal(t, "outcomes-episodes", found.Name())
 	assert.NotNil(t, found.Flags().Lookup("logs"))
 	assert.NotNil(t, found.Flags().Lookup("outcomes-dir"))
 	assert.Equal(t, defaultLogsOutputDir, found.Flags().Lookup("output").DefValue)

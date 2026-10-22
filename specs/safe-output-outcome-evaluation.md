@@ -8,7 +8,7 @@ last_updated: 2026-10-19
 
 # Safe Output Outcome Evaluation Specification
 
-Every safe output type has a measurable outcome. This spec defines the evaluation logic for each type and the attribute contract for optional downstream OTel export. Production evaluation runs exclusively through `gh aw outcomes`; the CLI emits JSON and optional JSONL, not outcome OTel spans.
+Every safe output type has a measurable outcome. This spec defines the evaluation logic for each type and the attribute contract for optional downstream OTel export. Production evaluation runs through `gh aw logs --outcomes`, including episode collection; the CLI emits JSON and optional JSONL, not outcome OTel spans.
 
 ## Principles
 
@@ -23,7 +23,7 @@ The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be 
 
 1. A primary-object `404` for issue, PR, or comment creation is `rejected`/`strong`/`deleted`. A supplementary endpoint `404` MUST NOT imply object deletion.
 2. Other API failures return `error`/`weak`/`evaluation_error`. Failure to fetch supplementary PR effort evidence does not undo authoritative merge acceptance, but MUST prevent zero-touch proof.
-3. Evaluation workers MUST NOT infer acceptance from unavailable data. Each `gh aw outcomes` invocation checks current state; reevaluation requires a later invocation. Automatic scheduling and API-specific backoff remain outside this command.
+3. Evaluation workers MUST NOT infer acceptance from unavailable data. Each logs invocation with `--outcomes` checks current state; reevaluation requires a later invocation. Automatic scheduling and API-specific backoff remain outside this command.
 
 ## Provenance Limits
 
@@ -151,10 +151,11 @@ Common actor and evidence helpers live in `outcome_eval_evidence.go`.
 Discussion, review-thread, review-comment creation, and comment-hiding
 evaluators remain unsupported. Fallback outputs have no implemented acceptance
 rule. Workflow handlers record execution evidence in the safe-output manifest;
-only `gh aw outcomes` evaluates that evidence against later GitHub state.
+only logs with `--outcomes` evaluates that evidence against later GitHub state.
 The impact report projects CLI JSON without implementing classification rules.
-Per-run AIC per accepted outcome is available in outcomes summaries; per-item
-cost attribution and automatic episode/outcome joins remain separate work.
+Per-run AIC per accepted outcome is available in outcomes summaries. Logs with
+`--outcomes` also joins observations to the selected episodes, retaining partial
+coverage qualifications. Per-item cost attribution remains separate work.
 
 ---
 
@@ -762,7 +763,7 @@ From the outcome evaluations above, compute:
 | `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
 | `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric | `pkg/cli/outcome_economics.go` (`addAIC`) |
 
-These metrics are returned in `gh aw outcomes --json`. `--outcomes-dir` writes
+These metrics are returned in `.outcomes[]` of `gh aw logs --outcomes --json`. `--outcomes-dir` writes
 per-item JSONL for downstream processing; OTel conversion is not built in.
 
 ## Implementation Priority

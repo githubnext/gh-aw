@@ -77,7 +77,7 @@ Use these deterministic files first:
 - /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-evaluations.jsonl
 - /tmp/gh-aw/agent/objective-impact-report/safe-output-issue-summary.json
 
-`safe-output-issue-evaluations.jsonl` contains the current `gh aw outcomes --json` classifications, evidence, workflow attribution, and any available objective attribution. Use these fields directly; never reclassify acceptance from successful issue creation or closure. If objective attribution is unavailable, use non-empty optional `*-with-objective.json` files or compute objective mapping from linked/root issue labels.
+`safe-output-issue-evaluations.jsonl` contains the current `gh aw logs --outcomes --json` classifications, evidence, workflow attribution, and any available objective attribution. Use these fields directly; never reclassify acceptance from successful issue creation or closure. If objective attribution is unavailable, use non-empty optional `*-with-objective.json` files or compute objective mapping from linked/root issue labels.
 
 Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing.
 
@@ -131,7 +131,7 @@ If a run's `aic` field is missing or null, treat it as `0` and count it as missi
 Analyze only the following outcome types from the last 180 days:
 
 - **Pull request outcomes**: PRs created by GitHub Agentic Workflow runs **that have a linked closing issue** (`Closes #N`). Accepted = merged. Rejected = closed without merge. Skip open (pending) PRs. **Exclude entirely** any PR without a traceable linked issue — do not fall back to PR labels.
-- **Safe output outcomes**: issues created or closed by workflow runs via the safe-output mechanism. Accepted only when `gh aw outcomes` reports `outcome_status: "accepted"`. Exclude unresolved, error, and lifecycle-only classifications from delivered-value totals and report their counts separately.
+- **Safe output outcomes**: issues created or closed by workflow runs via the safe-output mechanism. Accepted only when `gh aw logs --outcomes` reports `outcome_status: "accepted"`. Exclude unresolved, error, and lifecycle-only classifications from delivered-value totals and report their counts separately.
 
 Exclude all other outcome types (direct issue outcomes, comments, discussions, etc.). These are omitted because their acceptance criteria are incomplete and most are left pending, which would distort the metric.
 

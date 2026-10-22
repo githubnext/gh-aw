@@ -15,13 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewOutcomesCommand_AddsHistorySubcommand(t *testing.T) {
-	cmd := NewOutcomesCommand()
+func TestLogsOutcomesHistorySubcommand(t *testing.T) {
+	cmd := NewLogsCommand()
 	require.NotNil(t, cmd)
 
-	historyCmd, _, err := cmd.Find([]string{"history"})
+	historyCmd, _, err := cmd.Find([]string{"outcomes-history"})
 	require.NoError(t, err)
-	assert.Equal(t, "history", historyCmd.Name())
+	assert.Equal(t, "outcomes-history", historyCmd.Name())
 }
 
 func TestBuildHistoricalObjectiveReport(t *testing.T) {

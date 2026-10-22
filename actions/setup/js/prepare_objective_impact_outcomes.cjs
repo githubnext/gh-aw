@@ -48,9 +48,10 @@ function prepareIssueOutcomes(dataDir, repo) {
     seen.add(id);
     let raw;
     try {
-      raw = execFileSync("gh", ["aw", "outcomes", String(id), "--repo", repo, "--output", runsDir, "--json"], {
+      raw = execFileSync("gh", ["aw", "logs", "--stdin", "--outcomes", "--repo", repo, "--output", runsDir, "--json"], {
+        input: `${id}\n`,
         encoding: "utf8",
-        stdio: ["ignore", "pipe", "inherit"],
+        stdio: ["pipe", "pipe", "inherit"],
         timeout: getSetupTimeoutMs("outcomeGh"),
       });
     } catch (error) {
@@ -58,12 +59,13 @@ function prepareIssueOutcomes(dataDir, repo) {
     }
     let report;
     try {
-      report = JSON.parse(raw);
+      const logs = JSON.parse(raw);
+      report = logs?.outcomes?.find(entry => entry?.run_id === id);
     } catch (error) {
-      throw new Error(`${ERR_PARSE}: Invalid gh aw outcomes JSON for run ${id}`, { cause: error });
+      throw new Error(`${ERR_PARSE}: Invalid gh aw logs --outcomes JSON for run ${id}`, { cause: error });
     }
-    if (!report || report.run_id !== id || !Array.isArray(report.items) || report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")) {
-      throw new Error(`${ERR_VALIDATION}: Invalid gh aw outcomes report for run ${id}`);
+    if (!report || report.eval_error || report.run_id !== id || !Array.isArray(report.items) || report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")) {
+      throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report for run ${id}`);
     }
     for (const item of report.items) {
       if (item.type !== "create_issue" && item.type !== "close_issue") continue;

@@ -62,8 +62,9 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw forecast` | `NewForecastCommand` | Forecast token usage and costs for agentic workflows |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | `gh aw deploy` | `NewDeployCommand` | Deploy agentic workflows to a target repository using a pull request |
-| `gh aw outcomes` | `NewOutcomesCommand` | Check what happened to a workflow run's safe outputs |
-| `gh aw outcomes history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
+| `gh aw logs --outcomes` | `NewLogsCommand` | Check what happened to selected runs' safe outputs |
+| `gh aw logs outcomes-history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
+| `gh aw logs outcomes-episodes` | `NewOutcomesEpisodesSubcommand` | Join recorded outcomes with episode membership offline |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
 | `gh aw doctor` | `NewDoctorCommand` | Run diagnostics to verify CLI authentication and repository setup |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
@@ -91,7 +92,6 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `HealthSummary` | struct | Aggregate health summary across workflows. |
 | `ChecksConfig` | struct | Inputs for normalizing CI check state for a pull request. |
 | `ChecksResult` | struct | Normalized check-rollup result returned by `FetchChecksResult`. |
-| `OutcomesConfig` | struct | Configuration for safe-output outcome evaluation for a single run. |
 | `OutcomesData` | struct | Structured outcomes report for JSON output. |
 | `UpdateWorkflowsOptions` | struct | Options controlling `gh aw update` behavior for sourced workflows. |
 | `WorkflowStatus` | struct | Status view for a workflow, combining list metadata with latest run state. |
@@ -142,8 +142,6 @@ The `cli` package is intentionally large and command-oriented. The tables below 
 | `NewChecksCommand` | `func NewChecksCommand() *cobra.Command` | Constructs the `gh aw checks` command. |
 | `RunChecks` | `func RunChecks(config ChecksConfig) error` | Emits normalized PR check state. |
 | `FetchChecksResult` | `func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, error)` | Returns normalized CI state for a pull request. |
-| `NewOutcomesCommand` | `func NewOutcomesCommand() *cobra.Command` | Constructs the `gh aw outcomes` command. |
-| `RunOutcomes` | `func RunOutcomes(ctx context.Context, config OutcomesConfig) error` | Evaluates what happened to safe outputs from a workflow run. |
 | `EvaluateOutcomes` | `func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport` | Evaluates current state for created GitHub objects. |
 | `ComputeOutcomeSummary` | `func ComputeOutcomeSummary(reports []OutcomeReport, mapping *github.ObjectiveMapping) OutcomeSummary` | Summarizes outcome reports. |
 | `NewUpdateCommand` | `func NewUpdateCommand(validateEngine func(string) error) *cobra.Command` | Constructs the `gh aw update` command. |

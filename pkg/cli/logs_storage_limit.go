@@ -116,11 +116,13 @@ func effectiveLogsMaxStorageMB(maxStorageMB int, explicitlySet bool) int {
 
 func normalizeLogsDownloadOptions(opts LogsDownloadOptions) LogsDownloadOptions {
 	opts.MaxStorageMB = effectiveLogsMaxStorageMB(opts.MaxStorageMB, opts.MaxStorageMBSet)
+	opts.ArtifactSets = logsOutcomeArtifactSets(opts.ArtifactSets, opts.Outcomes)
 	return opts
 }
 
 func normalizeStdinLogsOptions(opts StdinLogsOptions) StdinLogsOptions {
 	opts.MaxStorageMB = effectiveLogsMaxStorageMB(opts.MaxStorageMB, opts.MaxStorageMBSet)
+	opts.ArtifactSets = logsOutcomeArtifactSets(opts.ArtifactSets, opts.Outcomes)
 	return opts
 }
 

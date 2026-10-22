@@ -141,18 +141,37 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	return dir, nil
 }
 
-func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run WorkflowRun, artifacts []episodeArtifact, runDir string) ([]*AwInfo, []string, error) {
-	slices.SortStableFunc(artifacts, func(a, b episodeArtifact) int {
-		// Prefer info over usage when both contain a copy of aw_info.json.
-		if kind := strings.Compare(episodeArtifactKind(a.Name), episodeArtifactKind(b.Name)); kind != 0 {
-			return kind
+func compareEpisodeArtifacts(a, b episodeArtifact) int {
+	if aOutcome, bOutcome := episodeArtifactKind(a.Name) == "outcomes", episodeArtifactKind(b.Name) == "outcomes"; aOutcome != bOutcome {
+		if aOutcome {
+			return 1
 		}
-		return strings.Compare(a.Name, b.Name)
-	})
+		return -1
+	}
+	// Prefer info over usage when both contain a copy of aw_info.json.
+	if kind := strings.Compare(episodeArtifactKind(a.Name), episodeArtifactKind(b.Name)); kind != 0 {
+		return kind
+	}
+	return strings.Compare(a.Name, b.Name)
+}
+
+func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run WorkflowRun, artifacts []episodeArtifact, runDir string) ([]*AwInfo, []string, error) {
+	slices.SortStableFunc(artifacts, compareEpisodeArtifacts)
 	var infos []*AwInfo
 	var dirs []string
 	var priorAttempt bool
 	for _, artifact := range artifacts {
+		if episodeArtifactKind(artifact.Name) == "outcomes" {
+			info, err := selectEpisodeInfo(infos)
+			if err != nil || c.report.EpisodeID != "" && strings.TrimSpace(info.Context.EpisodeID) != c.report.EpisodeID {
+				continue
+			}
+			if run.Attempt > 1 && (run.StartedAt.IsZero() || artifact.CreatedAt.IsZero() || artifact.CreatedAt.Before(run.StartedAt)) {
+				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "outcome_attempt_unverified",
+					errors.New("safe-output manifest cannot be verified as belonging to the current run attempt"))
+				continue
+			}
+		}
 		dir, err := c.loadArtifact(ctx, run, artifact, runDir)
 		if err != nil {
 			if errors.Is(err, errEpisodeArtifactExpired) {
@@ -162,11 +181,15 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 			if _, identityErr := selectEpisodeInfo(infos); identityErr == nil && c.handleStop(err) {
 				break // Retain verified membership; the explicit stop qualifies incomplete usage.
 			}
-			if episodeArtifactKind(artifact.Name) == "usage" && episodeArtifactUnavailable(err) {
+			if episodeArtifactKind(artifact.Name) != "info" && episodeArtifactUnavailable(err) {
 				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "missing_artifact", err)
 				continue
 			}
 			return nil, nil, err
+		}
+		if episodeArtifactKind(artifact.Name) == "outcomes" {
+			dirs = append(dirs, dir)
+			continue
 		}
 		artifactInfos, err := readEpisodeArtifactInfo(dir, run)
 		if err != nil {
@@ -193,7 +216,7 @@ func episodeArtifactUnavailable(err error) bool {
 // collection. Older collections keep their own inventory and cached evidence.
 func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
 	id, kind, artifactDir := strings.Cut(filepath.Base(filepath.Clean(runDir)), "-")
-	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage") {
+	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage" || kind == "outcomes") {
 		return nil, false, nil // An archive cannot supply its own trusted collection inventory.
 	}
 	data, err := os.ReadFile(filepath.Join(runDir, ".episode-artifacts.json"))
@@ -211,7 +234,7 @@ func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
 	for _, relative := range inventory {
 		name := filepath.Base(relative)
 		id, kind, valid := strings.Cut(name, "-")
-		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" || relative != filepath.Join("..", name) {
+		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" && kind != "outcomes" || relative != filepath.Join("..", name) {
 			return nil, true, fmt.Errorf("invalid episode artifact inventory entry %q", relative)
 		}
 		dir := filepath.Join(runDir, relative)
@@ -250,6 +273,9 @@ func extractEpisodeArtifact(ctx context.Context, data []byte, dir string) error 
 }
 
 func episodeArtifactKind(name string) string {
+	if artifactMatchesFilter(name, []string{"safe-outputs-items"}) {
+		return "outcomes"
+	}
 	if artifactMatchesFilter(name, []string{"info"}) {
 		return "info"
 	}

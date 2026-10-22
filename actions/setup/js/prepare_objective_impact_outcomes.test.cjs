@@ -29,11 +29,11 @@ function writeRuns(runs) {
 }
 
 function report(items, runId = 1) {
-  return JSON.stringify({ run_id: runId, workflow: "producer", items });
+  return JSON.stringify({ outcomes: [{ run_id: runId, workflow: "producer", items }] });
 }
 
 describe("CLI-backed impact report outcomes", () => {
-  it("uses gh aw outcomes and preserves its evidence and objective attribution without reclassification", () => {
+  it("uses gh aw logs --outcomes and preserves its evidence and objective attribution without reclassification", () => {
     writeRuns([{ run_id: 1, workflow_name: "old-name", aic: 4, url: "https://github.com/acme/repo/actions/runs/1" }]);
     exec.mockReturnValue(
       report([
@@ -54,7 +54,7 @@ describe("CLI-backed impact report outcomes", () => {
       ])
     );
     prepareIssueOutcomes(root, "acme/repo");
-    expect(exec).toHaveBeenCalledExactlyOnceWith("gh", ["aw", "outcomes", "1", "--repo", "acme/repo", "--output", path.join(root, "safe-output-runs"), "--json"], expect.objectContaining({ encoding: "utf8" }));
+    expect(exec).toHaveBeenCalledExactlyOnceWith("gh", ["aw", "logs", "--stdin", "--outcomes", "--repo", "acme/repo", "--output", path.join(root, "safe-output-runs"), "--json"], expect.objectContaining({ encoding: "utf8", input: "1\n" }));
     const rows = fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ run_id: 1, workflow_name: "producer", workflow_aic: 4, number: 42, outcome_status: "pending", signal: "open", detail: "created successfully", objective_value: 3, zero_touch: false });
@@ -89,11 +89,14 @@ describe("CLI-backed impact report outcomes", () => {
     expect(fs.existsSync(path.join(root, "safe-output-issue-summary.json"))).toBe(false);
   });
 
-  it.each(["invalid JSON", '{"run_id":1}', '{"run_id":2,"items":[]}', '{"run_id":1,"items":[null]}'])("rejects malformed CLI output: %s", output => {
-    writeRuns([{ run_id: 1 }]);
-    exec.mockReturnValue(output);
-    expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow(/Invalid gh aw outcomes/);
-  });
+  it.each(["invalid JSON", '{"run_id":1}', '{"outcomes":[{"run_id":2,"items":[]}]}', '{"outcomes":[{"run_id":1,"items":[null]}]}', '{"outcomes":[{"run_id":1,"items":[],"eval_error":"missing manifest"}]}'])(
+    "rejects malformed CLI output: %s",
+    output => {
+      writeRuns([{ run_id: 1 }]);
+      exec.mockReturnValue(output);
+      expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow(/Invalid gh aw logs --outcomes/);
+    }
+  );
 
   it("rejects missing or invalid inputs rather than publishing no outcomes", () => {
     expect(() => prepareIssueOutcomes(root, "")).toThrow("GITHUB_REPOSITORY is required");

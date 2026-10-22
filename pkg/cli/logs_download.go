@@ -100,7 +100,7 @@ func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
 		return true
 	}
 	for _, artifact := range artifactFilter {
-		if artifact != constants.ActivationArtifactName.String() && artifact != constants.InfoArtifactName.String() && artifact != constants.UsageArtifactName.String() {
+		if artifact != constants.ActivationArtifactName.String() && artifact != constants.InfoArtifactName.String() && artifact != constants.UsageArtifactName.String() && artifact != constants.SafeOutputItemsArtifactName.String() {
 			return true
 		}
 	}

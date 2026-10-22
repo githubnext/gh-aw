@@ -55,10 +55,10 @@ func TestOutcomeJSONLObjectiveRoundtrip(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(usageDir, "agent_usage.jsonl"), []byte("{\"aic\":1.25}\n"), 0o600))
 
 	var stdout, stderr bytes.Buffer
-	cmd := NewOutcomesCommand()
+	cmd := NewLogsCommand()
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
+	cmd.SetArgs([]string{"outcomes-episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
 	require.NoError(t, cmd.Execute())
 	assert.Empty(t, stderr.String())
 	var data EpisodeOutcomesData

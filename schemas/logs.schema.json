@@ -4996,6 +4996,658 @@
           ],
           "additionalProperties": false
         },
+        "outcomes": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "run_id": {
+                "type": "integer"
+              },
+              "workflow": {
+                "type": "string"
+              },
+              "items": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "outcome_status": {
+                      "type": "string"
+                    },
+                    "evidence_strength": {
+                      "type": "string"
+                    },
+                    "signal": {
+                      "type": "string"
+                    },
+                    "item_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "object_url": {
+                      "type": "string"
+                    },
+                    "object_number": {
+                      "type": "integer"
+                    },
+                    "traced_root_url": {
+                      "type": "string"
+                    },
+                    "attribution_status": {
+                      "type": "string"
+                    },
+                    "attribution_source": {
+                      "type": "string"
+                    },
+                    "repo": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "time_to_outcome_hours": {
+                      "type": "number"
+                    },
+                    "human_comments": {
+                      "type": "integer"
+                    },
+                    "human_edits": {
+                      "type": "integer"
+                    },
+                    "human_reviews": {
+                      "type": "integer"
+                    },
+                    "zero_touch": {
+                      "type": "boolean"
+                    },
+                    "objective_value": {
+                      "type": "integer"
+                    },
+                    "objective_labels": {
+                      "type": [
+                        "null",
+                        "array"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "checked_at": {
+                      "type": "string"
+                    },
+                    "eval_error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "outcome_status",
+                    "evidence_strength",
+                    "type",
+                    "created_at",
+                    "checked_at"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "accepted": {
+                    "type": "integer"
+                  },
+                  "rejected": {
+                    "type": "integer"
+                  },
+                  "ignored": {
+                    "type": "integer"
+                  },
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "unknown": {
+                    "type": "integer"
+                  },
+                  "accepted_strong": {
+                    "type": "integer"
+                  },
+                  "accepted_medium": {
+                    "type": "integer"
+                  },
+                  "accepted_weak": {
+                    "type": "integer"
+                  },
+                  "fallback_exists_only_count": {
+                    "type": "integer"
+                  },
+                  "lifecycle": {
+                    "type": "integer"
+                  },
+                  "errors": {
+                    "type": "integer"
+                  },
+                  "zero_touch": {
+                    "type": "integer"
+                  },
+                  "acceptance_rate": {
+                    "type": "number"
+                  },
+                  "waste_rate": {
+                    "type": "number"
+                  },
+                  "zero_touch_rate": {
+                    "type": "number"
+                  },
+                  "median_time_to_outcome_hours": {
+                    "type": "number"
+                  },
+                  "cost_per_accepted_outcome": {
+                    "type": "number"
+                  },
+                  "total_objective_value": {
+                    "type": "integer"
+                  },
+                  "accepted_objective_value": {
+                    "type": "integer"
+                  },
+                  "objective_efficiency": {
+                    "type": "number"
+                  },
+                  "domain_breakdowns": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "attempted": {
+                          "type": "integer"
+                        },
+                        "accepted": {
+                          "type": "integer"
+                        },
+                        "rejected": {
+                          "type": "integer"
+                        },
+                        "pending": {
+                          "type": "integer"
+                        },
+                        "total_objective_value": {
+                          "type": "integer"
+                        },
+                        "accepted_objective_value": {
+                          "type": "integer"
+                        },
+                        "objective_efficiency": {
+                          "type": "number"
+                        },
+                        "acceptance_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "attempted",
+                        "accepted",
+                        "rejected",
+                        "pending",
+                        "total_objective_value",
+                        "accepted_objective_value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "total",
+                  "accepted",
+                  "rejected",
+                  "ignored",
+                  "pending",
+                  "unknown",
+                  "lifecycle",
+                  "errors",
+                  "zero_touch",
+                  "acceptance_rate",
+                  "waste_rate",
+                  "zero_touch_rate"
+                ],
+                "additionalProperties": false
+              },
+              "eval_error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "run_id",
+              "items",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "episode_outcomes": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "episodes": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "episode_id": {
+                    "type": "string"
+                  },
+                  "run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "membership_scope": {
+                    "type": "string",
+                    "description": "Always selected_runs; membership outside the supplied logs is not verified"
+                  },
+                  "membership_coverage": {
+                    "type": [
+                      "null",
+                      "object"
+                    ],
+                    "properties": {
+                      "scope": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "reasons": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "collection_truncated": {
+                        "type": "boolean"
+                      }
+                    },
+                    "description": "Optional lineage and collection coverage copied from logs, separate from outcome and cost coverage",
+                    "required": [
+                      "scope",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "items": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "run_id": {
+                          "type": "integer"
+                        },
+                        "run_item_count": {
+                          "type": "integer"
+                        },
+                        "outcome_status": {
+                          "type": "string"
+                        },
+                        "evidence_strength": {
+                          "type": "string"
+                        },
+                        "signal": {
+                          "type": "string"
+                        },
+                        "item_id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "object_url": {
+                          "type": "string"
+                        },
+                        "object_number": {
+                          "type": "integer"
+                        },
+                        "traced_root_url": {
+                          "type": "string"
+                        },
+                        "attribution_status": {
+                          "type": "string"
+                        },
+                        "attribution_source": {
+                          "type": "string"
+                        },
+                        "repo": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "time_to_outcome_hours": {
+                          "type": "number"
+                        },
+                        "human_comments": {
+                          "type": "integer"
+                        },
+                        "human_edits": {
+                          "type": "integer"
+                        },
+                        "human_reviews": {
+                          "type": "integer"
+                        },
+                        "zero_touch": {
+                          "type": "boolean"
+                        },
+                        "objective_value": {
+                          "type": "integer"
+                        },
+                        "objective_labels": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "checked_at": {
+                          "type": "string"
+                        },
+                        "eval_error": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "run_id",
+                        "outcome_status",
+                        "evidence_strength",
+                        "type",
+                        "created_at",
+                        "checked_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "summary": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "integer"
+                      },
+                      "accepted": {
+                        "type": "integer"
+                      },
+                      "rejected": {
+                        "type": "integer"
+                      },
+                      "ignored": {
+                        "type": "integer"
+                      },
+                      "pending": {
+                        "type": "integer"
+                      },
+                      "unknown": {
+                        "type": "integer"
+                      },
+                      "accepted_strong": {
+                        "type": "integer"
+                      },
+                      "accepted_medium": {
+                        "type": "integer"
+                      },
+                      "accepted_weak": {
+                        "type": "integer"
+                      },
+                      "fallback_exists_only_count": {
+                        "type": "integer"
+                      },
+                      "lifecycle": {
+                        "type": "integer"
+                      },
+                      "errors": {
+                        "type": "integer"
+                      },
+                      "zero_touch": {
+                        "type": "integer"
+                      },
+                      "acceptance_rate": {
+                        "type": "number"
+                      },
+                      "waste_rate": {
+                        "type": "number"
+                      },
+                      "zero_touch_rate": {
+                        "type": "number"
+                      },
+                      "median_time_to_outcome_hours": {
+                        "type": "number"
+                      },
+                      "cost_per_accepted_outcome": {
+                        "type": "number"
+                      },
+                      "total_objective_value": {
+                        "type": "integer"
+                      },
+                      "accepted_objective_value": {
+                        "type": "integer"
+                      },
+                      "objective_efficiency": {
+                        "type": "number"
+                      },
+                      "domain_breakdowns": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string"
+                            },
+                            "attempted": {
+                              "type": "integer"
+                            },
+                            "accepted": {
+                              "type": "integer"
+                            },
+                            "rejected": {
+                              "type": "integer"
+                            },
+                            "pending": {
+                              "type": "integer"
+                            },
+                            "total_objective_value": {
+                              "type": "integer"
+                            },
+                            "accepted_objective_value": {
+                              "type": "integer"
+                            },
+                            "objective_efficiency": {
+                              "type": "number"
+                            },
+                            "acceptance_rate": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "attempted",
+                            "accepted",
+                            "rejected",
+                            "pending",
+                            "total_objective_value",
+                            "accepted_objective_value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "total",
+                      "accepted",
+                      "rejected",
+                      "ignored",
+                      "pending",
+                      "unknown",
+                      "lifecycle",
+                      "errors",
+                      "zero_touch",
+                      "acceptance_rate",
+                      "waste_rate",
+                      "zero_touch_rate"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "observed_aic": {
+                    "type": [
+                      "null",
+                      "number"
+                    ],
+                    "description": "Sum of available selected-run AIC, including detection usage; null when no cost is available"
+                  },
+                  "cost_per_accepted_outcome": {
+                    "type": [
+                      "null",
+                      "number"
+                    ],
+                    "description": "Selected-run observed AIC divided by accepted items; null for incomplete evidence or cost, ambiguous identities, or no accepted items"
+                  },
+                  "cost_coverage": {
+                    "type": "string",
+                    "description": "available, partial, or unavailable for selected run IDs"
+                  },
+                  "outcome_coverage": {
+                    "type": "string",
+                    "description": "complete or partial for selected runs only, not full-episode membership"
+                  },
+                  "outcome_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_outcome_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "cost_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_cost_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "qualifications": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "episode_id",
+                  "run_ids",
+                  "membership_scope",
+                  "items",
+                  "summary",
+                  "observed_aic",
+                  "cost_per_accepted_outcome",
+                  "cost_coverage",
+                  "outcome_coverage",
+                  "outcome_run_ids",
+                  "missing_outcome_run_ids",
+                  "cost_run_ids",
+                  "missing_cost_run_ids",
+                  "missing_run_ids",
+                  "qualifications"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "unmatched_outcome_run_ids": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "required": [
+            "episodes",
+            "unmatched_outcome_run_ids"
+          ],
+          "additionalProperties": false
+        },
         "tool_usage": {
           "type": [
             "null",
@@ -7431,6 +8083,658 @@
               "type": "boolean"
             }
           },
+          "additionalProperties": false
+        },
+        "outcomes": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "run_id": {
+                "type": "integer"
+              },
+              "workflow": {
+                "type": "string"
+              },
+              "items": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "outcome_status": {
+                      "type": "string"
+                    },
+                    "evidence_strength": {
+                      "type": "string"
+                    },
+                    "signal": {
+                      "type": "string"
+                    },
+                    "item_id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "object_url": {
+                      "type": "string"
+                    },
+                    "object_number": {
+                      "type": "integer"
+                    },
+                    "traced_root_url": {
+                      "type": "string"
+                    },
+                    "attribution_status": {
+                      "type": "string"
+                    },
+                    "attribution_source": {
+                      "type": "string"
+                    },
+                    "repo": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "time_to_outcome_hours": {
+                      "type": "number"
+                    },
+                    "human_comments": {
+                      "type": "integer"
+                    },
+                    "human_edits": {
+                      "type": "integer"
+                    },
+                    "human_reviews": {
+                      "type": "integer"
+                    },
+                    "zero_touch": {
+                      "type": "boolean"
+                    },
+                    "objective_value": {
+                      "type": "integer"
+                    },
+                    "objective_labels": {
+                      "type": [
+                        "null",
+                        "array"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "checked_at": {
+                      "type": "string"
+                    },
+                    "eval_error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "outcome_status",
+                    "evidence_strength",
+                    "type",
+                    "created_at",
+                    "checked_at"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "accepted": {
+                    "type": "integer"
+                  },
+                  "rejected": {
+                    "type": "integer"
+                  },
+                  "ignored": {
+                    "type": "integer"
+                  },
+                  "pending": {
+                    "type": "integer"
+                  },
+                  "unknown": {
+                    "type": "integer"
+                  },
+                  "accepted_strong": {
+                    "type": "integer"
+                  },
+                  "accepted_medium": {
+                    "type": "integer"
+                  },
+                  "accepted_weak": {
+                    "type": "integer"
+                  },
+                  "fallback_exists_only_count": {
+                    "type": "integer"
+                  },
+                  "lifecycle": {
+                    "type": "integer"
+                  },
+                  "errors": {
+                    "type": "integer"
+                  },
+                  "zero_touch": {
+                    "type": "integer"
+                  },
+                  "acceptance_rate": {
+                    "type": "number"
+                  },
+                  "waste_rate": {
+                    "type": "number"
+                  },
+                  "zero_touch_rate": {
+                    "type": "number"
+                  },
+                  "median_time_to_outcome_hours": {
+                    "type": "number"
+                  },
+                  "cost_per_accepted_outcome": {
+                    "type": "number"
+                  },
+                  "total_objective_value": {
+                    "type": "integer"
+                  },
+                  "accepted_objective_value": {
+                    "type": "integer"
+                  },
+                  "objective_efficiency": {
+                    "type": "number"
+                  },
+                  "domain_breakdowns": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "attempted": {
+                          "type": "integer"
+                        },
+                        "accepted": {
+                          "type": "integer"
+                        },
+                        "rejected": {
+                          "type": "integer"
+                        },
+                        "pending": {
+                          "type": "integer"
+                        },
+                        "total_objective_value": {
+                          "type": "integer"
+                        },
+                        "accepted_objective_value": {
+                          "type": "integer"
+                        },
+                        "objective_efficiency": {
+                          "type": "number"
+                        },
+                        "acceptance_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "attempted",
+                        "accepted",
+                        "rejected",
+                        "pending",
+                        "total_objective_value",
+                        "accepted_objective_value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "total",
+                  "accepted",
+                  "rejected",
+                  "ignored",
+                  "pending",
+                  "unknown",
+                  "lifecycle",
+                  "errors",
+                  "zero_touch",
+                  "acceptance_rate",
+                  "waste_rate",
+                  "zero_touch_rate"
+                ],
+                "additionalProperties": false
+              },
+              "eval_error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "run_id",
+              "items",
+              "summary"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "episode_outcomes": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "episodes": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "episode_id": {
+                    "type": "string"
+                  },
+                  "run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "membership_scope": {
+                    "type": "string",
+                    "description": "Always selected_runs; membership outside the supplied logs is not verified"
+                  },
+                  "membership_coverage": {
+                    "type": [
+                      "null",
+                      "object"
+                    ],
+                    "properties": {
+                      "scope": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "reasons": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "collection_truncated": {
+                        "type": "boolean"
+                      }
+                    },
+                    "description": "Optional lineage and collection coverage copied from logs, separate from outcome and cost coverage",
+                    "required": [
+                      "scope",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "items": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "run_id": {
+                          "type": "integer"
+                        },
+                        "run_item_count": {
+                          "type": "integer"
+                        },
+                        "outcome_status": {
+                          "type": "string"
+                        },
+                        "evidence_strength": {
+                          "type": "string"
+                        },
+                        "signal": {
+                          "type": "string"
+                        },
+                        "item_id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "object_url": {
+                          "type": "string"
+                        },
+                        "object_number": {
+                          "type": "integer"
+                        },
+                        "traced_root_url": {
+                          "type": "string"
+                        },
+                        "attribution_status": {
+                          "type": "string"
+                        },
+                        "attribution_source": {
+                          "type": "string"
+                        },
+                        "repo": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "time_to_outcome_hours": {
+                          "type": "number"
+                        },
+                        "human_comments": {
+                          "type": "integer"
+                        },
+                        "human_edits": {
+                          "type": "integer"
+                        },
+                        "human_reviews": {
+                          "type": "integer"
+                        },
+                        "zero_touch": {
+                          "type": "boolean"
+                        },
+                        "objective_value": {
+                          "type": "integer"
+                        },
+                        "objective_labels": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "checked_at": {
+                          "type": "string"
+                        },
+                        "eval_error": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "run_id",
+                        "outcome_status",
+                        "evidence_strength",
+                        "type",
+                        "created_at",
+                        "checked_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "summary": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "integer"
+                      },
+                      "accepted": {
+                        "type": "integer"
+                      },
+                      "rejected": {
+                        "type": "integer"
+                      },
+                      "ignored": {
+                        "type": "integer"
+                      },
+                      "pending": {
+                        "type": "integer"
+                      },
+                      "unknown": {
+                        "type": "integer"
+                      },
+                      "accepted_strong": {
+                        "type": "integer"
+                      },
+                      "accepted_medium": {
+                        "type": "integer"
+                      },
+                      "accepted_weak": {
+                        "type": "integer"
+                      },
+                      "fallback_exists_only_count": {
+                        "type": "integer"
+                      },
+                      "lifecycle": {
+                        "type": "integer"
+                      },
+                      "errors": {
+                        "type": "integer"
+                      },
+                      "zero_touch": {
+                        "type": "integer"
+                      },
+                      "acceptance_rate": {
+                        "type": "number"
+                      },
+                      "waste_rate": {
+                        "type": "number"
+                      },
+                      "zero_touch_rate": {
+                        "type": "number"
+                      },
+                      "median_time_to_outcome_hours": {
+                        "type": "number"
+                      },
+                      "cost_per_accepted_outcome": {
+                        "type": "number"
+                      },
+                      "total_objective_value": {
+                        "type": "integer"
+                      },
+                      "accepted_objective_value": {
+                        "type": "integer"
+                      },
+                      "objective_efficiency": {
+                        "type": "number"
+                      },
+                      "domain_breakdowns": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string"
+                            },
+                            "attempted": {
+                              "type": "integer"
+                            },
+                            "accepted": {
+                              "type": "integer"
+                            },
+                            "rejected": {
+                              "type": "integer"
+                            },
+                            "pending": {
+                              "type": "integer"
+                            },
+                            "total_objective_value": {
+                              "type": "integer"
+                            },
+                            "accepted_objective_value": {
+                              "type": "integer"
+                            },
+                            "objective_efficiency": {
+                              "type": "number"
+                            },
+                            "acceptance_rate": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "attempted",
+                            "accepted",
+                            "rejected",
+                            "pending",
+                            "total_objective_value",
+                            "accepted_objective_value"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "total",
+                      "accepted",
+                      "rejected",
+                      "ignored",
+                      "pending",
+                      "unknown",
+                      "lifecycle",
+                      "errors",
+                      "zero_touch",
+                      "acceptance_rate",
+                      "waste_rate",
+                      "zero_touch_rate"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "observed_aic": {
+                    "type": [
+                      "null",
+                      "number"
+                    ],
+                    "description": "Sum of available selected-run AIC, including detection usage; null when no cost is available"
+                  },
+                  "cost_per_accepted_outcome": {
+                    "type": [
+                      "null",
+                      "number"
+                    ],
+                    "description": "Selected-run observed AIC divided by accepted items; null for incomplete evidence or cost, ambiguous identities, or no accepted items"
+                  },
+                  "cost_coverage": {
+                    "type": "string",
+                    "description": "available, partial, or unavailable for selected run IDs"
+                  },
+                  "outcome_coverage": {
+                    "type": "string",
+                    "description": "complete or partial for selected runs only, not full-episode membership"
+                  },
+                  "outcome_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_outcome_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "cost_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_cost_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "missing_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "qualifications": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "episode_id",
+                  "run_ids",
+                  "membership_scope",
+                  "items",
+                  "summary",
+                  "observed_aic",
+                  "cost_per_accepted_outcome",
+                  "cost_coverage",
+                  "outcome_coverage",
+                  "outcome_run_ids",
+                  "missing_outcome_run_ids",
+                  "cost_run_ids",
+                  "missing_cost_run_ids",
+                  "missing_run_ids",
+                  "qualifications"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "unmatched_outcome_run_ids": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "required": [
+            "episodes",
+            "unmatched_outcome_run_ids"
+          ],
           "additionalProperties": false
         }
       },

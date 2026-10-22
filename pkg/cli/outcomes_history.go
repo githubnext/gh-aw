@@ -81,15 +81,15 @@ type historicalGitHubItem struct {
 
 func NewOutcomesHistorySubcommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "history",
+		Use:   "outcomes-history",
 		Short: "Score recent issues and merged PRs against the objective mapping",
 		Long: `Score recent issues and merged pull requests against the objective mapping.
 
 This gives a quick local historical view of what kinds of work the repository
 has been closing or merging under the current objective mapping.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` outcomes history
-  ` + string(constants.CLIExtensionPrefix) + ` outcomes history --source issues --limit 100
-  ` + string(constants.CLIExtensionPrefix) + ` outcomes history --repo owner/repo --json`,
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` logs outcomes-history
+  ` + string(constants.CLIExtensionPrefix) + ` logs outcomes-history --source issues --limit 100
+  ` + string(constants.CLIExtensionPrefix) + ` logs outcomes-history --repo owner/repo --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonOutput, _ := cmd.Flags().GetBool("json")

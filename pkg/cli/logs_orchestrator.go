@@ -318,6 +318,13 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (err er
 	if err != nil {
 		return err
 	}
+	var outcomeReports []OutcomesData
+	if opts.Outcomes {
+		outcomeReports, err = collectLogsOutcomes(ctx, result.processedRuns, opts.OutcomesDir, opts.Verbose)
+		if err != nil {
+			return err
+		}
+	}
 	renderLogsCollectionStats(opts.collectionStats)
 	finishGitHubAPIRateLimitReport(ctx, apiRateLimit, opts.JSONOutput)
 	renderLogsDownloadStatsSummary(opts.collectionStats, apiRateLimit)
@@ -348,6 +355,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (err er
 		suppressRender:    opts.SuppressRender,
 		apiRateLimit:      apiRateLimit,
 		cachedJSONLWriter: opts.cachedJSONLWriter,
+		outcomeReports:    outcomeReports,
 	})
 }
 

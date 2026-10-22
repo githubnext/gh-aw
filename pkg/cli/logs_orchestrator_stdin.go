@@ -309,6 +309,13 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) (
 		message = "Storage limit reached. Results are partial because some input runs were not downloaded."
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
 	}
+	var outcomeReports []OutcomesData
+	if opts.Outcomes {
+		outcomeReports, err = collectLogsOutcomes(ctx, processedRuns, opts.OutcomesDir, opts.Verbose)
+		if err != nil {
+			return err
+		}
+	}
 	finishGitHubAPIRateLimitReports(ctx, allAPIRateLimits, opts.JSONOutput)
 	cacheGitHubAPIRateLimitReports(cachedJSONLWriter, allAPIRateLimits...)
 	apiRateLimit, apiRateLimits := partitionGitHubAPIRateLimitReports(allAPIRateLimits)
@@ -330,5 +337,6 @@ func DownloadWorkflowLogsFromStdin(ctx context.Context, opts StdinLogsOptions) (
 		apiRateLimit:      apiRateLimit,
 		apiRateLimits:     apiRateLimits,
 		cachedJSONLWriter: cachedJSONLWriter,
+		outcomeReports:    outcomeReports,
 	})
 }

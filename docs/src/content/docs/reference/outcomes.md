@@ -100,12 +100,13 @@ frontmatter. Configure the actions the workflow may take under
 after a run:
 
 ```bash wrap
-gh aw outcomes 1234567890
+printf '%s\n' 1234567890 | gh aw logs --stdin --repo owner/repo --outcomes
 ```
 
 The command downloads the run's safe-output artifacts, queries the current
-state of each affected GitHub object, and prints the item-level classifications
-and summary. Use a run ID from the repository's GitHub Actions page. Specify
+state of each affected GitHub object, and includes per-run outcome summaries in
+the logs output. Use `--json` for item-level classifications. Use a run ID from
+the repository's GitHub Actions page. Specify
 `--repo owner/repo` when running outside the target repository.
 
 Evaluation is a snapshot, not a permanent verdict. Run it after the workflow
@@ -114,18 +115,19 @@ output type, and evaluate it again while results remain `pending`. A pull
 request may remain pending until review and become accepted when merged; a
 comment may need time to receive a reply or reaction.
 
-`gh aw outcomes` is the sole outcome-evaluation entry point. Workflow execution
+`gh aw logs --outcomes` is the live outcome-evaluation entry point, including
+`gh aw logs episode <run-id-or-url> --outcomes`. Workflow execution
 records safe-output evidence; it does not decide whether those outputs were
 accepted. `gh aw audit` reports execution evidence without checking live outcome
 state. There is no built-in scheduled collector or automatic reevaluation.
-Rerun `gh aw outcomes` later for unresolved items; each invocation checks current
+Rerun logs with `--outcomes` later for unresolved items; each invocation checks current
 GitHub state rather than reusing a cached classification.
 
 Use JSON output to feed a report or inspect the summary:
 
 ```bash wrap
-gh aw outcomes 1234567890 --json |
-  jq '.summary | {total, accepted, rejected, ignored, pending, acceptance_rate}'
+gh aw logs weekly-research --outcomes --json |
+  jq '.outcomes[] | {run_id, summary}'
 ```
 
 Repeat this for comparable runs over a stable time window rather than drawing
@@ -148,7 +150,7 @@ For the span-level attribute inventory, see [OpenTelemetry attribute reference](
 To write per-item outcome JSONL for an OTLP reporting pipeline, use:
 
 ```bash wrap
-gh aw outcomes 1234567890 --outcomes-dir ./outcomes
+gh aw logs weekly-research --outcomes --outcomes-dir ./outcomes
 ```
 
 For repository-wide or organization-wide reporting, collect these records on a
@@ -163,7 +165,7 @@ The basic dashboard for outcomes is therefore intentionally small: total AIC, to
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 
-`gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
+`gh aw logs --outcomes` populates `.outcomes[].summary.cost_per_accepted_outcome` when positive AIC
 usage and at least one accepted outcome are available. This is the full
 observed run AIC, including detection usage, divided by accepted output items,
 not a per-item allocation. Cost is computed from usage artifacts independently
@@ -176,14 +178,20 @@ For orchestrated workflows, multiple runs can belong to one logical execution. I
 
 ### Episode Outcome Summaries
 
-`gh aw outcomes episodes` joins recorded outcome observations to the episode
+`gh aw logs --outcomes` includes per-run observations in `.outcomes[]` and joins
+them with selected episode membership and cost in `.episode_outcomes`.
+Manifests are collected alongside usage artifacts; full agent artifacts and
+workflow logs are not required. Episode membership remains bounded to selected
+runs. `gh aw logs episode <seed> --outcomes` also checks outcomes live when
+membership comes from a cached snapshot; its retrieval API cap covers artifacts
+and discovery, not the additional live outcome queries.
+
+`gh aw logs outcomes-episodes` joins previously recorded outcome observations to the episode
 membership from a logs report. It is an offline report, not another evaluator:
 
 ```bash wrap
-gh aw logs --verbose --json > logs.json
-gh aw outcomes 1234567890 --outcomes-dir ./outcomes
-gh aw outcomes 1234567891 --outcomes-dir ./outcomes
-gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --json
+gh aw logs --outcomes --outcomes-dir ./outcomes --verbose --json > logs.json
+gh aw logs outcomes-episodes --logs logs.json --outcomes-dir ./outcomes --json
 ```
 
 Record outcomes for each selected source run. Use `--output <directory>` on
