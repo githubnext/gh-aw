@@ -461,6 +461,12 @@ export default defineConfig({
           collapsed: true,
           items: [
             { label: "AI Engines", link: "/reference/engines/" },
+            { label: "AI Engines (Copilot)", link: "/reference/engines/copilot/" },
+            { label: "AI Engines (Claude)", link: "/reference/engines/claude/" },
+            { label: "AI Engines (Codex)", link: "/reference/engines/codex/" },
+            { label: "AI Engines (Gemini)", link: "/reference/engines/gemini/" },
+            { label: "AI Engines (Pi)", link: "/reference/engines/pi/" },
+            { label: "AI Engines (Agy)", link: "/reference/engines/agy/" },
             { label: "AI Engines (Custom)", link: "/reference/third-party-agent/" },
             { label: "AI Engines (Azure BYOK)", link: "/reference/azure-openai-byok/" },
             { label: "Authentication", link: "/reference/auth/" },

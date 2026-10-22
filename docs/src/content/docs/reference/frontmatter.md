@@ -230,7 +230,7 @@ Enables experimental per-run model and reasoning-effort selection for the Copilo
 
 ### Engine Driver (`engine.driver:`)
 
-Overrides the built-in engine runtime driver for engines that support driver mode. For Copilot, setting `engine.driver` also enables SDK mode. `engine.driver` accepts either a string path/command or an inline source object with exactly one of `node:`, `python:`, `go:`, or `java:`. See [AI Engines](/gh-aw/reference/engines/#copilot-sdk-support) for driver requirements and supported formats.
+Overrides the built-in engine runtime driver for engines that support driver mode. For Copilot, setting `engine.driver` also enables SDK mode. `engine.driver` accepts either a string path/command or an inline source object with exactly one of `node:`, `python:`, `go:`, or `java:`. See [AI Engines](/gh-aw/reference/engines/copilot/#copilot-sdk-support) for driver requirements and supported formats.
 
 ```yaml wrap
 engine:
@@ -242,7 +242,7 @@ engine:
 
 ### Engine Extensions (`engine.extensions:`)
 
-Lists engine-specific plugins to install before the agent runs. Only the Pi engine reads this field; each entry is an npm package name passed to `pi install <extension>`. Other engines ignore it. See [Pi Extensions](/gh-aw/reference/engines/#pi-extensions-extensions) for details.
+Lists engine-specific plugins to install before the agent runs. Only the Pi engine reads this field; each entry is an npm package name passed to `pi install <extension>`. Other engines ignore it. See [Pi Extensions](/gh-aw/reference/engines/pi/#pi-extensions-extensions) for details.
 
 ```yaml wrap
 engine:

@@ -1,101 +1,56 @@
 ---
 title: Using Gemini CLI with GitHub Agentic Workflows
-description: Maintain workflows using the deprecated Google Gemini CLI engine and evaluate migration to the experimental Agy engine.
+description: Authenticate Gemini CLI and run your first GitHub Agentic Workflow.
 ---
 
-[Google Gemini CLI](https://geminicli.com/) is a coding agent from Google. GitHub Agentic Workflows runs Gemini CLI in GitHub Actions, adding GitHub event triggers, sandbox controls, and safe outputs for constrained, reviewable automation.
+Run Gemini CLI workflows with a Gemini API key or Google Workload Identity Federation (WIF).
 
-> [!WARNING]
-> The `gemini` engine is deprecated in favor of the experimental [`agy` engine](/gh-aw/engines/agy/).
-> Existing Gemini workflows remain supported, with no automatic migration or removal date.
-> For API-key workflows, review [Agy's migration guidance](/gh-aw/engines/agy/#evaluating-a-gemini-api-key-workflow)
-> before changing engines. Keep `engine: gemini` for Google WIF or features Agy does not support,
-> including native bash restrictions.
+## Connect your account
 
-## Selecting Gemini CLI as the AI engine
+> [!NOTE]
+> Gemini is deprecated but remains supported. Experimental [Agy](/gh-aw/engines/agy/) supports a narrower API-key-only setup; keep Gemini for WIF or command-level shell restrictions.
 
-To select Gemini CLI as the AI engine, with inference hosted and billed through a Google subscription, add this to the workflow frontmatter:
+Set `engine: gemini` and add a [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) repository secret, or configure [Google WIF](/gh-aw/reference/auth/#google-workload-identity-federation-wif).
 
-```yaml
-engine: gemini
-```
+The example grants Copilot access for safe-output threat detection, which uses Copilot rather than Gemini. Supply Copilot authentication or [configure a different detection engine](/gh-aw/reference/threat-detection/).
 
-The default Gemini CLI version is [0.64.0](https://github.com/google-gemini/gemini-cli/releases/tag/v0.64.0).
-To retain a different version, set `engine.id: gemini` and `engine.version` explicitly.
-The engine uses headless `stream-json` output and project-level `.gemini/settings.json`
-for tool restrictions and MCP configuration.
+## Run a daily report
 
-To authenticate, either:
-
-1. Provide [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) as a GitHub Actions repository secret, or
-
-2. configure keyless [Google Workload Identity Federation](/gh-aw/reference/auth/#google-workload-identity-federation-wif).
-
-## Example: scheduled repository report
+After [setting up gh-aw](/gh-aw/setup/quick-start/), save this workflow:
 
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:
+  workflow_dispatch:
   schedule: daily
-
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
+  copilot-requests: write
 engine: gemini
-
+tools:
+  github:
+    toolsets: [issues, pull_requests]
 safe-outputs:
   create-issue:
     title-prefix: "[status] "
-    labels: [report]
-    close-older-issues: true
 ---
 
-# Daily Repository Status
+# Daily repository status
 
-Analyze the repository and create a concise daily status report covering:
-- Open issues and their priority
-- Recent PR activity
-- Upcoming work items
+Summarize open issues and recent pull request activity in one concise issue.
 ```
+
+Compile with `gh aw compile daily-status`, then commit and push both the Markdown and generated lock file. Run it from the repository's Actions tab or wait for its schedule.
 
 ## Capabilities and limitations
 
-Gemini supports top-level `max-turns`, custom API targets, and per-command bash allowlisting. Gemini does not provide native `tools.web-search`; configure an MCP search integration when needed. It also does not support bare mode, `max-continuations`, native `engine.agent` selection, or custom `engine.harness` scripts. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
+Gemini supports command-level shell restrictions, but not native web search; use an [MCP search server](/gh-aw/reference/web-search/). See the [Gemini reference](/gh-aw/reference/engines/gemini/) for configuration and limitations.
 
-Gemini does not resolve [model aliases](/gh-aw/reference/engines/#model-aliases) yet: the configured model reaches the CLI unchanged, and the compiler warns when `model:` is a gh-aw alias. Use an exact model id.
+## Next steps
 
-## Session artifacts
-
-Gemini's native `agent-stdio.log` maps to the standard events in
-`agent-session.jsonl`; conclusion publishes their essential fields in
-`usage/aw_session.jsonl`. Messages retain exact text and streaming whitespace,
-and tool events retain native IDs, structured arguments/results, and observed
-outcomes. Understood provider errors use `session.error`, with non-warning
-diagnostics also available in `session.result.errors`; system status uses
-`session.info`, not an assistant answer. Identified message snapshots retain
-their native history on core events without extra engine-specific wrapper events
-or duplicate text. Existing native extension events remain supported.
-
-Terminal accounting retains `sourceType: "result"` and reported zero values.
-Gemini's `cached` tokens are already included in `input_tokens`; model subtotals
-are not added again. Tool-call counts are not turns, and reasoning-token counts
-are not inferred from a difference between total and input/output tokens.
-Compatible reasoning and structured refusal observations use
-`assistant.reasoning` and `assistant.refusal` when exposed; their absence from a
-native stream does not imply an empty answer or a successful session.
-See the [unified session specification](/gh-aw/specs/unified-agent-session-specification/#74-gemini)
-for the mapping and existing-run fixture provenance.
-
-## GitHub Agentic Workflows vs. running Gemini directly in Actions
-
-Running coding agent CLIs such as `gemini` directly in GitHub Actions without an adequate security architecture is not recommended.  GitHub Agentic Workflows gives an appropriate security architecture and workflow portability across AI engines.
-
-## Learn More
-
-- [Quick start](/gh-aw/setup/quick-start/)
-- [Engine reference](/gh-aw/reference/engines/)
-- [Authentication](/gh-aw/reference/auth/)
-- [Security architecture](/gh-aw/introduction/architecture/)
-- [Gallery](/gh-aw/gallery/)
+- [Gemini CLI technical reference](/gh-aw/reference/engines/gemini/)
+- [Create a workflow](/gh-aw/setup/creating-workflows/)
+- [Workflow examples](/gh-aw/gallery/)
+- [Compare engines](/gh-aw/reference/engines/#engine-feature-comparison)
