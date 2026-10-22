@@ -43,7 +43,7 @@ Compile with `gh aw compile daily-status`, then commit and push both the Markdow
 
 ## Capabilities and limitations
 
-Codex cannot enforce per-command bash allowlists. Use `tools.bash: false` to disable shell execution, or choose another engine when command-level restrictions are required.
+Codex cannot enforce per-command bash allowlists. Because a sandbox is used, bash restrictions are not normally required. If bash restrictions are required, use `tools.bash: false` to disable shell execution, or choose another engine when command-level restrictions are required.
 
 See the [Codex reference](/gh-aw/reference/engines/codex/) for provider differences, web tools, configuration, and runtime limits.
 

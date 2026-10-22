@@ -10,6 +10,46 @@ import { getSection } from './site-nav';
 
 const section = getSection(Astro.locals.starlightRoute.id);
 const heading = section === 'blog' ? 'Blog posts' : 'Documentation';
+
+// Expand section catalogs on their pages; keep short previews elsewhere.
+Astro.locals.starlightRoute.sidebar = Astro.locals.starlightRoute.sidebar.map((entry) => {
+	if (entry.type !== 'group') return entry;
+	if (entry.label === 'Guides' || entry.label === 'Design Patterns' || entry.label === 'Reference') {
+		const directory = entry.label === 'Guides' ? 'guides'
+			: entry.label === 'Design Patterns' ? 'patterns' : 'reference';
+		const id = Astro.locals.starlightRoute.id;
+		const isInSection = id === directory || id.startsWith(`${directory}/`) ||
+			entry.entries.some((item) => item.type === 'link' && item.isCurrent);
+		if (isInSection) return { ...entry, collapsed: false };
+		if (entry.label === 'Reference') {
+			const preview = ['FAQ', 'AI Engines', 'Cost Management', 'Safe Outputs', 'Workflows'].map((label) => {
+				const item = entry.entries.find((item) => item.label === label);
+				if (!item || item.type !== 'link') throw new Error(`Missing Reference sidebar link: ${label}`);
+				return item;
+			});
+			return {
+				...entry,
+				entries: [...preview, ...preview.slice(-1).map((item) => ({ ...item, label: 'More...' }))],
+			};
+		}
+		return {
+			...entry,
+			entries: entry.entries.slice(0, 3).map((item, index) => index === 2 && item.type === 'link'
+				? { ...item, label: 'More...' }
+				: item),
+		};
+	}
+	if (entry.label !== 'Gallery') return entry;
+	return {
+		...entry,
+		entries: section === 'gallery'
+			? entry.entries.map((item) => item.type === 'link' && item.label === 'More...'
+				? { ...item, label: 'All workflows' }
+				: item)
+			: entry.entries.filter((item) => item.type === 'link' &&
+				('data-gallery-preview' in item.attrs || item.label === 'More...')),
+	};
+});
 ---
 
 <div class="mobile-menu-top">

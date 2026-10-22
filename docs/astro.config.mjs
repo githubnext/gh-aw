@@ -410,17 +410,27 @@ export default defineConfig({
         {
           label: "Gallery",
           items: [
-            { label: "Issue Triage", link: "/gallery/ai-issue-triage/" },
-            { label: "Pull Request Review", link: "/gallery/automated-pr-review/" },
-            { label: "Documentation Maintenance", link: "/gallery/docs-automation/" },
-            { label: "Repository Maintenance", link: "/gallery/maintaining-repos/" },
-            { label: "Dependabot Rollout", link: "/gallery/multi-repo/dependabot-rollout/" },
+            { label: "Issue Triage", link: "/gallery/ai-issue-triage/", attrs: { "data-gallery-preview": "" } },
+            { label: "Pull Request Review", link: "/gallery/automated-pr-review/", attrs: { "data-gallery-preview": "" } },
+            { label: "Documentation Maintenance", link: "/gallery/docs-automation/", attrs: { "data-gallery-preview": "" } },
+            { label: "CI Failure Investigation", link: "/gallery/ci-failure-investigation/" },
+            { label: "Code Improvement", link: "/gallery/code-improvement/" },
+            { label: "Dependency Analysis", link: "/gallery/dependency-analysis/" },
+            { label: "Metrics and Analytics", link: "/gallery/metrics-analytics/" },
+            { label: "Repository Reporting", link: "/gallery/ai-release-notes/" },
+            { label: "Repository Maintenance", link: "/gallery/maintaining-repos/", attrs: { "data-gallery-preview": "" } },
+            { label: "Security Review", link: "/gallery/security-review/" },
+            { label: "Multi-Repository Examples", link: "/gallery/multi-repo/" },
+            { label: "Triage from Side Repo", link: "/gallery/multi-repo/triage-from-side-repo/" },
+            { label: "Code Quality Monitoring", link: "/gallery/multi-repo/code-quality-monitoring/" },
+            { label: "Feature Synchronization", link: "/gallery/multi-repo/feature-sync/" },
+            { label: "Cross-Repository Issue Tracking", link: "/gallery/multi-repo/issue-tracking/" },
+            { label: "Dependabot Rollout", link: "/gallery/multi-repo/dependabot-rollout/", attrs: { "data-gallery-preview": "" } },
             { label: "More...", link: "/gallery/" },
           ],
         },
         {
           label: "Guides",
-          collapsed: true,
           items: [
             { label: "GitHub Actions Primer", link: "/guides/github-actions-primer/" },
             { label: "Using at Scale in Organizations", link: "/guides/using-at-scale/" },
@@ -434,7 +444,6 @@ export default defineConfig({
         },
         {
           label: "Design Patterns",
-          collapsed: true,
           items: [
             { label: "BatchOps", link: "/patterns/batch-ops/" },
             { label: "CentralRepoOps", link: "/patterns/central-repo-ops/" },
@@ -458,7 +467,7 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          collapsed: true,
+          collapsed: false,
           items: [
             { label: "AI Engines", link: "/reference/engines/" },
             { label: "AI Engines (Copilot)", link: "/reference/engines/copilot/" },
