@@ -41,6 +41,7 @@ linters:
   settings:
     modernize:
       disable:
+        - embedlit # Keep explicit embedded struct literals without a repository-wide rewrite
         - errorsastype
         - reflecttypeassert
         - stringscut
