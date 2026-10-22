@@ -414,6 +414,8 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 		Provider        string              `json:"provider"`
 		Model           string              `json:"model"`
 		Purpose         string              `json:"purpose"`
+		AgentName       json.RawMessage     `json:"agentName"`
+		CallerSource    json.RawMessage     `json:"callerSource"`
 		Path            string              `json:"path"`
 		XInitiator      string              `json:"xInitiator"`
 		XInitiatorSnake string              `json:"x_initiator"`
@@ -440,6 +442,7 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 	}
 	entry := TokenUsageEntry{
 		Provider: data.Provider, Model: data.Model, Purpose: data.Purpose, Path: data.Path,
+		AgentName: optionalJSONString(data.AgentName), CallerSource: optionalJSONString(data.CallerSource),
 		XInitiator: firstNonEmptyModel(data.XInitiator, data.XInitiatorSnake),
 		RequestID:  data.RequestID, Timestamp: timestamp.Format(time.RFC3339Nano), DurationMs: data.DurationMs,
 		TokenCoreMetrics: TokenCoreMetrics{
@@ -454,6 +457,16 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 		entry.Steering = data.Steering
 	}
 	return entry, nil
+}
+
+// optionalJSONString decodes an optional string field, treating any other JSON
+// value as absent so a malformed caller field never rejects the usage record.
+func optionalJSONString(raw json.RawMessage) string {
+	var value string
+	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	return value
 }
 
 func validateSubagentSessionSource(path string) error {

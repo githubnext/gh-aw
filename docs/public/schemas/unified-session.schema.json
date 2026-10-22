@@ -1208,6 +1208,8 @@
         "provider": { "$ref": "#/definitions/JsonValue" },
         "model": { "$ref": "#/definitions/JsonValue" },
         "purpose": { "$ref": "#/definitions/JsonValue" },
+        "agentName": { "$ref": "#/definitions/JsonValue", "description": "AWF caller declaration: declared sub-agent name for `purpose: subagent`; absent for the main agent and AWF-owned traffic." },
+        "callerSource": { "$ref": "#/definitions/JsonValue", "description": "Origin of `purpose`: `awf` for AWF-owned traffic, `caller_header` for an `x-awf-caller` declaration." },
         "path": { "$ref": "#/definitions/JsonValue" },
         "xInitiator": { "$ref": "#/definitions/JsonValue" },
         "requestId": { "$ref": "#/definitions/JsonValue" },
