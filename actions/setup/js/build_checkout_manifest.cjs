@@ -37,6 +37,7 @@ function readManifestEntriesFromEnv() {
     entries.push({
       repository: process.env[`GH_AW_CHECKOUT_REPO_${i}`] || "",
       path: process.env[`GH_AW_CHECKOUT_PATH_${i}`] || "",
+      ref: process.env[`GH_AW_CHECKOUT_REF_${i}`] || "",
       token: process.env[`GH_AW_CHECKOUT_TOKEN_${i}`] || "",
     });
   }
@@ -118,6 +119,26 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
   return defaultBranch;
 }
 
+// Capture only an explicitly selected branch before the agent can create its own
+// feature branch. Detached tags/SHAs must not be guessed from containing branches.
+function resolveCheckedOutBranch(checkoutPath, ref, options = {}) {
+  if (typeof ref !== "string" || !ref || /^(?:refs\/(?!heads\/)|[a-f0-9]{40}$)/i.test(ref)) return "";
+  const branch = ref.replace(/^refs\/heads\//, "");
+  const repoPath = path.resolve(options.workspace || process.env.GITHUB_WORKSPACE || process.cwd(), checkoutPath);
+  try {
+    const runGit = options.runGit || ((args, execOptions) => execFileSync("git", args, { encoding: "utf8", ...execOptions }));
+    const git = args => runGit(["-C", repoPath, ...args], { stdio: ["ignore", "pipe", "pipe"], timeout: GIT_COMMAND_TIMEOUT_MS }).trim();
+    git(["check-ref-format", "--branch", branch]);
+    const head = git(["rev-parse", "--verify", "HEAD^{commit}"]);
+    const selected = git(["rev-parse", "--verify", `refs/remotes/origin/${branch}^{commit}`]);
+    if (selected === head) return branch;
+    core.debug(`checkout-manifest: selected ref ${ref} no longer matches HEAD at ${checkoutPath}`);
+  } catch (error) {
+    core.debug(`checkout-manifest: ref ${ref} is not an available checked-out branch: ${getErrorMessage(error)}`);
+  }
+  return "";
+}
+
 function buildCheckoutManifest(entries, options = {}) {
   const runnerTemp = options.runnerTemp || process.env.RUNNER_TEMP;
   if (!runnerTemp) {
@@ -151,6 +172,7 @@ function buildCheckoutManifest(entries, options = {}) {
       continue;
     }
     const checkoutPath = String(entry.path || "");
+    const checkedOutRef = resolveCheckedOutBranch(checkoutPath, entry.ref, options);
     const defaultBranch =
       entry.default_branch ||
       resolveDefaultBranch(repository, checkoutPath, {
@@ -163,8 +185,9 @@ function buildCheckoutManifest(entries, options = {}) {
       repository,
       path: checkoutPath,
       default_branch: defaultBranch,
+      ...(checkedOutRef ? { checked_out_ref: checkedOutRef } : {}),
     };
-    core.info(`checkout-manifest: ${repository} -> path=${checkoutPath} default_branch=${defaultBranch || "<unresolved>"}`);
+    core.info(`checkout-manifest: ${repository} -> path=${checkoutPath} checked_out_ref=${checkedOutRef || "<none>"} default_branch=${defaultBranch || "<unresolved>"}`);
   }
 
   try {
@@ -192,4 +215,5 @@ module.exports = {
   parseManifestEntries,
   readManifestEntriesFromEnv,
   resolveDefaultBranch,
+  resolveCheckedOutBranch,
 };

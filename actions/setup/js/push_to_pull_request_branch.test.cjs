@@ -353,6 +353,18 @@ index 0000000..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4
     return patchPath;
   }
 
+  it("rejects a transported patch base that differs from the live PR base before git mutation", async () => {
+    createPatchFile("selected-base-mismatch");
+    const { data: pr } = await mockGithub.rest.pulls.get();
+    pr.base.ref = "release/1";
+    const module = await loadModule();
+    const handler = await module.main({ target: "*", check_branch_protection: false });
+    const result = await handler({ branch: "selected-base-mismatch", pull_request_number: 123, base_branch: "main" }, {});
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("does not match pull request #123's current base 'release/1'");
+    expect(mockExec.exec).not.toHaveBeenCalled();
+  });
+
   describe("merged base provenance", () => {
     const trustedTip = "a".repeat(40);
     const mergedBase = "b".repeat(40);

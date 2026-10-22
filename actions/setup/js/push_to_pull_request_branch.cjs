@@ -876,6 +876,9 @@ async function main(config = {}) {
         core.info(reason);
         return { skipped: true, reason };
       }
+      if (message.base_branch !== undefined && message.base_branch !== pullRequest.base?.ref) {
+        return { success: false, error: `Patch base branch '${message.base_branch}' does not match pull request #${pullNumber}'s current base '${pullRequest.base?.ref}'; regenerate the patch for the current base.` };
+      }
       branchName = pullRequest.head.ref;
       prTitle = pullRequest.title || "";
       prLabels = pullRequest.labels.map(label => label.name);

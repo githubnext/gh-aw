@@ -3,10 +3,12 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+import { createRequire } from "module";
 import { createHandlers, hasUpdatePullRequestFields } from "./safe_outputs_handlers.cjs";
 import { resolveTransportPaths } from "./resolve_transport_paths.cjs";
 import { getPatchPathForBranchInRepo } from "./git_patch_utils.cjs";
 import { getBundlePathForBranchInRepo } from "./generate_git_bundle.cjs";
+import { buildCheckoutManifest } from "./build_checkout_manifest.cjs";
 import {
   looksLikeExploratoryBranch,
   normalizeProbeValue,
@@ -20,6 +22,7 @@ import {
 const LARGE_CONTENT_BODY = "A".repeat(70000);
 const testScratchRoot = path.resolve(`.safe-outputs-handlers-${crypto.randomUUID()}`);
 const originalGitCeiling = process.env.GIT_CEILING_DIRECTORIES;
+const { _resetCache: resetCheckoutManifestCache } = createRequire(import.meta.url)("./checkout_manifest.cjs");
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -163,6 +166,8 @@ describe("safe_outputs_handlers", () => {
     delete process.env.GH_AW_PR_HEAD_BASE_SHA;
     delete process.env.GH_AW_PR_HEAD_BASE_PR_NUMBER;
     delete process.env.GH_AW_PR_HEAD_REPO;
+    delete process.env.GH_AW_CHECKOUT_MANIFEST;
+    resetCheckoutManifestCache();
   });
 
   describe("probe intent helpers", () => {
@@ -1207,6 +1212,9 @@ describe("safe_outputs_handlers", () => {
       execSync(`git update-ref refs/remotes/origin/release-1.12.x ${releaseCommitSha}`, { cwd: targetRepoDir, stdio: "pipe" });
       execSync("git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main", { cwd: targetRepoDir, stdio: "pipe" });
 
+      const { manifestPath } = buildCheckoutManifest([{ repository: "test-owner/test-repo", path: "target-repo", ref: "release-1.12.x" }], { workspace: testWorkspaceDir, runnerTemp: testWorkspaceDir });
+      process.env.GH_AW_CHECKOUT_MANIFEST = manifestPath;
+      resetCheckoutManifestCache();
       fs.writeFileSync(path.join(targetRepoDir, "README.md"), "release local only\n");
       execSync("git add README.md", { cwd: targetRepoDir, stdio: "pipe" });
       execSync("git commit -m 'local only fix'", { cwd: targetRepoDir, stdio: "pipe" });
@@ -1836,8 +1844,9 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should use side-repo origin/HEAD base branch so patch includes branch commits since main", async () => {
+    it("should use the initial side-repo release branch, not origin/HEAD or the agent's feature branch", async () => {
       const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      execSync("git checkout -b feature/release-fix", { cwd: targetRepoDir, stdio: "pipe" });
       process.env.GITHUB_REPOSITORY = "owner/repo";
 
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
@@ -1848,33 +1857,30 @@ describe("safe_outputs_handlers", () => {
       });
 
       const result = await handlers.createPullRequestHandler({
-        branch: "release-1.12.x",
+        branch: "feature/release-fix",
         title: "Release fix",
         body: "Prepare release branch fix",
       });
 
       expect(result.isError).toBeUndefined();
       expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Found repo checkout at: ${targetRepoDir}`));
-      // No base-branch override is configured. The checked-out branch is release-1.12.x,
-      // but origin/HEAD points to origin/main, so base_branch must resolve to main.
       expect(mockAppendSafeOutput).toHaveBeenCalledWith(
         expect.objectContaining({
           type: "create_pull_request",
-          base_branch: "main",
-          branch: "release-1.12.x",
+          base_branch: "release-1.12.x",
+          branch: "feature/release-fix",
         })
       );
       const responseData = JSON.parse(result.content[0].text);
       const patchContent = fs.readFileSync(responseData.patch.path, "utf8");
-      // Diffing release-1.12.x against base main includes both release-only commits:
-      // the tracked release commit and the local-only fix.
       expect(patchContent).toContain("local only fix");
-      expect(patchContent).toContain("release tracked commit");
+      expect(patchContent).not.toContain("Subject: [PATCH] release tracked commit");
       expect(patchContent).not.toContain("MAIN_ONLY.md");
     });
 
     it("should use patch_workspace_path when target repo resolves from GH_AW_TARGET_REPO_SLUG", async () => {
-      createSideRepoOnReleaseBranchWithLocalCommit();
+      const { targetRepoDir } = createSideRepoOnReleaseBranchWithLocalCommit();
+      execSync("git checkout -b feature/release-fix", { cwd: targetRepoDir, stdio: "pipe" });
       process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
       handlers = createHandlers(mockServer, mockAppendSafeOutput, {
         create_pull_request: {
@@ -1886,7 +1892,7 @@ describe("safe_outputs_handlers", () => {
 
       try {
         const result = await handlers.createPullRequestHandler({
-          branch: "release-1.12.x",
+          branch: "feature/release-fix",
           title: "Release fix",
           body: "Prepare release branch fix",
         });

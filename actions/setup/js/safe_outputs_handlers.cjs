@@ -10,8 +10,7 @@ const { normalizeBranchName } = require("./normalize_branch_name.cjs");
 const { estimateTokens } = require("./estimate_tokens.cjs");
 const { writeLargeContentToFile } = require("./write_large_content_to_file.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
-const { getBaseBranch } = require("./get_base_branch.cjs");
-const { lookupCheckout } = require("./checkout_manifest.cjs");
+const { resolvePatchBase, validateBaseBranch, validateTransportBase } = require("./resolve_patch_base.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange, execGitSync, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
@@ -441,6 +440,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const operationCounts = new Map();
   const uploadedAssetPaths = new Set();
+  const preparedPullRequestBranches = new Set();
   const scopedKey = value => JSON.stringify([currentClaimHandle() || null, value]);
 
   /**
@@ -520,6 +520,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const type = entry?.type;
     if (type) enforcePerTypeMax(type);
     appendSafeOutput(entry);
+    if (type === "create_pull_request") {
+      const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config.create_pull_request || {});
+      const target = resolveAndValidateRepo(entry, defaultTargetRepo, allowedRepos, "pull request");
+      if (target.success) preparedPullRequestBranches.add(scopedKey(`${target.repo.toLowerCase()}:${entry.branch}`));
+    }
     if (type) operationCounts.set(scopedKey(type), (operationCounts.get(scopedKey(type)) || 0) + 1);
   };
 
@@ -946,26 +951,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Found repo checkout at: ${repoCwd}`);
     }
 
-    // Get base branch for the resolved target repository.
-    // Priority:
-    //   1. Explicit `base-branch` from the workflow config (no I/O, no fetch).
-    //   2. Checkout manifest written by the workflow's setup phase (no network).
-    //   3. Local origin/HEAD metadata + payload/API fallbacks via getBaseBranch.
     let baseBranch;
-    const configuredBaseBranch = typeof prConfig.base_branch === "string" ? prConfig.base_branch.trim() : "";
-    if (configuredBaseBranch) {
-      baseBranch = configuredBaseBranch;
-    } else {
-      const manifestEntry = lookupCheckout(repoResult.repo);
-      if (manifestEntry && manifestEntry.default_branch) {
-        baseBranch = manifestEntry.default_branch;
-        server.debug(`Using checkout-manifest default_branch for ${repoResult.repo}: ${baseBranch}`);
-      } else {
-        baseBranch = await getBaseBranch(repoParts, {
-          preferLocalDefaultBranchMetadata: Boolean(repoCwd),
-          cwd: repoCwd || undefined,
-        });
+    try {
+      baseBranch = await resolvePatchBase(repoParts, prConfig, repoCwd || undefined);
+      if (typeof entry.base === "string" && entry.base.trim()) {
+        entry.base = entry.base.trim();
+        validateBaseBranch(entry.base);
+        const isPreparedStackBase = preparedPullRequestBranches.has(scopedKey(`${repoResult.repo.toLowerCase()}:${entry.base}`));
+        if (!isPreparedStackBase) validateTransportBase(entry.base, baseBranch, prConfig);
+        baseBranch = entry.base;
       }
+    } catch (error) {
+      return buildIntentErrorResponse(getErrorMessage(error));
     }
 
     // Store the resolved base branch in the entry so the apply-time checkout step
@@ -1385,28 +1382,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Selected checkout folder for ${itemRepo}: ${repoCwd}`);
     }
 
-    // Get base branch for the resolved target repository.
-    // Priority:
-    //   1. Explicit `base-branch` from the workflow config (no I/O, no fetch).
-    //   2. Checkout manifest written by the workflow's setup phase (no network).
-    //   3. Local origin/HEAD metadata in the side-repo checkout (when available).
-    //   4. Payload / GitHub API fallbacks via getBaseBranch.
     let baseBranch;
-    const configuredBaseBranch = typeof pushConfig.base_branch === "string" ? pushConfig.base_branch.trim() : "";
-    if (configuredBaseBranch) {
-      baseBranch = configuredBaseBranch;
-      server.debug(`Using configured base_branch for push_to_pull_request_branch: ${baseBranch}`);
-    } else {
-      const manifestEntry = lookupCheckout(itemRepo);
-      if (manifestEntry && manifestEntry.default_branch) {
-        baseBranch = manifestEntry.default_branch;
-        server.debug(`Using checkout-manifest default_branch for ${itemRepo}: ${baseBranch}`);
-      } else {
-        baseBranch = await getBaseBranch(repoParts, {
-          preferLocalDefaultBranchMetadata: Boolean(repoCwd),
-          cwd: repoCwd || undefined,
-        });
-      }
+    try {
+      baseBranch = await resolvePatchBase(repoParts, pushConfig, repoCwd || undefined);
+    } catch (error) {
+      return buildIntentErrorResponse(getErrorMessage(error));
     }
 
     // Store the resolved base branch in the entry so the apply-time checkout step

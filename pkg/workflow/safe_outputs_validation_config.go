@@ -235,6 +235,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"body":           {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
 			"branch":         {Required: true, Type: "string", Sanitize: true, MaxLength: 256},
 			"base":           {Type: "string", Sanitize: true, MaxLength: 128},
+			"base_branch":    {Type: "string", MaxLength: 128},
+			"base_commit":    {Type: "string", Pattern: "^[a-fA-F0-9]{40}$"},
 			"stack_position": {OptionalPositiveInteger: true},
 			"stack_root":     {Type: "string", Sanitize: true, MaxLength: 256},
 			"dependencies":   {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 256},
@@ -370,6 +372,8 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"pull_request_number": {IssueOrPRNumber: true},
 			"branch":              {Type: "string", Sanitize: true, MaxLength: 256}, // Optional: stripped before MCP call; validated for type/length when present.
 			"repo":                {Type: "string", MaxLength: 256},
+			"base_branch":         {Type: "string", MaxLength: 128},
+			"base_commit":         {Type: "string", Pattern: "^[a-fA-F0-9]{40}$"},
 		},
 	},
 	"create_pull_request_review_comment": {

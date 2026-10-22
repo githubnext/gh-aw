@@ -28,7 +28,7 @@ safe-outputs:
     target-repo: "owner/repo"     # upstream repository that receives the PR
     head-repo: "automation/fork"  # optional automation-owned fork that receives the branch push
     allowed-repos: ["org/repo1", "org/repo2", "automation/fork"]  # allowlisted upstream/head repositories
-    base-branch: "vnext"          # PR target branch (default: github.base_ref || github.ref_name)
+    base-branch: "vnext"          # explicit PR target and patch base
     allowed-base-branches:        # allow agent to override base branch at runtime (glob patterns)
       - main
       - release/*
@@ -66,7 +66,9 @@ Configure steering independently at [`safe-outputs.steer`](/gh-aw/reference/safe
 
 ### Branch targeting
 
-`base-branch` sets the PR's target branch. Defaults to `github.base_ref` (PR event) or `github.ref_name` (push event). Use `allowed-base-branches` to let the agent pick the target branch at runtime — the agent supplies a `base` value in the tool call and it is accepted only if it matches one of the configured glob patterns.
+Base selection uses an authorized per-call `base`, then explicit `base-branch`, then the initial selected branch from a side-repository checkout, then the repository default or existing event-context resolution. The same branch is used for patch/bundle generation and PR application, even when the model omits `base`. See [Side-Repository Branch Bases](../checkout/#side-repository-branch-bases) for runtime resolver configuration and detached-ref behavior.
+
+`allowed-base-branches` authorizes per-call overrides and runtime-selected bases that the separate application job cannot independently resolve. Transported `base_branch` metadata is revalidated against the trusted application configuration/checkout or this allowlist; it is not an authorization grant. An unauthorized or inconsistent base fails before fetching/applying changes. Existing same-run stack authorization also applies to a per-call `base`.
 
 `allowed-branches` restricts which _source_ branch names the agent may use. The effective branch (agent-provided, or the checkout branch as fallback) must match a configured glob.
 

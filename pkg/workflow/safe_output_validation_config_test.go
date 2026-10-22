@@ -10,6 +10,18 @@ import (
 	"testing"
 )
 
+func TestPatchBaseMetadataValidationConfig(t *testing.T) {
+	for _, name := range []string{"create_pull_request", "push_to_pull_request_branch"} {
+		config := ValidationConfig[name]
+		if field := config.Fields["base_branch"]; field.Type != "string" || field.MaxLength != 128 || field.Sanitize {
+			t.Errorf("%s must preserve base_branch without rewriting it: %+v", name, field)
+		}
+		if field := config.Fields["base_commit"]; field.Pattern != "^[a-fA-F0-9]{40}$" {
+			t.Errorf("%s must validate base_commit as a commit SHA: %+v", name, field)
+		}
+	}
+}
+
 func TestGetValidationConfigJSON(t *testing.T) {
 	// Test with nil (all types)
 	jsonStr, err := GetValidationConfigJSONWithDataSchema(nil, nil, false, nil)

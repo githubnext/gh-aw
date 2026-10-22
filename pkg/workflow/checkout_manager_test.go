@@ -1627,6 +1627,22 @@ func TestGenerateCheckoutManifestStep(t *testing.T) {
 		assert.Empty(t, cm.GenerateCheckoutManifestStep(getActionPin), "wiki checkouts must be excluded from manifest")
 	})
 
+	t.Run("selected static and runtime refs are emitted through environment variables", func(t *testing.T) {
+		for _, ref := range []string{"release/1", "${{ steps.resolve-target.outputs.branch || 'main' }}"} {
+			cm := NewCheckoutManager([]*CheckoutConfig{
+				{Repository: "owner/other", Path: "./other", Ref: ref},
+			})
+			steps := cm.GenerateCheckoutManifestStep(getActionPin)
+			require.Len(t, steps, 1)
+			if strings.Contains(ref, "${{") {
+				assert.Contains(t, steps[0], "GH_AW_CHECKOUT_REF_0: "+ref)
+			} else {
+				assert.Contains(t, steps[0], `GH_AW_CHECKOUT_REF_0: "release/1"`)
+			}
+			assert.NotContains(t, steps[0], "const ref = "+ref)
+		}
+	})
+
 	t.Run("cross-repo additional checkout emits entry", func(t *testing.T) {
 		cm := NewCheckoutManager([]*CheckoutConfig{
 			{Repository: "owner/other", Path: "./other", GitHubToken: "${{ secrets.CROSS_REPO_PAT }}"},

@@ -13,7 +13,7 @@ import { findGitDirectories, findRepoCheckout } from "./find_repo_checkout.cjs";
 const require = createRequire(import.meta.url);
 
 function execGit(args, options = {}) {
-  const result = spawnSync("git", args, { encoding: "utf8", ...options });
+  const result = spawnSync("git", ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8", ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
@@ -60,12 +60,13 @@ describe("build_checkout_manifest.cjs", () => {
     setEnv("GH_AW_CHECKOUT_REPO_0", "owner/a");
     setEnv("GH_AW_CHECKOUT_PATH_0", "./a");
     setEnv("GH_AW_CHECKOUT_TOKEN_0", "${{ secrets.REPO_A_TOKEN }}");
+    setEnv("GH_AW_CHECKOUT_REF_0", "release/1");
     setEnv("GH_AW_CHECKOUT_REPO_1", "owner/b");
     setEnv("GH_AW_CHECKOUT_PATH_1", "");
 
     expect(readManifestEntriesFromEnv()).toEqual([
-      { repository: "owner/a", path: "./a", token: "${{ secrets.REPO_A_TOKEN }}" },
-      { repository: "owner/b", path: "", token: "" },
+      { repository: "owner/a", path: "./a", ref: "release/1", token: "${{ secrets.REPO_A_TOKEN }}" },
+      { repository: "owner/b", path: "", ref: "", token: "" },
     ]);
   });
 
@@ -211,6 +212,45 @@ describe("build_checkout_manifest.cjs", () => {
     const fileContents = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     expect(fileContents).toEqual(manifest);
   });
+
+  it.each(["release/1", "refs/heads/release/1", "detached-branch"])(
+    "snapshots selected branch %s without mistaking it for the repository default",
+    ref => {
+      const workspace = createTempDir("checkout-manifest-selected-");
+      const runnerTemp = createTempDir("checkout-manifest-runner-");
+      tempDirs.push(workspace, runnerTemp);
+      execGit(["init", "-b", "release/1", "-q", workspace]);
+      execGit(["-C", workspace, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "release"]);
+      const sha = execGit(["-C", workspace, "rev-parse", "HEAD"]).trim();
+      execGit(["-C", workspace, "update-ref", "refs/remotes/origin/release/1", sha]);
+      if (ref === "detached-branch") execGit(["-C", workspace, "checkout", "--detach", "HEAD"]);
+      const runGH = vi.fn(() => "main\n");
+      const { manifest } = buildCheckoutManifest([{ repository: "owner/repo", path: "", ref: ref === "detached-branch" ? "release/1" : ref }], { workspace, runnerTemp, runGH });
+      expect(manifest["owner/repo"]).toMatchObject({ default_branch: "main", checked_out_ref: "release/1" });
+      execGit(["-C", workspace, "checkout", "-b", "agent-feature"]);
+      expect(JSON.parse(fs.readFileSync(path.join(runnerTemp, "gh-aw/safeoutputs/checkout-manifest.json"), "utf8"))["owner/repo"].checked_out_ref).toBe("release/1");
+    },
+    30000
+  );
+
+  it.each(["", "v1", "refs/tags/v1", "sha"])(
+    "does not infer a branch for an unselected or detached ref %s",
+    ref => {
+      const workspace = createTempDir("checkout-manifest-detached-");
+      const runnerTemp = createTempDir("checkout-manifest-runner-");
+      tempDirs.push(workspace, runnerTemp);
+      execGit(["init", "-b", "main", "-q", workspace]);
+      execGit(["-C", workspace, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "base"]);
+      const sha = execGit(["-C", workspace, "rev-parse", "HEAD"]).trim();
+      execGit(["-C", workspace, "update-ref", "refs/remotes/origin/main", sha]);
+      execGit(["-C", workspace, "tag", "v1"]);
+      execGit(["-C", workspace, "checkout", "--detach", "v1"]);
+      const { manifest } = buildCheckoutManifest([{ repository: "owner/repo", path: "", ref: ref === "sha" ? sha : ref }], { workspace, runnerTemp, runGH: () => "main\n" });
+      expect(manifest["owner/repo"]).not.toHaveProperty("checked_out_ref");
+      expect(manifest["owner/repo"].default_branch).toBe("main");
+    },
+    30000
+  );
 
   it("resolves runtime-plan checkouts beyond the scan depth through the manifest without scanning", async () => {
     const workspace = createTempDir("checkout-manifest-deep-workspace-");

@@ -109,7 +109,7 @@ function readConfig() {
 }
 
 /**
- * @typedef {{ repository: string, path: string, default_branch: string }} DynamicCheckout
+ * @typedef {{ repository: string, path: string, default_branch: string, ref?: string }} DynamicCheckout
  * @typedef {{ core: { setSecret: (value: string) => void, setOutput: (name: string, value: string) => void }, github: import('@octokit/core').Octokit, getOctokit: (token: string) => import('@octokit/core').Octokit }} CheckoutRuntime
  * @param {CheckoutRuntime} runtime
  */
@@ -198,7 +198,7 @@ async function prepareCheckouts({ github, getOctokit }, token) {
     if (entries.some(entry => entry.repository === canonical[0])) continue;
     const checkoutPath = path.posix.join(config.prefix, canonical[0]);
     workspacePath(config.workspace, checkoutPath, true);
-    entries.push({ repository: canonical[0], path: checkoutPath, default_branch: data.default_branch });
+    entries.push({ repository: canonical[0], path: checkoutPath, default_branch: data.default_branch, ...(process.env.GH_AW_DYNAMIC_REF ? { ref: process.env.GH_AW_DYNAMIC_REF } : {}) });
   }
   const action = process.env.GH_AW_DYNAMIC_CHECKOUT_ACTION || "";
   if (!/^actions\/checkout@[a-f0-9]{40}$/.test(action)) throw new CheckoutPreparationError("Runtime checkout requires a SHA-pinned actions/checkout");

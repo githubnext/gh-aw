@@ -70,7 +70,7 @@ function loadManifest() {
  * Returns null when no entry exists.
  *
  * @param {string | undefined | null} repoSlug
- * @returns {{ repository: string, path: string, default_branch: string } | null}
+ * @returns {{ repository: string, path: string, default_branch: string, checked_out_ref?: string } | null}
  */
 function lookupCheckout(repoSlug) {
   if (!repoSlug || typeof repoSlug !== "string") {
@@ -88,7 +88,8 @@ function lookupCheckout(repoSlug) {
   const repository = typeof entry.repository === "string" ? entry.repository : repoSlug;
   const entryPath = typeof entry.path === "string" ? entry.path : "";
   const defaultBranch = typeof entry.default_branch === "string" ? entry.default_branch : "";
-  return { repository, path: entryPath, default_branch: defaultBranch };
+  const checkedOutRef = typeof entry.checked_out_ref === "string" ? entry.checked_out_ref : "";
+  return { repository, path: entryPath, default_branch: defaultBranch, ...(checkedOutRef ? { checked_out_ref: checkedOutRef } : {}) };
 }
 
 /**

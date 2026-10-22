@@ -44,6 +44,32 @@ checkout:
     github-token: ${{ secrets.CROSS_REPO_PAT }}
 ```
 
+## Side-Repository Branch Bases
+
+For a side-repository checkout, an explicit branch `ref` is recorded before the agent starts and becomes the default patch and PR base for `create-pull-request` and the patch base for `push-to-pull-request-branch`. Creating an agent feature branch later does not change that initial base. An explicit safe-output `base-branch` takes precedence; an authorized per-call `create_pull_request.base` overrides both.
+
+Existing `pre-steps` can resolve `checkout.ref` at runtime:
+
+```yaml wrap
+pre-steps:
+  - id: resolve-target
+    run: echo "branch=release/1" >> "$GITHUB_OUTPUT"
+checkout:
+  - repository: owner/side-repo
+    path: target
+    ref: ${{ steps.resolve-target.outputs.branch || 'main' }}
+    fetch-depth: 0
+    github-token: ${{ secrets.CROSS_REPO_PAT }}
+safe-outputs:
+  create-pull-request:
+    target-repo: owner/side-repo
+    allowed-base-branches: [release/*]
+```
+
+The resolver exists only in the agent job. The safe-output application job may initially check out `main`, then fetch the transported, authorized `release/1` base before applying changes. `allowed-base-branches` is required when the transported base differs from the application job's independently resolved checkout/configuration base. Without authorization, application fails rather than silently targeting another branch. Runtime `multi: true` checkouts carry the same selected-ref metadata.
+
+Omitting `ref` retains repository-default base selection. Tags, commit SHAs, and pull-request merge refs do not implicitly authorize a branch base; use `base-branch` or an authorized per-call `base` when needed. A checkout of the triggering PR's known head uses that PR's base, not the head itself. For another PR's head without matching PR context, configure `base-branch` explicitly. Ensure the required base history is available through `fetch` or `fetch-depth`: credential-free agent/MCP contexts do not gain fetch credentials from branch propagation. `push-to-pull-request-branch` never retargets an existing PR and rejects transported metadata that differs from its current API-reported base.
+
 ## Configuration Options
 
 | Field | Type | Description |

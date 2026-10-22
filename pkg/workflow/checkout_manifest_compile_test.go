@@ -5,11 +5,42 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCompileRuntimeCheckoutBaseManifest(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowPath := filepath.Join(tmpDir, "runtime-base.md")
+	content := `---
+on: workflow_dispatch
+engine: copilot
+pre-steps:
+  - id: resolve-target
+    run: echo "branch=release/1" >> "$GITHUB_OUTPUT"
+checkout:
+  - repository: owner/side
+    path: target
+    ref: ${{ steps.resolve-target.outputs.branch || 'main' }}
+    fetch-depth: 0
+safe-outputs:
+  create-pull-request:
+    target-repo: owner/side
+    allowed-base-branches: ["release/*"]
+---
+Fix the selected release branch.
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o644))
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+	lock, err := os.ReadFile(stringutil.MarkdownToLockFile(workflowPath))
+	require.NoError(t, err)
+	require.Equal(t, 2, strings.Count(string(lock), "GH_AW_CHECKOUT_REF_0: ${{ steps.resolve-target.outputs.branch || 'main' }}"))
+	require.Equal(t, 1, strings.Count(string(lock), "id: resolve-target"))
+}
 
 func TestCompileDynamicCheckoutRepositoryManifestStepUsesGitHubScript(t *testing.T) {
 	tmpDir := t.TempDir()

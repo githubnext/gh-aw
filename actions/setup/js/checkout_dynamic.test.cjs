@@ -86,6 +86,24 @@ describe("runtime repository checkout", () => {
     expect(JSON.stringify(entries)).not.toContain("secret-token");
   });
 
+  it("carries a runtime-selected ref into the manifest instead of replacing it with the API default", async () => {
+    vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "org/a");
+    vi.stubEnv("GH_AW_DYNAMIC_REF", "release/1");
+    const [entry] = await prepare(runtime);
+    expect(entry).toMatchObject({ ref: "release/1", default_branch: "main" });
+    const checkout = path.join(workspace, entry.path);
+    fs.mkdirSync(checkout, { recursive: true });
+    const git = args => execFileSync("git", args, { cwd: checkout, encoding: "utf8" });
+    git(["init", "-b", "release/1", "-q"]);
+    git(["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "release"]);
+    git(["update-ref", "refs/remotes/origin/release/1", git(["rev-parse", "HEAD"]).trim()]);
+    vi.stubEnv("GH_AW_DYNAMIC_CHECKOUT_INDEXES", "0");
+    vi.stubEnv("GH_AW_CHECKOUT_MANIFEST_COUNT", "0");
+    const { manifest } = buildCheckoutManifest(readManifestEntriesFromEnv());
+    expect(manifest["org/a"]).toMatchObject({ default_branch: "main", checked_out_ref: "release/1" });
+    expect(runtime.getOctokit().request).toHaveBeenCalledTimes(1);
+  });
+
   it("handles an empty scheduled batch without expanding to all allowed repositories", async () => {
     vi.stubEnv("GH_AW_DYNAMIC_REPOSITORIES", "\n");
     expect(await prepare(runtime)).toEqual([]);

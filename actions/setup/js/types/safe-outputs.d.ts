@@ -173,6 +173,12 @@ interface CreatePullRequestItem extends BaseSafeOutputItem {
   body: string;
   /** Optional branch name (will be auto-generated if not provided) */
   branch?: string;
+  /** Optional authorized per-call base override */
+  base?: string;
+  /** Producer-resolved patch base; reauthorized in the trusted apply job */
+  base_branch?: string;
+  /** Commit used as the patch baseline */
+  base_commit?: string;
   /** Optional labels to add to the PR */
   labels?: string[];
   /** Whether to create the PR as a draft (default: true) */

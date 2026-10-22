@@ -145,7 +145,7 @@ func (cm *CheckoutManager) GenerateAdditionalCheckoutSteps(getActionPin func(str
 
 // GenerateCheckoutManifestStep emits a step that writes a JSON manifest describing
 // each non-default cross-repository checkout, keyed by lowercase repo slug. The
-// manifest records the on-disk path and the resolved default branch for each repo
+// manifest records the on-disk path, initial selected branch and default branch for each repo
 // so the safe-outputs MCP server (which runs without credentials) can look up the
 // base branch without making any network calls.
 //
@@ -177,6 +177,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 	for manifestIndex, e := range entries {
 		repoKey := fmt.Sprintf("GH_AW_CHECKOUT_REPO_%d", manifestIndex)
 		pathKey := fmt.Sprintf("GH_AW_CHECKOUT_PATH_%d", manifestIndex)
+		refKey := fmt.Sprintf("GH_AW_CHECKOUT_REF_%d", manifestIndex)
 		if strings.Contains(e.repository, "${{") {
 			fmt.Fprintf(&sb, "          %s: %s\n", repoKey, githubExpressionWhitespaceReplacer.Replace(e.repository))
 		} else {
@@ -186,6 +187,11 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 			fmt.Fprintf(&sb, "          %s: %s\n", pathKey, githubExpressionWhitespaceReplacer.Replace(e.path))
 		} else {
 			writeYAMLEnv(&sb, "          ", pathKey, e.path)
+		}
+		if strings.Contains(e.ref, "${{") {
+			sb.WriteString("          " + refKey + ": " + githubExpressionWhitespaceReplacer.Replace(e.ref) + "\n")
+		} else {
+			writeYAMLEnv(&sb, "          ", refKey, e.ref)
 		}
 		if e.token != "" {
 			tokenKey := fmt.Sprintf("GH_AW_CHECKOUT_TOKEN_%d", manifestIndex)
@@ -206,6 +212,7 @@ func (cm *CheckoutManager) GenerateCheckoutManifestStep(getActionPin func(string
 type checkoutManifestEntry struct {
 	repository string
 	path       string
+	ref        string
 	token      string
 }
 
@@ -226,6 +233,7 @@ func (cm *CheckoutManager) checkoutManifestEntries() ([]checkoutManifestEntry, [
 		entries = append(entries, checkoutManifestEntry{
 			repository: entry.key.repository,
 			path:       entry.key.path,
+			ref:        entry.ref,
 			token:      resolveCheckoutTokenExpression(entry, checkoutIndex, false),
 		})
 	}

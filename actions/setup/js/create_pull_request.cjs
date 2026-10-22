@@ -29,7 +29,7 @@ const { pushExtraEmptyCommit } = require("./extra_empty_commit.cjs");
 const { createCheckoutManager } = require("./dynamic_checkout.cjs");
 const { closeOlderPullRequests } = require("./close_older_pull_requests.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { getBaseBranch } = require("./get_base_branch.cjs");
+const { resolvePatchBase, validateBaseBranch, validateTransportBase } = require("./resolve_patch_base.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
@@ -964,7 +964,20 @@ async function main(config = {}) {
     // Dynamic resolution is needed for issue_comment events on PRs where the base branch
     // is not available in GitHub Actions expressions and requires an API call
     // NOTE: Must be resolved before checkout so cross-repo checkout uses the correct branch
-    let baseBranch = configBaseBranch || (await getBaseBranch(repoParts));
+    let baseBranch;
+    try {
+      baseBranch = await resolvePatchBase(repoParts, config);
+      const requestedBase = typeof pullRequestItem.base === "string" ? pullRequestItem.base.trim() : "";
+      if (pullRequestItem.base_branch !== undefined) validateBaseBranch(pullRequestItem.base_branch);
+      if (pullRequestItem.base_branch !== undefined && !requestedBase) {
+        baseBranch = validateTransportBase(pullRequestItem.base_branch, baseBranch, config);
+      }
+      if (pullRequestItem.base_branch !== undefined && requestedBase && pullRequestItem.base_branch !== requestedBase) {
+        return { success: false, error: "Patch base_branch does not match the requested PR base; regenerate the patch for the requested base." };
+      }
+    } catch (error) {
+      return { success: false, error: getErrorMessage(error) };
+    }
     const defaultBaseBranch = baseBranch;
 
     // Stacked pull request metadata declared by the agent (position/root/dependencies).
