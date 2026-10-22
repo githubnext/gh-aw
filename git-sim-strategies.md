@@ -1486,3 +1486,11 @@ conclusion each run is low value.
   Phase 6 noop) rather than re-deriving this analysis each day, unless the policy
   context changes (e.g. the outer safe-outputs policy text itself is relaxed, or a
   maintainer explicitly re-authorizes real probing in a steering comment).
+
+## Run 2026-10-22: HALTED (61st consecutive run, no cells advanced)
+
+- Checked issue-steering #71033: zero comments, no override. Policy conflict
+  unchanged and sufficient alone to keep halting. config-simulator sub-agent is
+  now registered in this harness, but that only resolves the secondary blocker,
+  not the primary one. No real safe-output calls made; next_index stays 216.
+  Did not re-derive full analysis per standing recommendation above.
