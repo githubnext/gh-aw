@@ -853,7 +853,7 @@ Consumers identify router and classifier traffic by `purpose`; a missing
 `usage.report` events. A consumer MUST treat a missing `purpose` as unknown and
 MUST NOT classify the event as agent traffic by default.
 
-**T-UAS-083 — Proxy caller attribution.** AWF v0.28.70 and later record the
+**T-UAS-083 — Proxy caller attribution.** AWF v0.28.67 and later record the
 sandbox's `x-awf-caller` declaration (`main` or `subagent/<name>`, at most 128
 characters, matching `^(?:main|subagent/[A-Za-z0-9_.:/-]+)$`) as `purpose`
 (`agent` or `subagent`), `agent_name`, and `caller_source: caller_header`; a

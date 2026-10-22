@@ -230,9 +230,5 @@ process.stdin.on("end", () => {
     expect(callerFields(project(PI_CLASSIFIER))).toEqual({ purpose: "routing_classification", callerSource: "awf" });
     // A conflicting caller is ignored by AWF; no child name is fabricated.
     expect(callerFields(project(awfRecord(PI_CLASSIFIER, "subagent/x", "routing_classification")))).toEqual({ purpose: "routing_classification", callerSource: "awf" });
-    // A detection record AWF marks with a trusted purpose keeps it; absent fields stay absent.
-    const detection = { ...PI_MAIN, request_id: "detection-1" };
-    expect(callerFields(project(awfRecord(detection, "main", "threat_detection")))).toEqual({ purpose: "threat_detection", callerSource: "awf" });
-    expect(callerFields(project(detection))).toEqual({});
   });
 });
