@@ -238,6 +238,10 @@ A critical security vulnerability that occurs when a `pull_request_target` workf
 
 Automated security analysis that scans agent output and code changes for potential security issues before application. When safe outputs are configured, a threat detection job automatically runs between the agent job and safe output processing to identify prompt injection attempts, secret leaks, and malicious code patches. See [Threat Detection Reference](/gh-aw/reference/threat-detection/).
 
+### Custom Job Detection Gate
+
+A compiler-enforced dependency and success guard on custom jobs that run after the agent job. When threat detection is enabled, every downstream custom job (including transitive dependents, reusable workflow calls, and jobs using `if: always()`) receives a direct `detection` dependency and blocks on failed, cancelled, skipped, missing, or warn-mode flagged detection results. Custom jobs cannot run between `agent` and `detection`. Disabling detection removes the gate. See [Custom job detection gates](/gh-aw/reference/workflow-linters/#custom-job-detection-gates).
+
 ### Threat Detection Max AI Credits (`safe-outputs.threat-detection.max-ai-credits`)
 
 A `safe-outputs.threat-detection` field that caps the total AI Credits (AIC) the AWF proxy will spend for a single threat-detection run. Defaults to `400` AIC when omitted. Accepts an integer, a `K`/`M` suffix string (e.g., `750`), or `-1` to disable budget steering for detection runs. The organization-wide default can be overridden at runtime via `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` without recompiling. Precedence: frontmatter literal → `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` variable → built-in default of `400`. See [Compiler Enterprise Environment Controls](/gh-aw/reference/compiler-enterprise-environment-controls/).
@@ -1303,6 +1307,10 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 ### Audit (`gh aw audit`)
 
 A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool usage and network behavior, and generates a structured Markdown or JSON report. The report covers failure analysis, tool usage, MCP server status, firewall activity, token/cost metrics, behavior fingerprint, and safe-output summary. Accepts a numeric run ID or any GitHub Actions run or job URL. Both `gh aw audit` and `gh aw logs` accept a `--runtime` flag (for example, `--runtime cloud-hypervisor`) that filters results to runs whose [`sandbox.agent.runtime`](#sandboxagentruntime) matches the given value, using the value persisted in each run's `aw_info.json`. See [Audit Commands](/gh-aw/reference/audit/).
+
+### Audit Evidence Search (`gh aw audit --search`)
+
+A single-run mode of `gh aw audit` that retrieves relevant unified-session evidence for a query using a local, in-memory BM25 ranking, with no model calls, embeddings, or persistent index. Results are returned as up to `--search-limit` evidence groups (1 to 20, default 5); repeated events are grouped automatically without changing scores or ranking. Incompatible with `--group` and job or step URLs. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Audit Diff (multi-run mode)
 
