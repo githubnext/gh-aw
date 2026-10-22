@@ -26,7 +26,7 @@ func TestDefaultCLIMCPVersions(t *testing.T) {
 		{"Firewall", DefaultFirewallVersion, "v0.28.70"},
 		{"Router", DefaultRouterVersion, "0.1.3"},
 		{"Router image release", AWFRouterReleaseImageMinVersion, "v0.28.62"},
-		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.36"},
+		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.37"},
 		{"Threat Detect", DefaultThreatDetectVersion, "v0.5.2"},
 	}
 
