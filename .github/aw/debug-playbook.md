@@ -218,11 +218,10 @@ Check producer/version, record location, completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md); inspect read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
-work or bypass profiles/effect scopes.
+Inspect read-only ([queue playbook](work-queue.md)): repo/branch/tip, epoch, fingerprint,
+Work/Claim/Delivery IDs, run-binding, receipts. Pending projection doesn't prove claim failure.
+No history rewrites, fabricated evidence, cross-work credential/request-ID reuse
+or profile/effect-scope bypass.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -255,10 +254,10 @@ work or bypass profiles/effect scopes.
 | `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
 | `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
-| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
-| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
+| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt others' issues. |
+| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; preserve conflict history. |
 | `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `projection_unavailable`, `projection_write_ambiguous`, `projection_receipt_pending`, `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, HTTP status/request-ID, pages/receipts/acknowledgements. | Bounded reconciliation; retain uncertain locks; no duplicate writes; never mistake pending for terminal failure. |
 
 ## Unmapped codes
 
