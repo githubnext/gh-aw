@@ -22,11 +22,11 @@ The intent index is `.github/aw/debug-scenarios.md`; load only the selected
 specialized route, not every debugging reference.
 
 Repository overlay (optional):
-- If `.github/aw/instructions.md` exists, load it with `@.github/aw/instructions.md` after loading the matched prompt/skill.
+- Load the target repository's `.github/aw/instructions.md`, if present, after the matched prompt/skill. Use `@.github/aw/instructions.md` only in a matching checkout; do not substitute a guidance-repository overlay.
 - Precedence: repository overlay instructions override upstream defaults when they conflict.
 
 Read only the files you need:
-Load these files from `github/gh-aw` (they are not available locally).
+Use a local guidance checkout only when its repository/ref matches the requested guidance; otherwise use the resolved guidance repository/ref (default `github/gh-aw`).
 If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a token SAML-authorized for a different organization), do not retry with the same token. Fetch the public file without authentication from `https://raw.githubusercontent.com/github/gh-aw/main/<path>` instead, preserving its repository-relative path (including `.github/`). For example: `curl --fail --silent --show-error --location 'https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/create-agentic-workflow.md'`. Use the same fallback for referenced instructions and `SKILL.md` files; never send an Authorization header or token to the raw URL. If the public download fails, report that error rather than proceeding without the required instructions. This fallback is for public `github/gh-aw` content only, not private or enterprise repositories.
 {{AW_FILE_LIST}}
 After loading the matching workflow prompt or skill, follow it directly:

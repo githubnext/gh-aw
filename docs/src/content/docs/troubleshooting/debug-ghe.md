@@ -12,7 +12,7 @@ and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.githu
 using the full `https://yourorg.ghe.com/OWNER/REPO/actions/runs/RUN_ID` URL.
 Those instructions own setup, evidence collection, review, and live-execution
 gates; this page adds enterprise-specific configuration, not a separate debug loop.
-The historical minimum version below is not a recommended current version.
+The v0.61.1 references describe historical support, not a recommended current version.
 
 > [!TIP]
 > The one thing you must do differently from github.com is set `api-target` in your workflow frontmatter to `copilot-api.<yourorg>.ghe.com`. Everything else flows from that.
@@ -21,13 +21,20 @@ Based on the debugging discussion in [github/gh-aw#18480](https://github.com/git
 
 ## Prerequisites
 
-You need a repository on your GHE Cloud data residency instance (for example, `yourorg.ghe.com`), `gh aw` **v0.61.1+** (`gh extension install github/gh-aw`), Copilot enabled for your enterprise, and `gh` authenticated against your GHE host:
+For new-repository setup, use a supported `gh aw` version following the
+[bootstrap's CLI checks](https://github.com/github/gh-aw/blob/main/.github/aw/debug-bootstrap.md#2-check-the-cli-and-run-identity).
+You need a repository on your GHE Cloud data residency instance (for example,
+`yourorg.ghe.com`), Copilot enabled for your enterprise, and `gh` authenticated
+against your GHE host:
 
 ```bash
 gh auth login --hostname yourorg.ghe.com
 ```
 
 ## Setup
+
+These steps create a new workflow. For an existing failure, skip initialization
+and creation and continue with [Troubleshooting](#troubleshooting).
 
 ### Step 1: Initialize Your Repository
 
@@ -69,10 +76,12 @@ The compiler (v0.61.1+) automatically adds your GHE domains (`api.yourorg.ghe.co
 
 ### Step 5: Publish and Test Within the Shared Gates
 
-Publish source and generated lock together to an authorized feature branch.
-For a debugging test, follow the shared strategy's security review,
-`gh aw compile repo-assist --dry-run`, and explicit live-authorization gates
-before dispatching the exact reviewed branch:
+Follow the shared [branch-testing path](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md#test-workflow-changes-from-a-branch).
+For debugging, first use `gh aw compile repo-assist --dry-run` under the
+[compilation guide](https://github.com/github/gh-aw/blob/main/.github/aw/debug-compilation.md).
+Review the resulting source and diagnostic lock together before any permitted
+live dry-run test, then publish that exact pair to the authorized feature branch.
+The dispatch command selects a ref; it does not enable dry-run protections:
 
 ```bash
 GH_HOST=yourorg.ghe.com gh aw run repo-assist --ref REVIEWED_BRANCH
@@ -83,15 +92,13 @@ not authorize this command, and explicit no-dispatch rules take precedence.
 
 ## Troubleshooting
 
-If the workflow fails, start with the Copilot CLI on your local machine. First confirm authentication:
+Use your existing coding-agent session and the shared debugging route; a local
+Copilot CLI is optional assistant setup, not a required diagnostic or a test of
+the workflow's engine. Only if starting a new local assistant, check host
+authentication metadata and launch Copilot:
 
 ```bash
 GH_HOST=yourorg.ghe.com gh auth status
-```
-
-Then launch Copilot:
-
-```bash
 GH_HOST=yourorg.ghe.com copilot
 ```
 
@@ -116,9 +123,12 @@ Error: Authentication failed
 Your GitHub token may be invalid, expired, or lacking the required permissions.
 ```
 
-**Cause**: The `api-target` is missing or incorrect. The api-proxy is sending Copilot requests to the wrong endpoint.
+**Possible cause**: A missing or incorrect `api-target` routes inference to the
+wrong endpoint. Compare the failed revision and existing api-proxy/authentication
+logs before attributing the error; token-source and permission failures can
+produce similar symptoms.
 
-**Fix**: Verify your `.md` frontmatter has:
+**Fix when confirmed**: Verify your `.md` frontmatter has:
 
 ```aw
 engine:
@@ -126,22 +136,28 @@ engine:
   api-target: "copilot-api.yourorg.ghe.com"
 ```
 
-Then recompile with `GH_HOST=yourorg.ghe.com gh aw compile`.
+Test the source change first with
+`GH_HOST=yourorg.ghe.com gh aw compile WORKFLOW --dry-run`
+under the shared compilation and review gates.
 
 #### "none of the git remotes point to a known GitHub host"
 
 **Cause**: `GH_HOST` is not set. The `gh` CLI doesn't recognize your GHE instance as a GitHub host.
 
-**Fix**: Upgrade to `gh aw` v0.61.1+ and recompile. The compiler now auto-configures `GH_HOST` for GHE instances.
+**Fix**: Use the supplied enterprise host for CLI evidence reads and inspect the
+failed revision's generated `GH_HOST` configuration. Follow the bootstrap's
+version checks; do not upgrade an intentional pin based on this symptom alone.
 
 #### "Not Found" during checkout steps
 
 **Cause**: The lock file is trying to access `github.com` repositories with your GHE-scoped token. This can happen with local builds of the compiler that use `actions/checkout` instead of the published `github/gh-aw-actions` action reference.
 
-**Fix**: Always compile with the installed `gh aw` extension rather than a local binary:
+**Fix when confirmed**: Inspect the checkout action reference in the failed lock
+and compiler provenance. Test the source with a trusted installed compiler rather
+than executing an unreviewed local build:
 
 ```bash
-GH_HOST=yourorg.ghe.com gh aw compile <workflow-name>
+GH_HOST=yourorg.ghe.com gh aw compile <workflow-name> --dry-run
 ```
 
 See also [Copilot GHES: Common Error Messages](/gh-aw/troubleshooting/common-issues/#copilot-ghes-common-error-messages) for additional error patterns.

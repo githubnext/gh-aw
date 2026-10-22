@@ -45,97 +45,60 @@ also load the [queue protocol](work-queue.md).
 
 Keep supplied run/job/step URLs intact. For every bare run ID in the examples
 below, add `--repo HOST/OWNER/REPO`; never infer the target from an unrelated checkout.
+Workflow-name and fleet reads also use that explicit repository.
 
 ### Download Logs from Recent Runs
 
 ```bash
-# Download logs from the last 24 hours
-gh aw logs --start-date -1d -o .github/aw/logs/recent
-
-# Download logs for a specific workflow
-gh aw logs weekly-research --start-date -1d
-
-# Download logs with JSON output for programmatic analysis
-gh aw logs --json
+gh aw logs WORKFLOW --repo HOST/OWNER/REPO --start-date -1d --json
 ```
+
+Omit `WORKFLOW` for fleet analysis; reuse cached reports before collection.
 
 ### Audit a Specific Run
 
 ```bash
-# Audit by run URL, including outside a checkout
 gh aw audit https://github.com/owner/repo/actions/runs/1234567890 --no-baseline --timeout 2m
-
-# Audit from a GitHub Actions URL
-gh aw audit https://github.com/owner/repo/actions/runs/1234567890
-
-# Audit a bare ID with explicit repository identity
-gh aw audit 1234567890 --repo owner/repo --json
 ```
 
 ## Downloading Workflow Logs
 
-The `gh aw logs` command downloads workflow run artifacts and logs from GitHub Actions for analysis.
+`gh aw logs` collects existing GitHub Actions artifacts and logs, not new runs.
 
 ### Basic Usage
 
 ```bash
-# Download logs for all workflows (last 10 runs)
-gh aw logs
-
-# Download logs for a specific workflow
-gh aw logs <workflow-name>
-
-# Download with custom output directory
-gh aw logs -o .github/aw/logs/custom
+gh aw logs --repo HOST/OWNER/REPO -o EVIDENCE_DIR
 ```
+
+Default: last 10 runs. Insert a workflow name to narrow scope.
+Set `EVIDENCE_DIR` to a private session directory, not a tracked source path.
 
 ### Filter Options
 
-```bash
-# Filter by date range
-gh aw logs --start-date 2024-01-01 --end-date 2024-01-31
-gh aw logs --start-date -1w                    # Last week
-gh aw logs --start-date -1mo                   # Last month
+Add filters to the scoped command above:
 
-# Filter by AI engine
-gh aw logs --engine copilot
-gh aw logs --engine claude
-gh aw logs --engine codex
-
-# Filter by count
-gh aw logs -c 5                                # Last 5 runs
-
-# Filter by branch/tag
-gh aw logs --ref main
-gh aw logs --ref feature-xyz
-
-# Filter by run ID range
-gh aw logs --after-run-id 1000 --before-run-id 2000
-
-# Filter firewall-enabled runs
-gh aw logs --firewall                          # Only firewall-enabled
-gh aw logs --no-firewall                       # Only non-firewall
-```
+| Filter | Flags |
+| --- | --- |
+| Date | `--start-date DATE --end-date DATE`; relative starts include `-1d`, `-1w`, `-1mo` |
+| Engine | `--engine copilot`, `claude`, or `codex` |
+| Count | `-c 5` |
+| Branch/tag | `--ref TARGET_REF` |
+| Run IDs | `--after-run-id 1000 --before-run-id 2000` |
+| Firewall mode | `--firewall` or `--no-firewall` |
 
 ### Output Options
 
-```bash
-# Generate JSON summary
-gh aw logs --json
-
-# Parse agent logs and generate Markdown reports
-gh aw logs --parse
-
-# Generate Mermaid tool sequence graph
-gh aw logs --tool-graph
-
-# Set download timeout
-gh aw logs --timeout 300                       # 5 minute timeout
-```
+| Output | Flag |
+| --- | --- |
+| JSON summary | `--json` |
+| Parsed Markdown reports | `--parse` |
+| Mermaid tool sequence graph | `--tool-graph` |
+| Five-minute download limit | `--timeout 5` (minutes) |
 
 ### Downloaded Artifacts
 
-When you run `gh aw logs`, the following artifacts are downloaded for each run:
+Inspect actual downloaded names and completeness; artifacts may be absent:
 
 | File | Description |
 |------|-------------|
@@ -150,112 +113,78 @@ When you run `gh aw logs`, the following artifacts are downloaded for each run:
 ### Example: Analyze Recent Failures
 
 ```bash
-# Download failed runs from last week
-gh aw logs --start-date -1w -o .github/aw/logs/debug
-
-# Check the summary for patterns
-cat .github/aw/logs/debug/summary.json | jq '.runs[] | select(.conclusion == "failure")'
+gh aw logs --repo HOST/OWNER/REPO --start-date -1w -o EVIDENCE_DIR
+jq '.runs[] | select(.conclusion == "failure")' EVIDENCE_DIR/summary.json
 ```
 
 ## Auditing Specific Runs
 
-The `gh aw audit` command investigates a single workflow run in detail, downloading artifacts, detecting errors, and generating a report.
+`gh aw audit` downloads a run's evidence and reports findings, not proven causes.
 
 ### Basic Usage
 
 ```bash
-# Audit by numeric run ID
-gh aw audit 1234567890
-
-# Audit from GitHub Actions URL
-gh aw audit https://github.com/owner/repo/actions/runs/1234567890
-
-# Audit from job URL (extracts first failing step)
-gh aw audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210
-
-# Audit from job URL with specific step
+gh aw audit 1234567890 --repo HOST/OWNER/REPO
 gh aw audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1
 ```
 
+Keep supplied URLs intact. A job URL without a step selects its first failing step.
+
 ### Output Options
 
-```bash
-# JSON output for programmatic analysis
-gh aw audit 1234567890 --json
-
-# Custom output directory
-gh aw audit 1234567890 -o ./audit-reports
-
-# Parse agent logs and firewall logs
-gh aw audit 1234567890 --parse
-
-# Verbose output
-gh aw audit 1234567890 -v
-```
+Add `--json` for structured output, `--parse` for Markdown, `-v` for verbosity,
+or `-o EVIDENCE_DIR` for a private, reusable evidence directory.
 
 ### Check Whether an Error Recurs
 
 ```bash
-# Compare existing runs, without dispatching new ones
-gh aw audit 1234567890 1234567891 1234567892 --group --json
+gh aw audit 1234567890 1234567891 1234567892 --repo HOST/OWNER/REPO --group --json
 ```
 
-Use grouped per-run finding codes/counts, then cached individual reports/logs
-for exact signatures. Plain multi-run diffs focus on metrics/firewall/tools;
-absent findings or skipped runs do not prove the error disappeared.
-Match the first failing boundary and normalized error/tool/status signature
-across comparable workflows, revisions, triggers/inputs and configurations. Count each
-matching run once, report matching/inspectable runs and IDs, and keep missing
-evidence unknown. Repeated HTTP 403 alone does not establish one root cause.
+Group per-run finding codes/counts; inspect cached reports for exact signatures.
+Plain diffs compare metrics/firewall/tools, not complete findings.
+Match first failing boundaries and normalized error/tool/status signatures across
+comparable workflow/revision/trigger/input/configuration contexts. Count each run
+once; report matching/inspectable IDs. Missing/skipped evidence remains unknown;
+repeated HTTP 403 alone does not prove a common cause.
 
 ### Search and Cluster Session Evidence
 
 ```bash
-gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --search-limit 5 --json
+gh aw audit 1234567890 --repo HOST/OWNER/REPO --search "api.example.com ERR_AUTH_401" --search-limit 5 --json
 ```
 
-Use `evidence_search` to locate relevant events in the actual redacted unified
-session, with automatic repetition grouping, occurrence counts, source references,
-and neighboring context. This single-run CLI capability does not replace the
-full audit or `--group` recurrence checks. Drain3 needs no configuration: it
-activates only when repetitive top matches crowd the limit and grouping saves
-excerpt text. It never changes BM25 ranking; groups keep structured success and
-failure outcomes separate. Ungrouped results omit cluster/template/anomaly fields.
-Its stage/cluster IDs are run-local;
-BM25 relevance and Drain3 anomaly scores are not severity, confidence, or proof
-of safety. Missing sessions remain unavailable, and zero hits do not clear findings.
-Follow [the shared retrieval guidance](analyzing-runs.md#retrieve-and-cluster-session-evidence)
-for bounds, provenance, and the distinction from fleet failure clustering.
+Read `evidence_search` references, neighboring context and occurrence counts in
+the actual redacted unified session. Single-run CLI search does not replace
+audit findings, `--group` recurrence checks or fleet failure clustering.
+Automatic Drain3 grouping saves repetitive excerpts without changing BM25 ranking;
+success/failure outcomes stay separate and cluster IDs stay run-local.
+BM25 relevance and Drain3 anomaly scores are not severity or confidence.
+Missing sessions are unavailable; zero hits do not clear findings or prove safety.
+Use [retrieval guidance](analyzing-runs.md#retrieve-and-cluster-session-evidence)
+for grouping criteria, omitted fields, bounds and provenance.
 
 ### Audit Report Contents
 
-The audit command provides:
-
-- **Error Detection**: Errors and warnings from workflow logs
-- **MCP Tool Usage**: Statistics on tool calls by the AI agent
-- **Missing Tools**: Tools the agent tried to use but weren't available
-- **Execution Metrics**: Duration, token usage, and cost information
-- **Safe Output Analysis**: What GitHub operations were attempted
+Inspect errors/warnings, MCP usage/missing tools, duration/tokens/cost, and
+attempted safe-output operations. Missing fields do not prove success.
 
 ### Example: Investigate a Failed Run
 
 ```bash
-# Get detailed audit report
-gh aw audit 1234567890 --json > audit.json
-
-# Extract key information
-cat audit.json | jq '{
+gh aw audit 1234567890 --repo HOST/OWNER/REPO --json > audit.json
+jq '{
   status: .overview.status,
   conclusion: .overview.conclusion,
   errors: .errors,
   missing_tools: .missing_tools,
   tool_usage: .tool_usage
-}'
+}' audit.json
 ```
 
 ## How Agentic Workflows Work
 
-Understanding the workflow architecture helps in debugging.
+Locate the first failing boundary, not just the final job conclusion.
 
 ### Workflow Structure
 
@@ -289,29 +218,9 @@ Use GitHub context like ${{ github.event.issue.number }}.
 
 ### Execution Flow
 
-```
-1. Trigger Event (issue opened, PR created, schedule, etc.)
-     ↓
-2. Activation Job
-   - Validates permissions
-   - Processes mcp-scripts
-   - Sanitizes context
-     ↓
-3. AI Agent Job
-   - Loads MCP servers and tools
-   - Executes AI agent with prompt
-   - Agent makes tool calls
-   - Agent produces output
-     ↓
-4. Safe Outputs Job
-   - Processes agent output
-   - Creates GitHub resources (issues, PRs, etc.)
-   - Applies labels, comments
-     ↓
-5. Completion
-   - Workflow summary generated
-   - Artifacts uploaded
-```
+Trigger -> activation (permissions, mcp-scripts, sanitized context) ->
+agent (MCP/tools, prompt, calls, output) -> safe outputs (validated GitHub writes) ->
+completion (summary, artifacts). A failure in one stage can cascade.
 
 ### Key Components
 
@@ -341,9 +250,7 @@ publishing it as a production replacement.
 
 ### Missing Tool Errors
 
-**Symptoms**:
-- Error: "Tool 'github:read_issue' not found"
-- Agent cannot access GitHub APIs
+**Symptoms**: "Tool 'github:read_issue' not found" or unavailable GitHub APIs.
 
 **Solution**: Compare the requested name with cached registration/startup evidence
 before changing tools or permissions. Only if source inspection confirms missing
@@ -358,30 +265,21 @@ tools:
 
 ### Permission Errors
 
-**Symptoms**:
-- HTTP 403 (Forbidden) errors
-- "Resource not accessible" errors
+**Symptoms**: HTTP 403 or "Resource not accessible".
 
 **Solution**: First distinguish SAML/token-source denial from missing permissions
-using the shared credential triage. Grant required read permissions to the agent and configure writes
-through safe outputs. Keep debugging outputs staged; inspect individual job/token
-permissions rather than adding write permissions to the agent:
-
-```yaml
-permissions:
-  contents: read
-safe-outputs:
-  staged: true
-  create-issue: {}
-```
+using the shared credential triage. Change only confirmed missing read permissions;
+configure intended writes through safe outputs. Keep debugging outputs staged;
+inspect individual job/token permissions rather than adding write permissions
+to the agent. The [workflow example](#workflow-structure) uses read-only agent
+permissions and staged safe outputs.
 
 ### Safe-Input Errors
 
-**Symptoms**:
-- "missing tool configuration for mcpscripts-gh"
-- Environment variable not available
+**Symptoms**: "missing tool configuration for mcpscripts-gh" or missing environment variables.
 
-**Solution**: Configure mcp-scripts:
+**Solution when confirmed**: Compare the failed call with declared mcp-scripts
+and environment-variable names before changing source. Do not retrieve values:
 
 ```yaml
 mcp-scripts:
@@ -395,11 +293,10 @@ mcp-scripts:
 
 ### Safe-Output Errors
 
-**Symptoms**:
-- Agent tries to create resources but fails
-- "Safe output not enabled" errors
+**Symptoms**: Failed resource creation or "Safe output not enabled".
 
-**Solution**: Enable safe-outputs:
+**Solution when confirmed**: Compare the failed message with declared output names
+and validation evidence. Add only the intended missing output, staged for debugging:
 
 ```yaml
 safe-outputs:
@@ -410,44 +307,28 @@ safe-outputs:
 
 ### Cascading Safe-Output Message Failures (Process Safe Outputs step)
 
-**Symptoms**:
-- `Process Safe Outputs` reports multiple failed messages in one run
-- One failed `update_pull_request` message includes a 403 workflows-permission warning
-- Other failed messages (for example `add_comment`) include `Bad credentials`
-
-**What this means**:
-- Do not assume all safe-output failures share one root cause.
-- A 403 workflows-permission error on `update_pull_request` can be expected/non-fatal in some workflows.
-- A 401-style `Bad credentials` error on other messages is a separate authentication failure that needs its own fix.
-
-**Diagnostic steps**:
+Classify each failed message by tool/action, HTTP status and time.
+An `update_pull_request` workflows-permission 403 can be expected/non-fatal;
+an `add_comment` `Bad credentials` 401 is a separate authentication failure.
+Compare reported message counts with individual failures; do not merge causes.
 
 ```bash
-# Summarize failed safe-output messages and types
-gh aw audit <run-id>
-
-# Include additional artifacts when diagnosis needs more context
-gh aw audit <run-id> --artifacts usage,github-api,mcp,agent
-
-# Escalate to full artifact collection for hard-to-classify failures
-gh aw audit <run-id> --artifacts all
-
-# Inspect full failing job logs to classify each message failure
-gh run view <run-id> --job=<job-id> --log
+gh aw audit <run-id> --repo HOST/OWNER/REPO
+gh aw audit <run-id> --repo HOST/OWNER/REPO --artifacts usage,github-api,mcp,agent
+gh run view <run-id> --repo HOST/OWNER/REPO --job=<job-id> --log
 ```
 
-- Triage each failed message by its own HTTP status code and tool/action name.
-- Check `permissions:` for missing scopes when 403 errors appear.
-- Compare the "failed message count" against the individual failed message lines to confirm whether there are multiple independent failures.
-- If several credential failures cluster together in time, investigate token freshness/expiry and token source for the run.
+Use `--artifacts all` only when targeted evidence is insufficient.
+Inspect effective scopes for permission errors and token source/freshness metadata
+for concurrent authentication failures; never retrieve credentials.
 
 ### Network Access Errors
 
-**Symptoms**:
-- Firewall denials
-- URLs appearing as "(redacted)"
+**Symptoms**: Firewall denials or URLs shown as "(redacted)".
 
-**Solution**: Configure network access:
+**Solution when confirmed**: Match an actual denial to an intended, authorized
+destination before changing the smallest allow-list entry. A redacted URL alone
+does not prove blocking. Keep the firewall enabled:
 
 ```yaml
 network:
@@ -460,34 +341,18 @@ network:
 
 ### Timeout Errors
 
-**Symptoms**:
-- Workflow exceeds time limit
-- Agent loops or hangs
+Timeouts, loops and hangs are symptoms. Compare failing runs' `tool_usage`,
+`metrics.turns`, `agentic_assessments` (for example `resource_heavy_for_domain`)
+and actual `agent-session.jsonl` calls. Check:
 
-**Diagnose before fixing.** A timeout is a symptom, not the root cause. Use
-`gh aw audit <run-id> --json` to inspect `tool_usage`, `metrics.turns`, and
-`agentic_assessments` (e.g. `resource_heavy_for_domain`) across several failing
-runs, then extract the actual tool calls from `agent-session.jsonl` to see what
-the agent spent its time on. Common underlying causes:
+- Trigger `paths`/`paths-ignore` versus the workflow/skill's applicable domain.
+- Missing/stale prefetched context causing repeated `gh`/`grep` reads; batch with DataOps.
+- Unbounded exploration or code tracing.
 
-- The workflow (or an imported skill) is being invoked on content it has no
-  applicable mode/skill for, so it falls back to open-ended manual exploration
-  — check trigger `paths`/`paths-ignore` for mismatch against the skill's
-  actual domain.
-- Missing or stale pre-fetched context forces repeated ad-hoc `gh`/`grep`
-  round-trips that a DataOps pre-step could batch once.
-- No bound on exploration depth, so a genuinely complex diff triggers
-  unbounded tracing through the codebase.
-
-**Solution**: Fix the underlying inefficiency first — see the
-`optimize-agentic-workflow` skill for the measure → diagnose → trim workflow.
-Only increase `timeout-minutes` as a bounded safety margin once the workload is
-understood to genuinely need the extra budget (or while the efficiency fix is
-validated against live traffic), not as the primary or first fix:
-
-```yaml
-timeout-minutes: 30  # Safety margin only - pair with an efficiency fix, don't substitute for one
-```
+Measure, diagnose and trim using the `optimize-agentic-workflow` skill.
+Increase `timeout-minutes` only as a justified, bounded safety margin alongside
+an efficiency fix, never as the first or sole remedy. Live validation retains
+the shared authorization gates.
 
 ## Advanced Debugging Techniques
 
@@ -495,7 +360,7 @@ timeout-minutes: 30  # Safety margin only - pair with an efficiency fix, don't s
 
 Classify command exit separately from workflow outcome. A nonzero audit exit may
 mean artifacts are not ready: confirm the same run with
-`gh run view <run-id> --json status,headSha,conclusion`, then poll within the
+`gh run view <run-id> --repo HOST/OWNER/REPO --json status,headSha,conclusion`, then poll within the
 approved interval/deadline. Audit/log permission denial blocks further live
 iteration; report evidence unavailable, not workflow failure. Follow the shared
 outcome table for dispatch timeouts and SHA mismatches; never redispatch for logs.
@@ -517,102 +382,68 @@ gh aw mcp list
 
 ```bash
 # Show status of all agentic workflows
-gh aw status
+gh aw status --repo HOST/OWNER/REPO
 ```
 
 ### Downloading Specific Artifacts
 
 ```bash
 # Download only the agent log artifact
-GH_REPO=owner/repo gh run download <run-id> -n agent-stdio.log
+gh run download <run-id> --repo HOST/OWNER/REPO -n agent-stdio.log
 ```
 
 ### Inspecting Job Logs
 
 ```bash
 # View specific job logs
-gh run view <run-id>
-gh run view --job <job-id> --log
+gh run view <run-id> --repo HOST/OWNER/REPO
+gh run view --repo HOST/OWNER/REPO --job <job-id> --log
 ```
 
 ### Analyzing Firewall Logs
 
 ```bash
 # Parse firewall logs for network issues
-gh aw logs --parse
+gh aw logs --repo HOST/OWNER/REPO --parse
 
 # Check firewall-enabled runs
-gh aw logs --firewall
+gh aw logs --repo HOST/OWNER/REPO --firewall
 ```
 
 ### Diagnostic and Development Compilation
 
-```bash
-# Strict/staged development compilation; Docker-based checks are optional
-gh aw compile <workflow> --dry-run
-
-# Recommended when using a reviewed test environment
-gh aw compile <workflow> --dry-run --environment gh-aw-debug
-
-# Additional source validation; does not run scanners
-gh aw validate <workflow>
-
-# Run those scanners on the emitted dry-run lock file when possible
-gh aw compile <workflow> --dry-run --zizmor --actionlint --poutine
-```
-
-Docker unavailability does not block the dry-run gate. Use native `shellcheck`
-for required run-step linting without Docker, and report unavailable optional
-checks as unverified.
-
-When Docker is available, recommend both commands: `validate` checks source
-without emitting files, while the scanner-enabled compile command runs zizmor,
-actionlint and poutine. A successful `validate` does not establish scanner coverage.
+Use the [compilation guide](debug-compilation.md) for required checks, optional
+Docker scanners, severity rules, diagnostic preservation and result reporting.
+This heading preserves existing links; it defines no separate compilation gate.
 
 ## Reference Commands
 
 ### Log Analysis Commands
 
-| Command | Description |
-|---------|-------------|
-| `gh aw logs` | Download logs for all workflows |
-| `gh aw logs <workflow>` | Download logs for specific workflow |
-| `gh aw logs --json` | Output as JSON |
-| `gh aw logs --start-date -1d` | Filter by date |
-| `gh aw logs --engine copilot` | Filter by engine |
-| `gh aw logs --parse` | Generate Markdown reports |
+See the [logs command reference](cli-commands.md#gh-aw-logs), scoped to the
+identified target repository.
 
 ### Audit Commands
 
-| Command | Description |
-|---------|-------------|
-| `gh aw audit <run-id>` | Audit specific run |
-| `gh aw audit <url>` | Audit from GitHub URL |
-| `gh aw audit <run-id> --json` | Output as JSON |
-| `gh aw audit <run-id> --parse` | Parse logs to Markdown |
-| `gh aw audit <id1> <id2> ... --group --json` | Group existing-run findings for recurrence |
+See the [audit command reference](cli-commands.md#gh-aw-audit). Preserve supplied
+URLs and qualify bare IDs with `--repo HOST/OWNER/REPO`.
 
 ### MCP Commands
 
-| Command | Description |
-|---------|-------------|
-| `gh aw mcp list` | List workflows with MCP servers |
-| `gh aw mcp inspect <workflow>` | Inspect MCP configuration |
+See [MCP inspection](cli-commands.md#gh-aw-mcp-inspect), after the shared
+startup preflight; a command listing is not startup authorization.
 
 ### Status Commands
 
-| Command | Description |
-|---------|-------------|
-| `gh aw status` | Show all workflow status |
-| `gh aw compile --dry-run` | Diagnostic compilation of all workflows |
-| `gh aw compile <workflow> --dry-run` | Recommended first test of workflow changes; does not execute them |
+See the [status command reference](cli-commands.md#gh-aw-status).
+Compilation belongs to the [compilation guide](debug-compilation.md), not a
+status check.
 
 ### Active Debugging Commands (Permitted Contexts Only)
 
-| Command | Description |
-|---------|-------------|
-| `gh aw run <workflow> --ref <reviewed-ref>` | Only after shared human-validation gates; explicit no-dispatch rules take precedence |
-| `gh run view <run-id> --json status,headSha,conclusion` | Same-run monitoring within approved bounds |
+Follow the [shared live debug loop](debug-agentic-workflow.md#live-debug-loop)
+for dispatch, authorization, monitoring and stopping rules. No example here
+grants live permission.
 
 ## Additional Resources
 

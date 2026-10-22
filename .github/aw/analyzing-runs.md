@@ -17,7 +17,8 @@ Never expose secrets.
 - Run URL/ID: read cached evidence or audit that run; expand only to test recurrence
   or regression.
 
-Honor supplied scope. Default: current repository, last 24 hours. Record actual
+Honor supplied scope. Use the identified target repository or a matching checkout,
+not an unrelated checkout. Default to the last 24 hours; record actual repository,
 window and collection limits.
 
 For "healthy now" or fix-verification questions, follow
@@ -34,8 +35,9 @@ jq '{summary, failure_investigation, continuation, continuations}' runs.json
 
 - Reuse recent reports or `--cached-jsonl` before downloading. For one workflow,
   add its name and use `--count 100`. Info/usage excludes full agent/MCP/firewall logs.
-- Without CLI authentication, use MCP `logs`; project its returned `file_path`,
-  not the whole report.
+- Without usable CLI access, use MCP `logs` only when already authorized and
+  exposed; discover its schema and project its returned `file_path`, not the
+  whole report. Missing CLI authentication does not establish MCP access.
 - Follow every cursor parameter, including updated `end_date` and `before_run_id`;
   check `continuation` and per-workflow `continuations`. Report incomplete coverage
   at count/timeout/API/storage limits.

@@ -26,18 +26,12 @@ not authorize a new workflow run.
 
 Before installing tools, executing workflow components, or changing files, read
 the complete [shared debugging strategy](debug-agentic-workflow.md).
-It owns mode selection, evidence collection, local reproduction, fixes,
-compilation, security review, and live-execution gates. This bootstrap does not
-replace those instructions.
+It owns execution scope; use specialized guides only when the selected stage needs them.
 
-Resolve `ROOT` to the repository root containing this guide (or the legacy
-`debug.md` router), preserving its repository and ref:
-
-- For `https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`,
-  `ROOT` is `https://raw.githubusercontent.com/github/gh-aw/main`.
-- For `https://raw.githubusercontent.com/github/gh-aw/v0.91.7/.github/aw/debug-bootstrap.md`,
-  `ROOT` is `https://raw.githubusercontent.com/github/gh-aw/v0.91.7`.
-- In a local gh-aw checkout, `ROOT` is that checkout's root.
+Resolve `ROOT` to this guide's repository root and ref, not the target workflow.
+Use a matching local guidance checkout or its raw-content root;
+the default is `https://raw.githubusercontent.com/github/gh-aw/main`.
+Preserve a supplied repository/ref instead of substituting that default.
 
 Load `ROOT/.github/aw/debug-agentic-workflow.md`. For a GitHub `/blob/` URL,
 use its raw-content equivalent at the same ref. Resolve subsequent relative
@@ -46,8 +40,8 @@ keep every gh-aw reference at the same ref. Read linked guidance when the
 strategy calls for it, including the security-review instructions before
 executing changed code or starting MCP servers.
 
-For GitHub Contents API readers, use `owner=github`, `repo=gh-aw`, and the
-guidance `ref`, not the workflow's repository or branch. Normalize Markdown
+For GitHub Contents API readers, use the guidance owner/repository/ref
+(`owner=github`, `repo=gh-aw` by default), not the workflow's repository or branch. Normalize Markdown
 links against the containing file's repository-relative path, then remove any
 fragment; never send literal `../` segments as the API `path`:
 
@@ -57,42 +51,39 @@ fragment; never send literal `../` segments as the API `path`:
 | Scenario index | `.github/aw/debug-scenarios.md` |
 | Shared strategy | `.github/aw/debug-agentic-workflow.md` |
 | Compilation | `.github/aw/debug-compilation.md` |
+| Live testing, only when permitted | `.github/aw/debug-live-testing.md` |
 | Post-patch health | `.github/aw/debug-workflow-health.md` |
 | Evidence reference | `.github/aw/debug-workflow-evidence.md` |
 
-Preserve refs containing slashes, such as `feature/debugger`, from supplied
-metadata; do not guess the ref by splitting a `/blob/` URL. Prefer the API's
-`download_url` or a known same-ref raw URL. Before `get_file_contents`, check
-file-size metadata; files over 20 KB require a supported bounded reader rather
-than a full-file MCP read. Read every chunk of required guidance, including
-truncated responses, before proceeding. If no supported reader can do that,
-report the specific loading gap.
+Preserve refs containing slashes, such as `feature/debugger`, from metadata;
+never split a `/blob/` URL to guess the ref. Prefer `download_url` or a known
+same-ref raw URL. Check size before `get_file_contents`: over 20 KB requires a
+supported bounded reader. Read every chunk of required guidance, including
+truncated responses. Without a supported reader, report the loading gap.
 
-For public `github/gh-aw` instructions, prefer unauthenticated raw-content
-downloads, for example:
+For public `github/gh-aw` instructions, prefer unauthenticated raw downloads
+using the resolved `ROOT`:
 
 ```bash
-curl --fail --silent --show-error --location https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-agentic-workflow.md
+curl --fail --silent --show-error --location "$ROOT/.github/aw/debug-agentic-workflow.md"
 ```
 
-Substitute the resolved `ROOT` when using a different ref. If a GitHub API
-download returns HTTP 403, do not retry with the same token; use the public raw
+If a GitHub API download returns HTTP 403, do not retry with the same token; use the public raw
 URL without an Authorization header or token. This fallback is only for public
 `github/gh-aw` guidance, not private or enterprise workflow evidence. If required
 guidance cannot be loaded, report the error and stop rather than improvising.
 
-Read the target repository's `AGENTS.md` and, if present,
-`.github/aw/instructions.md`; apply its repository overlay, not the gh-aw
-repository's overlay fetched as a default for another repository.
+When the target is identified and readable, read the target repository's `AGENTS.md`
+and, if present, `.github/aw/instructions.md`; apply its repository overlay, not the gh-aw
+repository's overlay fetched as a default for another repository. If unavailable,
+report that gap and continue available read-only diagnosis; do not edit or execute
+target code without its applicable instructions.
 
 ## Select the Next Route
 
-Use the [debugging scenario index](debug-scenarios.md) to select the next guide
-by intent and available evidence before setup. It covers compilation, post-patch
-health, model/child failures, scoped incidents, named workflows, fleet analysis,
-and missing context, with MCP-only, cached, enterprise, and source-reader paths.
-Its mode and continuity rules apply to follow-up turns. Sections 2 through 4
-are references, not a mandatory sequence; skip unrelated setup, audits, and edits.
+Select intent and evidence through the [scenario index](debug-scenarios.md)
+before setup. Reuse its mode/continuity rules on follow-ups. Sections 2 through 4
+are references, not a mandatory sequence; skip unrelated setup, audits and edits.
 
 ## 2. Check the CLI and Run Identity
 
@@ -105,10 +96,9 @@ If a beginner lacks a link, explain repository **Actions** > failing workflow >
 failed attempt and ask for its browser address, not an unexplained numeric ID.
 If a workflow name and repository are known, discover its existing runs instead.
 
-For necessary CLI-based collection, follow the checks below.
-Use `gh aw`, the GitHub CLI extension, not the separate `copilot` runtime CLI.
-Check that `gh` is available, inspect host/credential-source metadata with
-`gh auth status` without printing token values, and record the installed version:
+For necessary CLI collection, use `gh aw`, not the separate `copilot` runtime.
+Check `gh` availability and host/credential-source metadata with `gh auth status`
+without printing token values; record the installed version:
 
 ```bash
 gh aw version
@@ -121,11 +111,10 @@ gh extension install github/gh-aw
 gh aw version
 ```
 
-Record the failed run's compiler/runtime versions separately from the local
-CLI version. Preserve intentional pins; upgrade only when diagnosis requires it.
-`gh extension upgrade aw` selects the latest non-prerelease, which can lag
-prereleases. For model/endpoint errors, `model: auto` failures, silent
-cross-family sub-agent failures, or version-pinned install failures, follow
+Record failed-run compiler/runtime versions separately from the local CLI.
+Preserve intentional pins; upgrade only when diagnosis requires it.
+`gh extension upgrade aw` selects the latest non-prerelease, possibly lagging
+prereleases. For model/endpoint, `model: auto`, cross-family child or pinned-install failures, follow
 [Model and engine misconfiguration](debug-agentic-workflow.md#model-and-engine-misconfiguration)
 before changing models or version fields.
 
@@ -135,17 +124,15 @@ source inspection remain available if installation or authentication is blocked.
 
 ## 3. Audit the Supplied Run
 
-Use the full run/job/step URL so the audit resolves the correct host and
-repository even outside a checkout or inside an unrelated repository:
+Use the full run/job/step URL, even from an unrelated checkout:
 
 ```bash
 gh aw audit 'https://github.com/OWNER/REPO/actions/runs/RUN_ID' --no-baseline --timeout 2m --output AUDIT_DIR --json
 ```
 
-Replace the URL and `AUDIT_DIR` with the supplied target and a private session
-artifact directory; reuse that directory for follow-up collection. For a bare
-ID, explicitly pass `--repo HOST/OWNER/REPO`. Read `key_findings[].code` and
-follow `playbook_url`; check whether the report is incomplete before concluding.
+Use the supplied URL and a private `AUDIT_DIR`; reuse it on follow-ups.
+For bare IDs, pass `--repo HOST/OWNER/REPO`. Read `key_findings[].code` and
+`playbook_url`; check whether the report is incomplete before concluding.
 Use the [debug playbook](debug-playbook.md) for runtime finding codes.
 For repository-wide requests without a supplied run/failure scope, start with
 [failure clustering](analyzing-runs.md), not an arbitrary workflow.
@@ -157,27 +144,22 @@ never dispatch a run to obtain evidence or retry with different credentials.
 
 ## 4. Continue Through the Shared Strategy
 
-Identify the first failing boundary and apply the shared strategy's
-diagnose-and-patch flow. Inspect source and imports at the failed revision before
-editing the target repository's workflow. Respect upstream-managed `source:`
-workflows and update them through their approved upstream path.
+Find the first failing boundary; inspect failed-revision source/imports before
+editing. Update upstream-managed `source:` workflows only through their approved path.
 
-For a workflow patch, use `gh aw compile WORKFLOW --dry-run` and the shared
-review/validation gates rather than ordinary compilation as a safety proxy.
-Dry-run compilation emits a diagnostic lock; it does not execute the workflow,
-authorize a rerun, or sandbox arbitrary scripts. Do not publish a diagnostic lock
-as a normal production replacement.
+Test patches first with `gh aw compile WORKFLOW --dry-run` under the
+[compilation guide](debug-compilation.md). It emits a diagnostic lock but
+does not execute the workflow, authorize a rerun, or sandbox arbitrary scripts.
+Never publish that lock as a normal production replacement.
 
-Commit/publish only within the user's authorized scope and repository rules,
-using a feature branch or existing suitable PR, not an automatic default-branch
-push. Live testing additionally requires explicit authorization, the exact
-reviewed published source/lock revision, and all shared live gates. A general
-debugging request is not that authorization; explicit no-dispatch rules still
-take precedence.
+Commit/publish within authorized scope and repository rules using a feature
+branch or existing PR, not an automatic default-branch push. Live testing requires
+explicit authorization, the exact reviewed published source/lock revision, and
+the [live gates](debug-live-testing.md). A general debugging request is not
+authorization; explicit no-dispatch rules take precedence.
 
-Report the cause or uncertainty, patch, evidence actually checked, and remaining
-gaps. Keep observed run evidence, local/fixture results, security-review results,
-dry-run compilation results, and live Actions verification distinct.
+Report cause/uncertainty, patch, checked evidence and gaps. Separate observed run,
+local/fixture, security-review, compilation and live Actions results.
 
 ## Debugging Entry Point Inventory
 
@@ -192,9 +174,10 @@ own evidence checklists, not an independent execution policy.
 | [create.md](../../create.md), [root skill](../../SKILL.md) | General entry points; debugging requests delegate here before setup. |
 | [agentic-workflows skill](../skills/agentic-workflows/SKILL.md), [embedded template](../../pkg/cli/data/agentic_workflows_skill.md) | Installed task routers; select the shared strategy or fleet analysis. |
 | [agentic-workflows agent](../agents/agentic-workflows.md), [embedded template](../../pkg/cli/data/agentic_workflows_agent.md) | Custom-agent routers with the same debugging path. |
-| [debug-agentic-workflow.md](debug-agentic-workflow.md) | Canonical diagnosis, patching, and permitted live-debug strategy. |
+| [debug-agentic-workflow.md](debug-agentic-workflow.md) | Shared diagnosis, patching and execution scope. |
 | [debug-scenarios.md](debug-scenarios.md) | Intent index and capability-specific evidence routes. |
 | [debug-compilation.md](debug-compilation.md) | Compile-only diagnostics, scanners, lock effects, and result contract. |
+| [debug-live-testing.md](debug-live-testing.md) | Branch preparation and bounded, authorized live testing; not loaded for ordinary diagnosis. |
 | [debug-workflow-health.md](debug-workflow-health.md) | Revision-aware verification of pushed fixes using existing runs. |
 | [debugging-workflows skill](../skills/debugging-workflows/SKILL.md) | Legacy skill router to the canonical evidence reference. |
 | [debug-workflow-evidence.md](debug-workflow-evidence.md) | Canonical evidence and CLI reference under the shared strategy. |

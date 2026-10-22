@@ -35,7 +35,7 @@ following the [compilation guide](debug-compilation.md). Inspect the emitted
 diagnostic lock and actual checks before considering a live test.
 Compilation does not execute the workflow or authorize dispatch. A permitted
 live dry-run test still needs the exact reviewed, published dry-run source/lock revision
-and the [shared live gates](debug-agentic-workflow.md#live-debug-loop).
+and the [live gates](debug-live-testing.md#live-debug-loop).
 
 ## Apply the Environment Without Changing the Intent
 
@@ -49,7 +49,7 @@ workflow, installation, credential, or live run.
 | MCP-only, no terminal | [CLI/MCP mapping](cli-commands.md); discover already-authorized tool schemas, not new servers or a laptop installation. |
 | Enterprise job/step or unrelated checkout | [Run scoping](debug-bootstrap.md#3-audit-the-supplied-run); retain host/repository/job/step identity. |
 | API/raw guidance reader | [Source resolution](debug-bootstrap.md#1-load-the-debugging-strategy-first); normalize API paths and retain the supplied guidance ref. |
-| Urgent rerun or testing a patch | [Dry-run validation](debug-compilation.md) first, then [branch preparation](debug-agentic-workflow.md#test-workflow-changes-from-a-branch) and [live gates](debug-agentic-workflow.md#live-debug-loop); access and urgency do not authorize dispatch. |
+| Urgent rerun or testing a patch | [Dry-run validation](debug-compilation.md) first; load [live testing](debug-live-testing.md) only when permitted. Access and urgency do not authorize dispatch. |
 
 ## Missing Context
 

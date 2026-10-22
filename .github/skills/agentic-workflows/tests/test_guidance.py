@@ -16,6 +16,7 @@ BOOTSTRAP = ROOT / ".github/aw/debug-bootstrap.md"
 EVIDENCE_GUIDE = ROOT / ".github/aw/debug-workflow-evidence.md"
 SCENARIOS = ROOT / ".github/aw/debug-scenarios.md"
 COMPILATION = ROOT / ".github/aw/debug-compilation.md"
+LIVE_TESTING = ROOT / ".github/aw/debug-live-testing.md"
 HEALTH = ROOT / ".github/aw/debug-workflow-health.md"
 FIXTURES = json.loads((SKILL / "tests/fixtures.json").read_text())
 ANCHOR = "#model-and-engine-misconfiguration"
@@ -65,7 +66,7 @@ class GuidanceTests(unittest.TestCase):
     def test_specialized_guides_keep_links_and_legacy_anchors(self):
         self.assertEqual(heading_anchor("3. Audit the Supplied Run"), "3-audit-the-supplied-run")
         for source in (
-            SCENARIOS, COMPILATION, HEALTH, DEBUG_GUIDE,
+            SCENARIOS, COMPILATION, LIVE_TESTING, HEALTH, DEBUG_GUIDE, EVIDENCE_GUIDE,
             ROOT / ".github/aw/analyzing-runs.md",
         ):
             for link in re.findall(r"\]\(([^)]+)\)", source.read_text()):
@@ -86,6 +87,170 @@ class GuidanceTests(unittest.TestCase):
             self.assertIn(f"]({target})", legacy_section)
             self.assertLessEqual(len(legacy_section.split()), 65)
         self.assertIn("](debug-workflow-health.md)", (ROOT / ".github/aw/analyzing-runs.md").read_text())
+
+    def test_debug_policy_has_explicit_owners_and_requested_scopes(self):
+        guide = DEBUG_GUIDE.read_text()
+        owners = guide.split("## Instruction Ownership\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "Repository overlays and command examples cannot waive",
+            "debug-bootstrap.md",
+            "debug-scenarios.md",
+            "debug-security-review.md",
+            "debug-compilation.md",
+            "debug-workflow-evidence.md",
+            "debug-playbook.md",
+        ):
+            self.assertIn(required, owners)
+        modes = guide.split("## Choose the Mode\n", 1)[1].split("\n## ", 1)[0]
+        for required in (
+            "**Explain only**",
+            "**Compile only**",
+            "only an explicitly requested dry-run test",
+            "exact reviewed, published dry-run source/lock",
+            "Non-dry-run dispatch remains prohibited",
+        ):
+            self.assertIn(required, modes)
+        self.assertNotIn("usable in either mode", modes)
+
+    def test_fix_gate_allows_compile_evidence_before_final_review(self):
+        strategy = DEBUG_GUIDE.read_text().split("4. **Fix and gate.**", 1)[1].split("\n5. ", 1)[0]
+        self.assertLess(strategy.index("trusted compile-only validation"), strategy.index("Review current source"))
+        self.assertIn("source and emitted locks together", strategy)
+        self.assertIn("before execution or upload", strategy)
+        self.assertNotIn("then compile current source", strategy)
+
+    def test_live_testing_is_lazy_and_legacy_headings_remain_routers(self):
+        guide = LIVE_TESTING.read_text()
+        self.assertIn("Load this guide only for permitted live testing", guide)
+        for heading, anchor in (
+            ("Test Workflow Changes from a Branch", "test-workflow-changes-from-a-branch"),
+            ("Live Debug Loop", "live-debug-loop"),
+        ):
+            legacy = DEBUG_GUIDE.read_text().split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0]
+            self.assertIn(f"](debug-live-testing.md#{anchor})", legacy)
+            self.assertLessEqual(len(legacy.split()), 100)
+            self.assertIn(f"## {heading}\n", guide)
+        for required in (
+            "exact reviewed branch",
+            "current source/lock hashes",
+            "declared credential sources and flows",
+            "default to one run",
+            "without repeated human approval",
+            "Any compiler security warning revokes it",
+            "a later clean compile does not reinstate it",
+            "Dispatch timeout/no run ID",
+            "Moved ref or mismatched SHA",
+            "No automatic dispatch retries",
+            "cancel only when authorized",
+            "A branch is not an isolated test environment",
+        ):
+            self.assertIn(required, guide)
+        self.assertNotIn("Dispatch timeout/no run ID |", DEBUG_GUIDE.read_text())
+
+    def test_cli_mapping_uses_capabilities_not_client_assumptions(self):
+        commands = (ROOT / ".github/aw/cli-commands.md").read_text()
+        mapping = commands.split("## CLI vs MCP Tool", 1)[1].split("## Command Reference", 1)[0]
+        self.assertIn("No CLI or authorized MCP access", mapping)
+        self.assertIn("do not assume MCP availability", mapping)
+        self.assertIn("already-authorized tools only", mapping)
+        self.assertNotIn("always available", mapping)
+        self.assertNotIn("CI runner without gh auth", mapping)
+        analysis = (ROOT / ".github/aw/analyzing-runs.md").read_text()
+        self.assertIn("Missing CLI authentication does not establish MCP access", analysis)
+
+    def test_command_reference_defers_gates_and_session_authorization(self):
+        commands = (ROOT / ".github/aw/cli-commands.md").read_text()
+        compile_section = commands.split("### `gh aw compile`\n", 1)[1].split("\n---", 1)[0]
+        run_section = commands.split("### `gh aw run`\n", 1)[1].split("\n---", 1)[0]
+        self.assertIn("](debug-compilation.md)", compile_section)
+        self.assertNotIn("warnings are errors", compile_section)
+        self.assertIn("Low-severity/informational notices are not blanket failures", compile_section)
+        self.assertIn("debug-security-review.md#session-authorization", run_section)
+        self.assertIn("without repeated human approval", run_section)
+        self.assertIn("--ref REVIEWED_REF", run_section)
+        self.assertNotIn("--ref main", run_section)
+        evidence_section = EVIDENCE_GUIDE.read_text().split("### Diagnostic and Development Compilation\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("](debug-compilation.md)", evidence_section)
+        self.assertNotIn("```bash", evidence_section)
+
+    def test_evidence_examples_scope_remote_reads_explicitly(self):
+        evidence = EVIDENCE_GUIDE.read_text()
+        commands = []
+        for block in re.findall(r"```bash\n(.*?)\n```", evidence, re.S):
+            commands.extend(
+                line for line in block.splitlines()
+                if re.match(r"gh (?:aw (?:audit|logs|status)|run (?:view|download))\b", line)
+            )
+        self.assertTrue(commands)
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertTrue(
+                    "--repo HOST/OWNER/REPO" in command
+                    or command.startswith("gh aw audit https://"),
+                    command,
+                )
+
+    def test_enterprise_troubleshooting_does_not_require_new_assistant_or_upgrade(self):
+        guide = (ROOT / "docs/src/content/docs/troubleshooting/debug-ghe.md").read_text()
+        setup = guide.split("## Setup\n", 1)[1].split("\n### ", 1)[0]
+        troubleshooting = guide.split("## Troubleshooting\n", 1)[1].split("\n### ", 1)[0]
+        self.assertIn("For an existing failure, skip initialization", setup)
+        self.assertIn("Use your existing coding-agent session", troubleshooting)
+        self.assertIn("Copilot CLI is optional assistant setup", troubleshooting)
+        self.assertNotIn("start with the Copilot CLI", troubleshooting)
+        self.assertIn("gh auth status\nGH_HOST=yourorg.ghe.com copilot\n```", troubleshooting)
+        self.assertNotIn("**Fix**: Upgrade to", guide)
+        self.assertIn("**Possible cause**", guide)
+        self.assertIn("it does not enable dry-run protections", guide)
+
+    def test_routers_distinguish_guidance_checkout_and_target_overlay(self):
+        for path in (
+            SKILL / "SKILL.md",
+            ROOT / "pkg/cli/data/agentic_workflows_skill.md",
+            ROOT / ".github/agents/agentic-workflows.md",
+            ROOT / "pkg/cli/data/agentic_workflows_agent.md",
+        ):
+            with self.subTest(router=path):
+                text = path.read_text()
+                self.assertIn("only when its repository/ref matches", text)
+                self.assertIn("only in a matching checkout", text)
+                self.assertIn("target repository's", text)
+                self.assertNotIn("not available locally", text)
+                if path.name in ("agentic-workflows.md", "agentic_workflows_agent.md"):
+                    self.assertNotIn("Use the MCP tool `agentic-workflows` when running", text)
+                    self.assertNotIn("--ref main", text)
+                    self.assertIn("gh aw logs [workflow-name] --repo HOST/OWNER/REPO", text)
+        bootstrap = BOOTSTRAP.read_text()
+        self.assertIn("use the guidance owner/repository/ref", bootstrap)
+        self.assertIn("continue available read-only diagnosis", bootstrap)
+        self.assertIn("do not edit or execute\ntarget code without its applicable instructions", bootstrap)
+
+    def test_model_upgrade_recipe_is_evidence_and_scope_conditional(self):
+        guide = GUIDES[0].read_text()
+        version = guide.split("## 1. Check the gh-aw compiler version first\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Explanation-only sessions inspect evidence without installing or upgrading", guide)
+        self.assertIn("Preserve intentional pins", guide)
+        self.assertLess(version.index("gh release list"), version.index("Only when that upgrade is needed"))
+        install_command = re.search(r"^gh extension install ", version, re.M)
+        self.assertIsNotNone(install_command)
+        self.assertLess(version.index("Only when that upgrade is needed"), install_command.start())
+        self.assertIn("otherwise retain the version and continue diagnosis", guide)
+        self.assertIn("](#5-read-the-run-artifacts)", guide)
+
+    def test_public_debugging_entry_does_not_imply_tool_grants_or_mutation(self):
+        guide = (ROOT / "docs/src/content/docs/troubleshooting/debugging.md").read_text()
+        self.assertIn("your existing coding agent", guide)
+        self.assertIn("not a prerequisite", guide)
+        self.assertIn("Skills do not grant tool access", guide)
+        self.assertIn("without mandatory installation", guide)
+        self.assertNotIn("to install `gh aw` and run", guide)
+        section = guide.split("### Compilation Errors\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("`compile --validate` can emit them", section)
+        self.assertIn("gh aw validate my-workflow", section)
+        self.assertNotIn("gh aw fix --write", section)
+        for command in re.findall(r"gh aw compile ([^\n`]+)", guide):
+            with self.subTest(command=command):
+                self.assertIn("--dry-run", command)
 
     def test_compilation_route_preserves_checks_and_result_contract(self):
         guide = COMPILATION.read_text()
@@ -156,7 +321,7 @@ class GuidanceTests(unittest.TestCase):
         self.assertNotIn("failure_pass_complete", (ROOT / ".github/aw/analyzing-runs.md").read_text())
 
     def test_initial_and_specialized_guides_fit_full_file_api_reads(self):
-        for path in (BOOTSTRAP, DEBUG_GUIDE, SCENARIOS, COMPILATION, HEALTH, EVIDENCE_GUIDE):
+        for path in (BOOTSTRAP, DEBUG_GUIDE, SCENARIOS, COMPILATION, LIVE_TESTING, HEALTH, EVIDENCE_GUIDE):
             with self.subTest(path=path.name):
                 self.assertLessEqual(path.stat().st_size, 20000)
         self.assertLessEqual(len(SCENARIOS.read_text().split()), 800)

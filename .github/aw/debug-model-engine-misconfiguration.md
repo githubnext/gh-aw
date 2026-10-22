@@ -19,6 +19,11 @@ examples below rather than inferring the target from the current checkout.
 `not advertised`/model-not-found: [verify same-run availability](debug-playbook.md#model-availability)
 before changing model pins or runtimes.
 
+Read the [run artifacts](#5-read-the-run-artifacts) before proposing changes.
+Explanation-only sessions inspect evidence without installing or upgrading.
+Preserve intentional pins unless a verified relevant fix requires a change
+within the user's authorized scope.
+
 ## 1. Check the gh-aw compiler version first
 
 Read `compiler_version` in the lock file's `gh-aw-metadata` header and `cli_version`
@@ -29,13 +34,9 @@ Compare with the newest published gh-aw release, **including prereleases**:
 
 ```bash
 gh release list --repo github/gh-aw --limit 20
-gh extension install github/gh-aw --force --pin v0.91.7
-gh aw version
-gh aw compile WORKFLOW --dry-run
 ```
 
-The tag above is an example from the October 2026 customer case, not a permanent
-latest version. Select the newest applicable tag from the release list; increase
+Select the newest applicable tag from the release list; increase
 the limit if needed. `gh extension install` and `gh extension upgrade` select the
 latest non-prerelease by default, so a successful upgrade can still leave gh-aw
 several releases behind. `--force --pin TAG` installs a specific prerelease even
@@ -46,6 +47,15 @@ trying other fixes**. In the customer case, v0.89.21 predated the wire-API
 inference fix in [github/gh-aw#64177](https://github.com/github/gh-aw/pull/64177);
 v0.91.7 was the newest prerelease reported then. Do not change only a runtime pin
 or retry the old lock and expect the compiler fix to apply.
+
+Only when that upgrade is needed and installation is permitted:
+
+```bash
+# Historical customer-case tag, not a permanent latest-version recommendation:
+gh extension install github/gh-aw --force --pin v0.91.7
+gh aw version
+gh aw compile WORKFLOW --dry-run
+```
 
 ## 2. Match the resolved model to the wire API
 
@@ -120,7 +130,8 @@ missing cached evidence does not establish successful delegation.
 
 ## 3. Apply fixes in this order
 
-1. **Upgrade gh-aw and recompile.** Use a release containing the relevant fix.
+1. **Upgrade gh-aw and recompile.** Only if the run's compiler predates a
+   verified relevant fix; otherwise retain the version and continue diagnosis.
 2. **Pin a model that supports the required endpoint.** Check the current catalog
    and observed request path; do not assume all aliases or GPT models are interchangeable.
 3. **Remove a conflicting `COPILOT_PROVIDER_WIRE_API` override.** Let the updated
