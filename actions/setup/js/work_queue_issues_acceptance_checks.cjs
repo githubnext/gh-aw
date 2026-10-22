@@ -44,7 +44,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       const m = mock(f, { labelMissing: true });
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /not allowlisted/);
+      assert.match(result.pending[0].reason, /projection_unavailable/);
       assert.equal(m.issues.size, 0);
       assert.ok(!m.calls.some(call => call[0] === "mutation" || call[0] === "lock"));
     });
@@ -107,7 +107,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       const m = mock(fixture({ backing: false }));
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /Failed to read file/);
+      assert.match(result.pending[0].reason, /projection_unavailable/);
       assert.equal(m.issues.size, 0);
       assert.equal(m.calls.filter(call => call[0] === "mutation" && call[1].includes("WorkQueueIssueProjection")).length, 0);
     });
@@ -192,7 +192,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       issue.labels.nodes = [];
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /exact-target grant/);
+      assert.match(result.pending[0].reason, /projection_unavailable/);
       assert.equal(issue.state, "OPEN");
       assert.equal(issue.title, "Unrelated human Issue");
       assert.equal(issue.body, "Human-owned discussion");
@@ -209,7 +209,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       assert.equal(m.state().works.size, 1);
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /installed projector authority/);
+      assert.match(result.pending[0].reason, /projection_unauthorized/);
       assert.equal(m.comments.size, 0);
       assert.ok(!m.calls.some(call => call[0] === "mutation" || call[0] === "lock"));
     });
@@ -223,7 +223,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
         assert.equal(m.state().works.size, 1);
         const result = await main(m.options);
         assert.ok(result.pending);
-        assert.match(result.pending[0].reason, /installed projector authority/);
+        assert.match(result.pending[0].reason, /projection_unauthorized/);
         assert.equal(m.comments.size, 0);
         assert.ok(!m.calls.some(call => call[0] === "mutation" || call[0] === "lock"));
       }
@@ -443,7 +443,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       m.nativeRun.run_attempt = 2;
       const rerun = await main({ ...options, context: { ...options.context, runAttempt: 2 } });
       assert.ok(rerun.pending?.length);
-      assert.match(rerun.pending[0].reason, /rerun_not_authorized|native attempt 1|original authenticated Claims/);
+      assert.match(rerun.pending[0].reason, /projection_unavailable/);
       assert.equal(m.calls.slice(before).filter(call => call[0] === "mutation").length, 0);
       assert.ok(m.issues.get("1").labels.nodes.some(label => label.name === "work:running"));
       assert.deepEqual(
@@ -674,7 +674,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       });
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /receipt node identity/);
+      assert.match(result.pending[0].reason, /projection_unavailable/);
       assert.equal(m.state().works.get(f.nodes[0].work_id).issue_link, undefined);
       const protocol = protocolFixture();
       const actor = { ...helpers.dispatcher, role: "projector" };

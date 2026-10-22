@@ -56,7 +56,12 @@ Claims. Immutable `backing_issue` binds one Work per Issue. Agents never write
 mirrors; human edits never establish Result. Pre-existing Issues require exact
 installed `backing_issues` grants. Only trusted admission-time `completion_policy`
 permits closure, never payload. Keep uncertain writes pending; never recreate or
-globally repair. Upgrade closed-schema readers first. See
+globally repair. Maintenance may update existing AW mirrors only for exact
+terminal requests authored by its authenticated current run/attempt.
+Maintainers/admins may explicitly synchronize one committed terminal request
+with `gh aw work-queue sync-issues --request-id REQUEST_ID`; this grants no
+admission/Claim authority, creation, closure, or lock stealing.
+Upgrade closed-schema readers first. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
 Mirroring generates `.github/workflows/agentic-workqueue.yml` for Issue lifecycle
 events; disabling removes it.

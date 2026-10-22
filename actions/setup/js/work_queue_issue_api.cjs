@@ -20,22 +20,31 @@ async function ensureLabel(github, repositoryId, label, name) {
   if (label) {
     if (label.name !== name || typeof label.id !== "string") throw queueError("projection_label_pending", "tracking label identity is invalid");
     if (label.color?.toUpperCase() !== QUEUE_LABEL_COLOR) {
-      const response = await github.graphql("mutation WorkQueueLabelColor($input:UpdateLabelInput!) { updateLabel(input:$input) { label { id name color } } }", {
+      const response = await labelMutation(github, "mutation WorkQueueLabelColor($input:UpdateLabelInput!) { updateLabel(input:$input) { label { id name color } } }", {
         input: { id: label.id, color: QUEUE_LABEL_COLOR },
         request: { retries: 0, timeout: 15000 },
       });
       if (response?.updateLabel?.label?.id !== label.id || response.updateLabel.label.name !== name || response.updateLabel.label.color?.toUpperCase() !== QUEUE_LABEL_COLOR)
-        throw queueError("projection_label_pending", "work queue label color update is uncertain");
+        throw queueError("projection_write_ambiguous", "work queue label color update is uncertain");
     }
     return label.id;
   }
-  const response = await github.graphql("mutation WorkQueueTrackingLabel($input:CreateLabelInput!) { createLabel(input:$input) { label { id name color } } }", {
+  const response = await labelMutation(github, "mutation WorkQueueTrackingLabel($input:CreateLabelInput!) { createLabel(input:$input) { label { id name color } } }", {
     input: { repositoryId, name, color: QUEUE_LABEL_COLOR, description: "Git-backed Work queue" },
     request: { retries: 0, timeout: 15000 },
   });
   if (!response?.createLabel?.label?.id || response.createLabel.label.name !== name || response.createLabel.label.color?.toUpperCase() !== QUEUE_LABEL_COLOR)
-    throw queueError("projection_label_pending", "work queue label creation is uncertain");
+    throw queueError("projection_write_ambiguous", "work queue label creation is uncertain");
   return response.createLabel.label.id;
+}
+
+async function labelMutation(github, query, variables) {
+  try {
+    return await github.graphql(query, variables);
+  } catch (error) {
+    if (labelAlreadyExists(error)) throw error;
+    throw queueError("projection_write_ambiguous", "label mutation has no exact native acknowledgement");
+  }
 }
 
 function statusLabelName(config, status) {

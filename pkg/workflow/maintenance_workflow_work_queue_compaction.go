@@ -13,6 +13,7 @@ func buildMaintenanceWorkQueueCompactionJobs(opts buildMaintenanceWorkflowYAMLOp
     permissions:
       actions: read
       contents: write
+      issues: write
     steps:
 `)
 	writeMaintenanceConditionalActionsCheckoutStep(&b, opts)
@@ -26,7 +27,7 @@ func buildMaintenanceWorkQueueCompactionJobs(opts buildMaintenanceWorkflowYAMLOp
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { maintenance: reconcile } = require('${{ runner.temp }}/gh-aw/actions/reconcile_work_queue_run.cjs');
-            await reconcile();
+            await reconcile({ projectIssues: true });
             const { main: plan } = require('${{ runner.temp }}/gh-aw/actions/work_queue_compaction_plan.cjs');
             const result = await plan();
             if (result.status === 'planned') {

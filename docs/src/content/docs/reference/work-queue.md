@@ -346,13 +346,45 @@ Issue projection maintenance does not change Claims, fairness, reservations, or
 recovery reserve. Scheduled queue reconciliation separately recovers stranded
 reservations before compaction, using independently verified native evidence.
 
-Only a later authorized hook for the same Work/Claims can retry pending
-synchronization. There are no Issue intake scans, global dirty-Work sweeps,
-schedules, or independent repair workflows. Transferred/deleted Issues,
+Original admission/Claim hooks retry transient metadata reads up to three times,
+never blindly retrying native writes. A pending conclusion projection fails its
+step explicitly after the queue commit; it does not roll back Work or authorize
+rerunning a worker.
+
+Terminal transitions have a separate, bounded existing-mirror path. Maintenance
+may project only exact committed `WorkCancellation`, `Result`, or
+`DeliveryFailure` requests authored by its authenticated current native
+run/attempt. Operator cancellation commands synchronize their exact committed
+request. Neither path inherits another run's admission or Claim authority.
+Only same-repository AW-created `IssueLink` and canonical summary receipts are
+eligible; pre-existing `backing_issue` targets still require their original
+explicit grants. Terminal synchronization never creates Issues/comments,
+rebinds receipts, closes or reopens Issues, or changes queue state.
+
+For a failed original hook or an older administrator/maintenance transition,
+a repository maintainer or administrator can explicitly recover **one**
+committed terminal request:
+
+```bash
+gh aw work-queue sync-issues --repo OWNER/REPO --request-id REQUEST_ID
+```
+
+The command authenticates repository permission, reads configuration from the
+verified default revision, acquires the same per-Work/per-Issue coordination as
+the hooks, refreshes checked state, and updates only current terminal Work
+bound to that exact request. Use `trace` to identify the terminal request first.
+It does not create a Result, repeat effects, or expand authority from an Issue
+label or marker. There are no Issue intake scans or global dirty-Work sweeps.
+Transferred/deleted Issues,
 deleted immutable comments, exhausted pagination, and uncertain creation remain
 explicitly pending. Marker text or bot identity is not proof of creation.
 Ambiguous native writes retain coordination: locks never expire or get stolen,
 and absent verified receipts never authorize blind recreation.
+
+These paths add no ledger operation or wire field: existing V3 closed-schema
+readers remain compatible. Deploy the updated CLI/runtime and regenerate
+maintenance and participant workflows before relying on automatic terminal
+projection. Publishing a branch does not authorize live Issue repair.
 
 Creation intent is durable before sending either an Issue or comment mutation.
 An interruption before sending and a crash after GitHub accepted the write but

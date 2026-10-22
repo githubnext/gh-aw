@@ -2030,6 +2030,7 @@ jobs:
     permissions:
       actions: read
       contents: write
+      issues: write
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2055,7 +2056,7 @@ jobs:
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { maintenance: reconcile } = require(path.join(actionsDir, 'reconcile_work_queue_run.cjs'));
-            await reconcile();
+            await reconcile({ projectIssues: true });
             const { main: plan } = require(path.join(actionsDir, 'work_queue_compaction_plan.cjs'));
             const result = await plan();
             if (result.status === 'planned') {

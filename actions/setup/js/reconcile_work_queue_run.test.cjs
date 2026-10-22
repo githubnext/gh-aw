@@ -274,6 +274,38 @@ describe("inline trusted worker termination", () => {
 });
 
 describe("scheduled work queue recovery", () => {
+  it.each([false, true])("projects only this maintenance run's committed terminal requests, reporting pending=%s without rollback", async pending => {
+    const { fixture, options, nativeRun } = setup({ count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    await main(options);
+    options.context = { ...fixture.dispatcherContext, eventName: "schedule", job: "work_queue_compaction" };
+    const publisher = { ...fixture.nativeRun(fixture.dispatcherContext), event: "schedule", path: ".github/workflows/agentics-maintenance.yml" };
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    options.now = fixture.at + fixture.policy.pools.default.reconciliation.deadline_ms;
+    options.publishWorkQueueRequest = vi.fn(async args => fixture.append(args.request.kind, args.request.parameters, args.actor, args.request.id, options.now));
+    nativeRun.status = "completed";
+    nativeRun.conclusion = "failure";
+    const configuration = vi.spyOn(require("./cancel_work_queue_closed_issue.cjs"), "readIssuesConfig").mockResolvedValue({ label: "work", title_prefix: "[work queue]" });
+    const projection = vi.spyOn(require("./work_queue_issues.cjs"), "main").mockResolvedValue({ pending: pending ? [{ reason: "unavailable" }] : [] });
+    try {
+      if (pending) await expect(maintenance({ ...options, projectIssues: true })).rejects.toThrow(/queue transitions are committed/);
+      else await maintenance({ ...options, projectIssues: true });
+      expect(projection).toHaveBeenCalledOnce();
+      const args = projection.mock.calls[0][0];
+      expect(args.trustedContext).toMatchObject({ role: "reconciler", workflow: publisher.path, event: "schedule" });
+      expect(args.transitionRequestIds).toHaveLength(1);
+      const receipt = fixture.state.requests.get(args.transitionRequestIds[0]);
+      expect(receipt.operations.some(operation => operation.kind === "DeliveryFailure" && operation.work_id === member.work_id)).toBe(true);
+      expect(receipt.actor.run_id).toBe(String(publisher.id));
+      expect(receipt.actor.run_attempt).toBe(publisher.run_attempt);
+    } finally {
+      configuration.mockRestore();
+      projection.mockRestore();
+    }
+  });
+
   it.each([false, true])("settles an expired pending delivery after inline release with keep_open=%s without replay or Result", async keepOpen => {
     const { fixture, options, nativeRun } = setup({ count: 1 });
     const member = fixture.assignment.claims[0];

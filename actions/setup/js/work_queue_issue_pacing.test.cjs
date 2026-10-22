@@ -16,6 +16,47 @@ function clock() {
 }
 
 describe("Issue projection pacing", () => {
+  it("recovers a bounded socket read failure without retrying native writes", async () => {
+    const timer = clock();
+    let reads = 0;
+    let writes = 0;
+    const error = Object.assign(new Error("other side closed"), { cause: { code: "UND_ERR_SOCKET" } });
+    const { client, metrics } = wrapGithubClient(
+      {
+        graphql: async query => {
+          if (query.startsWith("mutation")) {
+            writes++;
+            throw error;
+          }
+          if (++reads < 3) throw error;
+          return { checked: true };
+        },
+      },
+      timer
+    );
+    expect(await client.graphql("query { viewer { login } }", {})).toEqual({ checked: true });
+    await expect(client.graphql("mutation { createIssue(input:$a) { clientMutationId } }", {})).rejects.toBe(error);
+    expect(reads).toBe(3);
+    expect(writes).toBe(1);
+    expect(metrics).toMatchObject({ reads: 3, mutations: 1 });
+    expect(timer.delays).toEqual([1000, 1000, 1000]);
+  });
+
+  it.each([{ status: 401 }, { status: 403 }, { status: 429 }, { code: "ERR_TRANSPORT_INTEGRITY" }])("does not retry denied, quota-limited or integrity-failed reads: %j", async error => {
+    let reads = 0;
+    const { client } = wrapGithubClient(
+      {
+        graphql: async () => {
+          reads++;
+          throw error;
+        },
+      },
+      clock()
+    );
+    await expect(client.graphql("query { viewer { login } }", {})).rejects.toBe(error);
+    expect(reads).toBe(1);
+  });
+
   it("paces mutation aliases, counts reads separately, and disables hidden GraphQL retries", async () => {
     const timer = clock();
     const calls = [];

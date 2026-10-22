@@ -190,6 +190,9 @@ func workPublishClear(cmd *cobra.Command, branch workqueue.Branch, actor workque
 		if !published.Changed {
 			action, result.Status = "Confirmed original cancellation of", "already_committed"
 		}
+		if _, err := branch.SynchronizeIssueTransition(cmd.Context(), result.RequestID); err != nil {
+			return fmt.Errorf("queue cancellation committed; Issue synchronization pending; retry sync-issues --request-id %s: %w", result.RequestID, err)
+		}
 	}
 	return workPrint(cmd, result, fmt.Sprintf("%s %d snapshot Work; completed Work, pending deliveries, and history retained; native runs not stopped or released; admission/grants unchanged; request=%s",
 		action, len(result.WorkIDs), workQueueText(result.RequestID)))

@@ -16,6 +16,11 @@ const { wrapGithubClient } = require("./work_queue_issue_pacing.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { validateJournal } = require("./work_queue_issue_journal.cjs");
 const { issueBody, issueTitle, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
+const { transitionProjectionTargets } = require("./work_queue_issue_transitions.cjs");
+
+function projectionTargets(options, state, origin, assignment) {
+  return options.transitionRequestIds === undefined ? ownProjectionTargets(state, origin, origin.ref, assignment) : transitionProjectionTargets(state, origin, options.transitionRequestIds);
+}
 
 function issuesConfiguration(value) {
   if (value === undefined || value === false) return null;
@@ -190,7 +195,7 @@ async function publishProjection(options, current, actor, journals, operations) 
 }
 
 async function projectBatch(options, initial, origin, assignment, config, targets) {
-  const actor = { ...actorFromContext(origin), role: "projector", ...(assignment ? { dispatch_id: assignment.dispatch_id } : {}) };
+  const actor = options.transitionRequestIds === undefined ? { ...actorFromContext(origin), role: "projector", ...(assignment ? { dispatch_id: assignment.dispatch_id } : {}) } : actorFromContext(origin);
   const paths = targets.map(target => journalPath(target.work_id));
   const read = options.readCheckedQueue || readCheckedQueue;
   const preflight = targets.map(target => {
@@ -205,7 +210,7 @@ async function projectBatch(options, initial, origin, assignment, config, target
   });
   const issueRead = issueReadQuery(preflight, config, origin.repository);
   let current = await read({ ...options, paths, issueRead });
-  const owned = ownProjectionTargets(current.state, origin, origin.ref, assignment).targets;
+  const owned = projectionTargets(options, current.state, origin, assignment).targets;
   for (const target of targets) {
     const checked = owned.find(candidate => candidate.work_id === target.work_id);
     if (!checked || canonical(checked) !== canonical(target)) throw queueError("projection_scope_changed", "projection targets changed after coordination");
@@ -346,7 +351,12 @@ async function projectLinkedIssues(options, current, actor, origin, config, targ
     if (!issue) continue;
     const work = current.state.works.get(target.work_id);
     const journal = journals.get(journalPath(target.work_id));
-    assertProjectionAuthority(current.state, actor, work.work_id, origin.ref, target.resource.repository, target.authority_claim_id);
+    const existingOnly = target.transition_request_id !== undefined;
+    if (existingOnly) {
+      const checked = transitionProjectionTargets(current.state, origin, options.transitionRequestIds).targets.find(candidate => candidate.work_id === target.work_id);
+      const { comments: _, commentAliases: __, ...scope } = target;
+      if (!checked || canonical(checked) !== canonical(scope)) throw queueError("projection_scope_changed", "terminal projection target changed after coordination");
+    } else assertProjectionAuthority(current.state, actor, work.work_id, origin.ref, target.resource.repository, target.authority_claim_id);
     const discovered = discovery.get(target.resource.repository);
     const status = workIssueStatus(current.state, work, options.now ?? Date.now());
     const desiredStatusId = statusLabels.get(`${target.resource.repository}:${status}`);
@@ -378,7 +388,7 @@ async function projectLinkedIssues(options, current, actor, origin, config, targ
       if (comment) {
         if (comment.body !== body) edits.push({ key: target.work_id, name: "updateIssueComment", type: "UpdateIssueCommentInput", input: { id: comment.id, body }, selection: "issueComment { id body }" });
         const handle = key === "summary" ? work.issue_summary : current.state.claims.get(key).issue_comment;
-        if (!handle)
+        if (!handle && !existingOnly)
           bindings.push({
             kind: "IssueComment",
             work_id: target.work_id,
@@ -387,6 +397,8 @@ async function projectLinkedIssues(options, current, actor, origin, config, targ
             ...(key !== "summary" ? { claim_id: key } : {}),
             ...(target.authority_claim_id ? { authority_claim_id: key === "summary" ? target.authority_claim_id : key } : {}),
           });
+      } else if (existingOnly) {
+        pending.push({ work_id: target.work_id, reason: "terminal projection requires the existing canonical comment receipt; recreation is forbidden" });
       } else if (journal.comments[key]) {
         pending.push({ work_id: target.work_id, reason: "Comment creation is uncertain; no verified native receipt permits recreation" });
       } else {
@@ -399,7 +411,7 @@ async function projectLinkedIssues(options, current, actor, origin, config, targ
         newComments.push({ key: target.work_id, handle: key, name: "addComment", type: "AddCommentInput", input: { subjectId: issue.id, body }, selection: "commentEdge { node { id body ... on IssueComment { issue { id } } } }" });
       }
     }
-    if (status === "Done" && issueCompletionPolicy(current.state, work, actor, origin.ref, target.resource.repository) === "close-on-result" && issue.state !== "CLOSED")
+    if (!existingOnly && status === "Done" && issueCompletionPolicy(current.state, work, actor, origin.ref, target.resource.repository) === "close-on-result" && issue.state !== "CLOSED")
       edits.push({ key: target.work_id, name: "closeIssue", type: "CloseIssueInput", input: { issueId: issue.id, stateReason: "COMPLETED" }, selection: "issue { id state }" });
   }
   if (newComments.length) current = await publishProjection(options, current, actor, journals, []);
@@ -426,7 +438,7 @@ async function projectLinkedIssues(options, current, actor, origin, config, targ
         result.operation.expectedLabels?.some(id => !result.value.labelable.labels.nodes.some(label => label.id === id)) ||
         result.operation.removedLabels?.some(id => result.value.labelable.labels.nodes.some(label => label.id === id)))
     )
-      pending.push({ work_id: result.operation.key, reason: "queue committed; status label synchronization was not verified" });
+      recordUncertainReceipt(result, batch, pending, "status label synchronization was not verified");
     if (result.operation.handle) {
       const node = result.value.commentEdge?.node;
       const target = targets.find(target => target.work_id === result.operation.key);
@@ -456,6 +468,26 @@ function recordUncertainReceipt(result, batch, pending, reason) {
   pending.push({ work_id: result.operation.key, reason: `queue committed; ${reason}; synchronization pending` });
 }
 
+function projectionFailureReason(error) {
+  const codes = [
+    "projection_field_pending",
+    "projection_coordination_pending",
+    "projection_write_ambiguous",
+    "projection_target_unavailable",
+    "projection_scope_changed",
+    "projection_unauthorized",
+    "projection_receipt_pending",
+    "projection_limit",
+    "projection_label_pending",
+    "projection_rate_pending",
+    "projection_invalid",
+    "publication_unresolved",
+  ];
+  const code = codes.includes(error?.code) ? error.code : "projection_unavailable";
+  const subject = code === "projection_field_pending" ? "field sync pending" : "Issue synchronization pending";
+  return `queue committed; ${subject} (${code}); verify immutable Issue/canonical comment receipts and the exact request; do not recreate mirrors or remove uncertain locks`;
+}
+
 async function main(options = {}) {
   const coreApi = options.core || core;
   const raw = Object.hasOwn(options, "issues") ? options.issues : process.env.GH_AW_WORK_QUEUE_ISSUES;
@@ -472,17 +504,17 @@ async function main(options = {}) {
   boundOptions.githubClient = measured;
   const pending = [];
   try {
-    const runtime = resolveWorkQueueRuntime(repositoryContext.payload, { role: options.role });
+    const runtime = options.transitionRequestIds === undefined ? resolveWorkQueueRuntime(repositoryContext.payload, { role: options.role }) : { role: "reconciler", assignment: null };
     if (runtime.role === "observer") return { disabled: true, observer: true };
     const origin =
       options.trustedContext ||
       (await authenticatePublisher({
         ...boundOptions,
         context: repositoryContext,
-        role: runtime.assignment ? "worker" : "dispatcher",
+        role: options.transitionRequestIds === undefined ? (runtime.assignment ? "worker" : "dispatcher") : "reconciler",
         ...(runtime.assignment ? { dispatch_id: runtime.assignment.dispatch_id } : {}),
       }));
-    const assignment = runtime.assignment || readInboundWorkQueueAssignment(repositoryContext.payload);
+    const assignment = options.transitionRequestIds === undefined ? runtime.assignment || readInboundWorkQueueAssignment(repositoryContext.payload) : null;
     const initial = await (options.readCheckedQueue || readCheckedQueue)(boundOptions);
     if (assignment && origin.native_run) {
       const { dispatch, profile } = validateStoredAssignment(initial.state, assignment, { allowReleased: true });
@@ -490,7 +522,7 @@ async function main(options = {}) {
       const proof = validateNativeRun(origin.native_run, expected);
       if (!dispatch.run || canonical(dispatch.run) !== canonical(bindingForRun(proof, expected))) throw queueError("projection_unauthorized", "native worker requires its original durable run binding");
     }
-    const permitted = ownProjectionTargets(initial.state, origin, origin.ref, assignment).targets;
+    const permitted = projectionTargets(options, initial.state, origin, assignment).targets;
     for (let offset = 0; offset < permitted.length; offset += MAX_PROJECTION_TARGETS) {
       const targets = permitted.slice(offset, offset + MAX_PROJECTION_TARGETS);
       try {
@@ -512,16 +544,18 @@ async function main(options = {}) {
         pending.push(
           ...targets.map(target => ({
             work_id: target.work_id,
-            reason: error.code === "projection_field_pending" ? `queue committed; field sync pending: ${error.message}` : `queue committed; Issue synchronization pending: ${error.message}`,
+            reason: projectionFailureReason(error),
           }))
         );
       }
     }
   } catch (error) {
-    coreApi.warning(`Work queue Issues: queue committed; synchronization pending: ${error.message}`);
-    return { pending: [{ reason: error.message }], metrics };
+    coreApi.warning(`Work queue Issues: ${projectionFailureReason(error)}`);
+    coreApi.setOutput?.("work_queue_issue_sync_pending", 1);
+    return { pending: [{ reason: projectionFailureReason(error) }], metrics };
   }
   for (const diagnostic of pending) coreApi.warning(`Work queue Issues (${diagnostic.work_id}): ${diagnostic.reason}`);
+  coreApi.setOutput?.("work_queue_issue_sync_pending", pending.length);
   coreApi.info(`Work queue Issue projection: ${metrics.requests} requests (${metrics.reads} reads, ${metrics.mutations} mutations), including authentication, coordination, journals, and retries; ${pending.length} pending targets`);
   return { pending, metrics };
 }

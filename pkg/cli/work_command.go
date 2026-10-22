@@ -70,7 +70,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
-		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
+		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workSyncIssuesCommand(), workTUICommand())
 	return root
 }
 
@@ -746,6 +746,9 @@ func workReconcileCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				if err := workSyncTerminalPublication(cmd, result.Publication); err != nil {
+					return err
+				}
 				return workPrint(cmd, result, result.Reason+"; Work "+workID)
 			}
 			var result workqueue.Reconciliation
@@ -755,6 +758,9 @@ func workReconcileCommand() *cobra.Command {
 				result, err = workBranch(cmd).Reconcile(cmd.Context(), id, request)
 			}
 			if err != nil {
+				return err
+			}
+			if err := workSyncTerminalPublication(cmd, result.Publication); err != nil {
 				return err
 			}
 			return workPrint(cmd, result, result.Reason+"; dispatch "+id)
