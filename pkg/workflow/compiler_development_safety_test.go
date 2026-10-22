@@ -209,8 +209,6 @@ Analyze the repository.
 	require.ErrorContains(t, c.CompileWorkflow(path), "jobs.upload_assets.uses")
 	require.NoFileExists(t, filepath.Join(dir, "workflow.lock.yml"))
 	c.SetDryRun(false)
-	require.NoError(t, c.CompileWorkflow(path))
-	lock, err := os.ReadFile(filepath.Join(dir, "workflow.lock.yml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(lock), "secrets: inherit")
+	require.ErrorContains(t, c.CompileWorkflow(path), "jobs.upload_assets: this name is reserved")
+	require.NoFileExists(t, filepath.Join(dir, "workflow.lock.yml"))
 }

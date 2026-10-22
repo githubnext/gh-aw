@@ -250,7 +250,14 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 		case r.URL.Path == "/user":
 			response = map[string]any{"id": 1001, "login": "operator"}
 		case r.URL.Path == "/repos/"+remote:
-			response = map[string]any{"id": 9, "full_name": remote, "permissions": map[string]bool{"admin": true, "push": true}}
+			response = map[string]any{"id": 9, "full_name": remote, "default_branch": "main", "permissions": map[string]bool{"admin": true, "push": true}}
+		case path == "git/ref/heads/main":
+			response = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": strings.Repeat("a", 40)}}
+		case path == "contents/.github/workflows/aw.json":
+			if r.URL.Query().Get("ref") != strings.Repeat("a", 40) {
+				t.Fatal("Issue synchronization did not check settings at the verified default revision")
+			}
+			return &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"message":"Not Found"}`)), Request: r}, nil
 		case path == "actions/runs/202/attempts/1":
 			response = map[string]any{
 				"id": 202, "run_attempt": 1, "event": "workflow_dispatch", "status": "in_progress",

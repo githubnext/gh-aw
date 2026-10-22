@@ -51,14 +51,71 @@ func TestDocumentationGalleryWorkflowsCompile(t *testing.T) {
 				return
 			}
 			if directiveWorkflowName == "" {
-				t.Fatal(extractErr)
+				workflows := regexp.MustCompile(`https://github\.com/github/gh-aw/blob/main/\.github/workflows/([a-z0-9][a-z0-9-]*\.md)`).FindAllStringSubmatch(string(content), -1)
+				if len(workflows) == 0 {
+					t.Fatal(extractErr)
+				}
+				for _, workflow := range workflows {
+					t.Run(workflow[1], func(t *testing.T) {
+						compileRepositoryExampleWorkflow(t, workflow[1])
+					})
+				}
+				return
 			}
 
 			const rawURLPrefix = "https://raw.githubusercontent.com/githubnext/agentics/main/workflows/"
 			fetchAndCompileExampleWorkflow(t, directiveWorkflowName, rawURLPrefix+directiveWorkflowName)
 		})
 	}
+}
 
+func compileRepositoryExampleWorkflow(t *testing.T, workflowName string) {
+	t.Helper()
+	sourceDir, err := filepath.Abs("../../.github/workflows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := filepath.Join(testutil.TempDir(t, "docs-repository-example"), ".github", "workflows")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"skills", "aw"} {
+		if err := os.CopyFS(filepath.Join(directory, "..", name), os.DirFS(filepath.Join(sourceDir, "..", name))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lockName := strings.TrimSuffix(workflowName, ".md") + ".lock.yml"
+	for _, entry := range entries {
+		if entry.Name() == workflowName || entry.Name() == lockName {
+			continue
+		}
+		source, target := filepath.Join(sourceDir, entry.Name()), filepath.Join(directory, entry.Name())
+		if entry.IsDir() {
+			if err := os.CopyFS(target, os.DirFS(source)); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := os.Symlink(source, target); err != nil {
+			t.Fatal(err)
+		}
+	}
+	content, err := os.ReadFile(filepath.Join(sourceDir, workflowName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(directory, workflowName)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	compiler := NewCompiler(WithVersion("integration"))
+	compiler.SetWorkflowIdentifier(workflowName)
+	compiler.SetApprove(true)
+	if err := compiler.CompileWorkflow(path); err != nil {
+		t.Fatalf("compile linked repository workflow %s: %v", workflowName, err)
+	}
 }
 
 func fetchAndCompileExampleWorkflow(t *testing.T, workflowName, rawURL string) {
