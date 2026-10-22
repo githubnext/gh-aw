@@ -349,7 +349,9 @@ reservations before compaction, using independently verified native evidence.
 Original admission/Claim hooks retry transient metadata reads up to three times,
 never blindly retrying native writes. A pending conclusion projection fails its
 step explicitly after the queue commit; it does not roll back Work or authorize
-rerunning a worker.
+rerunning a worker. Required detection reporting still runs after a projection
+failure. Maintenance completes authoritative compaction before reporting
+projection-only failure; unresolved native reconciliation remains blocking.
 
 Terminal transitions have a separate, bounded existing-mirror path. Maintenance
 may project only exact committed `WorkCancellation`, `Result`, or
@@ -360,6 +362,9 @@ Only same-repository AW-created `IssueLink` and canonical summary receipts are
 eligible; pre-existing `backing_issue` targets still require their original
 explicit grants. Terminal synchronization never creates Issues/comments,
 rebinds receipts, closes or reopens Issues, or changes queue state.
+Missing receipts remain pending per Work without blocking eligible mirrors in
+the same request. Terminal summaries preserve checked Claim/run history and
+verified outcome links, including after ledger compaction.
 
 For a failed original hook or an older administrator/maintenance transition,
 a repository maintainer or administrator can explicitly recover **one**
@@ -379,7 +384,9 @@ Transferred/deleted Issues,
 deleted immutable comments, exhausted pagination, and uncertain creation remain
 explicitly pending. Marker text or bot identity is not proof of creation.
 Ambiguous native writes retain coordination: locks never expire or get stolen,
-and absent verified receipts never authorize blind recreation.
+and absent verified receipts never authorize blind recreation. Confirmed
+no-write rejections release acknowledged locks; cleanup has a bounded context
+independent of caller cancellation.
 
 These paths add no ledger operation or wire field: existing V3 closed-schema
 readers remain compatible. Deploy the updated CLI/runtime and regenerate

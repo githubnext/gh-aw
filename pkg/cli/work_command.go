@@ -746,10 +746,7 @@ func workReconcileCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if err := workSyncTerminalPublication(cmd, result.Publication); err != nil {
-					return err
-				}
-				return workPrint(cmd, result, result.Reason+"; Work "+workID)
+				return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; Work "+workID)
 			}
 			var result workqueue.Reconciliation
 			if cancelReserved {
@@ -760,10 +757,7 @@ func workReconcileCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := workSyncTerminalPublication(cmd, result.Publication); err != nil {
-				return err
-			}
-			return workPrint(cmd, result, result.Reason+"; dispatch "+id)
+			return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; dispatch "+id)
 		},
 	}
 	cmd.Flags().String("dispatch-id", "", "Immutable native reservation identity")

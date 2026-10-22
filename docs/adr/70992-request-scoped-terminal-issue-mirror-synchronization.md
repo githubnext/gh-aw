@@ -1,8 +1,8 @@
 # ADR-70992: Request-Scoped Terminal Issue Mirror Synchronization for the Work Queue
 
 **Date**: 2026-10-22
-**Status**: Draft
-**Deciders**: pelikhan, [TODO: verify reviewers]
+**Status**: Proposed
+**Deciders**: @pelikhan (PR author); repository maintainers through review of [#70992](https://github.com/github/gh-aw/pull/70992)
 
 ---
 
@@ -12,7 +12,13 @@ The work queue mirrors each Work item to an existing GitHub Issue ([ADR-67025](6
 
 ### Decision
 
-We will synchronize Issue mirrors only for **one exact committed terminal request at a time**. We will not run a global repair sweep. Each sync is bound to the publisher that committed the request: the original run, the maintenance run with a matching authenticated native run and attempt, or the operator command that published it. Maintainers or admins can recover a failed sync explicitly with `gh aw work-queue sync-issues --request-id REQUEST_ID`. Synchronization updates only existing, same-repository AW-managed Issues and their canonical summary comments. It never creates, rebinds or closes Issues. It acquires sorted Work and Issue projection locks as git refs, re-reads and replays the ledger under those locks, and checks immutable native identities before any write. Projection metadata reads are retried up to three times, but native mutations are never retried. If synchronization stays pending after the queue commit, the step fails explicitly. No new ledger operations or schema fields are added.
+Synchronization is scoped to **exact committed terminal requests**, never a global repair sweep. Original hooks retain their original admission/Claim authority. Maintenance may batch only requests authored by its matching authenticated native run and attempt. Automatic operator synchronization is bound to its exact publication; it does not grant a writer general recovery authority. Maintainers or admins can recover one terminal request explicitly with `gh aw work-queue sync-issues --request-id REQUEST_ID`.
+
+Synchronization updates only existing, same-repository AW-managed Issues and canonical summary comments, preserving checked run/Claim history and verified outcome links. It never creates, rebinds or closes Issues or comments. It acquires sorted Work and Issue projection locks as git refs, replays fresh ledger state under those locks, and checks immutable native identities before writing. Checkpoint trace normalization preserves terminal-request identity after compaction. Missing receipts remain per-Work pending without blocking other eligible mirrors.
+
+Projection metadata reads use a bounded three-attempt retry budget. Native writes are never blindly retried. Definitive no-write rejections release acknowledged coordination; a verified duplicate-label rejection permits discovery of the existing label, not replay of an unknown write. Unknown or partial outcomes retain fences. Cleanup of safely acknowledged locks has a bounded context independent of caller cancellation. Mutation pacing is a rate-limit control, not an eventual-consistency workaround.
+
+Pending projection remains visible as failure after required reporting and authoritative maintenance compaction complete; unresolved native reconciliation retains its blocking behavior. Diagnostics expose safe classifications and request metadata, never raw external exception messages. No new ledger operations or schema fields are added.
 
 ### Alternatives Considered
 
@@ -31,22 +37,22 @@ Wrapping every GraphQL call in the same retry budget would be simpler and would 
 ### Consequences
 
 #### Positive
-- Terminal transitions from maintenance and operator commands now update existing Issue mirrors. Stale `Queued`/`Running` labels no longer remain on terminal Work.
+- Terminal transitions from maintenance and operator commands can update existing Issue mirrors without acquiring another run's authority. Recoverable failures remain explicit rather than silently retaining stale labels.
 - Transient read failures are recovered within a bounded budget. Remaining failures turn into an explicit step failure with a clear recovery command, so they are no longer silently dropped.
-- Authority stays narrow. Each sync is limited to one committed request and to existing mirrors in the same repository, and identities are checked again under locks before any write.
+- Authority stays narrow. Explicit recovery selects one committed request; maintenance batches only its own exact committed requests. Both update existing mirrors in the same repository, and identities are checked again under locks before any write.
 - V3 ledger compatibility is preserved, because no new operations or fields are added.
 
 #### Negative
 - Mirrors that are already stale are not fixed automatically. An operator must find the exact request ID and run `sync-issues --request-id`, which adds work for maintainers.
-- Projection locks stored as git refs add API round-trips. If a release is uncertain, the lock is deliberately left in place, so later syncs can be blocked until someone intervenes manually.
+- Projection locks stored as git refs add API round-trips. Unknown writes or uncertain releases deliberately retain fences. This decision does not authorize deleting or stealing them; any recovery requires separate verified evidence and authorization.
 - The conclusion step can now fail even when the queue commit itself succeeded. This may surface as a workflow failure that needs triage.
 - The new sync and terminal-target logic is a large amount of security-sensitive code, written in both Go (`pkg/workqueue/branch_issue_sync.go`) and JavaScript (`work_queue_issue_transitions.cjs`), and the two must stay consistent.
 
 #### Neutral
 - All lock files were regenerated so that the new projection-failure hook and the existing failed-Claim diagnostic retention are both present.
-- Terminal status labels are derived from Work state: `Cancelled`, `Needs attention` (unverified barrier), `Needs review` (pull request output), or `Done`.
+- Terminal status labels are derived from Work state: `Cancelled`, `Needs attention` (unverified or failed delivery barrier), `Needs review` (verified pull request output), or `Done` (other verified Result).
 - Each sync is capped at 256 mirrors, and label pagination at 16 pages.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+This proposal records the implementation decision; maintainer review and merge determine acceptance. It does not authorize production repair, workflow dispatch, or removal of retained fences.

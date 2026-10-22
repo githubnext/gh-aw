@@ -17,6 +17,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { validateJournal } = require("./work_queue_issue_journal.cjs");
 const { issueBody, issueTitle, renderSummary, renderClaim, runLink } = require("./work_queue_issue_messages.cjs");
 const { transitionProjectionTargets } = require("./work_queue_issue_transitions.cjs");
+const log = require("./work_queue_logging.cjs").createWorkQueueLogger("issues");
 
 function projectionTargets(options, state, origin, assignment) {
   return options.transitionRequestIds === undefined ? ownProjectionTargets(state, origin, origin.ref, assignment) : transitionProjectionTargets(state, origin, options.transitionRequestIds);
@@ -469,23 +470,27 @@ function recordUncertainReceipt(result, batch, pending, reason) {
 }
 
 function projectionFailureReason(error) {
-  const codes = [
-    "projection_field_pending",
-    "projection_coordination_pending",
-    "projection_write_ambiguous",
-    "projection_target_unavailable",
-    "projection_scope_changed",
-    "projection_unauthorized",
-    "projection_receipt_pending",
-    "projection_limit",
-    "projection_label_pending",
-    "projection_rate_pending",
-    "projection_invalid",
-    "publication_unresolved",
-  ];
-  const code = codes.includes(error?.code) ? error.code : "projection_unavailable";
+  const explanations = {
+    projection_field_pending: "The configured Issue field could not be synchronized",
+    projection_coordination_pending: "Another projector holds the required coordination lock",
+    projection_write_ambiguous: "A native write has no exact acknowledgement and may already have executed",
+    projection_target_unavailable: "The Issue target is inaccessible or its immutable identity changed",
+    projection_scope_changed: "The authorized target changed after coordination; refresh the checked queue",
+    projection_unauthorized: "The publisher lacks the original durable authority for this projection",
+    projection_receipt_pending: "The native write receipt could not be verified",
+    projection_limit: "The projection exceeds a bounded batch limit",
+    projection_label_pending: "The tracking or status label could not be verified or provisioned",
+    projection_comment_pending: "The canonical comment is missing or changed; its immutable handle cannot be replaced",
+    projection_pagination_pending: "Issue label pagination is incomplete or exhausted its bounded limit",
+    projection_journal_invalid: "The stored native receipt disagrees with the checked projection",
+    projection_rate_pending: "GitHub rate limiting stopped further projection requests",
+    projection_invalid: "The projection configuration or native job diagnostics are invalid",
+    publication_unresolved: "The native receipt exists but its queue binding publication is unresolved",
+  };
+  const code = Object.hasOwn(explanations, error?.code) ? error.code : "projection_unavailable";
   const subject = code === "projection_field_pending" ? "field sync pending" : "Issue synchronization pending";
-  return `queue committed; ${subject} (${code}); verify immutable Issue/canonical comment receipts and the exact request; do not recreate mirrors or remove uncertain locks`;
+  const explanation = explanations[code] || "The projection failed; inspect the safe HTTP status and request ID diagnostic";
+  return `queue committed; ${subject} (${code}); ${explanation}; verify immutable Issue/canonical comment receipts and the exact request; do not recreate mirrors or remove uncertain locks`;
 }
 
 async function main(options = {}) {
@@ -522,7 +527,9 @@ async function main(options = {}) {
       const proof = validateNativeRun(origin.native_run, expected);
       if (!dispatch.run || canonical(dispatch.run) !== canonical(bindingForRun(proof, expected))) throw queueError("projection_unauthorized", "native worker requires its original durable run binding");
     }
-    const permitted = projectionTargets(options, initial.state, origin, assignment).targets;
+    const selection = projectionTargets(options, initial.state, origin, assignment);
+    const permitted = selection.targets;
+    pending.push(...(selection.pending || []));
     for (let offset = 0; offset < permitted.length; offset += MAX_PROJECTION_TARGETS) {
       const targets = permitted.slice(offset, offset + MAX_PROJECTION_TARGETS);
       try {
@@ -541,6 +548,7 @@ async function main(options = {}) {
         );
         pending.push(...result.pending);
       } catch (error) {
+        log.failure("projection.batch.failed", error.originalError || error, true);
         pending.push(
           ...targets.map(target => ({
             work_id: target.work_id,
@@ -550,6 +558,7 @@ async function main(options = {}) {
       }
     }
   } catch (error) {
+    log.failure("projection.failed", error.originalError || error, true);
     coreApi.warning(`Work queue Issues: ${projectionFailureReason(error)}`);
     coreApi.setOutput?.("work_queue_issue_sync_pending", 1);
     return { pending: [{ reason: projectionFailureReason(error) }], metrics };

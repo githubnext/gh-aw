@@ -546,7 +546,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
           if (query.includes("WorkQueueTrackingLabel")) {
             creates++;
             label ||= { id: "label-queued", name, color: "808080" };
-            throw Object.assign(new Error("Name has already been taken"), { errors: [{ message: "Name has already been taken" }] });
+            throw Object.assign(new Error("Name has already been taken"), { data: { createLabel: null }, errors: [{ type: "UNPROCESSABLE", path: ["createLabel"], message: "Name has already been taken" }] });
           }
           if (query.includes("WorkQueueLabelColor")) {
             recolors++;

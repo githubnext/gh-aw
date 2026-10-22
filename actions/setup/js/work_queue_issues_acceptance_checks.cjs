@@ -368,7 +368,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       assert.ok(m.state().works.get(f.nodes[0].work_id).issue_summary);
     });
 
-    it("uses withRetry for a proven pre-execution creation rejection without retrying ambiguous writes", async () => {
+    it("retries a proven pre-execution creation rejection without retrying ambiguous writes", async () => {
       const operation = { key: "work", name: "createIssue", type: "CreateIssueInput", input: { repositoryId: "repo", title: "Work", body: "Work details" }, selection: "issue { id }" };
       let attempts = 0;
       const success = await mutateIssues(
@@ -674,7 +674,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       });
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /projection_unavailable/);
+      assert.match(result.pending[0].reason, /projection_journal_invalid/);
       assert.equal(m.state().works.get(f.nodes[0].work_id).issue_link, undefined);
       const protocol = protocolFixture();
       const actor = { ...helpers.dispatcher, role: "projector" };

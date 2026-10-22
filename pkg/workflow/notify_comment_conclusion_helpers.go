@@ -177,9 +177,14 @@ func (c *Compiler) buildConclusionDetectionRunsStep(data *WorkflowData, mainJobN
 	envVars = append(envVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
+	stepCondition := ""
+	if isWorkQueueParticipant(data) {
+		stepCondition = "always()"
+	}
 	steps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Log detection run",
 		StepID:        "detection_runs",
+		StepCondition: stepCondition,
 		MainJobName:   mainJobName,
 		CustomEnvVars: envVars,
 		ScriptFile:    "handle_detection_runs.cjs",

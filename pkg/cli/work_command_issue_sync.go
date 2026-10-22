@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,12 @@ import (
 )
 
 func workSyncIssuesCommand() *cobra.Command {
+	return workSyncIssuesCommandWithSynchronizer(func(ctx context.Context, branch workqueue.Branch, id string) (workqueue.IssueSynchronization, error) {
+		return branch.SynchronizeIssueTransition(ctx, id)
+	})
+}
+
+func workSyncIssuesCommandWithSynchronizer(synchronize func(context.Context, workqueue.Branch, string) (workqueue.IssueSynchronization, error)) *cobra.Command {
 	return &cobra.Command{
 		Use:   "sync-issues",
 		Short: "Synchronize existing mirrors for one committed terminal request",
@@ -24,15 +31,18 @@ func workSyncIssuesCommand() *cobra.Command {
 				return errors.New("request_invalid: sync-issues requires --request-id for one committed terminal request")
 			}
 
-			result, err := workBranch(cmd).SynchronizeIssueTransition(cmd.Context(), id)
-			if err != nil {
+			result, err := synchronize(cmd.Context(), workBranch(cmd), id)
+			if err != nil && len(result.Pending) == 0 && result.Synchronized == 0 {
 				return err
 			}
 			message := fmt.Sprintf("Synchronized %d existing terminal Work mirrors; request=%s", result.Synchronized, id)
 			if result.Disabled {
 				message = "Issue synchronization is disabled in the verified repository configuration"
 			}
-			return workPrint(cmd, result, message)
+			if len(result.Pending) != 0 {
+				message += fmt.Sprintf("; %d terminal Work pending existing mirror receipts", len(result.Pending))
+			}
+			return errors.Join(err, workPrint(cmd, result, message))
 		},
 	}
 }
@@ -48,11 +58,17 @@ func workSyncTerminalPublication(cmd *cobra.Command, publication *workqueue.Publ
 		}
 		if fields.Kind == "WorkCancellation" || fields.Kind == "Result" || fields.Kind == "DeliveryFailure" {
 			id := publication.Commit.Request.ID
-			if _, err := workBranch(cmd).SynchronizeIssueTransition(cmd.Context(), id); err != nil {
+			if _, err := workBranch(cmd).SynchronizePublishedIssueTransition(cmd.Context(), publication); err != nil {
 				return fmt.Errorf("queue transition committed; Issue synchronization pending; retry sync-issues --request-id %s: %w", id, err)
 			}
+
 			return nil
 		}
 	}
 	return nil
+}
+
+func workPrintTerminalPublication(cmd *cobra.Command, publication *workqueue.Publication, result any, message string) error {
+	syncErr := workSyncTerminalPublication(cmd, publication)
+	return errors.Join(syncErr, workPrint(cmd, result, message))
 }

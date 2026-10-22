@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -19,24 +18,38 @@ import (
 )
 
 type IssueSynchronization struct {
-	RequestID    string `json:"request_id"`
-	Synchronized int    `json:"synchronized"`
-	Disabled     bool   `json:"disabled,omitempty"`
+	RequestID    string                        `json:"request_id"`
+	Synchronized int                           `json:"synchronized"`
+	Disabled     bool                          `json:"disabled,omitempty"`
+	Pending      []IssueSynchronizationPending `json:"pending,omitempty"`
 }
 
 type issueGraphQL func(context.Context, string, map[string]any, any) error
 
 var issueLabelWhitespace = regexp.MustCompile("[\\t-\\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+")
 
-// SynchronizeIssueTransition is an explicit administrator action over one
+// SynchronizeIssueTransition is an explicit maintain/admin action over one
 // checked terminal request, never a search for dirty Work or a workflow rerun.
 func (b Branch) SynchronizeIssueTransition(ctx context.Context, requestID string) (result IssueSynchronization, err error) {
+	return b.synchronizeConfiguredIssueTransition(ctx, requestID, nil)
+}
+
+// SynchronizePublishedIssueTransition retains a native publisher's existing
+// writer authority, but only for its exact checked publication, not arbitrary recovery.
+func (b Branch) SynchronizePublishedIssueTransition(ctx context.Context, publication *Publication) (IssueSynchronization, error) {
+	if publication == nil || publication.Commit == nil {
+		return IssueSynchronization{}, nil
+	}
+	return b.synchronizeConfiguredIssueTransition(ctx, publication.Commit.Request.ID, publication.Commit)
+}
+
+func (b Branch) synchronizeConfiguredIssueTransition(ctx context.Context, requestID string, publication *QueueCommit) (result IssueSynchronization, err error) {
 	defer func() {
 		if err == nil {
 			return
 		}
 		if hasStatus(err, http.StatusUnauthorized) || hasStatus(err, http.StatusForbidden) {
-			err = queueError("projection_unauthorized", "GitHub denied Issue synchronization; verify repository maintain/admin access and native API permissions")
+			err = queueError("projection_unauthorized", "GitHub denied Issue synchronization; verify native API access and the appropriate publisher or recovery permission")
 			return
 		}
 		code := "projection_unavailable"
@@ -54,9 +67,16 @@ func (b Branch) SynchronizeIssueTransition(ctx context.Context, requestID string
 	if err != nil {
 		return result, err
 	}
-	actor, err := b.authenticate(ctx, "administrator", true)
+	role := "administrator"
+	if publication != nil {
+		role = publication.Actor.Role
+	}
+	actor, err := b.authenticate(ctx, role, publication == nil || role == "administrator")
 	if err != nil {
 		return result, err
+	}
+	if publication != nil && !sameJSON(actor, publication.Actor) {
+		return result, queueError("projection_unauthorized", "automatic synchronization requires the authenticated publisher's exact committed transition")
 	}
 	b.Remote = actor.Repository
 	_, revision, err := b.verifiedDefaultReference(ctx)
@@ -83,10 +103,14 @@ func (b Branch) SynchronizeIssueTransition(ctx context.Context, requestID string
 	if err != nil {
 		return result, err
 	}
-	return b.synchronizeIssueTransition(ctx, requestID, settings.Issues, graph.DoWithContext)
+	return b.synchronizeCheckedIssueTransition(ctx, requestID, settings.Issues, graph.DoWithContext, publication)
 }
 
 func (b Branch) synchronizeIssueTransition(ctx context.Context, requestID string, config *IssuesSettings, graph issueGraphQL) (IssueSynchronization, error) {
+	return b.synchronizeCheckedIssueTransition(ctx, requestID, config, graph, nil)
+}
+
+func (b Branch) synchronizeCheckedIssueTransition(ctx context.Context, requestID string, config *IssuesSettings, graph issueGraphQL, publication *QueueCommit) (IssueSynchronization, error) {
 	result := IssueSynchronization{RequestID: requestID}
 	commits, err := b.Read(ctx)
 	if err != nil {
@@ -96,18 +120,27 @@ func (b Branch) synchronizeIssueTransition(ctx context.Context, requestID string
 	if err != nil {
 		return result, err
 	}
-	targets, err := state.issueTransitionTargets(requestID)
+	if publication != nil {
+		checked, ok := state.Requests[requestID]
+		// Checkpoint-normalized receipts intentionally fail exact publication
+		// matching; explicit privileged recovery handles that case.
+		if !ok || !sameJSON(checked, *publication) {
+			return result, queueError("projection_unauthorized", "automatic synchronization requires an exact checked publication receipt")
+		}
+	}
+	targets, pending, err := state.issueTransitionSelection(requestID)
+	result.Pending = pending
 	if err != nil {
 		return result, err
-	}
-	if len(targets) == 0 {
-		return result, nil
 	}
 	for _, target := range targets {
 		if err := b.synchronizeIssueTarget(ctx, requestID, config, target, graph); err != nil {
 			return result, fmt.Errorf("queue committed; Issue synchronization pending for %s: %w", target.WorkID, err)
 		}
 		result.Synchronized++
+	}
+	if len(result.Pending) != 0 {
+		return result, queueError("projection_receipt_pending", "some terminal Work lack existing Issue or canonical summary receipts; valid mirrors were synchronized")
 	}
 	return result, nil
 }
@@ -132,9 +165,11 @@ func (b Branch) synchronizeIssueTarget(ctx context.Context, requestID string, co
 		if uncertain {
 			return
 		}
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
 		for _, name := range held {
-			if releaseErr := b.request(ctx, http.MethodDelete, "git/refs/heads/"+name, nil, nil); releaseErr != nil {
-				err = fmt.Errorf("projection coordination release remains pending: %w", releaseErr)
+			if releaseErr := b.request(cleanup, http.MethodDelete, "git/refs/heads/"+name, nil, nil); releaseErr != nil {
+				err = errors.Join(err, queueError("projection_coordination_pending", "acknowledged projection lock cleanup remains pending"))
 			}
 		}
 	}()
@@ -157,14 +192,14 @@ func (b Branch) synchronizeIssueTarget(ctx context.Context, requestID string, co
 	if err != nil {
 		return err
 	}
-	fresh, err := state.issueTransitionTargets(requestID)
+	fresh, _, err := state.issueTransitionSelection(requestID)
 	if err != nil {
 		return err
 	}
 	if !slices.Contains(fresh, target) {
 		return queueError("projection_scope_changed", "terminal target changed after coordination")
 	}
-	return syncExistingIssue(ctx, graph, config, target, state.Works[target.WorkID], b.Name, requestID, &uncertain)
+	return syncExistingIssue(ctx, graph, config, target, state, b.Name, &uncertain)
 }
 
 type issueSyncLabels struct {
@@ -258,7 +293,11 @@ func ensureIssueSyncLabel(ctx context.Context, graph issueGraphQL, repositoryID,
 		}
 		*uncertain = true
 		if err := graph(ctx, `mutation($repository:ID!,$name:String!){createLabel(input:{repositoryId:$repository,name:$name,color:"7057FF",description:"Git-backed Work queue"}){label{id name}}}`, map[string]any{"repository": repositoryID, "name": name}, &created); err != nil {
-			return nil, err
+			if created.CreateLabel.Label == (issueSyncLabel{}) && definitiveIssueLabelRejection(err) {
+				*uncertain = false
+				return readIssueSyncLabel(ctx, graph, repositoryID, name)
+			}
+			return nil, queueError("projection_write_ambiguous", "label creation has no definitive native acknowledgement")
 		}
 		if created.CreateLabel.Label.ID == "" || created.CreateLabel.Label.Name != name {
 			return nil, queueError("projection_write_ambiguous", "status label creation returned no exact native acknowledgement")
@@ -272,7 +311,7 @@ func ensureIssueSyncLabel(ctx context.Context, graph issueGraphQL, repositoryID,
 	return label, nil
 }
 
-func syncExistingIssue(ctx context.Context, graph issueGraphQL, config *IssuesSettings, target issueTransitionTarget, work *WorkState, branch, requestID string, uncertain *bool) error {
+func syncExistingIssue(ctx context.Context, graph issueGraphQL, config *IssuesSettings, target issueTransitionTarget, state Projection, branch string, uncertain *bool) error {
 	statusName := issueLabelWhitespace.ReplaceAllString(config.Label, "-") + ":" + strings.ToLower(strings.ReplaceAll(target.Status, " ", "-"))
 	repository, err := readExistingIssue(ctx, graph, config, target, statusName)
 	if err != nil {
@@ -295,18 +334,8 @@ func syncExistingIssue(ctx context.Context, graph issueGraphQL, config *IssuesSe
 			obsolete = append(obsolete, label.ID)
 		}
 	}
-	body := issueTransitionSummary(target, work, branch, requestID)
+	body := issueTransitionSummary(target, state, branch)
 	return writeIssueSynchronization(ctx, graph, target, repository, obsolete, body, uncertain)
-}
-
-func issueTransitionSummary(target issueTransitionTarget, work *WorkState, branch, requestID string) string {
-	body := fmt.Sprintf("### Work queue\n\nStatus: **%s**\n\n**Work:** `%s` (short ID) · [Checked Git ledger](https://%s/%s/blob/%s/work-queue.jsonl)\n\n", target.Status, target.WorkID[:12], target.Resource.Host, target.Resource.Repository, url.PathEscape(branch))
-	if work.State == "cancelled" {
-		body += "Cancellation: `" + work.CancellationReason + "`.\n\n"
-	} else if work.Barrier == "failed" {
-		body += "Delivery needs attention (" + work.Disposition + "); Completion is not a verified Result.\n\n"
-	}
-	return body + "Projected from committed request `" + requestID + "` by `gh aw work-queue sync-issues`. This status mirror does not establish a Work Result.\n"
 }
 
 func writeIssueSynchronization(ctx context.Context, graph issueGraphQL, target issueTransitionTarget, repository issueSyncRepository, obsolete []string, body string, uncertain *bool) error {
@@ -325,10 +354,13 @@ func writeIssueSynchronization(ctx context.Context, graph issueGraphQL, target i
  add:addLabelsToLabelable(input:{labelableId:$issue,labelIds:$add}) { labelable { id ... on Issue { labels(first:100) { nodes { id name } pageInfo { hasNextPage } } } } }
  remove:removeLabelsFromLabelable(input:{labelableId:$issue,labelIds:$remove}) { labelable { id ... on Issue { labels(first:100) { nodes { id name } pageInfo { hasNextPage } } } } }
  comment:updateIssueComment(input:{id:$comment,body:$body}) { issueComment { id body } } }`
+	// This batch performs three content-generating mutations. Pace at one second
+	// per mutation for GitHub's secondary rate limits, not ledger consistency.
+	const issueSynchronizationMutationPacing = 3 * time.Second
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(3 * time.Second):
+	case <-time.After(issueSynchronizationMutationPacing):
 	}
 	*uncertain = true
 	if err := graph(ctx, mutation, map[string]any{"issue": repository.Issue.ID, "add": []string{repository.Tracking.ID, repository.Status.ID}, "remove": obsolete, "comment": target.SummaryID, "body": body}, &written); err != nil {

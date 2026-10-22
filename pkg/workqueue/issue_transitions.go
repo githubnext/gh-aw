@@ -13,17 +13,23 @@ type issueTransitionTarget struct {
 	Status    string   `json:"status"`
 }
 
+type IssueSynchronizationPending struct {
+	WorkID string `json:"work_id"`
+	Reason string `json:"reason"`
+}
+
 // A committed terminal transition grants no admission/Claim or creation
 // authority. Only existing, same-repository AW mirrors can be synchronized.
-func (state Projection) issueTransitionTargets(requestID string) ([]issueTransitionTarget, error) {
+func (state Projection) issueTransitionSelection(requestID string) ([]issueTransitionTarget, []IssueSynchronizationPending, error) {
 	if state.Policy == nil || state.Policy.Authorization != "aw" {
-		return nil, queueError("projection_unauthorized", "terminal synchronization requires an AW-managed queue")
+		return nil, nil, queueError("projection_unauthorized", "terminal synchronization requires an AW-managed queue")
 	}
 	receipt, ok := state.Requests[requestID]
 	if !ok {
-		return nil, queueError("request_missing", "terminal synchronization requires an exact committed request")
+		return nil, nil, queueError("request_missing", "terminal synchronization requires an exact committed request")
 	}
 	targets := []issueTransitionTarget{}
+	pending := []IssueSynchronizationPending{}
 	seen := map[string]struct{}{}
 	for _, operation := range receipt.Operations {
 		var fields struct {
@@ -33,7 +39,7 @@ func (state Projection) issueTransitionTargets(requestID string) ([]issueTransit
 			CompletionID string `json:"completion_id"`
 		}
 		if err := json.Unmarshal(operation, &fields); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		work := state.Works[fields.WorkID]
 		if work == nil || work.BackingIssue != nil {
@@ -45,30 +51,36 @@ func (state Projection) issueTransitionTargets(requestID string) ([]issueTransit
 		terminal := fields.Kind == "WorkCancellation" && work.State == "cancelled" && work.CancellationCommitID == receipt.ID
 		if slices.Contains([]string{"Result", "DeliveryFailure"}, fields.Kind) && work.State == "completed" &&
 			work.ClaimID == fields.ClaimID && work.CompletionID == fields.CompletionID {
-			left, leftErr := canonicalValue(operation)
-			right, rightErr := canonicalValue(state.TerminalBarriers[work.WorkID])
+			left, leftErr := checkpointTraceOperation(operation)
+			right, rightErr := checkpointTraceOperation(state.TerminalBarriers[work.WorkID])
 			terminal = leftErr == nil && rightErr == nil && bytes.Equal(left, right)
 		}
 		if !terminal {
 			continue
 		}
+		seen[work.WorkID] = struct{}{}
 		if work.IssueLink == nil || work.IssueSummary == "" {
-			return nil, queueError("projection_receipt_pending", "terminal synchronization requires existing Issue and canonical summary receipts; recreation is forbidden")
+			pending = append(pending, IssueSynchronizationPending{work.WorkID, "projection_receipt_pending"})
+			continue
 		}
 		if work.IssueLink.Repository != state.Repository || !slices.Contains(state.Policy.Pools[work.Pool].AllowedRepositories, state.Repository) {
-			return nil, queueError("projection_unauthorized", "terminal synchronization is outside the existing queue mirror repository")
+			return nil, nil, queueError("projection_unauthorized", "terminal synchronization is outside the existing queue mirror repository")
 		}
 		status, err := terminalIssueStatus(work)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		seen[work.WorkID] = struct{}{}
 		targets = append(targets, issueTransitionTarget{work.WorkID, *work.IssueLink, work.IssueSummary, status})
 	}
 	if len(targets) > 256 {
-		return nil, queueError("projection_limit", "terminal synchronization requires at most 256 existing mirrors")
+		return nil, nil, queueError("projection_limit", "terminal synchronization requires at most 256 existing mirrors")
 	}
-	return targets, nil
+	return targets, pending, nil
+}
+
+func (state Projection) issueTransitionTargets(requestID string) ([]issueTransitionTarget, error) {
+	targets, _, err := state.issueTransitionSelection(requestID)
+	return targets, err
 }
 
 func terminalIssueStatus(work *WorkState) (string, error) {
@@ -78,17 +90,27 @@ func terminalIssueStatus(work *WorkState) (string, error) {
 	if work.Barrier != "verified" {
 		return "Needs attention", nil
 	}
-	var result struct {
-		Outputs []struct {
-			Type     string    `json:"type"`
-			Resource *Resource `json:"resource"`
-		} `json:"outputs"`
-	}
+	var result any
 	if err := json.Unmarshal(work.Result, &result); err != nil {
 		return "", err
 	}
-	for _, output := range result.Outputs {
-		if output.Type == "create_pull_request" || output.Resource != nil && output.Resource.Kind == "pull_request" {
+	descriptor, ok := result.(map[string]any)
+	if !ok {
+		return "Done", nil
+	}
+	outputs, ok := descriptor["outputs"].([]any)
+	if !ok {
+		return "Done", nil
+	}
+	for _, value := range outputs {
+		output, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		if output["type"] == "create_pull_request" {
+			return "Needs review", nil
+		}
+		if resource, ok := output["resource"].(map[string]any); ok && resource["kind"] == "pull_request" {
 			return "Needs review", nil
 		}
 	}

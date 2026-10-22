@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -161,6 +162,12 @@ func TestTerminalIssueTargetStatusAndExactBarrierIdentity(t *testing.T) {
 		{"Result", "verified", `{}`, "Done"},
 		{"Result", "verified", `{"outputs":[{"type":"create_pull_request"}]}`, "Needs review"},
 		{"Result", "verified", `{"outputs":[{"resource":{"kind":"pull_request"}}]}`, "Needs review"},
+		{"Result", "verified", `{"outputs":[{"resource":{"kind":"pull_request","number":123}}]}`, "Needs review"},
+		{"Result", "verified", `{"outputs":[{"type":"create_pull_request","resource":17}]}`, "Needs review"},
+		{"Result", "verified", `{"outputs":[null,123,"unrelated",{"type":{},"resource":{"kind":[],"number":123}}]}`, "Done"},
+		{"Result", "verified", `{"outputs":{"type":"create_pull_request"}}`, "Done"},
+		{"Result", "verified", `{"outputs":"unrelated"}`, "Done"},
+		{"Result", "verified", `{"outputs":null,"unrelated":{"number":123}}`, "Done"},
 	} {
 		t.Run(test.want+test.descriptor, func(t *testing.T) {
 			commits, workID := terminalIssueFixture(t)
@@ -185,6 +192,127 @@ func TestTerminalIssueTargetStatusAndExactBarrierIdentity(t *testing.T) {
 				t.Fatal("stale terminal barrier acquired mirror authority")
 			}
 		})
+	}
+}
+
+func TestTerminalDeliveryIssueTargetsSurviveRealReplayAndCheckpoint(t *testing.T) {
+	for _, kind := range []string{"Result", "DeliveryFailure"} {
+		t.Run(kind, func(t *testing.T) {
+			commits, workID := terminalIssueFixture(t)
+			commits = commits[:len(commits)-1]
+			commits, decision := testGrant(t, commits, "terminal-grant", 1, 1)
+			assignment := decision.Assignments[0]
+			sender := testActor("dispatcher")
+			sender.Workflow, sender.RunID, sender.RunAttempt = ".github/workflows/dispatcher.lock.yml", "101", 1
+			commits = testOperations(t, commits, sender, "terminal-start", "dispatch", mustOp(t, map[string]any{
+				"kind": "Dispatch", "dispatch_id": assignment.DispatchID, "state": "started", "sender": sender, "credential_principal": testPrincipal,
+			}))
+			state, err := Replay(commits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			profile := state.Policy.Pools["default"].Profiles["default"]
+			run := RunBinding{RunID: "202", RunAttempt: 1, Repository: testRepository, Workflow: profile.Workflow,
+				Ref: profile.Ref, Principal: testPrincipal, Event: "workflow_dispatch"}
+			evidence := terminalFor(state, assignment)
+			evidence.Principal = testPrincipal
+			evidence.Kind, evidence.Status, evidence.Conclusion = "reconciliation", "", ""
+			commits = testOperations(t, commits, testActor("reconciler"), "terminal-bind", "dispatch", mustOp(t, map[string]any{
+				"kind": "Dispatch", "dispatch_id": assignment.DispatchID, "state": "bound", "run": run, "evidence": evidence,
+			}))
+			commits = finishMember(t, commits, assignment, 0, "completed")
+			state, err = Replay(commits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			evidence = terminalFor(state, assignment)
+			evidence.Principal = testPrincipal
+			operation := map[string]any{"kind": kind, "work_id": workID, "claim_id": assignment.Claims[0].ClaimID,
+				"completion_id": state.Works[workID].CompletionID}
+			requestKind, want := "result", "Needs review"
+			if kind == "Result" {
+				evidence.Kind, evidence.Source, evidence.Receipt = "delivery", "verified_receipts", "real-delivery-receipt"
+				operation["descriptor"] = map[string]any{"outputs": []any{map[string]any{"resource": map[string]any{"kind": "pull_request", "number": 123}}}}
+			} else {
+				requestKind, want = "delivery_failure", "Needs attention"
+				evidence.Attempts, evidence.Effects = 5, "unknown"
+				operation["reason"], operation["disposition"] = "receipts_unknown", "unknown"
+			}
+			operation["evidence"] = evidence
+			commits = testOperations(t, commits, testActor("reconciler"), "terminal-delivery", requestKind, mustOp(t, operation))
+			checkpoint, err := CompactCheckpoint(commits, strings.Repeat("a", 40), testActor("administrator"), 5000)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var expected []issueTransitionTarget
+			for _, log := range [][]QueueCommit{commits, checkpoint} {
+				state, err := Replay(log)
+				if err != nil {
+					t.Fatal(err)
+				}
+				targets, pending, err := state.issueTransitionSelection("terminal-delivery")
+				if err != nil || len(pending) != 0 || len(targets) != 1 || targets[0].Status != want {
+					t.Fatalf("real terminal receipt lost authority: %+v %+v %v", targets, pending, err)
+				}
+				if expected != nil && !reflect.DeepEqual(targets, expected) {
+					t.Fatal("compaction changed terminal targets")
+				}
+				expected = targets
+				for _, field := range []string{"work_id", "claim_id", "completion_id"} {
+					forged := map[string]any{}
+					if err := json.Unmarshal(state.TerminalBarriers[workID], &forged); err != nil {
+						t.Fatal(err)
+					}
+					forged[field] = "foreign"
+					original := state.TerminalBarriers[workID]
+					state.TerminalBarriers[workID] = mustOp(t, forged)
+					if targets, err := state.issueTransitionTargets("terminal-delivery"); err != nil || len(targets) != 0 {
+						t.Fatalf("changed %s acquired terminal authority: %v %v", field, targets, err)
+					}
+					state.TerminalBarriers[workID] = original
+				}
+			}
+		})
+	}
+}
+
+func TestTerminalIssueSelectionKeepsEligibleMirrorsAlongsidePendingReceipts(t *testing.T) {
+	commits, workID := terminalIssueFixture(t)
+	commits = commits[:len(commits)-1]
+	producer := testActor("producer")
+	producer.Workflow, producer.RunID, producer.RunAttempt = ".github/workflows/dispatcher.lock.yml", "101", 1
+	missingIssue, missingSummary := testNode(t, commits, "missing-issue"), testNode(t, commits, "missing-summary")
+	request, err := NewRequest("additional-admission", "submit", producer, SubmitParameters{Nodes: []WorkDefinition{missingIssue, missingSummary}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	commits, _, _, err = BuildCandidate(commits, producer, request, 4000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projector := producer
+	projector.Role = "projector"
+	commits = testOperations(t, commits, projector, "partial-mirror", "issue_link",
+		mustOp(t, IssueLinkOperation{Kind: "IssueLink", WorkID: missingSummary.WorkID, Resource: Resource{Kind: "issue", Host: "github.com", Repository: testRepository, RepositoryID: "1", ResourceID: "998", Number: "98"}, ProjectorRef: strings.Repeat("0", 40)}))
+	operations := []Operation{}
+	for _, id := range []string{missingIssue.WorkID, workID, missingSummary.WorkID} {
+		operations = append(operations, mustOp(t, map[string]any{"kind": "WorkCancellation", "work_id": id, "reason": "operator_cancelled"}))
+	}
+	commits = testOperations(t, commits, testActor("administrator"), "mixed-cancellation", "cancel_work", operations...)
+	checkpoint, err := CompactCheckpoint(commits, strings.Repeat("a", 40), testActor("administrator"), 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, log := range [][]QueueCommit{commits, checkpoint} {
+		state, err := Replay(log)
+		if err != nil {
+			t.Fatal(err)
+		}
+		targets, pending, err := state.issueTransitionSelection("mixed-cancellation")
+		if err != nil || len(targets) != 1 || targets[0].WorkID != workID ||
+			!reflect.DeepEqual(pending, []IssueSynchronizationPending{{missingIssue.WorkID, "projection_receipt_pending"}, {missingSummary.WorkID, "projection_receipt_pending"}}) {
+			t.Fatalf("missing receipts blocked eligible mirror: %+v %+v %v", targets, pending, err)
+		}
 	}
 }
 
