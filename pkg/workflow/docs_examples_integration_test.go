@@ -53,7 +53,7 @@ func TestDocumentationGalleryWorkflowsCompile(t *testing.T) {
 			if directiveWorkflowName == "" {
 				workflows := regexp.MustCompile(`https://github\.com/github/gh-aw/blob/main/\.github/workflows/([a-z0-9][a-z0-9-]*\.md)`).FindAllStringSubmatch(string(content), -1)
 				if len(workflows) == 0 {
-					t.Fatal(extractErr)
+					t.Fatalf("no primary workflow or linked workflow references found: %v", extractErr)
 				}
 				for _, workflow := range workflows {
 					t.Run(workflow[1], func(t *testing.T) {

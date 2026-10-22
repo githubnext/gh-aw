@@ -187,10 +187,27 @@ func TestWorkCommandRootHelpDoesNotInferRepository(t *testing.T) {
 }
 
 func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
+	for _, tc := range []struct {
+		name, settings string
+		pending        bool
+	}{
+		{name: "missing settings"},
+		{name: "issues disabled", settings: `{"work_queue":{"issues":false}}`},
+		{name: "issues enabled", settings: `{"work_queue":{"issues":true}}`, pending: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testWorkCommandProtectedNativeDeliveryEntryPoint(t, tc.settings, tc.pending)
+		})
+	}
+}
+
+func testWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T, settings string, pending bool) {
 	t.Setenv("GH_HOST", "github.com")
 	t.Setenv("GH_TOKEN", "test-token")
 	const remote, principal = "owner/repo", "1001"
 	policy := workqueue.DefaultPolicy(principal, remote)
+	policy.Authorization = "aw"
+	policy.Producers = map[string]workqueue.ProducerRule{}
 	actor := workqueue.Actor{Role: "administrator", Principal: principal, Repository: remote}
 	genesis, err := workqueue.Genesis(actor, policy, "init", "init-request", time.Now().UnixMilli())
 	if err != nil {
@@ -237,7 +254,7 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	queue := newWorkQueueGitRemote(t, string(data))
-	writes := 0
+	writes, settingsReads := 0, 0
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
 	http.DefaultTransport = workAPIRoundTripper(func(r *http.Request) (*http.Response, error) {
@@ -254,10 +271,17 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 		case path == "git/ref/heads/main":
 			response = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": strings.Repeat("a", 40)}}
 		case path == "contents/.github/workflows/aw.json":
+			settingsReads++
 			if r.URL.Query().Get("ref") != strings.Repeat("a", 40) {
 				t.Fatal("Issue synchronization did not check settings at the verified default revision")
 			}
-			return &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"message":"Not Found"}`)), Request: r}, nil
+			if settings == "" {
+				return &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"message":"Not Found"}`)), Request: r}, nil
+			}
+			response = map[string]any{
+				"type": "file", "path": ".github/workflows/aw.json", "encoding": "base64",
+				"content": base64.StdEncoding.EncodeToString([]byte(settings)),
+			}
 		case path == "actions/runs/202/attempts/1":
 			response = map[string]any{
 				"id": 202, "run_attempt": 1, "event": "workflow_dispatch", "status": "in_progress",
@@ -287,14 +311,20 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 	execute := func(host *workqueue.NativeDeliveryHost, requestID string) workqueue.DeliveryRecovery {
 		t.Helper()
 		cmd := NewWorkCommandWithNativeDeliveryHost(host)
+		cmd.SilenceErrors, cmd.SilenceUsage = true, true
 		// A caller-provided context must not discard the constructor capability.
 		cmd.SetContext(context.Background())
 		var output bytes.Buffer
 		cmd.SetOut(&output)
 		cmd.SetErr(&output)
 		cmd.SetArgs([]string{"--repo", remote, "--json", "reconcile", "--work-id", work.WorkID, "--request-id", requestID})
-		if err := cmd.Execute(); err != nil {
-			t.Fatalf("native host command failed: %v (%s)", err, output.String())
+		err := cmd.Execute()
+		if pending && host != nil {
+			require.ErrorContains(t, err, "projection_receipt_pending:")
+			require.ErrorContains(t, err, "queue transition committed")
+			require.ErrorContains(t, err, "sync-issues --request-id "+requestID)
+		} else {
+			require.NoError(t, err, "native host command failed: %s", output.String())
 		}
 		writes = queue.pushes(t)
 		var result workqueue.DeliveryRecovery
@@ -306,9 +336,11 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 	if result := execute(nil, "missing-host"); result.Reason != "delivery_unresolved" || result.Publication != nil || writes != 0 {
 		t.Fatalf("missing process evidence silently settled native delivery: %+v", result)
 	}
+	require.Zero(t, settingsReads, "unpublished delivery must not synchronize Issues")
 	if result := execute(host, "protected-host"); result.Reason != "delivery_verified" || calls != 2 || writes != 1 {
 		t.Fatalf("approved native process callback did not reach concrete CLI: %+v calls=%d writes=%d", result, calls, writes)
 	}
+	require.Equal(t, 1, settingsReads, "terminal publication must read verified repository settings")
 }
 
 func TestWorkCommandSubmitDefaultsRequireOmittedIdentityFlags(t *testing.T) {
