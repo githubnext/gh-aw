@@ -219,7 +219,7 @@ func (b Branch) verifyCheckpointHistory(ctx context.Context, head string, commit
 		if tip != checkpoint.PriorTip {
 			return invalid()
 		}
-		reconstructed, err := reconstructCheckpoint(previous, parent, root.Actor, root.At, checkpoint.StateSHA256)
+		reconstructed, err := reconstructCheckpointForHost(previous, parent, root.Actor, root.At, checkpoint.StateSHA256, b.Host)
 		if err != nil {
 			return invalid()
 		}
@@ -281,7 +281,7 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 				return nil, nil, queueError("repository_scope_invalid", "ledger actor belongs to another repository")
 			}
 		}
-		_, err = Replay(transactions)
+		_, err = ReplayForHost(transactions, b.Host)
 		return transactions, data, err
 	}
 	return nil, nil, errors.New("queue branch is missing " + FileName)

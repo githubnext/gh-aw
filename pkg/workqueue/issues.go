@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func validateProjectors(policy Policy) error {
+func validateProjectors(policy Policy, host string) error {
 	if policy.Projectors != nil && (len(policy.Projectors) == 0 || len(policy.Projectors) > 256) {
 		return queueError("policy_invalid", "projectors require 1..256 installed rules")
 	}
@@ -37,7 +37,7 @@ func validateProjectors(policy Policy) error {
 			if resource.Kind != "issue" {
 				return queueError("policy_invalid", "backing target must be an Issue")
 			}
-			if err := validateResource(resource, PoolPolicy{AllowedRepositories: rule.Repositories}); err != nil {
+			if err := validateResourceForHost(resource, PoolPolicy{AllowedRepositories: rule.Repositories}, host); err != nil {
 				return queueError("policy_invalid", "invalid backing Issue target: %v", err)
 			}
 		}
@@ -121,7 +121,7 @@ func (state Projection) validateBackingIssueAdmission(node WorkDefinition, pool 
 	if node.BackingIssue.Kind != "issue" {
 		return queueError("resource_unauthorized", "backing resource must be an Issue")
 	}
-	if err := validateResource(*node.BackingIssue, pool); err != nil {
+	if err := validateResourceForHost(*node.BackingIssue, pool, state.resourceHost); err != nil {
 		return err
 	}
 	if !state.backingIssueAuthorized(node.Pool, *node.BackingIssue) {
@@ -163,7 +163,7 @@ func (state Projection) applyIssueBinding(operation Operation, kind string, comm
 	if resource == nil || resource.Kind != "issue" {
 		return queueError("issue_binding_invalid", "binding requires an Issue")
 	}
-	if err := validateResource(*resource, state.Policy.Pools[work.Pool]); err != nil {
+	if err := validateResourceForHost(*resource, state.Policy.Pools[work.Pool], state.resourceHost); err != nil {
 		return err
 	}
 	if err := state.projectionAuthority(commit.Actor, link.WorkID, link.ProjectorRef, resource.Repository, link.ClaimID); err != nil {

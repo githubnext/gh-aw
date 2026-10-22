@@ -21,10 +21,11 @@ type healthFileSnapshot struct {
 type healthLockSnapshot struct {
 	metadata *workflow.LockMetadata
 	err      error
+	content  []byte
 }
 
 func useHealthFileSnapshots(collection *HealthCollection) bool {
-	return collection.localGit != nil || len(collection.workflows) > 1
+	return collection.localGit != nil || len(collection.workflows) > 1 || len(collection.fileSnapshots) > 0
 }
 
 // A directory response supplies source and lock blob identities for every workflow.
@@ -135,23 +136,33 @@ func readHealthLockMetadata(run WorkflowRun, ref string, collection *HealthColle
 		endpoint = path.Join(healthRepositoryEndpoint(collection.repoOverride), "git/blobs", blobSHA)
 	}
 	out, err := readHealthLockContent(endpoint, blobSHA, collection)
-	var metadata *workflow.LockMetadata
-	if err == nil {
-		metadata, _, err = workflow.ExtractMetadataFromLockFile(string(out))
-		if err == nil && (metadata == nil || metadata.FrontmatterHash == "" || metadata.BodyHash == "") {
-			err = errors.New("workflow revision hashes unavailable; recompile workflows to include gh-aw-metadata body_hash")
+	if err != nil {
+		if blobSHA != "" {
+			cacheHealthLockSnapshot(blobSHA, nil, err, collection)
+		}
+		return nil, err
+	}
+	snapshot := cacheHealthLockSnapshot(blobSHA, out, nil, collection)
+	return snapshot.metadata, snapshot.err
+}
+
+func cacheHealthLockSnapshot(blobSHA string, content []byte, readErr error, collection *HealthCollection) healthLockSnapshot {
+	snapshot := healthLockSnapshot{content: content, err: readErr}
+	if readErr == nil {
+		// Metadata belongs to the header, never to a matching string in a job's script.
+		header, _, _ := strings.Cut(string(content), "\n")
+		snapshot.metadata, _, snapshot.err = workflow.ExtractMetadataFromLockFile(header)
+		if snapshot.err == nil && (snapshot.metadata == nil || snapshot.metadata.FrontmatterHash == "" || snapshot.metadata.BodyHash == "") {
+			snapshot.err = errors.New("workflow revision hashes unavailable; recompile workflows to include gh-aw-metadata body_hash")
 		}
 	}
 	if blobSHA != "" {
 		if collection.lockSnapshots == nil {
 			collection.lockSnapshots = make(map[string]healthLockSnapshot)
 		}
-		collection.lockSnapshots[blobSHA] = healthLockSnapshot{metadata: metadata, err: err}
+		collection.lockSnapshots[blobSHA] = snapshot
 	}
-	if err != nil {
-		return nil, err
-	}
-	return metadata, nil
+	return snapshot
 }
 
 func readHealthLockContent(endpoint, blobSHA string, collection *HealthCollection) ([]byte, error) {
@@ -163,7 +174,11 @@ func readHealthLockContent(endpoint, blobSHA string, collection *HealthCollectio
 		}
 		healthLog.Printf("Local lock blob unavailable: %v; using GitHub API", err)
 	}
-	out, err := healthAPI(collection, endpoint, "--jq", `.content | @base64d | split("\n") | .[0]`)
+	filter := `.content | @base64d | split("\n") | .[0]`
+	if blobSHA != "" {
+		filter = ".content | @base64d"
+	}
+	out, err := healthAPI(collection, endpoint, "--jq", filter)
 	collection.RevisionLookups++
 	return out, err
 }

@@ -50,10 +50,16 @@ func expiringGrant(state Projection, operations []Operation, at int64) bool {
 // ReplayAt adds a disposable current-time view after validating historical
 // decisions at committed time. It must not be used to construct checkpoints.
 func ReplayAt(commits []QueueCommit, at int64) (Projection, error) {
+	return ReplayAtForHost(commits, at, "")
+}
+
+// ReplayAtForHost adds a disposable current-time view using the selected resource
+// host. An empty host preserves ReplayAt's GITHUB_SERVER_URL-based default.
+func ReplayAtForHost(commits []QueueCommit, at int64, host string) (Projection, error) {
 	if at < 0 || at > MaxTimestamp {
 		return Projection{}, queueError("timestamp_invalid", "invalid replay timestamp")
 	}
-	state, err := Replay(commits)
+	state, err := ReplayForHost(commits, host)
 	if err != nil {
 		return state, err
 	}

@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"path"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/workqueue"
 	"go.yaml.in/yaml/v3"
 )
@@ -32,6 +34,43 @@ func (report *HealthWorkQueue) warn(err error) {
 	healthLog.Printf("Work-queue health unavailable: %v", err)
 }
 
+func healthWorkQueueAccessError(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return errors.New("timeout: request timed out; retry when the GitHub host is reachable")
+	}
+	if errors.Is(err, context.Canceled) {
+		return errors.New("canceled: request canceled; retry the health command")
+	}
+	if errors.Is(err, errHealthAPIBudget) {
+		return errors.New("request_budget: health API request budget exhausted; narrow the health sample and retry")
+	}
+	if errors.Is(err, errLogsAPIRateLimitReached) {
+		return errors.New("rate_limit: GitHub API quota exhausted; retry after the quota resets")
+	}
+	var response *api.HTTPError
+	if errors.As(err, &response) {
+		switch response.StatusCode {
+		case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+			return errors.New("access_unavailable: verify GitHub authentication and repository read access")
+		case http.StatusTooManyRequests:
+			return errors.New("rate_limit: GitHub API quota exhausted; retry after the quota resets")
+		}
+	}
+	return errors.New("read_unavailable: verify GitHub authentication, repository read access, and host connectivity, then retry")
+}
+
+func healthWorkQueueAPIWarning(collection *HealthCollection, err error) error {
+	safe := healthWorkQueueAccessError(err)
+	if collection.stopped && collection.Reason == "rate_limit" {
+		safe = healthWorkQueueAccessError(errLogsAPIRateLimitReached)
+	}
+	// healthAPI can also copy command output into the enclosing collection warning.
+	if collection.Warning != "" && collection.stopped {
+		collection.Warning = safe.Error()
+	}
+	return safe
+}
+
 func collectHealthWorkQueue(collection *HealthCollection) {
 	if len(collection.workflows) == 0 {
 		return
@@ -44,7 +83,7 @@ func collectHealthWorkQueue(collection *HealthCollection) {
 	}
 	out, err := healthAPI(collection, healthRepositoryEndpoint(collection.repoOverride))
 	if err != nil {
-		report.warn(fmt.Errorf("cannot resolve work-queue repository: %w", err))
+		report.warn(fmt.Errorf("cannot resolve work-queue repository: %w", healthWorkQueueAPIWarning(collection, err)))
 		return
 	}
 	var repository struct {
@@ -79,7 +118,7 @@ func collectHealthWorkQueue(collection *HealthCollection) {
 	if stats.DeliveryByState["failed"] > 0 {
 		report.Warnings = append(report.Warnings, "work-queue has failed deliveries; completion does not establish verified delivery")
 	}
-	if len(report.Warnings) > 0 {
+	if stats.AdmissionPaused || stats.GrantsPaused || stats.DeliveryByState["failed"] > 0 {
 		report.Status = "attention_required"
 	}
 }
@@ -88,7 +127,7 @@ func detectHealthWorkQueueWorkflows(ref string, collection *HealthCollection, re
 	for _, entry := range collection.workflows {
 		content, err := healthWorkQueueWorkflowContent(entry.Path, ref, collection)
 		if err != nil {
-			report.warn(fmt.Errorf("cannot detect work-queue usage in %s: %w", entry.Path, err))
+			report.warn(fmt.Errorf("cannot detect work-queue usage in %s: %w", entry.Path, healthWorkQueueAPIWarning(collection, err)))
 			if collection.stopped {
 				break
 			}
@@ -111,10 +150,14 @@ func readHealthWorkQueueStats(repository string, collection *HealthCollection) (
 	branch := workqueue.Branch{Remote: repository, Name: workqueue.DefaultBranch, Host: collection.Host}
 	commits, err := healthReadWorkQueue(ctx, branch)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read work-queue ledger: %w", currentWorkQueueDiagnosticError("read", err))
+		var protocol *workqueue.ProtocolError
+		if errors.As(err, &protocol) {
+			return nil, fmt.Errorf("cannot read work-queue ledger: %w", currentWorkQueueDiagnosticError("read", protocol))
+		}
+		return nil, fmt.Errorf("cannot read work-queue ledger: %w", healthWorkQueueAccessError(err))
 	}
 	at := time.Now().UnixMilli()
-	state, err := workqueue.ReplayAt(commits, at)
+	state, err := workqueue.ReplayAtForHost(commits, at, collection.Host)
 	if err != nil {
 		return nil, currentWorkQueueDiagnosticError("ledger", err)
 	}
@@ -136,10 +179,14 @@ func healthWorkQueueWorkflowContent(workflowPath, ref string, collection *Health
 	if err != nil {
 		return nil, err
 	}
+	if cached, checked := collection.lockSnapshots[sha]; checked && cached.content != nil {
+		return cached.content, nil
+	}
 	if collection.localGit != nil {
 		content, err := collection.localGit.blob(sha)
 		if err == nil {
 			collection.LocalRevisionReads++
+			cacheHealthLockSnapshot(sha, content, nil, collection)
 			return content, nil
 		}
 		healthLog.Printf("Local work-queue workflow blob unavailable: %v; using GitHub API", err)
@@ -147,10 +194,15 @@ func healthWorkQueueWorkflowContent(workflowPath, ref string, collection *Health
 	endpoint := path.Join(healthRepositoryEndpoint(collection.repoOverride), "git/blobs", sha)
 	content, err := healthAPI(collection, endpoint, "--jq", ".content | @base64d")
 	collection.RevisionLookups++
+	if err == nil {
+		cacheHealthLockSnapshot(sha, content, nil, collection)
+	}
 	return content, err
 }
 
 func healthWorkflowUsesWorkQueue(content []byte) (bool, error) {
+	// The compiler emits this marker in YAML env as well as engine run-script
+	// configuration. Inspect only env: prompt examples in run scripts are not usage.
 	type environment struct {
 		Env map[string]string `yaml:"env"`
 	}

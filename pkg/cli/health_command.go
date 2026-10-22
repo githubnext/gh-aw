@@ -159,11 +159,11 @@ func RunHealth(config HealthConfig) error {
 	if err := discoverHealthWorkflows(&config); err != nil {
 		return err
 	}
-	collectHealthWorkQueue(config.collection)
 	runs, err := fetchWorkflowRuns("", config.StartDate, config.RepoOverride, config.Verbose, config.collection)
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow runs: %w", err)
 	}
+	collectHealthWorkQueue(config.collection)
 
 	if len(runs) == 0 && len(config.collection.workflows) == 0 && !config.collection.Partial {
 		if config.WorkflowName != "" {
