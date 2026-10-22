@@ -5,11 +5,13 @@ description: Native work-queue configuration, Claim-scoped tools, lifecycle rule
 
 `tools.work-queue` provides a native, Git-backed queue with fair scheduling and task dependencies. The version-3 transaction log, `work-queue.jsonl`, is authoritative. The default queue branch is `work-queue`; Issues can mirror tasks but cannot store the queue. There is no `storage` option.
 
-For setup, see [Deploy a work queue](/gh-aw/guides/deploy-work-queue/). For architecture and lightweight alternatives, see [WorkQueueOps](/gh-aw/patterns/workqueue-ops/). The [protocol specification](/gh-aw/specs/work-queue-specification/) and [executable models](https://github.com/github/gh-aw/blob/main/specs/work-queue/README.md) cover implementation contracts and verification.
+For architecture, a [minimal deployment example](/gh-aw/patterns/workqueue-ops/#deploy-a-native-queue), and lightweight alternatives, see [WorkQueueOps](/gh-aw/patterns/workqueue-ops/). The [protocol specification](/gh-aw/specs/work-queue-specification/) and [executable models](https://github.com/github/gh-aw/blob/main/specs/work-queue/README.md) cover implementation contracts and verification.
 
 ## Initialization and authorization
 
 The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. `policy` updates only an existing, quiescent queue.
+
+Native `submit-work` and `submit-graph` resolve scheduling and approved AW worker routes from the verified repository revision, not an unrelated local checkout. Assignment-capable workers must already be published.
 
 AW supplies authenticated roles, worker routes, and credentials. Agents receive an immutable snapshot, not queue-write credentials. Workers must accept `work_queue_assignment` and be verifiable at an approved immutable revision. Queue Git access uses isolated storage and ephemeral authentication, independently of source-checkout credentials.
 
@@ -81,7 +83,7 @@ tools:
     worker: true
 ```
 
-Dispatchers also declare approved workers in `safe-outputs.dispatch-workflow.workflows`. See the [deployment guide](/gh-aw/guides/deploy-work-queue/#publish-the-worker-and-dispatcher) for the complete setup.
+Dispatchers also declare approved workers in `safe-outputs.dispatch-workflow.workflows` and bound launches with `max`. The [deployment example](/gh-aw/patterns/workqueue-ops/#deploy-a-native-queue) combines these declarations.
 
 Standalone `tools.repo-memory` persistence is unsupported in native queue workers; memory-backed queues are separate [alternative patterns](/gh-aw/patterns/workqueue-ops/).
 
@@ -109,6 +111,8 @@ When listed in `<mcp-clis>`, invoke tools as `work-queue work_queue_read '{}'`. 
 - Work dependencies require predecessor Results. External Issue dependencies require fresh completion evidence; pull request dependencies require merge evidence. External nodes consume no Claims.
 - Cancellation does not stop a native worker or release its reservation. Release requires verified worker quiescence, exact native termination, or definitive nonlaunch.
 - Uncertain delivery is not retried by rerunning effects. Bounded verification records Result or `DeliveryFailure`; unavailable evidence leaves the barrier pending.
+
+The immutable Work payload declares its output contract in `effect_contract`. A read-only task can use `{"kind":"none"}`; a missing contract or successful `noop` alone does not prove no-write delivery. Write-capable contracts must bound the permitted outputs and resource scope.
 
 Worker conclusion performs inline reservation cleanup. Scheduled `agentics-maintenance.yml` reconciliation handles stranded reservations and pending delivery before compaction. Maintenance never cancels active runs or manufactures Result; disabling it leaves dispatcher/operator reconciliation as the fallback.
 
@@ -168,6 +172,22 @@ Resource hosts must match `GITHUB_SERVER_URL` (default `github.com`). A backing 
 The compiler generates `agentic-workqueue.yml` for Issue events. Closing an exactly bound Issue can cancel unfinished Work after fresh identity and label checks; it cannot revoke completed delivery, stop a worker, or establish Result.
 
 Projection hooks require `contents: write`, `issues: write`, and `actions: read`, with credentials kept outside agent execution. Failed projection does not roll back queue admission or justify rerunning a worker. Ambiguous Issue/comment creation remains pending rather than blindly creating duplicates; automatic recovery of unreceipted creation is not implemented.
+
+### Projector grants
+
+Explicit Policy `projectors` entries are required for pre-existing Issues, cross-repository projection, or closure on Result. Historical non-AW Policies also use them for ordinary projection. Each entry contains:
+
+| Field | Contract |
+| --- | --- |
+| `principal` | Actual authenticated native principal. |
+| `workflow`, `ref` | Workflow path and immutable 40- or 64-hex commit SHA. |
+| `pools`, `repositories` | Authorized pool names and backing repositories. |
+| `backing_issues` | Exact resource identities for pre-existing Issues, using the shape above; omit for projector-created Issues only. |
+| `completion_policy` | `keep-open` or `close-on-result`; installed before admission. |
+
+Entries belong in the complete Policy, not `aw.json.work_queue`. Installation uses `policy --file POLICY.json --epoch EPOCH` on a quiescent queue. Each projecting workflow independently needs the relevant exact-target grant.
+
+Protected hooks need permission to create/delete their `gh-aw-issue-projection/*` coordination refs. With `safe-outputs.github-app`, each hook mints its own scoped projector token. A repository allowlist or Issue marker does not replace a grant or verified creation receipt.
 
 ### Synchronization and recovery
 

@@ -14,7 +14,7 @@ The [Daily Report Portfolio](/gh-aw/patterns/daily-report-portfolio/) uses the
 same ledger to orchestrate three of ten Discussion-report workers per daily
 activation, with date-keyed admissions and singleton Claims.
 
-Unlike the lightweight [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) patterns,
+Like the native [WorkQueueOps](/gh-aw/patterns/workqueue-ops/#native-work-queue) pattern,
 this example uses one authoritative `work-queue.jsonl` transaction log on the
 `work-queue` branch. Scheduling decisions, Claims, run bindings, Completion,
 delivery outcomes, and recovery operations share that log. Issues, pull
@@ -66,7 +66,7 @@ The shared `aw.json` sets concurrency three and a 30-pending-task limit, with
 three attempts and 30-second backoff. Workers use singleton assignments.
 Queue configuration authors no producer IDs, worker principals, trust domains,
 or credential scopes, and standalone administrator seeding is unsupported.
-Follow the [deployment guide](/gh-aw/guides/deploy-work-queue/) for first-use
+Follow the [deployment example](/gh-aw/patterns/workqueue-ops/#deploy-a-native-queue) for first-use
 bootstrap. Later Policy updates require an existing, drained queue. If it already serves other pools, retain their
 configuration rather than replacing it with this single-pool template.
 

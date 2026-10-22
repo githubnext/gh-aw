@@ -168,6 +168,7 @@ export default defineConfig({
     "/contributing/error-messages/": "/gh-aw/troubleshooting/error-messages/",
 
     // Guides → new locations
+    "/guides/deploy-work-queue/": "/gh-aw/patterns/workqueue-ops/#deploy-a-native-queue",
     "/guides/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
     "/patterns/deterministic-agentic-patterns/": "/gh-aw/patterns/deterministic-ops/",
     "/guides/organization-practices/safe-rollout/": "/gh-aw/practices/safe-rollout/",
@@ -428,7 +429,6 @@ export default defineConfig({
             { label: "Measuring Impact", link: "/practices/measuring-impact/" },
             { label: "Using MCPs", link: "/guides/mcps/" },
             { label: "Network Configuration", link: "/guides/network-configuration/" },
-            { label: "Deploying a Work Queue", link: "/guides/deploy-work-queue/" },
             { label: "Agentic Automation Workshop", link: "/workshop/" },
           ],
         },

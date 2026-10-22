@@ -44,7 +44,7 @@ trusted submissions. Economic Policy updates require quiescence and explicit
 `policy --from-config --epoch EPOCH`; config edits never rewrite active state.
 Compatible deployments need no drain. Never expose queue-write credentials to
 agents/snapshot MCP. Repository access rules are GitHub's responsibility.
-See [deployment](../../docs/src/content/docs/guides/deploy-work-queue.md).
+See [deployment](../../docs/src/content/docs/patterns/workqueue-ops.md#deploy-a-native-queue).
 
 ## Mirror admitted Work with Issues
 
