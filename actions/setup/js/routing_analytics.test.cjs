@@ -142,7 +142,7 @@ describe("routing analytics in aw_session.jsonl", () => {
     expect(configs).toHaveLength(1);
     expect(configs[0].provenance).toMatchObject({ component: "workflow", phase: "agent" });
     expect(configs[0].data).toEqual({
-      routing: { enabled: true, goal: "cost", mode: "economy", allowedModels: ["gpt-5.6-luna"] },
+      routing: { enabled: true, goal: "cost", mode: "economy", allowedModels: ["gpt-5.6-luna"], candidateModels: ["github-copilot/gpt-5.6-luna"] },
       models: { allowed: [], blocked: [] },
       maxAiCredits: 1000,
       maxAiCreditsSource: "default",
@@ -173,7 +173,7 @@ describe("routing analytics in aw_session.jsonl", () => {
     const published = await generateAwInfo(routedClaude);
     expect(published.model_routing).toBeUndefined();
     expect(published.model_config).toEqual({
-      routing: { enabled: true, goal: "cost", mode: "economy", allowed_models: ["claude-haiku-4.5"] },
+      routing: { enabled: true, goal: "cost", mode: "economy", allowed_models: ["claude-haiku-4.5"], candidate_models: ["github-copilot/claude-haiku-4.5"] },
       models: { allowed: [], blocked: [] },
       max_ai_credits: 1000,
       max_ai_credits_source: "default",
@@ -184,7 +184,7 @@ describe("routing analytics in aw_session.jsonl", () => {
     const configs = ofType(events, "model.config");
     expect(configs).toHaveLength(1);
     expect(configs[0].data).toEqual({
-      routing: { enabled: true, goal: "cost", mode: "economy", allowedModels: ["claude-haiku-4.5"] },
+      routing: { enabled: true, goal: "cost", mode: "economy", allowedModels: ["claude-haiku-4.5"], candidateModels: ["github-copilot/claude-haiku-4.5"] },
       models: { allowed: [], blocked: [] },
       maxAiCredits: 1000,
       maxAiCreditsSource: "default",

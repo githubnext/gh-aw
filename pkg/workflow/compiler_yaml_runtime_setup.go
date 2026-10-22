@@ -301,6 +301,9 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 	generateRestoreAmbientFoldersStep(yaml, data)
+	// Resolve staged instructions before their later workspace restore, and split prompts
+	// before comment-memory appends guidance only to the combined prompt.
+	c.generateDeferredPromptSubstitutionStep(yaml, data)
 
 	// Materialize tools.comment-memory state as editable markdown files BEFORE user steps.
 	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects

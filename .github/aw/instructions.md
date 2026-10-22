@@ -54,3 +54,9 @@ General "debug/optimize agentic workflows" requests start with failure clusterin
 not a request to choose a workflow. Supplied workflow/run/failure scope takes
 precedence. Follow [analyzing-runs.md](analyzing-runs.md) for collection, selection,
 cached evidence, audits, and uncertainty reporting. Do not dispatch workflows for evidence.
+Use single-run `audit --search` for BM25 evidence retrieval from the actual
+unified session. Repetition grouping activates automatically when useful; do not
+configure Drain3. Grouping never changes ranking and keeps structured outcomes
+separate. These optional run-local groups are distinct from
+fleet failure clusters and `audit --group` finding codes; relevance/anomaly scores
+never replace full-stream findings or establish threat absence.

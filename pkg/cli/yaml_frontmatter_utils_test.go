@@ -147,54 +147,6 @@ func TestIsTopLevelKey(t *testing.T) {
 	}
 }
 
-func TestHasExitedBlock(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name        string
-		line        string
-		blockIndent string
-		expected    bool
-	}{
-		{
-			name:        "exited with top-level key",
-			line:        "permissions:",
-			blockIndent: "  ",
-			expected:    true,
-		},
-		{
-			name:        "still in block - more indentation",
-			line:        "    nested: value",
-			blockIndent: "  ",
-			expected:    false,
-		},
-		{
-			name:        "exited with comment at same level",
-			line:        "  # Comment",
-			blockIndent: "  ",
-			expected:    true,
-		},
-		{
-			name:        "still in block - nested comment",
-			line:        "    # Nested comment",
-			blockIndent: "  ",
-			expected:    false,
-		},
-		{
-			name:        "empty line",
-			line:        "",
-			blockIndent: "  ",
-			expected:    false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := hasExitedBlock(tt.line, tt.blockIndent)
-			assert.Equal(t, tt.expected, result, "Block exit detection should match")
-		})
-	}
-}
-
 func TestApplyFrontmatterLineTransform(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

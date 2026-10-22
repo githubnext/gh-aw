@@ -69,6 +69,10 @@ func DefaultPolicy(principal, repository string) Policy {
 // ValidatePolicy checks the closed contract and semantic limits, not caller
 // authentication or approval of the configured worker identities.
 func ValidatePolicy(policy Policy) error {
+	return validatePolicyForHost(policy, "")
+}
+
+func validatePolicyForHost(policy Policy, host string) error {
 	data, err := canonicalValue(policy)
 	if err != nil {
 		return queueError("policy_invalid", "policy is not canonical: %v", err)
@@ -87,17 +91,21 @@ func ValidatePolicy(policy Policy) error {
 	if err := validateContractIdentityBytes("QueuePolicy", value); err != nil {
 		return queueError("policy_invalid", "%v", err)
 	}
-	return validatePolicy(policy)
+	return validatePolicyWithHost(policy, host)
 }
 
 func validatePolicy(policy Policy) error {
+	return validatePolicyWithHost(policy, "")
+}
+
+func validatePolicyWithHost(policy Policy, host string) error {
 	if policy.Authorization != "" && policy.Authorization != "aw" {
 		return queueError("policy_invalid", "authorization must be aw or absent for historical policies")
 	}
 	if policy.Authorization == "aw" && len(policy.Producers) != 0 {
 		return queueError("policy_invalid", "AW-managed authorization does not use producer entitlements")
 	}
-	if err := validateProjectors(policy); err != nil {
+	if err := validateProjectors(policy, host); err != nil {
 		return err
 	}
 	if policy.Mode != "weighted-priority" && policy.Mode != "strict-priority" {

@@ -273,6 +273,13 @@ func appendModelAvailabilityRecommendations(recommendations []Recommendation, fi
 				Reason:   finding.Description,
 				Example:  "gh aw models --refresh-observed=false --logs-dir <audit-output-dir>",
 			})
+		case AuditFindingModelEndpointUnsupported:
+			recommendations = append(recommendations, Recommendation{
+				Priority: "high",
+				Action:   "Choose a model that supports the endpoint the engine calls, and recompile the workflow",
+				Reason:   finding.Description,
+				Example:  "gh aw models --refresh-observed=false --logs-dir <audit-output-dir>",
+			})
 		case AuditFindingModelAvailabilityUnknown:
 			recommendations = append(recommendations, Recommendation{
 				Priority: "high",

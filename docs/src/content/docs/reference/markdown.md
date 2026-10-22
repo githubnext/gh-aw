@@ -78,7 +78,7 @@ Agentic markdown supports GitHub Actions expression substitutions and conditiona
 
 ## Editing and Iteration
 
-See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for complete guidance on when recompilation is needed versus when you can edit directly.
+See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for complete guidance on when recompilation is needed versus when you can edit directly.
 
 ## Markdown Scanning
 
@@ -113,7 +113,7 @@ See [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) for the full syntax
 
 ## Learn More
 
-- [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
+- [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow file organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration options
 - [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file

@@ -274,6 +274,75 @@ describe("inline trusted worker termination", () => {
 });
 
 describe("scheduled work queue recovery", () => {
+  it.each([
+    { pending: false, deferIssueFailure: false },
+    { pending: true, deferIssueFailure: false },
+    { pending: true, deferIssueFailure: true },
+  ])("projects only this maintenance run's committed terminal requests without rollback: %j", async ({ pending, deferIssueFailure }) => {
+    const { fixture, options, nativeRun } = setup({ count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    await main(options);
+    options.context = { ...fixture.dispatcherContext, eventName: "schedule", job: "work_queue_compaction" };
+    const publisher = { ...fixture.nativeRun(fixture.dispatcherContext), event: "schedule", path: ".github/workflows/agentics-maintenance.yml" };
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    options.now = fixture.at + fixture.policy.pools.default.reconciliation.deadline_ms;
+    options.publishWorkQueueRequest = vi.fn(async args => fixture.append(args.request.kind, args.request.parameters, args.actor, args.request.id, options.now));
+    nativeRun.status = "completed";
+    nativeRun.conclusion = "failure";
+    const configuration = vi.spyOn(require("./cancel_work_queue_closed_issue.cjs"), "readIssuesConfig").mockResolvedValue({ label: "work", title_prefix: "[work queue]" });
+    const projection = vi.spyOn(require("./work_queue_issues.cjs"), "main").mockResolvedValue({ pending: pending ? [{ reason: "unavailable" }] : [] });
+    try {
+      if (pending && !deferIssueFailure) await expect(maintenance({ ...options, projectIssues: true, deferIssueFailure })).rejects.toThrow(/queue transitions are committed/);
+      else expect(await maintenance({ ...options, projectIssues: true, deferIssueFailure })).toMatchObject({ issue_sync_pending: pending ? [{ reason: "unavailable" }] : [] });
+      expect(projection).toHaveBeenCalledOnce();
+      const args = projection.mock.calls[0][0];
+      expect(args.trustedContext).toMatchObject({ role: "reconciler", workflow: publisher.path, event: "schedule" });
+      expect(args.transitionRequestIds).toHaveLength(1);
+      const receipt = fixture.state.requests.get(args.transitionRequestIds[0]);
+      expect(receipt.operations.some(operation => operation.kind === "DeliveryFailure" && operation.work_id === member.work_id)).toBe(true);
+      expect(receipt.actor.run_id).toBe(String(publisher.id));
+      expect(receipt.actor.run_attempt).toBe(publisher.run_attempt);
+    } finally {
+      configuration.mockRestore();
+      projection.mockRestore();
+    }
+  });
+
+  it.each(["pending", "throw"])("attempts later projection batches after an earlier %s batch and collects diagnostics", async mode => {
+    const { fixture, options, nativeRun } = setup({ count: 1 });
+    options.context = { ...fixture.dispatcherContext, job: "work_queue_compaction" };
+    const publisher = fixture.nativeRun(fixture.dispatcherContext);
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    nativeRun.status = "completed";
+    nativeRun.conclusion = "failure";
+    const actor = { role: "reconciler", principal: "11", repository: REPOSITORY, workflow: publisher.path, run_id: String(publisher.id), run_attempt: 1 };
+    const workId = fixture.assignment.claims[0].work_id;
+    for (let index = 0; index < 17; index++) fixture.append("cancel_work", { operations: [{ kind: "WorkCancellation", work_id: workId, reason: "attempts_exhausted" }] }, actor, `terminal-${index}`);
+    const configuration = vi.spyOn(require("./cancel_work_queue_closed_issue.cjs"), "readIssuesConfig").mockResolvedValue({ label: "work" });
+    const projection = vi
+      .spyOn(require("./work_queue_issues.cjs"), "main")
+      .mockImplementationOnce(async () => {
+        if (mode === "throw") throw new Error("secret-batch-failure");
+        return { pending: [{ work_id: workId, reason: "first batch pending" }] };
+      })
+      .mockResolvedValue({ pending: [{ work_id: workId, reason: "second batch pending" }] });
+    try {
+      const result = await maintenance({ ...options, projectIssues: true, deferIssueFailure: true });
+      expect(projection).toHaveBeenCalledTimes(2);
+      expect(projection.mock.calls.map(([args]) => args.transitionRequestIds.length)).toEqual([16, 1]);
+      expect(result.issue_sync_pending).toHaveLength(2);
+      expect(result.issue_sync_pending[1].reason).toBe("second batch pending");
+      expect(JSON.stringify(result.issue_sync_pending)).not.toContain("secret-batch-failure");
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(true);
+    } finally {
+      configuration.mockRestore();
+      projection.mockRestore();
+    }
+  });
+
   it.each([false, true])("settles an expired pending delivery after inline release with keep_open=%s without replay or Result", async keepOpen => {
     const { fixture, options, nativeRun } = setup({ count: 1 });
     const member = fixture.assignment.claims[0];
@@ -323,7 +392,29 @@ describe("scheduled work queue recovery", () => {
         released: true,
         delivery: { claims: { h1: { state: "pending", reason: "verification_unresolved" } } },
       });
-      await expect(maintenance(options)).rejects.toThrow("work_queue_maintenance_reconciliation_unresolved");
+      const extraWork = { ...fixture.transactions[1].operations[0], graph_id: "extra", node_key: "extra", work_id: require("./work_queue_graph.cjs").nodeId("extra", "extra") };
+      fixture.append("submit", { nodes: [extraWork] }, { role: "producer", principal: "11", repository: REPOSITORY });
+      fixture.append(
+        "cancel_work",
+        { operations: [{ kind: "WorkCancellation", work_id: extraWork.work_id, reason: "attempts_exhausted" }] },
+        {
+          role: "reconciler",
+          principal: "11",
+          repository: REPOSITORY,
+          workflow: publisher.path,
+          run_id: String(publisher.id),
+          run_attempt: 1,
+        }
+      );
+      const configuration = vi.spyOn(require("./cancel_work_queue_closed_issue.cjs"), "readIssuesConfig").mockResolvedValue({ label: "work" });
+      const projection = vi.spyOn(require("./work_queue_issues.cjs"), "main").mockResolvedValue({ pending: [{ reason: "mirror pending" }] });
+      try {
+        await expect(maintenance({ ...options, projectIssues: true, deferIssueFailure: true })).rejects.toThrow("work_queue_maintenance_reconciliation_unresolved");
+        expect(projection).toHaveBeenCalledOnce();
+      } finally {
+        configuration.mockRestore();
+        projection.mockRestore();
+      }
       expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(true);
     } finally {
       finalize.mockRestore();

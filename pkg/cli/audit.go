@@ -29,6 +29,8 @@ type AuditOptions struct {
 	EvalsOnly        bool
 	Group            bool
 	NoBaseline       bool
+	Search           string
+	SearchLimit      int
 }
 
 type auditRunConfig struct {
@@ -50,6 +52,8 @@ type auditRunConfig struct {
 	evalsOnly        bool
 	group            bool
 	noBaseline       bool
+	search           string
+	searchLimit      int
 	// evalsArtifactRequested is true when evals were requested via --evals or
 	// explicit --artifacts evals, and is used to trigger legacy dedicated-evals
 	// fallback behavior for older runs.

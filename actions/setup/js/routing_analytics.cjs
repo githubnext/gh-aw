@@ -68,6 +68,8 @@ function sanitizeModelConfig(value) {
   }
   const allowedModels = identifierList(value.routing.allowed_models);
   if (allowedModels) routing.allowed_models = allowedModels;
+  const candidateModels = identifierList(value.routing.candidate_models);
+  if (candidateModels) routing.candidate_models = candidateModels;
   /** @type {Record<string, any>} */
   const config = { routing };
   if (isObject(value.models)) {
@@ -189,9 +191,9 @@ function persistModelConfigBaseline(env = process.env) {
 function projectModelConfig(value, admission) {
   const config = sanitizeModelConfig(value);
   if (!config) return undefined;
-  const { allowed_models: allowedModels, ...routing } = config.routing;
+  const { allowed_models: allowedModels, candidate_models: candidateModels, ...routing } = config.routing;
   /** @type {Record<string, any>} */
-  const data = { routing: { ...routing, ...(allowedModels ? { allowedModels } : {}) } };
+  const data = { routing: { ...routing, ...(allowedModels ? { allowedModels } : {}), ...(candidateModels ? { candidateModels } : {}) } };
   if (config.models) data.models = config.models;
   if (config.max_ai_credits_source) {
     if (admission?.status === "admitted" && isBudget(admission.maxAiCredits)) {

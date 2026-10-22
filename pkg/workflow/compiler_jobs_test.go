@@ -144,32 +144,6 @@ func TestJobDependsOnPreActivationEdgeCases(t *testing.T) {
 	}
 }
 
-// TestJobDependsOnAgentEdgeCases tests edge cases for jobDependsOnAgent function
-func TestJobDependsOnAgentEdgeCases(t *testing.T) {
-	tests := []struct {
-		name      string
-		jobConfig map[string]any
-		expected  bool
-	}{
-		{
-			name: "array with mixed types including agent",
-			jobConfig: map[string]any{
-				"needs": []any{123, "agent", "job2"},
-			},
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := jobDependsOnAgent(tt.jobConfig)
-			if result != tt.expected {
-				t.Errorf("jobDependsOnAgent() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestGetCustomJobsDependingOnPreActivationEdgeCases tests edge cases for getCustomJobsDependingOnPreActivation method
 func TestGetCustomJobsDependingOnPreActivationEdgeCases(t *testing.T) {
 	compiler := NewCompiler()

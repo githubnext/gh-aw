@@ -70,7 +70,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
-		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
+		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workSyncIssuesCommand(), workTUICommand())
 	return root
 }
 
@@ -746,7 +746,7 @@ func workReconcileCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return workPrint(cmd, result, result.Reason+"; Work "+workID)
+				return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; Work "+workID)
 			}
 			var result workqueue.Reconciliation
 			if cancelReserved {
@@ -757,7 +757,7 @@ func workReconcileCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return workPrint(cmd, result, result.Reason+"; dispatch "+id)
+			return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; dispatch "+id)
 		},
 	}
 	cmd.Flags().String("dispatch-id", "", "Immutable native reservation identity")

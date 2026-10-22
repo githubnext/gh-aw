@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const WORKSHOP_URL = `/gh-aw/workshop/`;
+const WORKSHOP_URL = `/gh-aw/guides/workshop/`;
 const PIXEL_TOLERANCE = 1;
 const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
@@ -500,13 +500,13 @@ test.describe('Workshop Astro rendering contract', () => {
 
 async function getFlowStepKeysForRoute(page: Page, journeyId: string, scenarioId: string): Promise<string[]> {
 	// Clear any stale session state so only the hash URL drives the flow.
-	await page.goto('/gh-aw/workshop/');
+	await page.goto('/gh-aw/guides/workshop/');
 	await page.waitForLoadState('networkidle');
 	await page.evaluate(() => sessionStorage.clear());
 
 	// Hash URL encodes journey + scenario + a known first step so the tutorial
 	// screen is rendered immediately without additional clicks.
-	await page.goto(`/gh-aw/workshop/#j=${journeyId}&s=${scenarioId}&t=00-welcome`);
+	await page.goto(`/gh-aw/guides/workshop/#j=${journeyId}&s=${scenarioId}&t=00-welcome`);
 	await page.waitForLoadState('networkidle');
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 

@@ -3242,7 +3242,7 @@ limit, credential-free preparation, and the existing protected `git_tree`
 adapter. Preparation validates the original Claim selector and any body Work ID;
 memory remains output data, never a second ledger or authority. Publication still
 requires Completion and immutable resource scope, and Result still requires
-independent full-tree/blob/ref readback. The [factory example](/gh-aw/patterns/linter-factory/)
+independent full-tree/blob/ref readback. The [factory example](/gh-aw/gallery/linter-factory/)
 documents the schema subset and transport limits.
 
 Trusted JavaScript publication also appends bounded metadata-only Actions
@@ -3259,7 +3259,7 @@ unexecuted formal, supported-host, performance, or deployment-security gate.
 
 | Requirement | Implementation/evidence status |
 |---|---|
-| Git-authoritative backing Issue mirrors | AW-managed activation/conclusion hooks project own authenticated admissions/original Claims without enrollment; automatic projection stays in the queue repository/pool scope and keeps Issues open. Exact pre-existing Issue grants, cross-repository projection and closure require explicit trusted projector rules. Immutable bindings, coordination and conservative ambiguous recovery remain enforced. Local mocks/parity cover these paths; no live intended-token Issue writes or hosted workflow runs are claimed |
+| Git-authoritative backing Issue mirrors | AW-managed activation/conclusion hooks project own authenticated admissions/original Claims without enrollment. Maintenance additionally projects existing mirrors for exact terminal requests authored by its authenticated current run/attempt; maintain/admin operators may explicitly synchronize one committed terminal request. Neither path grants admission/Claim authority, creates/rebinds Issues or comments, closes Issues, scans global dirty Work, or steals ambiguous-write fences. Automatic projection stays in the queue repository/pool scope. Exact pre-existing Issue grants, cross-repository projection and closure retain explicit trusted projector rules. No ledger operation/field is added. Local mocks cover these paths; no live intended-token Issue writes or hosted workflow runs are claimed |
 | Current-only QueueCommit contract and native Go/JavaScript conformance | Implemented. An earlier combined-source local capture passed 286 independent cases with 136 dependency hashes unchanged during that capture. Safe-output changes invalidate its claim to match the current source; regenerate the capture before using it as current release evidence. Typed Go canonicalization rejects invalid Unicode before JSON encoding repairs it; checked operation-construction errors propagate through CLI and delivery consumers. Conformance does not prove arbitrary runtime/host refinement |
 | Exact fairness, FIFO defaults, deterministic fair-prefix packing and CAS recovery | Implemented in both engines, with exact integer passes, causal FIFO positions, literal shared expectations and mocked CAS/ambiguous-acknowledgment regressions. Charges are durable Claims, not CPU time or successful completions. Live Git/network contention remains unverified |
 | Work/Issue/PR DAG, observations, Result/DeliveryFailure and replacements | Implemented with atomic graph admission, typed bounded observations, immutable resource bindings and verified Result barriers. Native and runtime tests cover stale/error observations, mixed outcomes, delivery deadlines and safe replacements; actual external API availability/rate behavior is not established by injected clients |

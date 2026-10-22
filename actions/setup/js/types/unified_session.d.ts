@@ -194,8 +194,10 @@ export interface ModelConfigData {
     enabled: boolean;
     goal?: string;
     mode?: string;
-    /** Configured routing candidates without provider prefix; absent means the router default or unknown. */
+    /** Configured routing candidates as authored (exact ids or gh-aw aliases) without provider prefix; absent means the router default or unknown. */
     allowedModels?: string[];
+    /** Effective router pool sent to AWF as provider-qualified ids or patterns: aliases expanded, narrowed by the model policy; absent when unknown or expression-valued. */
+    candidateModels?: string[];
   };
   /** Configured model allow/block policy; empty lists mean no restriction was configured. */
   models?: { allowed: string[]; blocked: string[] };
@@ -258,7 +260,7 @@ export interface ModelResolutionData {
   resolved_model: string | null;
   provider: string | null;
   status: "resolved" | "exact" | "failed";
-  cause: "model_unavailable" | "catalog_unavailable" | null;
+  cause: "model_unavailable" | "catalog_unavailable" | "unsupported_endpoint" | null;
 }
 
 export interface UnifiedModelRoutingData {
@@ -353,6 +355,10 @@ export interface UsageReportData extends UnifiedSessionContextData {
   provider?: JsonValue;
   model?: JsonValue;
   purpose?: JsonValue;
+  /** AWF caller declaration: declared sub-agent name for `purpose: subagent`; absent for the main agent and AWF-owned traffic. */
+  agentName?: JsonValue;
+  /** Origin of `purpose`: `awf` for AWF-owned traffic, `caller_header` for an `x-awf-caller` declaration. */
+  callerSource?: JsonValue;
   path?: JsonValue;
   xInitiator?: JsonValue;
   requestId?: JsonValue;

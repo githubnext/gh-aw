@@ -292,6 +292,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_NEEDS_DEFENDER_SCAN_OUTPUTS_FINDINGS_COUNT: ${{ '__GH_AW_DEFERRED_4E80DA485E8867DC__' }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
           GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_issue, create_pull_request, report_missing_tool, report_missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
@@ -314,6 +315,7 @@ jobs:
           GH_AW_SKILL_DIR: ".codex/skills"
           GH_AW_SKILL_EXT: "/SKILL.md"
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_AW_NEEDS_DEFENDER_SCAN_OUTPUTS_FINDINGS_COUNT: ${{ '__GH_AW_DEFERRED_4E80DA485E8867DC__' }}
         with:
           script: |
             const path = require('path');
@@ -335,6 +337,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
+          GH_AW_NEEDS_DEFENDER_SCAN_OUTPUTS_FINDINGS_COUNT: '__GH_AW_DEFERRED_4E80DA485E8867DC__'
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
         with:
           script: |
@@ -358,14 +361,15 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
+                GH_AW_NEEDS_DEFENDER_SCAN_OUTPUTS_FINDINGS_COUNT: process.env.GH_AW_NEEDS_DEFENDER_SCAN_OUTPUTS_FINDINGS_COUNT,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED
               }
             });
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
-        run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
+          GH_AW_DEFERRED_PLACEHOLDERS: '__GH_AW_DEFERRED_4E80DA485E8867DC__'
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
@@ -594,6 +598,29 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      - name: Resolve deferred prompt expressions
+        id: resolve_deferred_prompt
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_DEFERRED_4E80DA485E8867DC: ${{ needs.defender_scan.outputs.findings_count }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+
+            const substitutePlaceholders = require(path.join(actionsDir, 'substitute_placeholders.cjs'));
+
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              inlineArtifacts: [{"directory":".codex/agents","extension":".md"},{"directory":".codex/skills","extension":"/SKILL.md"}],
+              substitutions: {
+                GH_AW_DEFERRED_4E80DA485E8867DC: process.env.GH_AW_DEFERRED_4E80DA485E8867DC
+              }
+            });
       - name: Download Defender report
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

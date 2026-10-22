@@ -28,6 +28,7 @@ copilot_digest="$(shasum -a 256 "$TEMP_DIR/SHA256SUMS.txt" | awk '{print $1}')"
 # Test pins live only beside copies of the real installers, never in production inputs.
 sed -e "s/0b03f6ea5b638356a799fa541ade4fd7902a6ac8d7c3f0252ee09d8259a4ce8f/$manifest_digest/" \
     -e "s/372f0c8d3d50076455cd19ef080dc59dc2a32401d8b2d4f77ce190c8ab13bc59/$copilot_digest/" \
+    -e "s/018625eac68670d66ede904b9b82cdcd6ab8f87ba20e6e1fbdf0b62c8295d5be/$copilot_digest/" \
   "$SCRIPT_DIR/release_integrity.sh" >"$TEMP_DIR/scripts/release_integrity.sh"
 
 cat >"$TEMP_DIR/bin/curl" <<'EOF'
@@ -97,6 +98,10 @@ run_awf v0.28.62 --rootless
 test -x "$TEMP_DIR/home/.local/bin/awf"
 grep -q EXECUTED "$TEMP_DIR/executions"
 echo "PASS: authenticated AWF bundle installs and executes"
+run_copilot --rootless
+test -x "$TEMP_DIR/home/.local/bin/copilot"
+grep -q '/v1.0.101/copilot-linux-x64.tar.gz' "$TEMP_DIR/curl.log"
+echo "PASS: default Copilot release installs with its reviewed manifest pin"
 run_copilot 1.0.98 --rootless
 test -x "$TEMP_DIR/home/.local/bin/copilot"
 rm -f "$TEMP_DIR/home/.local/bin/copilot"
@@ -202,6 +207,8 @@ test ! -e "$TEMP_DIR/curl.log"
 echo "PASS: unreviewed/latest release downloads fail before network access"
 
 test -n "$(release_artifact_sha256 github/gh-aw-firewall v0.28.62 checksums.txt)"
+test "$(release_artifact_sha256 github/copilot-cli v1.0.101 SHA256SUMS.txt)" = \
+  "018625eac68670d66ede904b9b82cdcd6ab8f87ba20e6e1fbdf0b62c8295d5be"
 if release_artifact_sha256 github/gh-aw-firewall v0.28.62 wrong-asset >/dev/null 2>&1; then
   echo "FAIL: digest pin was not asset-bound" >&2; exit 1
 fi
