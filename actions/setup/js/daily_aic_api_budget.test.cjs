@@ -3,7 +3,7 @@ import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { API_READ_OPERATIONS, apiError, createAPIBudget, isTransientError, retryNotBefore, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, apiError, createAPIBudget, isTransientError, retryNotBefore, getAPIReadFailure, withQuotaResetRecovery } = require("./daily_aic_api_budget.cjs");
 const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 
 beforeEach(() => {
@@ -252,6 +252,171 @@ describe("daily AIC retry deadlines", () => {
 
   it("ignores the rate-limit reset on an ordinary server failure", () => {
     expect(retryNotBefore({ "x-ratelimit-reset": reset, "x-ratelimit-remaining": "4000" }, now)).toBe("");
+  });
+
+  describe("bounded complete-phase quota recovery", () => {
+    const start = Date.parse("2026-10-21T10:00:00Z");
+    const exhausted = (headers = {}, status = 403, message = "API rate limit exceeded") => apiError(status, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(start / 1000 + 60), ...headers }, message);
+
+    function clock() {
+      let current = start;
+      return {
+        now: () => current,
+        sleep: vi.fn(async delay => {
+          current += delay;
+        }),
+        runAttempt: "1",
+      };
+    }
+
+    it("restarts the complete phase only after the later server deadline", async () => {
+      const recovery = clock();
+      const operation = vi
+        .fn()
+        .mockRejectedValueOnce(exhausted({ "retry-after": "120" }))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(121000);
+      expect(operation).toHaveBeenCalledTimes(2);
+      expect(recovery.now()).toBe(start + 121000);
+    });
+
+    it.each([403, 429])("uses Retry-After rather than healthy primary quota for a budget-wrapped HTTP %i limit", async status => {
+      const recovery = clock();
+      const request = vi.fn().mockRejectedValue(apiError(status, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 3600), "retry-after": "60" }, "Secondary rate limit"));
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget().request(request))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenCalledOnce();
+    });
+
+    it.each([false, true])("uses Retry-After for a direct HTTP 429 without trusting a caller-supplied reserve stop (forged=%s)", async forged => {
+      const recovery = clock();
+      const error = apiError(429, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 3600), "retry-after": "60" }, "Secondary rate limit");
+      if (forged) Object.assign(error, { code: "DAILY_AIC_QUOTA_STOP", reserveStopped: true });
+      const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      [100, 99, 121000],
+      [100, 100, 121000],
+      [100, 101, 61000],
+      [50, 49, 121000],
+      [50, 50, 121000],
+      [50, 51, 61000],
+      [200, 150, 121000],
+      [200, 201, 61000],
+    ])("binds the primary reset at reserve %i only when remaining %i reaches it", async (reserve, remaining, delayMs) => {
+      const recovery = clock();
+      const request = vi.fn().mockRejectedValue(apiError(429, { "x-ratelimit-remaining": String(remaining), "x-ratelimit-reset": String(start / 1000 + 120), "retry-after": "60" }, "Secondary rate limit"));
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget(reserve).request(request))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(delayMs);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it("retains primary reset recovery for a successful response stopped at the reserve", async () => {
+      const recovery = clock();
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget().request(async () => response(200, { "x-ratelimit-remaining": "100", "x-ratelimit-reset": String(start / 1000 + 60) })))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      [403, false],
+      [403, true],
+      [429, false],
+      [429, true],
+    ])("fails closed for HTTP %i secondary limits without a known deadline (budget=%s)", async (status, budgetWrapped) => {
+      const recovery = clock();
+      const error = apiError(status, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 10) }, "You have exceeded a secondary rate limit");
+      const operation = vi.fn(() => (budgetWrapped ? createAPIBudget().request(() => Promise.reject(error)) : Promise.reject(error)));
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toMatchObject({ status });
+      expect(operation).toHaveBeenCalledOnce();
+      expect(recovery.sleep).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('"reason":"unknown_reset"'));
+    });
+
+    it.each([
+      ["unknown reset", { "x-ratelimit-reset": "" }, {}, "unknown_reset"],
+      ["invalid reset", { "x-ratelimit-reset": "9999999999999999" }, {}, "unknown_reset"],
+      ["expired reset", { "x-ratelimit-reset": String(start / 1000 - 1) }, {}, "unknown_reset"],
+      ["long reset", { "x-ratelimit-reset": String(start / 1000 + 1200) }, {}, "reset_exceeds_budget"],
+      ["rerun", {}, { runAttempt: "2" }, "not_original_attempt"],
+      ["missing attempt", {}, { runAttempt: "" }, "not_original_attempt"],
+    ])("blocks %s without sleeping or another API attempt", async (_name, headers, options, reason) => {
+      const recovery = { ...clock(), ...options };
+      const error = exhausted(headers);
+      const operation = vi.fn().mockRejectedValue(error);
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toBe(error);
+      expect(operation).toHaveBeenCalledOnce();
+      expect(recovery.sleep).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining(`"reason":"${reason}"`));
+    });
+
+    it("counts time spent in the failed phase against the deferral budget", async () => {
+      const recovery = clock();
+      const operation = vi.fn(async () => {
+        await recovery.sleep(590000);
+        throw exhausted({ "retry-after": "60" });
+      });
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toMatchObject({ status: 403 });
+      expect(operation).toHaveBeenCalledOnce();
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(590000);
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("reset_exceeds_budget"));
+    });
+
+    it.each(["early", "late"])("blocks a %s timer wake instead of issuing another read", async kind => {
+      const recovery = clock();
+      if (kind === "early") recovery.sleep.mockImplementation(async () => {});
+      else {
+        const sleep = recovery.sleep.getMockImplementation();
+        recovery.sleep.mockImplementation(delay => sleep(delay + 660000));
+      }
+      const error = exhausted();
+      const operation = vi.fn().mockRejectedValue(error);
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toBe(error);
+      expect(operation).toHaveBeenCalledOnce();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("missed its time budget"));
+    });
+
+    it("stops renewed exhaustion without a second deferral", async () => {
+      const recovery = clock();
+      const error = exhausted();
+      const operation = vi.fn().mockRejectedValue(error);
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toBe(error);
+      expect(recovery.sleep).toHaveBeenCalledOnce();
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([401, 403])("does not defer HTTP %i access failures even when quota headers are exhausted", async status => {
+      const recovery = clock();
+      const original = exhausted({}, status, status === 401 ? "Bad credentials" : "Resource not accessible by integration");
+      let error;
+      try {
+        createAPIBudget().observe(original.response, original);
+      } catch (stopped) {
+        error = stopped;
+      }
+      const operation = vi.fn().mockRejectedValue(error);
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toBe(error);
+      expect(operation).toHaveBeenCalledOnce();
+      expect(recovery.sleep).not.toHaveBeenCalled();
+    });
   });
 
   it("retains reset deadlines for quota reserve stops and exhausted quota", () => {
