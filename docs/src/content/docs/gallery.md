@@ -19,6 +19,8 @@ The GitHub Agentic Workflows gallery shows how Markdown workflows can run AI age
 | [Repository Reporting](/gh-aw/gallery/ai-release-notes/) | Automatically summarize repository or release activity on an event or schedule. |
 | [Repository Maintenance](/gh-aw/gallery/maintaining-repos/) | Automated repository assistance by reviewing a backlog, performing bounded maintenance tasks, and proposing controlled changes on a schedule. |
 | [Security Review](/gh-aw/gallery/security-review/) | Automatically combine repository evidence with AI interpretation to report suspicious changes through code scanning. |
+| [Daily Report Portfolio](/gh-aw/gallery/daily-report-portfolio/) | Coordinate report workers with date-keyed admission and bounded daily dispatch. |
+| [Linter Factory](/gh-aw/gallery/linter-factory/) | Coordinate ESLint rule creation, refinement, and remediation through assigned queue tasks. |
 | [Triage from Side Repo](/gh-aw/gallery/multi-repo/triage-from-side-repo/) | Automatically triage a main repository from an isolated side repository through a slash-command bridge. |
 | [Code Quality Monitoring](/gh-aw/gallery/multi-repo/code-quality-monitoring/) | Automatically analyze code quality across repositories and create focused, actionable issues. |
 | [Feature Synchronization](/gh-aw/gallery/multi-repo/feature-sync/) | Automatically synchronize code and configuration across repositories through reviewable pull requests. |

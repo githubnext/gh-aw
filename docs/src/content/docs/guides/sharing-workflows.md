@@ -19,7 +19,7 @@ gh aw add acme-org/agentic-workflows/ci-doctor@v1.2.0
 
 The `source:` field is automatically added to the installed workflow's frontmatter so the origin and version are tracked. Use `gh aw add-wizard` for interactive installation; use `gh aw add` for scripted or CI use.
 
-See [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installation commands and options.
+See [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for installation commands and options.
 
 ### 2. Reusable workflow components
 
@@ -98,7 +98,7 @@ When workflows are shared across an organization, the key decisions are operatio
 
 ## Learn More
 
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows)
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows)
 - [Imports Reference](/gh-aw/reference/imports/)
 - [Cross-Repository Operations](/gh-aw/reference/cross-repository/)
 - [Private Workflows](/gh-aw/reference/frontmatter/#private-workflows-private)

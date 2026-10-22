@@ -41,7 +41,6 @@ Works outside a Git repository with no authentication or network access. Uses th
 **MCP equivalent**: Not available.
 
 ---
-
 ### `gh aw init`
 
 Initialize a repository for agentic workflows.
@@ -58,7 +57,6 @@ Creates `.github/skills/agentic-workflows/SKILL.md`. With the Copilot engine (de
 **MCP equivalent**: Not available — run from a local terminal or use the `upgrade` tool for updates.
 
 ---
-
 ### `gh aw compile`
 
 Compile workflow `.md` files into GitHub Actions `.lock.yml` files.
@@ -88,7 +86,6 @@ The compile MCP input `validate_images: true` opts into `--validate-images`,
 including with `dry_run: true`; it fails when Docker is unavailable.
 
 ---
-
 ### `gh aw run`
 
 > [!IMPORTANT]
@@ -124,7 +121,6 @@ gh aw run <workflow-name> --raw-field key=value   # Pass a specific input
 API/MCP dispatch or request manual dispatch as a workaround.
 
 ---
-
 ### `gh aw logs`
 
 Download and analyze workflow execution logs.
@@ -147,7 +143,6 @@ gh aw logs --ignore-workflow-runs 123,456  # Exclude specific run IDs from resul
 For failure triage methodology, see [analyzing-runs.md](analyzing-runs.md#select).
 
 ---
-
 ### `gh aw audit`
 
 Investigate a specific workflow run in detail (missing tools, safe outputs, metrics).
@@ -177,7 +172,6 @@ zero matches as safety evidence. It cannot be combined with `--group` or job/ste
 for ordinary audits; BM25 `--search` is CLI-only.
 
 ---
-
 ### `gh aw status`
 
 Show the status of all agentic workflows in the repository.
@@ -190,7 +184,6 @@ gh aw status --repo owner/repo    # Query status in another repository
 **MCP equivalent**: `status` tool
 
 ---
-
 ### `gh aw checks`
 
 Show check run results for a workflow run.
@@ -202,7 +195,6 @@ gh aw checks <run-id>
 **MCP equivalent**: `checks` tool
 
 ---
-
 ### `gh aw health`
 
 Display workflow health metrics, success rates, and revision-aware failure clusters.
@@ -222,7 +214,6 @@ Reports a bounded current-revision sample: compares `gh-aw-metadata` hashes acro
 **MCP equivalent**: Not available — run from a local terminal.
 
 ---
-
 ### `gh aw experiments`
 
 Inspect experiment state tracked in `experiments/*` branches. Default behavior matches `experiments list`; use `experiments analyze` for per-workflow statistics. All subcommands accept `--repo/-r` and `--json/-j`.
@@ -237,7 +228,6 @@ gh aw experiments analyze <workflow> --repo owner/repo  # Analyze in another rep
 **MCP equivalent**: Not available — run from a local terminal.
 
 ---
-
 ### `gh aw fix`
 
 Apply automatic codemods to fix deprecated fields in workflow files.
@@ -250,7 +240,6 @@ gh aw fix --write           # Apply changes
 **MCP equivalent**: `fix` tool
 
 ---
-
 ### `gh aw format`
 
 Apply all available codemods and normalize workflow frontmatter (two-space indentation, deterministic field ordering, comments and Markdown body preserved).
@@ -264,7 +253,6 @@ gh aw format --dir custom/workflows # Format workflows in a custom directory
 **MCP equivalent**: Not available — run from a local terminal.
 
 ---
-
 ### `gh aw upgrade`
 
 Upgrade the repository's agentic workflows configuration to the latest gh-aw version.
@@ -282,7 +270,6 @@ gh aw upgrade --org my-org --create-issue   # Open issues in org repos with agen
 **MCP equivalent**: `upgrade` tool
 
 ---
-
 ### `gh aw add`
 
 Add a new shared workflow component as an import.
@@ -294,7 +281,6 @@ gh aw add <workflow-url>
 **MCP equivalent**: `add` tool
 
 ---
-
 ### `gh aw update`
 
 Update imported shared workflow components.
@@ -312,7 +298,6 @@ gh aw update --cool-down 3d                 # Custom cooldown before applying pe
 **MCP equivalent**: `update` tool
 
 ---
-
 ### `gh aw deploy`
 
 Deploy workflows to a target repository (chains update, add, compile --purge, opens a PR). `--repo` is required.
@@ -327,7 +312,6 @@ gh aw deploy <workflow> --repo owner/repo --force       # Overwrite without conf
 **MCP equivalent**: Not available — run from a local terminal or invoke the CLI inside a workflow step with `github/gh-aw/actions/setup-cli`.
 
 ---
-
 ### `gh aw env`
 
 Manage compiler default variables (`GH_AW_DEFAULT_*`) as repo/org/enterprise GitHub Actions variables. YAML file uses lowercase `default_*` keys. `null` deletes the variable; any non-null string sets it (`""` = set-to-empty, not delete).
@@ -356,7 +340,6 @@ Recognized keys include `default_max_ai_credits`, `default_max_turn_cache_misses
 **MCP equivalent**: Not available — run from a local terminal.
 
 ---
-
 ### `gh aw mcp inspect`
 
 Inspect and analyze MCP server configurations in workflows.
@@ -370,7 +353,6 @@ gh aw mcp list                                   # List workflows with MCP serve
 **MCP equivalent**: `mcp-inspect` tool
 
 ---
-
 ### `gh aw json-schema`
 
 Generate the JSON Schema for `audit`, `logs` JSON output, or cached logs JSONL items.
@@ -384,7 +366,6 @@ gh aw json-schema logs-jsonl
 **MCP equivalent**: Not available — run from a local terminal.
 
 ---
-
 ## MCP Tool ↔ CLI Quick Reference
 
 | CLI command | MCP tool |

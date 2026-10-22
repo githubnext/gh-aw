@@ -132,7 +132,7 @@ Repeat this for comparable runs over a stable time window rather than drawing
 conclusions from one run. Compare workflows that produce the same kind of safe
 output, and examine item-level `object_url`, `outcome_status`, and
 `evidence_strength` fields when a summary changes unexpectedly. See
-[Measuring Impact](/gh-aw/practices/measuring-impact/) for combining these
+[Measuring Impact](/gh-aw/guides/measuring-impact/) for combining these
 results with run volume and AIC.
 
 ## Telemetry

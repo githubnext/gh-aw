@@ -1,5 +1,5 @@
 ---
-title: 'Example: Dependabot Rollout'
+title: 'Automated Dependabot Rollout'
 description: Roll out a customized Dependabot configuration across many repositories using an orchestrator and worker workflow pair from a central control repository.
 sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }

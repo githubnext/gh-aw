@@ -11,7 +11,7 @@ This guide documents the internal compilation process that transforms markdown w
 
 The `gh aw compile` command transforms a markdown workflow file into a complete GitHub Actions `.lock.yml` by embedding frontmatter and setting up runtime loading of the markdown body. The process runs five compilation phases (parsing, validation, job construction, dependency resolution, and YAML generation) described below.
 
-When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
+When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for details.
 
 ## Repository Configuration (`aw.json`)
 
@@ -289,7 +289,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw validate --strict` | Validate with strict mode enforced |
 
 > [!TIP]
-> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
+> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for details.
 
 > [!NOTE]
 > The `--actions-repo` flag overrides the default `github/gh-aw-actions` repository used when `--action-mode action` is set. Use it together with `--action-tag` to compile against a branch or fork during development.
@@ -418,17 +418,23 @@ Set `DEBUG=workflow:compiler_development,cli:compile_development` to log each
 dry-run configuration mutation, removed environment key, disabled job, and forced
 CLI flag to stderr. Logs identify changed fields/keys, never their values.
 
-Dry-run locks omit `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*` variables,
+Dry-run locks omit telemetry configuration under `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*`,
 W3C trace context (`TRACEPARENT`, `TRACESTATE`, `BAGGAGE`), and
 `CLAUDE_CODE_ENABLE_TELEMETRY` from workflow, job,
 step, container, and service environment mappings, including user-defined values.
 Workflow environment suppression occurs before job and header generation so
 telemetry-only masking steps and environment-source entries are also omitted.
 Engine environment overrides are filtered before native engine configuration is rendered.
+The emitted workflow environment sets `OTEL_SDK_DISABLED=true`,
+`GH_TELEMETRY=false`, `DO_NOT_TRACK=1`, `DISABLE_TELEMETRY=1`,
+`DISABLE_ERROR_REPORTING=1`, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`.
+These opt-outs are inherited by jobs and steps. Conflicting overrides in job,
+step, container, and service environment mappings are replaced.
 Automatic OTLP export configuration and telemetry authentication steps are also
 disabled. Existing network permissions, local diagnostics, summaries, and artifacts remain
-available; ordinary compilation preserves telemetry configuration. This does not
-rewrite custom scripts that configure their own exporters.
+available; ordinary compilation preserves telemetry configuration. Tools that
+ignore these variables can still emit telemetry. This does not rewrite custom
+scripts that configure their own exporters.
 
 The emitted lock's `gh-aw-metadata` header records `"dry_run":true`. Normal and
 older locks omit this optional field, which readers interpret as `false`.
@@ -511,7 +517,7 @@ Simple workflows compile in ~100ms; workflows with imports in ~500ms; workflows 
 
 ## Learn More
 
-- [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
+- [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - All configuration options
 - [Tools Reference](/gh-aw/reference/tools/) - Tool configuration guide
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing

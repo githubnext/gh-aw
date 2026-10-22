@@ -139,7 +139,7 @@ Yes. Private repositories can support proprietary code, a "sidecar" repository w
 
 ### Can I edit workflows directly on GitHub.com without recompiling?
 
-Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows).
+Yes, for the **markdown body** (AI instructions) — loaded at runtime, takes effect on the next run. **Frontmatter** (tools, permissions, triggers, network rules) is embedded at compile time and requires `gh aw compile my-workflow` after edits. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows).
 
 ### How can I use parameters in a workflow prompt?
 
@@ -282,7 +282,7 @@ imports:
   - githubnext/agentics/shared/common-tools.md
 ```
 
-See [Imports](/gh-aw/reference/imports/) and [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows).
+See [Imports](/gh-aw/reference/imports/) and [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows).
 
 ### Can I run workflows on a schedule?
 

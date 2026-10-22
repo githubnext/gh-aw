@@ -1,5 +1,5 @@
 ---
-title: AI issue triage on GitHub
+title: Automated issue triage on GitHub
 description: Use gh-aw to triage GitHub issues automatically by labeling issues, detecting duplicates, and asking follow-up questions through safe outputs.
 ---
 

@@ -777,7 +777,9 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 gh aw audit 1234567890 --runtime cloud-hypervisor        # Skip run unless sandbox agent runtime matches
 ```
 
-**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--stdin`, `--timeout`, `--variant`
+**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--search`, `--search-limit`, `--stdin`, `--timeout`, `--variant`
+
+`--search "query"` retrieves evidence from the run's redacted unified session using local BM25 ranking, without changing audit findings. `--search-limit` bounds returned evidence groups (default: `5`, range: `1–20`). Search requires a single run and cannot be combined with `--group` or job/step URLs. See [Searching session evidence](/gh-aw/reference/audit/#searching-session-evidence) for input limits and automatic repetition grouping.
 
 The `--timeout` flag sets a duration such as `50s` or `5m` (default: `0`, no additional deadline). Timed-out single-run JSON audits exit unsuccessfully and return available metadata or collected analysis with `partial: true`, `complete: false`, and the interrupted `stage`. Incomplete reports are not persisted as complete audit caches.
 
@@ -1276,10 +1278,11 @@ gh aw work-queue stats --repo owner/repo
 
 **Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (explicit `owner/repo` for repository operations; no host prefix or current-repository default), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
 
-**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
+**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `sync-issues`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
 
 | Subcommand | Options and behavior |
 | --- | --- |
+| `sync-issues` | `--request-id ID` selects one committed terminal request for repair of eligible existing Issue mirrors. See [Synchronization and recovery](/gh-aw/reference/work-queue/#synchronization-and-recovery) for projection and authorization rules. |
 | `submit-work` | `--graph-id` sets a nonempty graph namespace (default: canonical payload SHA-256); `--node-key` sets a nonempty node identity within the graph (default: `root`). `--fairness-key` selects an entitled accounting key (default: one shared bucket). |
 | `dispatch-next` | `--max-bytes` limits assignment bytes (default: 49,152), subject to policy and host limits. Grants and reserves assignments without launching workflows. |
 | `dispatch <dispatcher>` | Starts a verified dispatcher at the repository's default-branch snapshot revision. `--dry-run` previews the route without granting Claims or launching workflows; `--wait` waits for the dispatcher, not verification of worker Results. |
@@ -1475,7 +1478,7 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 
 - [Quick Start](/gh-aw/setup/quick-start/) for your first workflow
 - [Frontmatter](/gh-aw/reference/frontmatter/) for configuration options
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
 - [Security Guide](/gh-aw/introduction/architecture/) for security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) for MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) for agent factory status
