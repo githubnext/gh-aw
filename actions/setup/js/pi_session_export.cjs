@@ -16,9 +16,10 @@ function sessionIDFromStream(stream) {
   throw new Error("Pi did not emit a session header; cannot export the session");
 }
 
-function main() {
+/** @param {string} [streamFile] */
+function main(streamFile = "/tmp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl") {
   if (!parsePiConfig().session?.export) return;
-  const sessionId = sessionIDFromStream(fs.readFileSync("/tmp/gh-aw/pi-streaming.jsonl", "utf8"));
+  const sessionId = sessionIDFromStream(fs.readFileSync(streamFile, "utf8"));
   const sessionFile = fs.readdirSync(DEFAULT_SESSION_DIR).find(file => file.endsWith(`_${sessionId}.jsonl`));
   if (!sessionFile) throw new Error(`Persisted Pi session is missing: ${sessionId}`);
   const output = path.join(process.env.PI_CODING_AGENT_DIR || "/tmp/gh-aw/pi-agent-dir", "session.html");
@@ -27,7 +28,7 @@ function main() {
 
 if (require.main === module) {
   try {
-    main();
+    main(process.argv[2]);
   } catch (error) {
     process.stderr.write(`[gh-aw/pi-session-export] ${getErrorMessage(error)}\n`);
     process.exitCode = 1;

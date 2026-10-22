@@ -126,6 +126,8 @@ max-tool-calls: 100
 
 Sessions are ephemeral by default. Persistent JSONL sessions are written under `/tmp/gh-aw/agent/pi-sessions`; restore a previous session artifact there before using `resume` or `fork`. HTML exports are stored at `/tmp/gh-aw/pi-agent-dir/session.html`. Both are secret-redacted before artifact upload.
 
+Pi's streaming event log is written to `/tmp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl` for step summaries and session artifacts. With `runner.topology: arc-dind`, the compiler uses `${RUNNER_TEMP}/gh-aw/sandbox/agent/logs/pi-streaming.jsonl` inside the writable agent mount; no extra mounts or pre-steps are required. Session reconstruction also accepts historical artifacts with `pi-streaming.jsonl` at the artifact root.
+
 Settings are passed through to Pi, including `codemode.inlineBudget`, per-model thinking and compaction overrides, and v1.3.0's `sessionShareDestination`. The latter configures Pi's `/share` command; it does not publish workflow artifacts automatically. Installed `defaultTools` selections are merged with gh-aw's `+codemode` and `+tool_search` defaults; explicit `engine.config.settings.defaultTools` replaces that list. On resume, Pi restores tools activated in the saved session; explicit CLI `--tools` selections or exclusions still apply. See the [Pi settings reference](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/docs/settings.md).
 
 See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) and [Pi extensions reference](/gh-aw/reference/engines/pi/#pi-extensions-extensions).
