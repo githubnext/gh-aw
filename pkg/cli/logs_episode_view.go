@@ -85,3 +85,16 @@ func renderEpisodeHops(out io.Writer, data LogsData) error {
 	}
 	return nil
 }
+
+func renderLogsEpisodeOutcomes(out io.Writer, data LogsData, episodes bool) error {
+	if episodes {
+		if len(data.Episodes) == 0 {
+			if _, err := fmt.Fprintln(out, "\nNo recorded episodes in the selected runs; episode membership is unavailable."); err != nil {
+				return fmt.Errorf("write episode coverage: %w", err)
+			}
+		} else if err := renderEpisodeHops(out, data); err != nil {
+			return err
+		}
+	}
+	return renderLogsOutcomes(out, data)
+}

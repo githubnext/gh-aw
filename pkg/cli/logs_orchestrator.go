@@ -340,6 +340,7 @@ func DownloadWorkflowLogs(ctx context.Context, opts LogsDownloadOptions) (err er
 		format:            opts.Format,
 		reportFile:        opts.ReportFile,
 		jsonOutput:        opts.JSONOutput,
+		episodes:          opts.Episodes,
 		toolGraph:         opts.ToolGraph,
 		train:             opts.Train,
 		drain3Weights:     opts.Drain3Weights,

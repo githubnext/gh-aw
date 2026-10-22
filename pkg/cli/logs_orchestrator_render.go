@@ -37,7 +37,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 				if opts.format == "tsv" || opts.format == "pretty" {
 					out = os.Stderr
 				}
-				err = renderLogsOutcomes(out, logsData)
+				err = renderLogsEpisodeOutcomes(out, logsData, opts.episodes)
 			}
 		}()
 	}
@@ -176,7 +176,11 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
-	// These fields are for JSON output; text outcomes are rendered separately by renderLogsOutcomes.
+	if opts.episodes {
+		report.Episodes = logsData.Episodes
+		report.Edges = logsData.Edges
+	}
+	// These fields are for JSON output; text is rendered separately by renderLogsEpisodeOutcomes.
 	report.Outcomes = logsData.Outcomes
 	report.EpisodeOutcomes = logsData.EpisodeOutcomes
 	report.FailureClusters = logsData.FailureClusters
@@ -204,7 +208,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 				}
 			}()
 			renderCrossRunReportMarkdownToWriter(f, report)
-			return renderLogsOutcomes(f, logsData)
+			return renderLogsEpisodeOutcomes(f, logsData, opts.episodes)
 		}(); err != nil {
 			return fmt.Errorf("failed to write report file: %w", err)
 		}

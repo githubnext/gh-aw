@@ -878,12 +878,13 @@ Check what happened to a workflow run's safe outputs (accepted, rejected, ignore
 
 ```bash wrap
 gh aw logs weekly-research --outcomes --json
+gh aw logs weekly-research --episodes --outcomes --json
 printf '%s\n' 1234567890 | gh aw logs --stdin --repo owner/repo --outcomes --json
 gh aw logs episode 1234567890 --repo owner/repo --outcomes
 gh aw logs --outcomes --outcomes-dir ./otlp
 ```
 
-**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--outcomes-dir`
+**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--episodes`, `--outcomes-dir`
 
 The flag applies to selected runs in discovery, multi-workflow, stdin, and
 episode collection. JSON includes `.outcomes[]` with per-run observations and
@@ -891,6 +892,14 @@ episode collection. JSON includes `.outcomes[]` with per-run observations and
 and require additional API requests even when execution artifacts are cached.
 `--outcomes-dir` requires `--outcomes` and writes JSONL observations.
 The standalone `gh aw outcomes` command has been removed.
+
+`--episodes` adds recorded episode membership and hops to text reports. Combine
+`--episodes --outcomes` to perform the episode-outcome join in the same
+invocation, using collected membership, live observations, and downloaded
+usage. No separate `logs outcomes-episodes` command or JSONL export is needed.
+Standard logs JSON retains episode membership and outcome summaries with or
+without the explicit `--episodes` flag. Membership is limited to selected runs; this flag
+does not expand discovery to all episode members.
 
 ##### `logs outcomes-history`
 

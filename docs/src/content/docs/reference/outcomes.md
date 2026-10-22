@@ -189,6 +189,11 @@ For orchestrated workflows, multiple runs can belong to one logical execution. I
 
 `gh aw logs --outcomes` includes per-run observations in `.outcomes[]` and joins
 them with selected episode membership and cost in `.episode_outcomes`.
+Use `gh aw logs --episodes --outcomes` to include recorded episode membership
+and hops in text output alongside these summaries. The combined flags perform
+the episode-outcome join in memory, without a second command, JSONL export,
+or additional GitHub requests for the join itself. Standard logs JSON membership
+and outcome summaries are preserved without the explicit `--episodes` flag.
 Manifests are collected alongside usage artifacts; full agent artifacts and
 workflow logs are not required. Episode membership remains bounded to selected
 runs. `gh aw logs episode <seed> --outcomes` also checks outcomes live when

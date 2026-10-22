@@ -41,6 +41,8 @@ type CrossRunAuditReport struct {
 	GitHubAPIRateLimit   *GitHubAPIRateLimitReport   `json:"github_api_rate_limit,omitempty"`
 	GitHubAPIRateLimits  []*GitHubAPIRateLimitReport `json:"github_api_rate_limits,omitempty"`
 	ModelRouting         *ModelRoutingLogsSummary    `json:"model_routing,omitempty"`
+	Episodes             []EpisodeData               `json:"episodes,omitempty"`
+	Edges                []EpisodeEdge               `json:"edges,omitempty"`
 	Outcomes             []OutcomesData              `json:"outcomes,omitempty"`
 	EpisodeOutcomes      *EpisodeOutcomesData        `json:"episode_outcomes,omitempty"`
 }

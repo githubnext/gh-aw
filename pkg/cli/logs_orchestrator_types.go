@@ -27,6 +27,7 @@ type LogsDownloadOptions struct {
 	NoFirewall         bool
 	Parse              bool
 	JSONOutput         bool
+	Episodes           bool
 	Outcomes           bool
 	OutcomesDir        string
 	TimeoutMinutes     int
@@ -113,6 +114,7 @@ type StdinLogsOptions struct {
 	NoFirewall        bool
 	Parse             bool
 	JSONOutput        bool
+	Episodes          bool
 	Outcomes          bool
 	OutcomesDir       string
 	Timeout           int
@@ -175,6 +177,7 @@ type renderLogsOutputOptions struct {
 	format           string
 	reportFile       string
 	jsonOutput       bool
+	episodes         bool
 	toolGraph        bool
 	train            bool
 	drain3Weights    string

@@ -16,6 +16,8 @@ Make live outcome evaluation opt-in through `gh aw logs --outcomes`, including `
 
 Keep collection lightweight: the `outcomes` artifact set downloads the compact executed safe-output manifest, not full agent logs. Episode retrieval collects outcome manifests only for verified episode members, after validating identity and run-attempt evidence; already collected manifests are reused. Missing manifests produce explicit `eval_error` coverage diagnostics rather than an apparently successful empty result.
 
+Combine `--episodes --outcomes` to include recorded episode membership and hops alongside the in-memory outcome join. The same join powers `logs outcomes-episodes` for separately persisted reports; the combined flags do not launch that command, require JSONL export, make additional join-specific GitHub requests, or expand the selected membership.
+
 Evaluate current state on each invocation, even when artifact data is cached. Reuse successful, validated live API responses across the selected runs within that invocation, with request identity including the GitHub host; coalesce identical in-flight reads and reuse labels already present on fetched issue or PR objects. Do not persist this live-response cache across invocations or retain failed responses as reusable observations. Paginated REST reads request 100 items per page, and the objective impact report batches selected runs into one CLI invocation so that this reuse applies across the report.
 
 ### Alternatives Considered

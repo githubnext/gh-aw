@@ -8085,6 +8085,519 @@
           },
           "additionalProperties": false
         },
+        "episodes": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "episode_id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "reasons": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "representative_run_id": {
+                "type": "integer"
+              },
+              "representative_workflow": {
+                "type": "string"
+              },
+              "recorded_roots": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "run_id": {
+                      "type": "string"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "observed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "observed"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "coverage": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "reasons": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "missing_parent_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "collection_truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "scope",
+                  "status",
+                  "collection_truncated"
+                ],
+                "additionalProperties": false
+              },
+              "run_ids": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "workflow_names": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "total_runs": {
+                "type": "integer"
+              },
+              "total_tokens": {
+                "type": "integer"
+              },
+              "total_aic": {
+                "type": "number"
+              },
+              "total_duration": {
+                "type": "string"
+              },
+              "risky_node_count": {
+                "type": "integer"
+              },
+              "changed_node_count": {
+                "type": "integer"
+              },
+              "write_capable_node_count": {
+                "type": "integer"
+              },
+              "missing_tool_count": {
+                "type": "integer"
+              },
+              "mcp_failure_count": {
+                "type": "integer"
+              },
+              "blocked_request_count": {
+                "type": "integer"
+              },
+              "latest_success_fallback_count": {
+                "type": "integer"
+              },
+              "new_mcp_failure_run_count": {
+                "type": "integer"
+              },
+              "blocked_request_increase_run_count": {
+                "type": "integer"
+              },
+              "blocked_request_at_cap": {
+                "type": "boolean"
+              },
+              "resource_heavy_node_count": {
+                "type": "integer"
+              },
+              "poor_control_node_count": {
+                "type": "integer"
+              },
+              "risk_distribution": {
+                "type": "string"
+              },
+              "escalation_eligible": {
+                "type": "boolean"
+              },
+              "escalation_reason": {
+                "type": "string"
+              },
+              "suggested_route": {
+                "type": "string"
+              },
+              "repository": {
+                "type": "string"
+              },
+              "organization": {
+                "type": "string"
+              },
+              "manifest_entry_count": {
+                "type": "integer"
+              },
+              "temporary_id_mappings": {
+                "type": "integer"
+              },
+              "chained_target_count": {
+                "type": "integer"
+              },
+              "chained_followup_action_count": {
+                "type": "integer"
+              },
+              "delegated_temp_target_count": {
+                "type": "integer"
+              },
+              "closed_temp_target_count": {
+                "type": "integer"
+              },
+              "tool_calls": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tool": {
+                      "type": "string"
+                    },
+                    "server": {
+                      "type": "string"
+                    },
+                    "tokens": {
+                      "type": "integer"
+                    },
+                    "duration_ms": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tool",
+                    "server",
+                    "tokens",
+                    "duration_ms",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "explanation": {
+                "type": [
+                  "null",
+                  "object"
+                ],
+                "properties": {
+                  "hops": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "run_id": {
+                          "type": "integer"
+                        },
+                        "repository": {
+                          "type": "string"
+                        },
+                        "workflow": {
+                          "type": "string"
+                        },
+                        "hop_id": {
+                          "type": "string"
+                        },
+                        "parent_hop_id": {
+                          "type": "string"
+                        },
+                        "caller_run_id": {
+                          "type": "string"
+                        },
+                        "caller_repository": {
+                          "type": "string"
+                        },
+                        "shared_run": {
+                          "type": "boolean"
+                        },
+                        "evidence": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "missing_evidence": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "run_id",
+                        "shared_run",
+                        "evidence"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "edges": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "source_hop_id": {
+                          "type": "string"
+                        },
+                        "target_hop_id": {
+                          "type": "string"
+                        },
+                        "source_run_id": {
+                          "type": "integer"
+                        },
+                        "target_run_id": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "source_hop_id",
+                        "target_run_id",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "run_edges": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "source_run_id": {
+                          "type": "integer"
+                        },
+                        "target_run_id": {
+                          "type": "integer"
+                        },
+                        "edge_type": {
+                          "type": "string"
+                        },
+                        "confidence": {
+                          "type": "string"
+                        },
+                        "reasons": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "source_repo": {
+                          "type": "string"
+                        },
+                        "source_ref": {
+                          "type": "string"
+                        },
+                        "event_type": {
+                          "type": "string"
+                        },
+                        "episode_id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "source_run_id",
+                        "target_run_id",
+                        "edge_type",
+                        "confidence"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "run_costs": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "run_id": {
+                          "type": "integer"
+                        },
+                        "repository": {
+                          "type": "string"
+                        },
+                        "tokens": {
+                          "type": "integer"
+                        },
+                        "aic": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "run_id",
+                        "tokens",
+                        "aic"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "missing_evidence": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "hops",
+                  "edges",
+                  "run_edges",
+                  "run_costs"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "episode_id",
+              "kind",
+              "confidence",
+              "coverage",
+              "run_ids",
+              "workflow_names",
+              "total_runs",
+              "total_tokens",
+              "total_duration",
+              "risky_node_count",
+              "changed_node_count",
+              "write_capable_node_count",
+              "missing_tool_count",
+              "mcp_failure_count",
+              "blocked_request_count",
+              "latest_success_fallback_count",
+              "new_mcp_failure_run_count",
+              "blocked_request_increase_run_count",
+              "resource_heavy_node_count",
+              "poor_control_node_count",
+              "risk_distribution",
+              "escalation_eligible"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "edges": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_run_id": {
+                "type": "integer"
+              },
+              "target_run_id": {
+                "type": "integer"
+              },
+              "edge_type": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "reasons": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "source_repo": {
+                "type": "string"
+              },
+              "source_ref": {
+                "type": "string"
+              },
+              "event_type": {
+                "type": "string"
+              },
+              "episode_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source_run_id",
+              "target_run_id",
+              "edge_type",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
         "outcomes": {
           "type": [
             "null",
