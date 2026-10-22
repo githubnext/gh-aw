@@ -1,25 +1,19 @@
 # PR Triage Summary
 
-- Run: 2026-10-21T06:38:51Z
-- Eligible PRs: 5
-- Skipped by cooldown: 1
-- Open Copilot PRs: 6
+- Run: 2026-10-22T06:38:39Z
+- Eligible PRs: 0
+- Skipped by cooldown: 7
+- Open Copilot PRs: 7
 
 ## Result
-- #70347 — fast_track — bug / medium — total 65
-- #70346 — auto_merge — bug / low — total 60
-- #70343 — auto_merge — bug / low — total 55
-- #69586 — defer — bug / high — total 60
-- #56568 — defer — bug / high — total 57
+- No eligible PRs to triage under the 1-hour cooldown guard.
 
 ## Summary
-- Category distribution: bug=5
-- Risk distribution: low=2, medium=1, high=2
-- Priority distribution: medium=4, high=1
-- Recommended actions: auto_merge=2, fast_track=1, batch_review=0, defer=2, close=0
-- Batch opportunities: guardrails (70343, 70346, 70347)
+- Category distribution: none
+- Risk distribution: none
+- Priority distribution: none
+- Recommended actions: none
+- Batch opportunities: none
 
 ## Next action
-- Prioritize #70347 for expedited human review.
-- Merge the two low-risk auto-merge candidates after the review window.
-- Keep the two high-risk bug fixes deferred pending explicit policy review and stronger validation evidence.
+- Re-run once the currently active app/github-copilot PRs age past the 1-hour update threshold.
