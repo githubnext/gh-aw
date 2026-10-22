@@ -60,6 +60,8 @@ func TestWorkflowRunScopeParsedTriggers(t *testing.T) {
 		{name: "scoped branch glob", trigger: "on: {workflow_run: {workflows: [Build], branches: ['release/**']}}"},
 		{name: "scoped exclusions", trigger: "on: {workflow_run: {workflows: [Build], branches: ['release/**', '!release/beta/**']}}"},
 		{name: "ordered universal exclusion and scoped reinclude", trigger: "on: {workflow_run: {workflows: [Build], branches: ['**', '!**', main]}}"},
+		{name: "positive survives exact exclusion of another", trigger: "on: {workflow_run: {workflows: [Build], branches: [main, develop, '!develop']}}"},
+		{name: "positive survives scoped exclusion of another", trigger: "on: {workflow_run: {workflows: [Build], branches: [main, 'release/**', '!release/**']}}"},
 		{name: "mixed events", trigger: "on: {push: null, workflow_run: {workflows: [Build], branches: [main]}}"},
 		{name: "valid YAML alias", trigger: "on: {push: {branches: &trusted [main]}, workflow_run: {workflows: [Build], branches: *trusted}}"},
 	}
@@ -115,6 +117,7 @@ func TestWorkflowRunScopeBranchSelection(t *testing.T) {
 		{name: "wildcard with question", fields: "branches: ['**?**']"},
 		{name: "broad positive before scoped positive", fields: "branches: ['**', main]"},
 		{name: "broad positive after scoped positive", fields: "branches: [main, '**']"},
+		{name: "single-star exclusion does not clear double-star scope", fields: "branches: ['**', '!*', main]"},
 		{name: "positive canceled by exact exclusion", fields: "branches: [main, '!main']"},
 		{name: "positive canceled by scoped exclusion", fields: "branches: ['release/**', '!release/**']"},
 		{name: "negative only", fields: "branches: ['!untrusted/**']"},

@@ -97,35 +97,33 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 	if err != nil || !valid {
 		return false, err
 	}
-	var active string
-	hasPositive, broad := false, false
+	live := make(map[string]struct{}, len(patterns))
+	broad := false
 	for _, pattern := range patterns {
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
 		pattern = strings.TrimSpace(pattern)
 		if excluded, negative := strings.CutPrefix(pattern, "!"); negative {
+			excluded = strings.TrimSpace(excluded)
 			// GitHub applies filters in order. A universal exclusion clears earlier
 			// positive scope before later allowlist entries can re-include it.
-			if strings.Trim(excluded, "*?/+") == "" {
-				active = ""
+			if len(excluded) >= 2 && strings.Trim(excluded, "*") == "" {
+				clear(live)
 				broad = false
 				continue
 			}
-			if active != "" && strings.TrimSpace(excluded) == strings.TrimSpace(active) {
-				active = ""
-			}
+			delete(live, excluded)
 			continue
 		}
-		hasPositive = true
-		active = pattern
+		live[pattern] = struct{}{}
 		// A broad positive pattern defeats narrower entries in the same allowlist,
 		// unless a later universal exclusion clears the whole set.
 		if strings.Trim(pattern, "*?/+") == "" {
 			broad = true
 		}
 	}
-	return hasPositive && !broad && active != "", nil
+	return !broad && len(live) > 0, nil
 }
 
 func workflowRunTrigger(ctx context.Context, on any) (any, string, bool, error) {
