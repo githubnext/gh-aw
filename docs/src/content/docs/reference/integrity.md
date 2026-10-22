@@ -148,7 +148,7 @@ Use this to suppress content from known-bad accounts — automated bots, comprom
 
 Bot logins such as `github-actions[bot]` are also valid. Use the full login, including the `[bot]` suffix. Trust is configured per author and does not extend to other authors' comments on a trusted bot's issue or pull request. Listing a bot does not require lowering `min-integrity` to `none`.
 
-**Known limitation:** the MCP gateway may still classify bot-authored content as `DIFC_FILTERED` at runtime despite this configuration. Compiling the policy does not guarantee that `issue_read` will return the bot-authored body; see [#70242](https://github.com/github/gh-aw/issues/70242).
+**Known limitation:** the MCP gateway may still classify bot-authored content as `DIFC_FILTERED` at runtime despite this configuration. Compiling the policy does not guarantee that `issue_read` will return the bot-authored body; see [#70242](https://github.com/github/gh-aw/issues/70242) and the [runtime investigation and end-to-end regression follow-up](https://github.com/github/gh-aw-mcpg/issues/15291).
 
 ```aw wrap
 tools:
