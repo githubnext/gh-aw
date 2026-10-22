@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -27,6 +28,8 @@ func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) 
 		if usageErr != nil {
 			addTokenUsageWarning(summary, "failed to read unified firewall token usage: "+usageErr.Error())
 			tokenUsageSubagentLog.Printf("failed to read unified firewall token usage: %v", usageErr)
+		} else if len(entries) == 0 {
+			entries = rawCallerAttributedEntries(runDir)
 		}
 		resolveSubagentAttribution(summary, requests, actuals, agentUsage, resolver, modelCandidates)
 		matchPiAgentUsageCredits(summary, entries, resolver)
@@ -312,7 +315,7 @@ func reconcileAgentUsageCredits(summary *TokenUsageSummary, entries []TokenUsage
 	expected := summary.TotalAIC
 	var endpoints []string
 	for _, entry := range entries {
-		if entry.Purpose == "routing_classification" {
+		if isAWFOwnedProxyRecord(entry) {
 			expected -= tokenUsageEntryCredits(entry)
 		} else if entry.Path != "" {
 			endpoints = appendUnique(endpoints, entry.Path)
@@ -329,6 +332,61 @@ func reconcileAgentUsageCredits(summary *TokenUsageSummary, entries []TokenUsage
 	addTokenUsageWarning(summary, fmt.Sprintf("per-agent AI credits (%.3f) differ from non-classifier proxy total (%.3f) for endpoint %s", attributed, expected, endpoint))
 }
 
+// proxyCaller is the agent a proxy record was explicitly attributed to by an
+// x-awf-caller declaration that AWF recorded.
+type proxyCaller struct {
+	main  bool
+	agent string
+}
+
+// explicitProxyCaller returns the declared caller of a proxy record. Only
+// caller_header records attribute agent traffic; AWF-owned purposes and records
+// without caller fields (older AWF versions or headerless harnesses) do not.
+func explicitProxyCaller(entry TokenUsageEntry) (proxyCaller, bool) {
+	if entry.CallerSource != "caller_header" {
+		return proxyCaller{}, false
+	}
+	switch {
+	case entry.Purpose == "agent" && entry.AgentName == "":
+		return proxyCaller{main: true}, true
+	case entry.Purpose == "subagent" && entry.AgentName != "":
+		return proxyCaller{agent: entry.AgentName}, true
+	}
+	return proxyCaller{}, false
+}
+
+// isAWFOwnedProxyRecord reports router, classifier and other AWF-owned traffic,
+// which is never attributed to the main agent or a sub-agent.
+func isAWFOwnedProxyRecord(entry TokenUsageEntry) bool {
+	return entry.Purpose == "routing_classification" || entry.CallerSource == "awf"
+}
+
+func hasExplicitProxyCallers(entries []TokenUsageEntry) bool {
+	return slices.ContainsFunc(entries, func(entry TokenUsageEntry) bool {
+		_, ok := explicitProxyCaller(entry)
+		return ok
+	})
+}
+
+// rawCallerAttributedEntries returns the raw proxy accounting records of a run
+// without unified token usage, but only when they carry explicit caller
+// attribution; older raw records keep the existing session-only behavior.
+func rawCallerAttributedEntries(runDir string) []TokenUsageEntry {
+	rawPath := findTokenUsageFile(runDir)
+	if rawPath == "" {
+		return nil
+	}
+	entries, _, err := scanTokenUsageEntries(rawPath)
+	if err != nil {
+		tokenUsageSubagentLog.Printf("failed to read raw firewall token usage: %v", err)
+		return nil
+	}
+	if !hasExplicitProxyCallers(entries) {
+		return nil
+	}
+	return entries
+}
+
 type indexedPiRequest struct {
 	agent *AgentUsageBreakdown
 	usage agentRequestUsage
@@ -339,7 +397,8 @@ func matchPiAgentUsageCredits(summary *TokenUsageSummary, entries []TokenUsageEn
 		return
 	}
 	piAgents, requests := collectPiAgentRequests(summary)
-	if len(piAgents) == 0 || (len(requests) == 0 && !confirmedZeroUsagePiFailures(piAgents)) {
+	explicit := hasExplicitProxyCallers(entries)
+	if len(piAgents) == 0 || (len(requests) == 0 && !confirmedZeroUsagePiFailures(piAgents) && !explicit) {
 		return
 	}
 	slices.SortFunc(requests, func(a, b indexedPiRequest) int {
@@ -350,8 +409,60 @@ func matchPiAgentUsageCredits(summary *TokenUsageSummary, entries []TokenUsageEn
 	})
 	entries = append([]TokenUsageEntry(nil), entries...)
 	sortProxyUsageEntries(entries)
-	used := matchPiSubagentRequests(summary, entries, requests, resolver)
-	appendPiMainAgentUsage(summary, entries, used, piAgents, requests, resolver)
+	// Explicit caller records are attributed first and reserved, so the
+	// token/model/time correlation below only sees unlabelled records and only
+	// for sub-agents without explicit records.
+	used, attributedAgents := applyExplicitPiSubagentCredits(summary, entries, piAgents, resolver)
+	correlated := slices.DeleteFunc(slices.Clone(requests), func(request indexedPiRequest) bool {
+		return attributedAgents[request.agent]
+	})
+	maps.Copy(used, matchPiSubagentRequests(summary, entries, correlated, resolver, used))
+	appendPiMainAgentUsage(summary, entries, used, piAgents, requests, resolver, explicit)
+}
+
+// applyExplicitPiSubagentCredits credits proxy records that declare a named
+// sub-agent to that agent's row. It reserves every explicitly attributed record
+// (main and sub-agent) and returns the agents credited this way.
+func applyExplicitPiSubagentCredits(summary *TokenUsageSummary, entries []TokenUsageEntry, agents []*AgentUsageBreakdown, resolver *modelIdentityResolver) (map[int]bool, map[*AgentUsageBreakdown]bool) {
+	used := make(map[int]bool)
+	attributed := make(map[*AgentUsageBreakdown]bool)
+	for index, entry := range entries {
+		if isAWFOwnedProxyRecord(entry) {
+			continue
+		}
+		caller, ok := explicitProxyCaller(entry)
+		if !ok {
+			continue
+		}
+		used[index] = true
+		if caller.main {
+			continue
+		}
+		var agent *AgentUsageBreakdown
+		for _, candidate := range agents {
+			if candidate.AgentName == caller.agent {
+				agent = candidate
+				break
+			}
+		}
+		if agent == nil {
+			addTokenUsageWarning(summary, fmt.Sprintf("proxy token usage declares pi sub-agent %s without a matching sub-agent run; credits were not attributed", caller.agent))
+			continue
+		}
+		attributed[agent] = true
+		credits := tokenUsageEntryCredits(entry)
+		agent.AIC += credits
+		agent.TotalApiDurationMs += entry.DurationMs
+		servedModel := modelNameWithoutProvider(entry.Model)
+		for modelIndex := range agent.Models {
+			model := &agent.Models[modelIndex]
+			if resolver.matches(model.Model, servedModel, entry.Provider) {
+				model.AIC += credits
+				break
+			}
+		}
+	}
+	return used, attributed
 }
 
 func collectPiAgentRequests(summary *TokenUsageSummary) ([]*AgentUsageBreakdown, []indexedPiRequest) {
@@ -399,8 +510,9 @@ func sortProxyUsageEntries(entries []TokenUsageEntry) {
 	})
 }
 
-func matchPiSubagentRequests(summary *TokenUsageSummary, entries []TokenUsageEntry, requests []indexedPiRequest, resolver *modelIdentityResolver) map[int]bool {
-	used := make(map[int]bool)
+func matchPiSubagentRequests(summary *TokenUsageSummary, entries []TokenUsageEntry, requests []indexedPiRequest, resolver *modelIdentityResolver, reserved map[int]bool) map[int]bool {
+	used := make(map[int]bool, len(reserved))
+	maps.Copy(used, reserved)
 	for _, indexed := range requests {
 		request := indexed.usage
 		entryIndex, entry, matched := matchingProxyUsageEntry(entries, used, request, resolver)
@@ -428,7 +540,7 @@ func matchingProxyUsageEntry(entries []TokenUsageEntry, used map[int]bool, reque
 		return -1, TokenUsageEntry{}, false
 	}
 	for index, entry := range entries {
-		if used[index] || entry.Purpose == "routing_classification" || entry.Model == "" {
+		if used[index] || isAWFOwnedProxyRecord(entry) || entry.Model == "" {
 			continue
 		}
 		if !resolver.matches(request.Model, modelNameWithoutProvider(entry.Model), entry.Provider) {
@@ -459,17 +571,31 @@ func piSubagentModelIdentities(agents []*AgentUsageBreakdown, requests []indexed
 	return models
 }
 
-func appendPiMainAgentUsage(summary *TokenUsageSummary, entries []TokenUsageEntry, used map[int]bool, agents []*AgentUsageBreakdown, requests []indexedPiRequest, resolver *modelIdentityResolver) {
-	if len(requests) == 0 && !confirmedZeroUsagePiFailures(agents) {
+// appendPiMainAgentUsage appends the Pi main agent row. Records declaring the
+// main caller are main; when the main agent declares itself, unlabelled records
+// stay unattributed. Otherwise (older or headerless records) unmatched records
+// whose model is not a sub-agent model are inferred as main.
+func appendPiMainAgentUsage(summary *TokenUsageSummary, entries []TokenUsageEntry, used map[int]bool, agents []*AgentUsageBreakdown, requests []indexedPiRequest, resolver *modelIdentityResolver, explicit bool) {
+	if len(requests) == 0 && !confirmedZeroUsagePiFailures(agents) && !explicit {
 		return
 	}
 	subagentModels := piSubagentModelIdentities(agents, requests)
+	explicitMain := slices.ContainsFunc(entries, func(entry TokenUsageEntry) bool {
+		caller, ok := explicitProxyCaller(entry)
+		return ok && caller.main && !isAWFOwnedProxyRecord(entry)
+	})
 	main := AgentUsageBreakdown{AgentName: "main", AgentType: "main", SourceEngine: "pi", InstanceCount: 1}
 	for index, entry := range entries {
-		if used[index] || entry.Purpose == "routing_classification" || entry.Model == "" {
+		if isAWFOwnedProxyRecord(entry) || entry.Model == "" {
 			continue
 		}
-		if isPiSubagentModel(entry, subagentModels, resolver) {
+		if caller, ok := explicitProxyCaller(entry); ok {
+			if caller.main {
+				accumulatePiMainUsage(&main, entry)
+			}
+			continue
+		}
+		if used[index] || explicitMain || isPiSubagentModel(entry, subagentModels, resolver) {
 			continue
 		}
 		accumulatePiMainUsage(&main, entry)
