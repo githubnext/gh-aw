@@ -43,7 +43,7 @@ describe("structured report footer", () => {
     const { body } = renderReport(ast);
     expect(normalizeReport(normalizeReport(ast))).toEqual(normalizeReport(ast));
     expect(renderReport(ast).body).toBe(body);
-    expect(body).toContain("> Generated from [Smoke Copilot](https://github.com/github/gh-aw/actions/runs/123) · copilot · sonnet46 · 1.25 AIC · ⊞ 900");
+    expect(body).toContain("> Generated from [Smoke Copilot](https://github.com/github/gh-aw/actions/runs/123) · copilot · sonnet46 · \\~2 AIC · ⊞ 900");
     expect(body).toContain("> - [x] expires <!-- gh-aw-expires: 2099-01-02T00:00:00.000Z -->");
     expect(extractExpirationDate(body)?.toISOString()).toBe("2099-01-02T00:00:00.000Z");
     expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")).toMatchObject({ "gh-aw-agentic-workflow": "Smoke Copilot", workflow_id: "smoke-copilot", id: "123", engine: "copilot" });
@@ -56,7 +56,7 @@ describe("structured report footer", () => {
   it("preserves custom footer templates and both history-link field spellings", () => {
     vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> Report by **{workflow_name}**{history_link}{historyLink} · {ai_credits_formatted} {ai_credits_unit}" }));
     const { body } = renderReport(document(buildFailureReportFooter(ctx, { expiresHours: 0, failureFields: fields })));
-    expect(body).toContain("> Report by **Smoke Copilot** · [◷](https://github.com/search?q=smoke) · [◷](https://github.com/search?q=smoke) · 1.25 AIC");
+    expect(body).toContain("> Report by **Smoke Copilot** · [◷](https://github.com/search?q=smoke) · [◷](https://github.com/search?q=smoke) · \\~2 AIC");
     expect(body).not.toContain("gh-aw-expires");
     expect(extractExpirationDate(body)).toBeNull();
   });

@@ -77,7 +77,7 @@ means only that no candidates were returned under the current policy.
 
 Attempt candidates in selection order, making at most one GitHub MCP `pull_request_read` call
 with `method: get_diff` per PR. Stop content reads on the first integrity-filtering denial.
-The pinned gateway (`gh-aw-mcpg v0.4.36`, `labels/response_paths.rs`) labels `get_diff` and
+The pinned gateway (`gh-aw-mcpg v0.4.37`, `labels/response_paths.rs`) labels `get_diff` and
 `get_files` as `pull-request-content` with `none` integrity, independently of PR metadata trust.
 Repeated probes cannot resolve that boundary. Do not attempt the remaining candidates after
 that denial; mark them **Not attempted** with the shared gateway blocker as the reason, not

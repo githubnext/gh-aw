@@ -159,6 +159,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"env":             {},
 		"headers":         {},
 		"auth":            {}, // upstream OIDC authentication (HTTP servers only)
+		"ca-cert-file":    {},
 		"version":         {},
 		"args":            {},
 		"entrypoint":      {},

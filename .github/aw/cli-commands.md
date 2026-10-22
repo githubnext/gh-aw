@@ -8,15 +8,19 @@ description: Complete reference for gh aw CLI commands and their MCP tool equiva
 
 | Environment | Use |
 |---|---|
-| **Local development** (terminal with `gh` auth) | `gh aw <command>` CLI |
-| **GitHub Copilot Cloud** (coding agent, Copilot Chat) | `agentic-workflows` MCP tool |
+| **Terminal with usable `gh` access** | `gh aw <command>` CLI |
+| **Client exposing authorized gh-aw MCP tools** | Discover their schemas and use the supported operation |
 | **GitHub Actions workflow step** | `gh aw <command>` after installing `github/gh-aw/actions/setup-cli` |
-| **CI runner without gh auth** | `agentic-workflows` MCP tool |
+| **No CLI or authorized MCP access** | Cached evidence or static source; report unavailable collection |
 
 > [!NOTE]
 > **agentic-workflows MCP tool availability**
 >
-> The MCP tool is available when `agentic-workflows:` is added to a workflow's `tools:` section. In Copilot Chat / Copilot coding agent, it is pre-configured and always available.
+> Workflow configuration can expose gh-aw MCP tools through `agentic-workflows:`.
+> Copilot client configuration and grants vary: do not assume MCP availability
+> from the client name or treat it as a substitute for missing authentication.
+> During debugging, use already-authorized tools only; adding configuration or
+> starting a server requires the shared review gates.
 >
 > In a GitHub Actions workflow step, install the CLI first:
 > ```yaml
@@ -64,7 +68,7 @@ Compile workflow `.md` files into GitHub Actions `.lock.yml` files.
 ```bash
 gh aw compile                     # Compile all workflows
 gh aw compile <workflow-name>     # Compile a specific workflow
-gh aw compile <workflow-name> --dry-run  # Strict/staged debugging checks; warnings are errors
+gh aw compile <workflow-name> --dry-run  # Emit a diagnostic lock; does not execute it
 gh aw compile <workflow-name> --dry-run --environment gh-aw-debug  # Optional all-job environment override
 gh aw compile <workflow-name> --dry-run --zizmor --actionlint --poutine  # Optional Docker-based scanners
 gh aw compile --strict            # Compile with strict mode validation
@@ -76,12 +80,11 @@ gh aw compile --approve           # Approve new secrets / action changes
 
 **MCP equivalent**: `compile` tool
 
-Docker-based checks are optional for the dry-run gate. Recommend `gh aw validate
-<workflow-name>` for source checks when Docker is available, alongside the
-scanner-enabled compile command above for zizmor, actionlint and poutine.
-`validate` uses `--no-emit` and skips these scanners; its success does not
-establish scanner coverage. Without Docker, required run-step linting uses a native
-`shellcheck` binary; report unavailable optional checks as unverified.
+For debugging, follow the [compilation guide](debug-compilation.md) for required
+checks, optional Docker scanners, warning severity, diagnostic preservation and
+results. Low-severity/informational notices are not blanket failures.
+`validate` uses `--no-emit` and skips zizmor, actionlint and poutine; a successful
+`validate` does not establish scanner coverage.
 The compile MCP input `validate_images: true` opts into `--validate-images`,
 including with `dry_run: true`; it fails when Docker is unavailable.
 
@@ -97,10 +100,11 @@ For troubleshooting, first follow the shared [strategy](debug-agentic-workflow.m
 respect explicit no-dispatch contexts, and handle `403 Forbidden` from a
 permitted run attempt by stopping live debugging and returning to diagnosis/
 patching. Do not retry unchanged or bypass the denial. `--dry-run` is a compilation
-profile, not run access or authorization; each live-test revision requires
-human validation.
+profile, not run access or authorization. Revalidate each source/lock revision;
+a valid [session authorization](debug-security-review.md#session-authorization)
+can cover in-scope iterations without repeated human approval.
 
-Follow the shared live-outcome table for unknown dispatch results, moved refs,
+Follow the [live-outcome table](debug-live-testing.md#live-debug-loop) for unknown dispatch results, moved refs,
 run-SHA mismatches and audit/log denial. `--repeat` requires an approved matching
 run-count budget; examples below do not grant approval.
 
@@ -112,7 +116,7 @@ stored CLI credentials. Do not automatically replace tokens or retry a denied ru
 gh aw run                           # Interactive mode — pick workflow and fill inputs
 gh aw run <workflow-name>           # Run by short name
 gh aw run <workflow-name>.md        # Alternative: explicit .md extension
-gh aw run <workflow-name> --ref main              # Run on a specific branch/tag/SHA
+gh aw run <workflow-name> --ref REVIEWED_REF      # Exact reviewed remote ref
 gh aw run <workflow-name> --repeat 3              # Run 4 times total (1 + 3 repeats)
 gh aw run <workflow-name> --raw-field key=value   # Pass a specific input
 ```

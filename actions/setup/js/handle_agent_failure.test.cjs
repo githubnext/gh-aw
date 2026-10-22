@@ -1239,7 +1239,7 @@ describe("handle_agent_failure", () => {
       try {
         await main();
 
-        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · sonnet46 · 1.25 AIC · ⊞ 900");
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · sonnet46 · \\~2 AIC · ⊞ 900");
       } finally {
         delete process.env.GH_AW_AIC;
         delete process.env.GH_AW_AMBIENT_CONTEXT;
@@ -1278,7 +1278,7 @@ describe("handle_agent_failure", () => {
 
       try {
         await main();
-        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 2.5 AIC");
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · \\~3 AIC");
       } finally {
         delete process.env.GH_AW_AGENT_OUTPUT;
       }
@@ -1332,7 +1332,7 @@ describe("handle_agent_failure", () => {
 
       try {
         await main();
-        expect(capturedCommentBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · 2.5 AIC");
+        expect(capturedCommentBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · ~3 AIC");
       } finally {
         delete process.env.GH_AW_AGENT_OUTPUT;
       }

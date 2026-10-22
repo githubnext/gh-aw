@@ -16738,6 +16738,11 @@
           "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
+        "ca-cert-file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PEM CA file trusted only for this HTTPS MCP server. Repository-relative or absolute host path; supports '${{ github.workspace }}/' and '${{ runner.temp }}/' prefixes. Provision before gateway startup."
+        },
         "headers": {
           "type": "object",
           "patternProperties": {

@@ -193,6 +193,9 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 
 // connectHTTPMCPServer connects to an HTTP-based MCP server using the Go SDK
 func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerConfig, verbose bool) (*parser.MCPServerInfo, error) {
+	if config.CACertFile != "" {
+		return nil, errors.New("mcp inspect does not support ca-cert-file: per-server CA files are provisioned and applied by the MCP Gateway during workflow execution")
+	}
 	if verbose {
 		console.PrintInfoMessage("Connecting to HTTP MCP server: " + config.URL)
 	}
