@@ -105,7 +105,7 @@ const COPILOT_ROUTING_POLICY = getAWFModelRoutingPolicy("copilot");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
 const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError, recordModelResolution, splitModelIdentifier } = require("./resolve_model_alias.cjs");
-const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { COPILOT_MODEL_VERIFICATION_EXIT_CODE, createCopilotModelObserver, readCopilotModelSubstitution, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
@@ -1978,6 +1978,8 @@ async function main() {
     multiProviderJson,
     subagentModelsJson,
   });
+  // The SDK driver records model-selection evidence against the requested model (`auto` when routed).
+  if (copilotSDKMode) sdkChildEnv.GH_AW_COPILOT_CONFIGURED_MODEL = selectionConfiguredModel;
   const childEnv = Object.keys(sdkChildEnv).length > 0 ? buildCopilotEngineChildEnv(process.env, sdkChildEnv) : undefined;
 
   let delay = initialDelayMs;
@@ -2088,11 +2090,13 @@ async function main() {
                 }
               : undefined,
           });
-          const modelSubstitution = modelObserver.check(true);
-          if (modelSubstitution) {
+          // The SDK driver observes its main session, records any substitution it refused and
+          // exits with COPILOT_MODEL_VERIFICATION_EXIT_CODE on any verification failure.
+          const modelSubstitution = copilotSDKMode ? readCopilotModelSubstitution() : modelObserver.check(true);
+          if (modelSubstitution || (copilotSDKMode && result.exitCode === COPILOT_MODEL_VERIFICATION_EXIT_CODE)) {
             result.exitCode = 1;
             result.runtimeGuardReason = "copilot_model_verification";
-            result.output += `\n${modelSubstitution}`;
+            if (modelSubstitution) result.output += `\n${modelSubstitution}`;
           }
           lastHasOutput = result.hasOutput;
           const attemptDetections = detectCopilotErrors(result.output);

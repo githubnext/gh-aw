@@ -1,0 +1,10 @@
+{
+  "_schema": "model-routing/v0.28.70",
+  "timestamp": "2026-10-21T01:51:43.370Z",
+  "event": "model_routing",
+  "stage": "selection",
+  "provider": "copilot",
+  "selected_provider": "copilot",
+  "wire_model": "gpt-5.6-luna",
+  "endpoint": "/responses"
+}
