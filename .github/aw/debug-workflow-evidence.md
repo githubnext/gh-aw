@@ -327,13 +327,15 @@ Use GitHub context like ${{ github.event.issue.number }}.
 ### Compilation Process
 
 ```bash
-# Compile workflow to GitHub Actions YAML
-gh aw compile <workflow-name>
+# Test changes by compiling a diagnostic GitHub Actions workflow
+gh aw compile <workflow-name> --dry-run
 
-# Result: .github/workflows/<name>.md → .github/workflows/<name>.lock.yml
+# Diagnostic artifact: .github/workflows/<name>.lock.yml
 ```
 
-The `.lock.yml` file is the actual GitHub Actions workflow that runs.
+Recommend dry-run compilation first when testing workflow changes. It does not
+execute the workflow; preserve the diagnostic lock separately rather than
+publishing it as a production replacement.
 
 ## Common Issues and Solutions
 
@@ -600,9 +602,8 @@ actionlint and poutine. A successful `validate` does not establish scanner cover
 | Command | Description |
 |---------|-------------|
 | `gh aw status` | Show all workflow status |
-| `gh aw compile` | Compile all workflows |
-| `gh aw compile <workflow>` | Compile specific workflow |
-| `gh aw compile <workflow> --dry-run` | Enforce shared development-testing checks |
+| `gh aw compile --dry-run` | Diagnostic compilation of all workflows |
+| `gh aw compile <workflow> --dry-run` | Recommended first test of workflow changes; does not execute them |
 
 ### Active Debugging Commands (Permitted Contexts Only)
 

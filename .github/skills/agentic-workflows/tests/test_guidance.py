@@ -110,6 +110,22 @@ class GuidanceTests(unittest.TestCase):
         self.assertIn("](debug-compilation.md)", SCENARIOS.read_text())
         self.assertNotIn("warning_baseline", DEBUG_GUIDE.read_text())
 
+    def test_change_testing_recommends_dry_run_before_live_testing(self):
+        for path in (SCENARIOS, COMPILATION):
+            self.assertIn(
+                "Recommend `gh aw compile WORKFLOW --dry-run` as the first test of workflow changes",
+                path.read_text(),
+            )
+        index = SCENARIOS.read_text()
+        self.assertLess(index.index("## Test Workflow Changes"), index.index("## Apply the Environment"))
+        evidence = EVIDENCE_GUIDE.read_text()
+        commands = re.findall(r"gh aw compile ([^\n`]+)", evidence)
+        self.assertTrue(commands)
+        for command in commands:
+            self.assertIn("--dry-run", command)
+        self.assertIn("does not\nexecute the workflow", evidence)
+        self.assertIn("rather than\npublishing it as a production replacement", evidence)
+
     def test_health_route_preserves_revision_and_completeness_contract(self):
         guide = HEALTH.read_text()
         for required in (

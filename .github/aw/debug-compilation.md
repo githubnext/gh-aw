@@ -6,6 +6,7 @@ disable-model-invocation: true
 # Compile a Workflow Fix Without Running It
 
 Use this route for compile-only validation and diagnostic-lock inspection.
+Recommend `gh aw compile WORKFLOW --dry-run` as the first test of workflow changes.
 Read the [shared strategy](debug-agentic-workflow.md) before commands or edits;
 this reference specializes its compilation gate, not its execution policy.
 A run URL in the request does not turn compile-only work into an audit or rerun.

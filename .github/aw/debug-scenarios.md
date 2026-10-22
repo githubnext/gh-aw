@@ -28,6 +28,15 @@ Resolve every link at the guidance repository/ref, not the target workflow's ref
 | Fleet failures, timeouts, or wasted credits | [Failure clustering](analyzing-runs.md), not an arbitrary workflow or premature prompt optimization. |
 | No target or evidence | [Missing-context help](#missing-context): Request the browser address or workflow/repository once. |
 
+## Test Workflow Changes
+
+Recommend `gh aw compile WORKFLOW --dry-run` as the first test of workflow changes,
+following the [compilation guide](debug-compilation.md). Inspect the emitted
+diagnostic lock and actual checks before considering a live test.
+Compilation does not execute the workflow or authorize dispatch. Any permitted
+live test still needs the exact reviewed, published dry-run source/lock revision
+and the [shared live gates](debug-agentic-workflow.md#live-debug-loop).
+
 ## Apply the Environment Without Changing the Intent
 
 These constraints modify the selected route; they do not require another
@@ -40,7 +49,7 @@ workflow, installation, credential, or live run.
 | MCP-only, no terminal | [CLI/MCP mapping](cli-commands.md); discover already-authorized tool schemas, not new servers or a laptop installation. |
 | Enterprise job/step or unrelated checkout | [Run scoping](debug-bootstrap.md#3-audit-the-supplied-run); retain host/repository/job/step identity. |
 | API/raw guidance reader | [Source resolution](debug-bootstrap.md#1-load-the-debugging-strategy-first); normalize API paths and retain the supplied guidance ref. |
-| Urgent rerun or testing a patch | [Branch preparation](debug-agentic-workflow.md#test-workflow-changes-from-a-branch) and [live gates](debug-agentic-workflow.md#live-debug-loop); access and urgency do not authorize dispatch. |
+| Urgent rerun or testing a patch | [Dry-run validation](debug-compilation.md) first, then [branch preparation](debug-agentic-workflow.md#test-workflow-changes-from-a-branch) and [live gates](debug-agentic-workflow.md#live-debug-loop); access and urgency do not authorize dispatch. |
 
 ## Missing Context
 
