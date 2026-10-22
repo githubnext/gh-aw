@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-10-22T06:38:39Z",
-  "run_id": "39734985848",
+  "run_date": "2026-10-22T12:35:48Z",
+  "run_id": "39779274982",
   "source": "pr-triage",
   "eligible_total": 0,
   "cooldown_skipped": 7,
@@ -11,14 +11,6 @@
   "action_counts": {},
   "batches": [],
   "selected_candidates": [],
-  "skipped_prs": [
-    71043,
-    70952,
-    70347,
-    70346,
-    70343,
-    69586,
-    56568
-  ],
-  "notes": "No eligible PRs: every open app/github-copilot pull request was updated within the 1-hour cooldown window at 2026-10-22T06:38:39Z."
+  "skipped_prs": [71043, 70952, 70347, 70346, 70343, 69586, 56568],
+  "notes": "No eligible PRs: every open app/github-copilot pull request was updated within the 1-hour cooldown window at 2026-10-22T12:35:48Z."
 }
