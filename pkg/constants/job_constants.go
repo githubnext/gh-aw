@@ -72,6 +72,12 @@ const ConclusionJobName JobName = "conclusion"
 const ConclusionAdmissionJobName JobName = "conclusion_admission"
 const GradersJobName JobName = "graders"
 const UnlockJobName JobName = "unlock"
+const PushExperimentsStateJobName JobName = "push_experiments_state"
+const PushEvalsStateJobName JobName = "push_evals_state"
+const PushRepoMemoryJobName JobName = "push_repo_memory"
+const PushLedgerChangesJobName JobName = "push_ledger_changes"
+const UpdateCacheMemoryJobName JobName = "update_cache_memory"
+const UpdateDriveMemoryJobName JobName = "update_drive_memory"
 
 // AgentFailureStepName is the generated conclusion step that reports agent failures.
 const AgentFailureStepName = "Handle agent failure"
@@ -103,6 +109,21 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(ConclusionAdmissionJobName): {},
 	string(GradersJobName):             {},
 	string(UnlockJobName):              {},
+}
+
+// IsCompilerOwnedJobName includes generated maintenance jobs, which are not
+// built-in customization targets. Source-backed checks must distinguish authored
+// jobs from these generated jobs rather than exempting maintenance names alone.
+func IsCompilerOwnedJobName(name string) bool {
+	if _, builtin := KnownBuiltInJobNames[name]; builtin {
+		return true
+	}
+	switch JobName(name) {
+	case PushExperimentsStateJobName, PushEvalsStateJobName, PushRepoMemoryJobName,
+		PushLedgerChangesJobName, UpdateCacheMemoryJobName, UpdateDriveMemoryJobName:
+		return true
+	}
+	return false
 }
 
 // Artifact name constants

@@ -50,6 +50,9 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	if err := c.jobManager.resolveActions(); err != nil {
 		return fmt.Errorf("resolving GitHub Actions workflow: %w", err)
 	}
+	if err := c.guardCustomJobDetection(data); err != nil {
+		return err
+	}
 	c.ensureAdmissionSkipSafeConditions()
 
 	if err := c.guardGatewayProvenanceJobs(data); err != nil {
