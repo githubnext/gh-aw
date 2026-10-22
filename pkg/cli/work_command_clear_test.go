@@ -45,9 +45,14 @@ func workClearRoleEnvironment(t *testing.T, role string) func(string) {
 		case "/user":
 			result = map[string]any{"id": 1001}
 		case "/repos/owner/repo":
-			result = map[string]any{"full_name": "owner/repo", "permissions": map[string]bool{
+			result = map[string]any{"full_name": "owner/repo", "default_branch": "main", "permissions": map[string]bool{
 				"push": role == "write" || role == "maintain" || role == "admin", "admin": role == "admin", "maintain": role == "maintain",
 			}}
+		case "/repos/owner/repo/git/ref/heads/main":
+			result = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"type": "commit", "sha": strings.Repeat("a", 40)}}
+		case "/repos/owner/repo/contents/.github/workflows/aw.json":
+			return &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{"Content-Type": {"application/json"}},
+				Body: io.NopCloser(strings.NewReader(`{"message":"not found"}`)), Request: r}, nil
 		default:
 			t.Fatalf("clear attempted unexpected API read: %s", r.URL.Path)
 		}

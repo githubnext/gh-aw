@@ -109,7 +109,8 @@ describe("AW Issue projection without projector enrollment", () => {
     };
     const before = canonical(m.state().transactions);
     const result = await projectIssues(options);
-    expect(result.pending).toEqual([{ reason: message }]);
+    expect(result.pending).toEqual([{ reason: expect.stringContaining("projection_unavailable") }]);
+    expect(result.pending[0].reason).not.toContain(message);
     expect(m.calls.some(call => call[0] === "mutation" || call[0] === "lock")).toBe(false);
     expect(m.issues.size).toBe(0);
     expect(m.journals.size).toBe(0);

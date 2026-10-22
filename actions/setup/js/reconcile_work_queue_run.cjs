@@ -2,7 +2,8 @@
 "use strict";
 
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("run");
-const { digest } = require("./work_queue_codec.cjs");
+const { canonical, digest } = require("./work_queue_codec.cjs");
+const { actorFromContext } = require("./work_queue_policy.cjs");
 const { API_VERSION, nativeId, authenticatePublisher, fetchNativeRunAttempt, validateNativeRun } = require("./work_queue_native.cjs");
 const { loadQueue, validateStoredAssignment, expectedWorkerRun } = require("./work_queue_binding.cjs");
 const { dispatchPrincipal } = require("./work_queue_policy.cjs");
@@ -110,8 +111,36 @@ async function maintenance(options = {}) {
   const released = result.results.filter(entry => entry.released).length;
   const unresolved = result.results.filter(entry => ["launch_unresolved", "run_binding_conflict"].includes(entry.state) || Object.values(entry.delivery?.claims || {}).some(claim => claim.reason === "verification_unresolved")).length;
   log.diagnostic("maintenance.reconcile.complete", { reconciled: result.reconciled, released, unresolved });
+  const pending = [];
+  if (result.reconciled && options.projectIssues === true) {
+    try {
+      const { readIssuesConfig } = require("./cancel_work_queue_closed_issue.cjs");
+      const issues = await readIssuesConfig(configured.githubClient, configured.context);
+      if (issues) {
+        const origin = await authenticatePublisher({ ...configured, role: "reconciler" });
+        const latest = await loadQueue(configured);
+        const requests = [...latest.projection.requests.entries()]
+          .filter(([, receipt]) => canonical(receipt.actor) === canonical(actorFromContext(origin)) && receipt.operations.some(operation => ["WorkCancellation", "Result", "DeliveryFailure"].includes(operation.kind)))
+          .map(([id]) => id);
+        for (let offset = 0; offset < requests.length; offset += 16) {
+          try {
+            const projected = await require("./work_queue_issues.cjs").main({ ...configured, issues, trustedContext: origin, transitionRequestIds: requests.slice(offset, offset + 16) });
+            pending.push(...(projected.pending || []));
+          } catch (error) {
+            log.failure("maintenance.projection.batch.failed", error.originalError || error, true);
+            pending.push({ reason: "Issue projection batch failed; inspect safe API diagnostics and the exact terminal requests" });
+          }
+        }
+      }
+    } catch (error) {
+      log.failure("maintenance.projection.failed", error.originalError || error, true);
+      pending.push({ reason: "Issue projection setup failed; inspect safe API diagnostics and the exact terminal requests" });
+    }
+  }
+  log.diagnostic("maintenance.projection.complete", { pending: pending.length });
   if (unresolved) throw new Error("work_queue_maintenance_reconciliation_unresolved");
-  return result;
+  if (pending.length && !options.deferIssueFailure) throw new Error("work_queue_issue_synchronization_pending; queue transitions are committed; recover exact requests with work-queue sync-issues --request-id");
+  return { ...result, issue_sync_pending: pending };
 }
 
 module.exports = { main, maintenance };
