@@ -229,6 +229,7 @@ Each server configuration MUST support:
 | `registry` | string | No | URI to the installation location when MCP is installed from a registry. This is an informational field used for documentation and tooling discovery. Applies to both stdio and HTTP servers. Example: `"https://api.mcp.github.com/v0/servers/microsoft/markitdown"` |
 | `tools` | array[string] | No | Tool filter for the MCP server. Use `["*"]` to allow all tools (default), or specify a list of tool names to allow. This field is passed through to agent configurations and applies to both stdio and http servers. |
 | `headers` | object | No | HTTP headers to include in requests (HTTP servers only). Commonly used for authentication to external HTTP servers. Values may contain variable expressions. |
+| `caCertFile` | string | No | PEM CA file trusted only for this HTTP server, in addition to system roots. gh-aw's author-facing [`ca-cert-file`](/gh-aw/reference/tools/#custom-ca-certificates) is resolved and mounted read-only by the launcher. Requires gateway v0.4.35 or later. |
 | `auth` | object | No | Upstream authentication configuration for HTTP servers. See [Section 7.6](#76-upstream-authentication-oidc). |
 
 *Required for stdio servers (containerized execution)  

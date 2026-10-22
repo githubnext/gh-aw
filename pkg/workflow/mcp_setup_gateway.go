@@ -32,6 +32,16 @@ var optionalPRHeadEnvVars = []string{
 }
 
 func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error { //nolint:largefunc // Existing setup generation preserves emitted step ordering.
+	for _, name := range mcpTools {
+		config, ok := tools[name].(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, hasCA := config["ca-cert-file"]; hasCA &&
+			!versionAtLeast(effectiveMCPGatewayVersion(workflowData), string(constants.DefaultMCPGatewayVersion), "v0.4.35") {
+			return fmt.Errorf("mcp-servers.%s.ca-cert-file requires MCP Gateway v0.4.35 or newer; update sandbox.mcp.version", name)
+		}
+	}
 	// If the engine provides an MCP config-adapter script (e.g. Goose), write it to disk
 	// before starting the gateway so that start_mcp_gateway.cjs can execute it once the
 	// gateway has produced its output configuration.

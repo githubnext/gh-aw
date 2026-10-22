@@ -129,6 +129,11 @@
           "pattern": "^https?://.+",
           "minLength": 1
         },
+        "caCertFile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PEM CA file trusted only for this HTTP server, in addition to system trust. The launcher resolves the host file and mounts it read-only at a gateway-private path."
+        },
         "headers": {
           "type": "object",
           "description": "HTTP headers to include in requests to the external HTTP MCP server. Commonly used for authentication to the external server (e.g., Authorization: 'Bearer ${API_TOKEN}' for servers that require Bearer tokens). Note: This is for authenticating to external HTTP servers, not for gateway client authentication. Values may contain variable expressions using '${VARIABLE_NAME}' syntax.",

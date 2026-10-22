@@ -561,6 +561,10 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 	if err := parseMCPRegistryValue(mcpConfig, toolName, &config); err != nil {
 		return config, err
 	}
+	config.CACertFile, err = ParseMCPCACertFile(mcpConfig, config.Type, toolName)
+	if err != nil {
+		return config, err
+	}
 
 	mcpLog.Printf("Extracting %s configuration for tool: %s", config.Type, toolName)
 	switch config.Type {

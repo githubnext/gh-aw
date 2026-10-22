@@ -718,6 +718,10 @@ func parseMCPServerConfig(val any) MCPServerConfig { //nolint:largefunc // Exist
 		config.URL = url
 	}
 
+	if caCertFile, ok := configMap["ca-cert-file"].(string); ok {
+		config.CACertFile = caCertFile
+	}
+
 	if headers, ok := configMap["headers"].(map[string]any); ok {
 		config.Headers = make(map[string]string)
 		for k, v := range headers {
@@ -765,6 +769,7 @@ func parseMCPServerConfig(val any) MCPServerConfig { //nolint:largefunc // Exist
 		"version":        {},
 		"toolsets":       {},
 		"url":            {},
+		"ca-cert-file":   {},
 		"headers":        {},
 		"container":      {},
 		"entrypoint":     {},
