@@ -5,8 +5,8 @@ const { renderIssueParameters } = require("./issue_report.cjs");
 
 const { queueError } = require("./work_queue_codec.cjs");
 const { nativeId } = require("./work_queue_native.cjs");
-const { withRetry } = require("./error_recovery.cjs");
 const { expectedGitHubHost } = require("./work_queue_host.cjs");
+const log = require("./work_queue_logging.cjs").createWorkQueueLogger("issues");
 
 const MAX_PROJECTION_TARGETS = 25;
 const MAX_PROJECTION_MUTATIONS = 50;
@@ -20,22 +20,39 @@ async function ensureLabel(github, repositoryId, label, name) {
   if (label) {
     if (label.name !== name || typeof label.id !== "string") throw queueError("projection_label_pending", "tracking label identity is invalid");
     if (label.color?.toUpperCase() !== QUEUE_LABEL_COLOR) {
-      const response = await github.graphql("mutation WorkQueueLabelColor($input:UpdateLabelInput!) { updateLabel(input:$input) { label { id name color } } }", {
+      const response = await labelMutation(github, "mutation WorkQueueLabelColor($input:UpdateLabelInput!) { updateLabel(input:$input) { label { id name color } } }", {
         input: { id: label.id, color: QUEUE_LABEL_COLOR },
         request: { retries: 0, timeout: 15000 },
       });
       if (response?.updateLabel?.label?.id !== label.id || response.updateLabel.label.name !== name || response.updateLabel.label.color?.toUpperCase() !== QUEUE_LABEL_COLOR)
-        throw queueError("projection_label_pending", "work queue label color update is uncertain");
+        throw queueError("projection_write_ambiguous", "work queue label color update is uncertain");
     }
     return label.id;
   }
-  const response = await github.graphql("mutation WorkQueueTrackingLabel($input:CreateLabelInput!) { createLabel(input:$input) { label { id name color } } }", {
-    input: { repositoryId, name, color: QUEUE_LABEL_COLOR, description: "Git-backed Work queue" },
-    request: { retries: 0, timeout: 15000 },
-  });
+  const response = await labelMutation(
+    github,
+    "mutation WorkQueueTrackingLabel($input:CreateLabelInput!) { createLabel(input:$input) { label { id name color } } }",
+    {
+      input: { repositoryId, name, color: QUEUE_LABEL_COLOR, description: "Git-backed Work queue" },
+      request: { retries: 0, timeout: 15000 },
+    },
+    true
+  );
   if (!response?.createLabel?.label?.id || response.createLabel.label.name !== name || response.createLabel.label.color?.toUpperCase() !== QUEUE_LABEL_COLOR)
-    throw queueError("projection_label_pending", "work queue label creation is uncertain");
+    throw queueError("projection_write_ambiguous", "work queue label creation is uncertain");
   return response.createLabel.label.id;
+}
+
+async function labelMutation(github, query, variables, allowDuplicate = false) {
+  try {
+    return await github.graphql(query, variables);
+  } catch (error) {
+    if (allowDuplicate && labelAlreadyExists(error)) throw error;
+    const failure = error.originalError || error;
+    logMutationFailure("projection.label.failed", failure);
+    if (isConfirmedRejectionBeforeExecution(failure) || isConfirmedMutationRejection(failure)) throw queueError("projection_label_pending", "label mutation was rejected without a native write");
+    throw queueError("projection_write_ambiguous", "label mutation has no exact native acknowledgement");
+  }
 }
 
 function statusLabelName(config, status) {
@@ -64,8 +81,22 @@ async function findStatusLabel(github, repositoryId, name) {
 
 function labelAlreadyExists(error) {
   const failure = error?.originalError || error;
-  const messages = [failure?.message, ...(Array.isArray(failure?.errors) ? failure.errors.map(item => item?.message) : [])];
-  return messages.some(message => typeof message === "string" && /already (?:exists|been taken)/i.test(message));
+  if (!nullCreateLabelReceipt(failure?.data)) return false;
+  if (failure.response?.data !== undefined) {
+    const responseData = failure.response.data;
+    if (!responseData || typeof responseData !== "object" || Array.isArray(responseData) || Object.keys(responseData).some(key => !["data", "errors"].includes(key)) || !nullCreateLabelReceipt(responseData.data)) return false;
+  }
+  return (
+    Array.isArray(failure.errors) &&
+    failure.errors.length > 0 &&
+    failure.errors.every(
+      item => item?.type === "UNPROCESSABLE" && Array.isArray(item.path) && item.path.length === 1 && item.path[0] === "createLabel" && typeof item.message === "string" && /already (?:exists|been taken)/i.test(item.message)
+    )
+  );
+}
+
+function nullCreateLabelReceipt(data) {
+  return data !== null && typeof data === "object" && !Array.isArray(data) && data.createLabel === null && Object.keys(data).length === 1;
 }
 
 async function discoverTarget(github, repository, config, firstPage = undefined) {
@@ -209,9 +240,10 @@ async function mutateIssues(github, operations, { sleep = delay => new Promise(r
   let ambiguous = false;
   try {
     const send = () => github.graphql(`mutation WorkQueueIssueProjection(${declarations.join(",")}) { ${selections.join("\n")} }`, { ...variables, request: { retries: 0, timeout: 30000 } });
-    result = operations.some(operation => operation.name === "createIssue") ? await withRetry(send, { maxRetries: 3, shouldRetry: isRetryableBeforeExecution }, "work_queue createIssue batch") : await send();
+    result = operations.some(operation => operation.name === "createIssue") ? await retryCreation(send, sleep) : await send();
   } catch (error) {
     const nativeError = error.originalError || error;
+    logMutationFailure("projection.mutation.failed", nativeError);
     result = nativeError.data;
     errors = nativeError.errors || [];
     ambiguous = !Array.isArray(nativeError.errors) || nativeError.errors.length === 0;
@@ -222,7 +254,8 @@ async function mutateIssues(github, operations, { sleep = delay => new Promise(r
     const failed = errors.some(error => !error.path || error.path[0] === `m${index}`);
     const pending = failed || !value;
     const rejectedBeforeExecution = isConfirmedRejectionBeforeExecution({ data: result, errors });
-    const uncertain = pending && !rejectedBeforeExecution && !errors.some(error => (!error.path || error.path[0] === `m${index}`) && ["FORBIDDEN", "NOT_FOUND", "GRAPHQL_VALIDATION_FAILED"].includes(error.type));
+    const rejectedAlias = isConfirmedMutationRejection({ data: { value }, errors: errors.filter(error => !error.path || error.path[0] === `m${index}`) });
+    const uncertain = pending && !rejectedBeforeExecution && !rejectedAlias;
     return { operation, value: failed ? undefined : value, pending, uncertain };
   });
   if (results.some(result => result.uncertain)) ambiguous = true;
@@ -240,6 +273,37 @@ function isConfirmedRejectionBeforeExecution(error) {
 
 function isRetryableBeforeExecution(error) {
   return isConfirmedRejectionBeforeExecution(error);
+}
+
+async function retryCreation(send, sleep) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await send();
+    } catch (error) {
+      if (attempt === 3 || !isRetryableBeforeExecution(error)) throw error;
+      // The generic retry helper logs raw API messages, which may contain secrets.
+      logMutationFailure("projection.creation.rejected", error);
+      log.diagnostic("projection.creation.retry", { attempt: attempt + 1 });
+      await sleep(1000 * 2 ** attempt);
+    }
+  }
+}
+
+function isConfirmedMutationRejection(error) {
+  if (!Array.isArray(error.errors) || !error.errors.length) return false;
+  return error.errors.every(item => ["FORBIDDEN", "NOT_FOUND", "GRAPHQL_VALIDATION_FAILED"].includes(item?.type)) && Object.values(error.data || {}).every(value => value == null);
+}
+
+function logMutationFailure(event, error) {
+  log.failure(event, error, true);
+  if (!Array.isArray(error?.errors)) return;
+  const types = new Set(error.errors.map(item => item?.type));
+  log.diagnostic("projection.graphql.failed", {
+    rate_limited: types.has("RATE_LIMITED"),
+    forbidden: types.has("FORBIDDEN"),
+    not_found: types.has("NOT_FOUND"),
+    validation_failed: types.has("GRAPHQL_VALIDATION_FAILED"),
+  });
 }
 
 function issueResource(issue) {

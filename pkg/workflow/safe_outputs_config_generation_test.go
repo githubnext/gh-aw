@@ -254,8 +254,8 @@ func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 	require.ErrorContains(t, err, "add_labels", "Error should mention the conflicting normalized name")
 }
 
-// TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.
-// The legacy create_missing_tool_issue sub-key is no longer generated; only missing_tool is present.
+// TestGenerateSafeOutputsConfigMissingToolWithIssue tests the report_missing_tool config.
+// The legacy create_missing_tool_issue sub-key is no longer generated; only report_missing_tool is present.
 func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 	trueVal := "true"
 	data := &WorkflowData{
@@ -276,11 +276,11 @@ func TestGenerateSafeOutputsConfigMissingToolWithIssue(t *testing.T) {
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
 
-	_, hasMissingTool := parsed["missing_tool"]
-	assert.True(t, hasMissingTool, "Expected missing_tool key in config")
+	_, hasMissingTool := parsed["report_missing_tool"]
+	assert.True(t, hasMissingTool, "Expected report_missing_tool key in config")
 
 	// create_missing_tool_issue is no longer generated as a separate top-level key;
-	// the missing_tool handler registry entry covers this functionality.
+	// the report_missing_tool handler registry entry covers this functionality.
 	_, hasCreateMissingIssue := parsed["create_missing_tool_issue"]
 	assert.False(t, hasCreateMissingIssue, "create_missing_tool_issue should not be a separate key")
 }

@@ -51,7 +51,7 @@ const {
   claudeSafeOutputsOffset,
   removeClaudePlugin,
 } = require("./claude_runtime.cjs");
-const { runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs, stripExecutionEvidenceEnv } = require("./harness_retry_runner.cjs");
 const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
@@ -71,8 +71,9 @@ const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractD
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError, parseAICreditsExceededProxyRejection } = require("./harness_retry_guard.cjs");
 const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
-const { applyModelFallback, normalizeClaudeModel, normalizeClaudeModelArgs } = require("./model_fallback.cjs");
+const { applyModelFallback, normalizeClaudeModel } = require("./model_fallback.cjs");
 const { resolveEngineModel } = require("./resolve_model_alias.cjs");
+const { applyClaudeSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { resolveAWFModelRoutingSelection, mapAWFRoutingEffort, recordAWFModelRoutingOutcome, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
 const CLAUDE_ROUTING_POLICY = getAWFModelRoutingPolicy("claude");
@@ -432,6 +433,10 @@ async function buildClaudeChildEnv(reflectData, env = process.env, logger = log,
   }
   const provider = normalizeReflectProviderName(env.GH_AW_LLM_PROVIDER, "anthropic");
   const copilotProvider = REFLECT_PROVIDER_ALIASES.github.has(provider);
+  if (env.GH_AW_MODEL_ROUTING !== "1" && env.GH_AW_LLM_PROVIDER_EXPLICIT === "1" && !copilotProvider) {
+    const overriddenModel = /^copilot\/(.+)$/i.exec(String(childEnv.ANTHROPIC_MODEL || "").trim());
+    if (overriddenModel) childEnv.ANTHROPIC_MODEL = overriddenModel[1];
+  }
   if (childEnv.ANTHROPIC_MODEL && env.GH_AW_MODEL_ROUTING !== "1") {
     const resolution = await resolveEngineModel({
       engine: "claude",
@@ -456,7 +461,7 @@ async function buildClaudeChildEnv(reflectData, env = process.env, logger = log,
     childEnv.ANTHROPIC_BASE_URL = resolved.baseUrl;
     logger(`configured ANTHROPIC_BASE_URL from /reflect for provider=${provider}: ${resolved.baseUrl}`);
   }
-  return childEnv;
+  return stripExecutionEvidenceEnv(childEnv);
 }
 
 /**
@@ -496,6 +501,8 @@ function applyClaudeSettingsEnv(args, env = process.env) {
  * Main entry point: run claude with retry logic for transient API failures.
  */
 async function main() {
+  const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
+  stripExecutionEvidenceEnv(process.env);
   const [, , command, ...args] = process.argv;
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
@@ -528,14 +535,31 @@ async function main() {
   const reflection = await fetchAWFReflect({ logger: log });
   let childEnv;
   try {
+    let modelEnv = process.env;
     if (process.env.GH_AW_MODEL_ROUTING === "1") {
       initialArgs = removeClaudeRoutingOverrides(initialArgs);
     } else {
-      initialArgs = normalizeClaudeModelArgs(initialArgs, normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"), process.env, { reflectData: reflection.reflectData, logger: log });
+      // CLI model flags override ANTHROPIC_MODEL, so resolve that effective model once.
+      for (let i = 0; i < initialArgs.length; i++) {
+        if (initialArgs[i] === "--") break;
+        if (initialArgs[i] === "--model" && i + 1 < initialArgs.length) {
+          modelEnv = { ...process.env, ANTHROPIC_MODEL: initialArgs[++i] };
+        } else if (initialArgs[i].startsWith("--model=")) {
+          modelEnv = { ...process.env, ANTHROPIC_MODEL: initialArgs[i].slice("--model=".length) };
+        }
+      }
     }
-    childEnv = await buildClaudeChildEnv(reflection.reflectData, process.env, log, {
+    childEnv = await buildClaudeChildEnv(reflection.reflectData, modelEnv, log, {
       refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
     });
+    for (let i = 0; i < initialArgs.length; i++) {
+      if (initialArgs[i] === "--") break;
+      if (initialArgs[i] === "--model" && i + 1 < initialArgs.length) {
+        initialArgs[++i] = childEnv.ANTHROPIC_MODEL;
+      } else if (initialArgs[i].startsWith("--model=")) {
+        initialArgs[i] = `--model=${childEnv.ANTHROPIC_MODEL}`;
+      }
+    }
   } catch (error) {
     removeClaudePlugin(pluginDir);
     throw error;
@@ -552,9 +576,33 @@ async function main() {
   // A noop indicates the work is complete or there is nothing to do — starting the agent
   // would be wasteful and potentially harmful.
   const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     removeClaudePlugin(pluginDir);
     process.exit(0);
+  }
+
+  // Sub-agent models are resolved on routed runs too, but a pre-existing noop must not
+  // make startup depend on sub-agent model availability. Threat detection uses no
+  // sub-agents, so it neither reads, resolves, records nor writes agent files.
+  if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
+    let subagents;
+    try {
+      subagents = await applyClaudeSubagentModels({
+        reflectData: reflection.reflectData,
+        refetchReflectData: async () => (await fetchAWFReflect({ logger: log })).reflectData || null,
+        provider: normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic"),
+        pluginDir,
+        env: process.env,
+        logger: log,
+      });
+    } catch (error) {
+      log(`fatal: unexpected error while resolving Claude sub-agent models: ${getErrorMessage(error)}. Refusing to start Claude with unresolved sub-agent models.`);
+      subagents = { ok: false };
+    }
+    if (!subagents.ok) {
+      removeClaudePlugin(pluginDir);
+      process.exit(1);
+    }
   }
 
   let lastExitCode = 1;

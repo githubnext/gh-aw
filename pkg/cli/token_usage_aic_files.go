@@ -10,55 +10,110 @@ import (
 	"strings"
 )
 
-func sumAICFromUsageJSONLFilesWithWarnings(filePaths []string) (float64, bool, []string, error) {
-	return sumAICFromUsageJSONLFilesWithSeen(filePaths, make(map[string]struct{}))
+func sumAICFromUsageJSONLFilesWithSeen(filePaths []string, seenAWFRequestIDs map[string]struct{}) (float64, bool, []string, error) {
+	summary, _, err := summarizeUsageJSONLFilesWithSeen(filePaths, seenAWFRequestIDs)
+	if err != nil {
+		return 0, false, nil, err
+	}
+	return summary.TotalAIC, summary.AICFound, summary.Warnings, nil
 }
 
-func sumAICFromUsageJSONLFilesWithSeen(filePaths []string, seenAWFRequestIDs map[string]struct{}) (float64, bool, []string, error) {
-	var totalAIC float64
-	found := false
-	warnings := make([]string, 0)
+func summarizeUsageJSONLFilesWithSeen(filePaths []string, seenAWFRequestIDs map[string]struct{}) (*TokenUsageSummary, bool, error) {
+	combined := &TokenUsageSummary{ByModel: make(map[string]*ModelTokenUsage), agentModels: make(map[string]*ModelTokenUsage)}
+	hadAWFRecords := false
 	awfDuplicateRecordCount := 0
 	for _, filePath := range filePaths {
 		entries, duplicateRecordCount, awfSchemaRecordFound, fileWarnings, err := scanTokenUsageEntriesWithSeen(filePath, nil)
 		if err != nil {
-			return 0, false, nil, err
+			return nil, false, err
 		}
 		if isKnownAWFTokenUsageJSONLFile(filePath) || awfSchemaRecordFound {
+			hadAWFRecords = hadAWFRecords || len(entries) > 0
 			// Once a file matches the AWF token-usage schema, parse the file as one
 			// AWF stream. Older token-usage records may lack _schema/event but still
 			// belong to the same stream and should share request deduplication.
 			var mirroredRecordCount int
 			entries, mirroredRecordCount, err = deduplicateTokenUsageAICStream(entries, seenAWFRequestIDs)
 			if err != nil {
-				return 0, false, nil, err
+				return nil, false, err
 			}
 			duplicateRecordCount += mirroredRecordCount
 			awfDuplicateRecordCount += duplicateRecordCount
-			warnings = append(warnings, fileWarnings...)
+			combined.Warnings = append(combined.Warnings, fileWarnings...)
 			// Each proxy stream has its own cumulative counter. Never apply a
 			// detection counter to an agent stream's running total.
 			if summary := buildTokenUsageSummary(entries, 0); summary != nil {
-				totalAIC += summary.TotalAIC
-				found = found || summary.AICFound
-				warnings = append(warnings, summary.Warnings...)
+				mergeTokenUsageSummary(combined, summary)
 			}
 			continue
 		}
 
 		fileAIC, fileFound, fileWarnings, err := processLegacyUsageJSONLFile(filePath)
 		if err != nil {
-			return 0, false, nil, err
+			return nil, false, err
 		}
-		totalAIC += fileAIC
-		found = found || fileFound
-		warnings = append(warnings, fileWarnings...)
+		combined.TotalAIC += fileAIC
+		combined.AICFound = combined.AICFound || fileFound
+		combined.Warnings = append(combined.Warnings, fileWarnings...)
 	}
 
 	if awfDuplicateRecordCount > 0 {
-		warnings = append(warnings, fmt.Sprintf("%d duplicate token usage record(s) were ignored by event and request_id.", awfDuplicateRecordCount))
+		combined.Warnings = append(combined.Warnings, fmt.Sprintf("%d duplicate token usage record(s) were ignored by event and request_id.", awfDuplicateRecordCount))
 	}
-	return totalAIC, found, warnings, nil
+	return combined, hadAWFRecords, nil
+}
+
+func mergeTokenUsageSummary(combined, summary *TokenUsageSummary) {
+	combined.TotalInputTokens += summary.TotalInputTokens
+	combined.TotalOutputTokens += summary.TotalOutputTokens
+	combined.TotalCacheReadTokens += summary.TotalCacheReadTokens
+	combined.TotalCacheWriteTokens += summary.TotalCacheWriteTokens
+	combined.TotalRequests += summary.TotalRequests
+	combined.TotalDurationMs += summary.TotalDurationMs
+	combined.TotalResponseBytes += summary.TotalResponseBytes
+	combined.TotalSteeringEvents += summary.TotalSteeringEvents
+	if combined.SteeringEventCounts == nil {
+		combined.SteeringEventCounts = make(map[string]int)
+	}
+	for event, count := range summary.SteeringEventCounts {
+		combined.SteeringEventCounts[event] += count
+	}
+	combined.SteeringNotices = append(combined.SteeringNotices, summary.SteeringNotices...)
+	combined.SteeringNoticesUnavailable = combined.SteeringNoticesUnavailable || summary.SteeringNoticesUnavailable
+	combined.SubagentModelRequests = append(combined.SubagentModelRequests, summary.SubagentModelRequests...)
+	combined.DeclaredSubagentModels = append(combined.DeclaredSubagentModels, summary.DeclaredSubagentModels...)
+	combined.SubagentModelActuals = append(combined.SubagentModelActuals, summary.SubagentModelActuals...)
+	combined.AgentUsage = append(combined.AgentUsage, summary.AgentUsage...)
+	combined.TotalAIC += summary.TotalAIC
+	combined.AICFound = combined.AICFound || summary.AICFound
+	combined.Warnings = append(combined.Warnings, summary.Warnings...)
+	if combined.AmbientContext == nil {
+		combined.AmbientContext = summary.AmbientContext
+	}
+	if combined.endpoint == "" {
+		combined.endpoint = summary.endpoint
+	}
+	for model, usage := range summary.ByModel {
+		if combined.ByModel[model] == nil {
+			combined.ByModel[model] = &ModelTokenUsage{Provider: usage.Provider}
+		}
+		target := combined.ByModel[model]
+		target.InputTokens += usage.InputTokens
+		target.OutputTokens += usage.OutputTokens
+		target.CacheReadTokens += usage.CacheReadTokens
+		target.CacheWriteTokens += usage.CacheWriteTokens
+		target.ReasoningTokens += usage.ReasoningTokens
+		target.Requests += usage.Requests
+		target.DurationMs += usage.DurationMs
+		target.ResponseBytes += usage.ResponseBytes
+		target.AIC += usage.AIC
+	}
+	for model, usage := range summary.agentModels {
+		if combined.agentModels[model] == nil {
+			combined.agentModels[model] = &ModelTokenUsage{Provider: usage.Provider}
+		}
+		combined.agentModels[model].Requests += usage.Requests
+	}
 }
 
 func deduplicateTokenUsageAICStream(entries []TokenUsageEntry, seenRequestIDs map[string]struct{}) ([]TokenUsageEntry, int, error) {

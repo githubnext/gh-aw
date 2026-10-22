@@ -76,6 +76,7 @@ The package also acts as the authoritative source for the generated workflow con
 | `UploadCodeScanningJobName` | `JobName` | `"upload_code_scanning_sarif"` | Built-in SARIF upload job identifier. |
 | `UploadCodeCoverageJobName` | `JobName` | `"upload_code_coverage"` | Built-in code-coverage upload job identifier. |
 | `ConclusionJobName` | `JobName` | `"conclusion"` | Built-in conclusion job identifier. |
+| `ConclusionAdmissionJobName` | `JobName` | `"conclusion_admission"` | Isolated conclusion-admission callback job identifier. |
 | `UnlockJobName` | `JobName` | `"unlock"` | Built-in unlock job identifier. |
 | `GitHubMCPServerID` | `MCPServerID` | `"github"` | Built-in GitHub MCP server identifier. |
 | `SafeOutputsMCPServerID` | `MCPServerID` | `"safeoutputs"` | Built-in safe-outputs MCP server identifier. |

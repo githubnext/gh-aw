@@ -1,11 +1,11 @@
 ---
 title: Unified Agent Session Specification
-description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
+description: Draft contract for canonical traces, full unified artifacts, and bounded compact unified sessions.
 sidebar:
   order: 1365
-version: "2.0.0"
+version: "2.3.0"
 status: Draft
-publication_date: "2026-10-18"
+publication_date: "2026-10-22"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 2.0.0<br>
+**Version**: 2.3.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-18<br>
+**Publication Date**: 2026-10-22<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 2.0.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 2.3.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -60,7 +60,7 @@ version; native trace records do not receive per-event specification versions.
 
 The parsers in `actions/setup/js/` translate different engine logs into a shared conversation model. `log_parser_shared.cjs` exposes `convertLegacyLogEntriesToCopilotEvents` and `convertCopilotEventsToLegacyLogEntries`; the first establishes the canonical event representation, while the second supports existing legacy renderers.
 
-This specification covers parsing supported input records, canonical conversion, usage aggregation, tool correlation, compatibility projections, bootstrap telemetry, and conclusion-job artifact merging. It does not specify engine execution, workflow frontmatter, model behavior, transport protocols, or a cross-language storage API. JSON and JSON Lines are serialization forms, not different session models.
+This specification covers parsing supported input records, canonical conversion, usage aggregation, tool correlation, compatibility projections, bootstrap telemetry, and conclusion-job artifact merging. It does not specify engine execution, workflow frontmatter, model behavior, transport protocols, or a cross-language storage API. JSON and JSON Lines are serialization forms, not different session models. Section 3.8 additionally defines a bounded, lossy compact unified-session profile for metadata delivery; it never replaces the full session artifact.
 
 ### 1.2 Data flow
 
@@ -130,6 +130,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 | R — Reader/renderer | Read canonical events and produce truthful, privacy-preserving summaries or compatibility views. | 3–6, 8.1, 8.3, and applicable tests in 9 |
 | B — Bootstrap telemetry adapter | Consume canonical results and derive legacy telemetry without altering the trace. | 3, 6, 8.2–8.3, and applicable tests in 9 |
 | M — Artifact merger | Combine canonical agent and runtime observations into the conclusion usage artifact. | 3.5, 4.7–4.8, 8.3, and applicable tests in 9 |
+| Q — Compact projection | Derive a bounded, lossy metadata view without changing the full unified artifact. | 3.8 and applicable tests in 9 |
 | F — Full pipeline | Satisfy P for Claude, Copilot, Codex, Gemini, Pi, custom, and any additional declared integrations; R for all shared summary renderers; B; and M. | All applicable normative requirements |
 
 A parser supporting fewer engines can conform for its declared engines. Omitting an OPTIONAL field because the source did not expose it is full conformance, not partial conformance. An implementation failing a mandatory requirement is nonconforming for the affected class; “partial implementation” is a progress description, not a weaker compliance level.
@@ -251,7 +252,7 @@ opaque because its essential fields are not defined by this specification.
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields, plus AWF's ranked choices, pool counts, request endpoints, telemetry availability, HTTP status, and failure phase when supplied. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
-| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. Text and Markdown summaries display it as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied canonical lineage and parent repository, run, attempt, workflow, call identity, and event type. |
+| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. For webhook batches, it retains unique affected items and delivery IDs but omits each delivery's raw `payload`; those bodies remain in runner-owned context files. Text and Markdown summaries display the log-safe context as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied canonical lineage and parent repository, run, attempt, workflow, call identity, and event type. |
 | Skills | Activation inventory records installed skill name, relative source, scope, SHA-256 content digest, and declared purpose, without skill content. Exact-name and cross-scope collisions retain names, kinds, and source identifiers: current sources are workspace-relative paths, while overwritten frontmatter installations use ordinal identifiers such as `frontmatter-1`. Observed engine invocations retain the selected skill name, path, source, trigger, model, and turn when supplied; a declared or installed skill is not proof of invocation. |
 
 OpenTelemetry observations use `otel.span`, `otel.span_event`, and `otel.log`.
@@ -298,6 +299,16 @@ while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used
 for legacy lineage matching. Both references are captured when the runner writes
 `aw_info.json`, never from the collector's environment. An unavailable executing
 reference remains empty; the caller reference is not substituted for it.
+`workflow.info.workflowRef` (runner-written `aw_info.json.workflow_ref`) repeats
+the executing reference held by `workflowId`; it is never `GITHUB_WORKFLOW_REF`.
+`serverUrl` (`server_url`) is the origin of the runner's GitHub server URL, such
+as `https://github.com`. `engineHarness` (`engine_harness`) is `copilot-cli` or
+`copilot-sdk`, compiled from the workflow's Copilot harness configuration
+(`engine.copilot-sdk`) and wired as `GH_AW_INFO_ENGINE_HARNESS`; it is never
+inferred from `engineId`, the workflow name, or model output, and is absent for
+other engines. All three are absent in sessions written before they existed;
+readers MUST treat their absence as unknown, not as a particular harness or
+server.
 
 That context describes the recorded caller: `episode.hopId` is not relabeled as
 the current run's hop, and `episode.parentHopId` remains that caller's recorded
@@ -528,6 +539,105 @@ execution evidence and cannot recover missing downstream artifacts.
 Ambiguous called-workflow artifact matches and invalid published files fail
 explicitly; invalid published data does not silently fall back to reconstruction.
 
+### 3.8 Compact unified session (Normative)
+
+A **compact unified session**, compact profile version `1`, is a deterministic,
+bounded, intentionally lossy JSONL projection of an already redacted unified
+session. It supports lightweight completion notifications and metadata consumers;
+it is not the full session, a new source of accounting totals, or an alternative
+publication of `aw_session.jsonl`. The full artifact and its serialization-format
+version remain unchanged. A compact stream can omit required full-session
+metadata and MUST NOT be presented as conforming to the full unified-session
+schema or as evidence that omitted activity did not occur.
+
+**T-UAS-076 — Compact vocabulary and projection.** Compact producers MUST
+preserve encounter order and retain only these event kinds and `data` keys:
+
+| Event kind | Scalar `data` fields |
+| --- | --- |
+| `session.format` | `version` |
+| `workflow.info` | `engineId`, `agentVersion`, `cliVersion`, `awfVersion`, `mcpgVersion`, `model`, `requestedModel`, `triggerType`, `dryRun`, `workflowId`, `workflowCallId`, `repository`, `runId`, `runAttempt`, `ref`, `sha` |
+| `session.result` | `sourceEngine`, `numTurns`, `durationMs`, `totalCostUsd`, `status`, `sourceType`, `sessionId`, `agentId` |
+| `usage.report`, `firewall.token_usage` | `stepIndex`, `provider`, `model`, `purpose`, `status`, `aic`, `totalAic`, `premiumRequests`, `durationMs`, `sessionId`, `agentId` |
+| `guardrail.admission` | `status`, `maxAiCredits`, `threatDetectionMaxAiCredits`, `evalsMaxAiCredits` |
+| `guardrail.daily_aic` | `status`, `exceeded`, `total`, `estimated`, `threshold` |
+| `workflow.job_result` | `jobId`, `result`, `durationMs` |
+| `execution.result` | `outcome`, `conclusion`, `exitCode`, `durationMs`, `startedAt`, `finishedAt` |
+| `grader.result` | `id`, `status`, `value`, `score`, `unit`, `passed`, `direction`, `threshold`, `enabled`, `min`, `max`, `version` |
+
+`session.result`, `usage.report` and `firewall.token_usage` MAY additionally retain `data.usage`, but only
+its scalar `totalTokens`, `inputTokens`, `outputTokens`, `reasoningOutputTokens`,
+`cacheReadInputTokens`, `cacheCreationInputTokens`, and `inputTokensIncludeCache`
+fields. `grader.result` MAY retain `data.run`, restricted to scalar `id`,
+`attempt`, `graderCount`, `passed`, `failed`, and `errors`.
+These are source observations, not additive contributions: overlapping session,
+usage-report and firewall accounting MUST NOT be summed as independent spend.
+
+Only finite numbers, booleans and Unicode-scalar strings of at most 256 UTF-8
+bytes survive scalar projection. Nulls, arrays, other objects, nonfinite numbers,
+oversized strings and unpaired surrogates MUST be omitted, not coerced or
+truncated. At the event level, only `type`, projected `data`, an eligible scalar
+`timestamp`, and projected `provenance` MAY survive. Provenance is restricted to
+eligible scalar `component`, `phase`, `path`, and `index`; native metadata and
+unknown fields MUST NOT survive. Missing values MUST NOT become defaults.
+
+All other event kinds MUST be dropped, including user and assistant messages,
+reasoning, refusals, prompts, tool calls, arguments, output and native extensions.
+Unbounded `errors`, `permissionDenials`, `agentMetrics`, grader result arrays,
+inventories, caller context and arbitrary nested payloads MUST NOT be forwarded
+through a superficially eligible event.
+
+**T-UAS-077 — Hard output limits.** The serialized compact JSONL MUST contain at
+most **128 records** and **16,384 UTF-8 bytes**, including JSON escaping and one LF
+after each retained record. Each candidate is projected and serialized before
+budget admission. A record that would exceed either limit MUST be omitted whole;
+the producer MAY retain a later, smaller record that fits, without reordering.
+Input events and full artifact bytes MUST NOT be mutated, rewritten or replaced.
+Repeated equal inputs MUST produce identical compact output and statistics.
+An empty compact stream is valid and does not mean that the full session is empty.
+
+**T-UAS-078 — Bounded file reading and explicit loss.** A file-based producer
+MUST snapshot the nonempty regular file's size, reject a symlink at the file
+path, and inspect no more than the first **67,108,864 bytes** of that snapshot.
+It MUST frame records incrementally without retaining more than **16,384 source
+bytes per line**. An oversized line MUST be discarded through its next LF
+without decoding or parsing its unbounded content; subsequent complete records
+remain eligible. A final unterminated record MAY be decoded only when it reaches
+the snapshotted file end, not when a scan limit cuts it off. Source growth MUST
+NOT extend the scan. Retained-size records with invalid UTF-8 or JSON, I/O errors,
+missing files, empty files and non-regular files MUST fail explicitly rather than
+produce a fabricated successful session.
+
+The reusable producer result has these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Compact profile version, currently `1`; independent of the full file-format header. |
+| `session` | Compact JSONL, bounded by T-UAS-077. |
+| `includedEvents` | Number of retained records. |
+| `omittedEvents` | Number of inspected records omitted by the vocabulary, projection or output budgets, including oversized completed lines. Counts describe the inspected prefix only. |
+| `oversizedLines` | Number of completed oversized source lines discarded by file framing; `0` for an in-memory producer. |
+| `scanTruncated` | The file snapshot exceeded the source-scan budget; `false` for an in-memory producer. |
+| `truncated` | An output budget, completed oversized source line or source-scan limit discarded evidence. This does not describe routine vocabulary/field filtering and MUST NOT certify completeness when false. |
+
+**T-UAS-079 — Full-session resolution.** A transport using a compact unified
+session MUST identify it as compact profile version `1`, include the above
+loss/coverage metadata, and provide available usage artifact IDs when the full
+session was uploaded. IDs MUST be preserved as canonical positive-decimal
+strings, not floating-point numbers. Retrieval MUST bind each artifact to the
+authenticated repository and current run/attempt and executing workflow
+invocation before consuming its `aw_session.jsonl`. An absent or expired artifact
+MUST remain explicitly unavailable; a compact stream MUST NOT be relabeled as
+the full session or silently treated as complete accounting evidence.
+
+The shared runtime helper is
+[`compact_unified_session.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/compact_unified_session.cjs).
+`compactUnifiedSession(events)` accepts an iterable of decoded events;
+`readCompactUnifiedSession(filePath)` uses the same projection with bounded
+file framing. Both return the above result without modifying their input.
+The [conclusion request contract](/gh-aw/specs/admission-service-specification/#conclusion-notification)
+defines its 64 KiB transport envelope and upload-ID wiring separately.
+
 ## 4. Core Event Vocabulary (Normative)
 
 The following tables describe the common fields in `data`. Optional native and previously supported fields are not prohibited. A field marked **source-dependent** is preserved or mapped when supplied and meaningful; its absence is not an error. This avoids making unsupported metrics or IDs prerequisites for canonical conversion.
@@ -667,7 +777,8 @@ source for opaque fields.
 | `mcp.tool_call`, `mcp.event` | Structured gateway calls or other gateway log messages. |
 | `mcp.configuration` | Sanitized pre-startup inventory from `mcp-logs/configuration.jsonl`, including detection-phase gateways when present. `servers` retains only `serverName`, recognized `transport`, explicit boolean `required`, and string `tools` filters. An empty inventory or tool filter is preserved; absent settings are not inferred. URLs, container images, commands, arguments, environment, headers, credentials, gateway settings, policies, and unknown fields are omitted before persistence. Registered secrets are additionally redacted by the session artifact writer. This records configuration, not successful connections or available tools. |
 | `firewall.http_access` | AWF network audit observations, including operational entries without a host. |
-| `firewall.token_usage`, `firewall.model_routing`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, token/time steering, tracker and other firewall messages. |
+| `firewall.token_usage`, `firewall.model_routing`, `firewall.upstream_error`, `firewall.steering`, `firewall.event` | API proxy accounting, essential AWF model-routing selection/request records, identifier-only upstream error responses (T-UAS-082), token/time steering, tracker and other firewall messages. |
+| `model.config`, `model.baseline_estimate` | Runner-written configured routing/model policy, budget, and baseline model (T-UAS-080), and the collector's counterfactual baseline repricing for routed runs (T-UAS-081). |
 | `safe_output.request`, `safe_output.result`, `safe_output.error` | Requested operation identities, executed item identities, and available errors. Requests are not execution results. |
 | `experiment.state`, `experiment.assignment` | Downloaded state and assignment observations, including historical state retained in the supplied snapshot. |
 | `grader.manifest`, `grader.result` | Essential deterministic grader definitions/results, without scripts; grading does not invent event time. |
@@ -846,9 +957,92 @@ Each payload has required non-empty strings `engine` and `role` (`main` or the
 sub-agent name) and `configured_model`; `resolved_model` and `provider` are
 strings or `null`; `status` is `resolved` (an alias resolved against the live
 catalogue), `exact` (an exact id passed through unchanged), or `failed`; and
-`cause` is `null` unless `status` is `failed`, when it is `model_unavailable` or
-`catalog_unavailable` and `resolved_model` is `null`. Unknown source fields are
+`cause` is `null` unless `status` is `failed`, when it is `model_unavailable`,
+`catalog_unavailable`, or `unsupported_endpoint` and `resolved_model` is `null`.
+`unsupported_endpoint` means the model is live, but its `/reflect`
+`supported_endpoints` on the configured provider do not include the endpoint the
+engine calls (for example `/responses` for Codex sub-agents), or the alias
+resolves only to such models. Unknown source fields are
 excluded; an absent record does not imply that a model was or was not resolved.
+
+#### Routing analytics
+
+**T-UAS-080 — Configured model policy.** The runner (`generate_aw_info`) writes
+the compiler-wired `GH_AW_INFO_MODEL_CONFIG` and evaluated `GH_AW_INFO_MAX_AI_CREDITS`
+to `aw_info.json.model_config` before the engine starts, so the record survives
+routing selection, sub-agent resolution, and startup failures. After the agent
+exits, the agent-phase token-usage step adds `baseline_model` from runner-written
+evidence. The collector projects `runtime/aw_info.json.model_config` (or the
+selected `aw_info.json` copy) as exactly one `model.config` event per run, with
+`workflow` provenance and the aw_info source's phase and path. Sessions without
+`model_config` contain no `model.config` event; an invalid record produces an
+`invalid_model_config` collection warning rather than a partial event.
+
+| Field | Writer and provenance | Meaning |
+| --- | --- | --- |
+| `routing.enabled` | Compiler → runner | Whether `engine.model-routing` is configured. `false` is an explicit unrouted run. |
+| `routing.goal`, `routing.mode` | Compiler → runner | Configured routing objective and mode. Never the router's per-run classification (`workflow.info.modelRouting.mode`). |
+| `routing.allowedModels` | Compiler → runner | Configured routing candidates as authored (exact ids or gh-aw aliases) without the `github-copilot/` prefix; absent when unset or expression-valued. |
+| `routing.candidateModels` | Compiler → runner | Effective router pool sent to AWF (`routing.candidateModels`, or the allow list on AWF without it): `github-copilot/` ids and patterns with aliases expanded and narrowed by `models.allowed` and `models.blocked`, or the Claude/Codex family default. Absent when the router has no shortlist or a candidate is expression-valued. |
+| `models.allowed`, `models.blocked` | Compiler → runner | Configured model allow/block policy sent to AWF, kept separate from the runtime inventory and routing candidate pool. Empty lists mean no restriction; the object is absent without the firewall or when a rule is expression-valued. |
+| `maxAiCredits` | Runner | Effective per-run budget: the evaluated compiled literal or repository-default expression (`vars.GH_AW_DEFAULT_MAX_AI_CREDITS`, falling back to `1000`), or the admitted allowance. |
+| `maxAiCreditsSource` | Compiler → runner; collector | `frontmatter` (explicit `max-ai-credits`), `default` (the repository-default expression), or `admission` when an admitted `guardrail.admission` allowance replaced the configured budget. Recorded from configuration provenance, never inferred from the value. |
+| `baselineModel` | Runner (agent phase) | Concrete main model the run would use without routing, after alias resolution: the recorded `main` model resolution; for unrouted runs, `model_selection.resolved_model`; for routed Copilot runs, the configured model resolved against the run's alias map and AWF reflection. Never `auto` and never the routed selection. |
+
+All values are identifier-shaped metadata; prompts, transcripts, secrets, and
+free-form diagnostics MUST NOT be recorded. Every field other than
+`routing.enabled` is optional: an absent field is unknown, never `false`, an empty
+policy, or zero, while an explicitly recorded `false`, empty list, or number is a
+configured value. Older sessions without `model.config` have unknown policy; their
+absence MUST NOT be read as routing being disabled.
+
+**T-UAS-081 — Baseline estimate.** For runs whose `model.config` records
+`routing.enabled: true`, the collector emits one `model.baseline_estimate` event
+with `collector` provenance, phase `conclusion`. Explicitly unrouted runs and runs
+without `model.config` have no estimate; readers MUST treat a missing estimate as
+unknown, not zero. The estimate reprices each agent-phase main-agent proxy request
+(`firewall.token_usage`) at `baselineModel` with `computeInferenceAIC`, using the
+request's recorded input, output, cache-read, cache-write, and reasoning tokens and
+its `input_tokens_include_cache` semantics (provider default when absent). Each
+`request_id` is counted once. Native session accounting copies and detection- or
+evals-phase requests are never included.
+
+Attribution uses only proxy-written and runner-written evidence: requests with
+`purpose: routing_classification` are the classifier and are excluded; requests
+AWF recorded as `routed: deviated` whose requested model matches a runner-declared
+`aw_info.json.sub_agent_models` entry are sub-agent requests and are excluded;
+requests AWF recorded as `routed: as_selected` that do not match a declared
+sub-agent are main requests. Any other request — no request record, conflicting
+records, a missing request ID, or an `as_selected` request matching a declared
+sub-agent — is counted in `unattributedRequests`. `model_routing.outcome`,
+agent-authored reports, differing models or endpoints, and `xInitiator` alone are
+never attribution evidence. An undeclared sub-agent that inherits the selected
+model is indistinguishable from the main agent in this evidence.
+
+| Field | Meaning |
+| --- | --- |
+| `estimated` | Always `true`: a counterfactual estimate, not observed spend. |
+| `baselineModel` | The `model.config.baselineModel` used for pricing; absent when unknown. |
+| `aic` | Sum over priced main requests; absent when no request could be priced. |
+| `mainRequests` | Main-agent requests attributed by the rules above. |
+| `pricedRequests`, `unpricedRequests` | Main requests with and without baseline pricing and complete token counts. Unknown pricing is unpriced, never zero cost. |
+| `unattributedRequests` | Agent-phase requests that could not be attributed. |
+| `complete` | `true` only when `baselineModel` is known, at least one main request was observed, and no request is unpriced or unattributed. A priced subtotal with unpriced or unattributed requests is incomplete. |
+
+#### Upstream errors
+
+**T-UAS-082 — Identifier-only proxy errors.** The collector maps AWF
+`upstream-errors.jsonl` records (`event: UPSTREAM_ERROR_RESPONSE`, written by the
+proxy) to `firewall.upstream_error`, retaining only `requestId`, `provider`,
+`model`, `httpStatus` (from `status`), and the identifier-only `errorCode`,
+`errorType`, and `errorParam` that AWF extracted from the provider's error
+envelope. `firewall.model_routing` request records likewise retain `errorCode`,
+`errorType`, and `errorSource` (`upstream` or `awf`) from `error_code`,
+`error_type`, and `error_source`. Identifiers MUST match
+`^[A-Za-z0-9_.:-]{1,64}$`; other values are dropped, never truncated or recovered
+by parsing error text. `response_body`, response headers, endpoints, messages,
+and other payload fields MUST NOT be copied. Absent identifiers remain absent:
+a record without `error_code` has an unknown code, not an empty one.
 
 #### Model inventory
 
@@ -1674,6 +1868,10 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 | T-UAS-074 | `agent/model-resolution.json` with resolved, exact, and failed records for main and sub-agent roles; empty, non-array, malformed, and contract-violating records | One `model.resolution` event per record in array order with `model_resolution` provenance and only the contract fields; invalid sources emit collection warnings and no events. |
 | T-UAS-075 | Recorded AWF reflection from run 38995410124 with four unconfigured null endpoints; pending-fetch, legacy, and malformed-ID or capability-metadata variants | One inventory event per valid source with endpoint order, `configured`, model IDs, routing endpoints, reasoning efforts, and known context windows; null lists absent rather than empty; malformed sources warn and publish no inventory; projection is idempotent. |
+| T-UAS-076–T-UAS-079 | Conversation/tool events, nested agent payloads, finite and nonfinite scalars, exact 128-record/16 KiB boundaries, Unicode and JSON escaping, giant lines with later accounting, scan-limit fragments, append races, malformed files, and initial/retry artifact IDs | Only bounded allowlisted metadata survives; explicit loss statistics; unchanged full artifact; deterministic output; exact UTF-8 size caps; bounded framing without whole-file reads; invalid sources fail explicitly; full-session retrieval uses verified artifact identity. |
+| T-UAS-080 | Real compiled inputs and agent artifacts of routed SDK, unrouted CLI, and failed routed SDK runs; older sessions without the new metadata | One `model.config` per run with configured (not selected) routing, policy, budget/source, and resolved baseline; `workflow.info` harness, executing reference, and server; older sessions keep the fields absent. |
+| T-UAS-081 | Routed run with main, sub-agent, classifier, and detection requests; replicated proxy copies; unknown pricing, malformed tokens, missing request records, unrouted runs | Only main requests repriced once with `computeInferenceAIC`; unpriced and unattributed coverage explicit; never a complete zero; unrouted runs omit the estimate. |
+| T-UAS-082 | AWF upstream-error and failed request records from gh-aw-firewall#10211 writers with and without code/type/param/source | Supplied identifiers, status, provider, model, and request ID retained; bodies, headers, and messages excluded; invalid identifiers dropped. |
 
 ### 9.3 Engine and integration fixture matrix
 
@@ -2195,6 +2393,22 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 2.3.0 - Draft (2026-10-22)
+
+- Added `model.config` `routing.candidateModels`, the effective router pool sent to AWF after gh-aw alias expansion and model-policy narrowing; `routing.allowedModels` keeps the authored entries, including aliases (T-UAS-080).
+- Retained serialization-format version 1.
+
+### Version 2.2.0 — Draft (2026-10-21)
+
+- Added `model.resolution` cause `unsupported_endpoint` for a live model whose `/reflect` `supported_endpoints` do not include the endpoint the engine calls (T-UAS-074).
+- Retained serialization-format version 1.
+
+### Version 2.1.0 - Draft (2026-10-20)
+
+- Defined compact unified session profile version 1: bounded metadata-only JSONL, explicit loss statistics, and full-session resolution through usage artifact IDs (T-UAS-076 through T-UAS-079).
+- Added a shared in-memory projection and bounded file-reader helper without changing or truncating the full session artifact.
+- Retained full serialization-format version 1.
 
 ### Version 2.0.0 — Draft (2026-10-18)
 

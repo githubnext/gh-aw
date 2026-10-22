@@ -4,10 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
-
-var installScriptURLCodemodLog = logger.New("cli:codemod_install_script_url")
 
 // Include dots in the full repository token: a bare trailing period is ambiguous
 // with a repository name, unlike punctuation outside a quoted reference.
@@ -21,11 +19,9 @@ func getInstallScriptURLCodemod() Codemod {
 		Description:  "Updates githubnext/gh-aw repository references to github/gh-aw without changing other repository names",
 		IntroducedIn: "0.9.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
-			return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				modified := false
-				result := make([]string, 0, len(lines))
-				for i, line := range lines {
-					modifiedLine := installScriptRepositoryPattern.ReplaceAllStringFunc(line, func(repository string) string {
+			return codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return f.RewriteText(func(source string) string {
+					return installScriptRepositoryPattern.ReplaceAllStringFunc(source, func(repository string) string {
 						switch repository {
 						case "githubnext/gh-aw", "githubnext/gh-aw.git":
 							return strings.Replace(repository, "githubnext/gh-aw", "github/gh-aw", 1)
@@ -33,16 +29,7 @@ func getInstallScriptURLCodemod() Codemod {
 							return repository
 						}
 					})
-					if modifiedLine != line {
-						modified = true
-						installScriptURLCodemodLog.Printf("Migrated githubnext/gh-aw repository reference on line %d", i+1)
-					}
-					result = append(result, modifiedLine)
-				}
-				if modified {
-					installScriptURLCodemodLog.Print("Applied install script URL migration")
-				}
-				return result, modified
+				})
 			})
 		},
 	}

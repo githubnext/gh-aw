@@ -18,6 +18,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       discussions: write
       issues: write
       pull-requests: write
@@ -29,6 +30,7 @@ jobs:
     permissions:
       actions: read
       contents: write
+      id-token: write
       issues: write
       pull-requests: read
       copilot-requests: write

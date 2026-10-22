@@ -35,6 +35,7 @@ const fs = require("fs");
 const path = require("path");
 const { collectInlineEndMarkers, unknownInlineEndMarkerError } = require("./inline_marker_helpers.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 // Regex for the start marker: ## agent: `name` (lowercase identifier)
 const START_MARKER_RE = /^##[ \t]+agent:[ \t]+`([a-z][a-z0-9_-]*)`[ \t]*$/gm;
@@ -62,6 +63,106 @@ const H2_HEADING_RE = /^##[ \t]/gm;
  */
 function preserveSubAgentFrontmatter(content) {
   return content;
+}
+
+// Experiment references allowed in sub-agent frontmatter: the direct
+// ${{ experiments.<name> }} form (runtime-imported content keeps it verbatim)
+// and the __GH_AW_EXPERIMENTS_<NAME>__ placeholder (compile-time inlined content).
+// Compound expressions are rejected at compile time and are not evaluated here.
+const EXPERIMENT_REFERENCE_RE = /\$\{\{[ \t]*experiments\.([A-Za-z_][A-Za-z0-9_-]*)[ \t]*\}\}|__(GH_AW_EXPERIMENTS_[A-Z0-9_]+)__/g;
+
+// Selected variants are written into YAML frontmatter, so only plain scalars
+// such as model IDs and aliases (small, large, provider/model-1.2) are accepted.
+const SAFE_EXPERIMENT_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9._/@+:?=&%-]*$/;
+
+/**
+ * Env var holding the selected variant for an experiment, matching
+ * ExperimentEnvVarName in pkg/workflow/expression_extraction.go.
+ * @param {string} experimentName
+ * @returns {string}
+ */
+function experimentEnvVarName(experimentName) {
+  return "GH_AW_EXPERIMENTS_" + experimentName.toUpperCase().replace(/-/g, "_");
+}
+
+/**
+ * Replaces experiment references in a sub-agent's frontmatter with the
+ * variant already selected by the pick-experiment step (exposed to the
+ * activation job as GH_AW_EXPERIMENTS_* env vars). No variant is selected and
+ * no other expression is evaluated here.
+ *
+ * Throws when a referenced experiment has no assignment or its value is not a
+ * plain scalar, so a sub-agent is never written with an unresolved expression.
+ *
+ * @param {string} agentName - Sub-agent name (for error messages).
+ * @param {string} content - Raw agent block content (frontmatter + prompt).
+ * @param {NodeJS.ProcessEnv} [env] - Environment with GH_AW_EXPERIMENTS_* values.
+ * @returns {string} Content with frontmatter experiment references resolved.
+ */
+function resolveSubAgentExperimentReferences(agentName, content, env = process.env) {
+  const match = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?(?=\n|$)/.exec(content);
+  if (!match) return content;
+  const frontmatter = match[1];
+  const resolved = frontmatter
+    .split("\n")
+    .map(line =>
+      line.replace(EXPERIMENT_REFERENCE_RE, (reference, experimentName, placeholderEnvVar) => {
+        const envVar = experimentName ? experimentEnvVarName(experimentName) : placeholderEnvVar;
+        const field = /^[ \t]*([A-Za-z0-9_-]+)[ \t]*:/.exec(line)?.[1] ?? "frontmatter";
+        const value = env[envVar];
+        if (!value) {
+          throw new Error(
+            `${ERR_CONFIG}: inline sub-agent "${agentName}" field "${field}" references ${reference}, but no experiment assignment is available (${envVar} is not set). Declare the experiment under "experiments:" in the workflow frontmatter.`
+          );
+        }
+        if (!SAFE_EXPERIMENT_VALUE_RE.test(value)) {
+          throw new Error(`${ERR_CONFIG}: inline sub-agent "${agentName}" field "${field}" references ${reference}, whose selected variant ${JSON.stringify(value)} is not a plain model or alias value.`);
+        }
+        core.info(`[extractInlineSubAgents] Sub-agent "${agentName}" ${field}: experiment expression ${reference} → selected variant "${value}"`);
+        return value;
+      })
+    )
+    .join("\n");
+  if (/^[ \t]*model[ \t]*:[^\n]*(?:\$\{\{|__GH_AW_)/m.test(resolved)) {
+    throw new Error(`${ERR_CONFIG}: inline sub-agent "${agentName}" field "model" contains an unresolved expression or placeholder. Use a literal model selector or a declared experiment assignment.`);
+  }
+  if (resolved === frontmatter) return content;
+  const start = match.index + match[0].indexOf("\n") + 1;
+  return content.slice(0, start) + resolved + content.slice(start + frontmatter.length);
+}
+
+/**
+ * Claude Code skips a project agent file without a frontmatter `name`, so the
+ * generated Claude copy gets the declared block name when the author omitted it.
+ * An authored `name` (detected by the YAML parser, so quoted keys count) is kept.
+ * A flow mapping gets the key inside its braces, so mapping styles are never mixed.
+ * Frontmatter that does not parse as a mapping is left unchanged; the model
+ * resolution step then rejects it before Claude starts.
+ *
+ * @param {string} agentName - Declared sub-agent name from the `## agent:` marker.
+ * @param {string} content - Agent block content (frontmatter + prompt).
+ * @returns {string} Content with a top-level `name:` in its frontmatter.
+ */
+function ensureClaudeSubAgentName(agentName, content) {
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  const nameEntry = `name: ${JSON.stringify(agentName)}`;
+  const match = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*\r?(?=\n|$)/.exec(content);
+  if (!match) return `---\n${nameEntry}\n---\n${content}`;
+  const frontmatter = match[1] ?? "";
+  const start = content.indexOf("\n") + 1;
+  /** @type {any} */
+  const document = parseDocument(frontmatter);
+  if (!document || document.errors.length) return content;
+  const map = document.contents;
+  if (map === null || map === undefined) return content.slice(0, start) + nameEntry + "\n" + content.slice(start);
+  if (!Array.isArray(map.items) || !Array.isArray(map.range)) return content;
+  if (map.items.some((/** @type {any} */ pair) => pair?.key?.value === "name")) return content;
+  const position = start + map.range[0];
+  if (map.flow) {
+    return content.slice(0, position + 1) + nameEntry + (map.items.length > 0 ? ", " : "") + content.slice(position + 1);
+  }
+  const indent = content.slice(content.lastIndexOf("\n", position - 1) + 1, position);
+  return content.slice(0, position) + nameEntry + "\n" + indent + content.slice(position);
 }
 
 /**
@@ -304,7 +405,10 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   }
 
   const baseDir = agentsBaseDir || workspaceDir;
-  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(engineId));
+  // Normalise once so the target directory and the Claude `name:` injection always agree:
+  // every id that stages into .claude/agents also gets the name Claude Code registers by.
+  const normalizedEngineId = (engineId || "").trim().toLowerCase();
+  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(normalizedEngineId));
   const agentsDir = path.join(baseDir, dir);
   core.info(`[extractInlineSubAgents] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
   core.info(`[extractInlineSubAgents] Writing ${agents.length} sub-agent(s) to: ${agentsDir}`);
@@ -316,7 +420,8 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
-    const filteredContent = preserveSubAgentFrontmatter(agent.content);
+    let filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
+    if (normalizedEngineId === "claude") filteredContent = ensureClaudeSubAgentName(agent.name, filteredContent);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     try {
       fs.writeFileSync(agentPath, agentContent, "utf8");
@@ -388,4 +493,13 @@ function loadCopilotSDKCustomAgents(workspaceDir, agentsBaseDir, logger) {
   return [...agents.values()];
 }
 
-module.exports = { extractInlineSubAgents, writeInlineSubAgents, getEngineSubAgentTarget, preserveSubAgentFrontmatter, closeUnterminatedSubAgentMarkers, loadCopilotSDKCustomAgents };
+module.exports = {
+  extractInlineSubAgents,
+  writeInlineSubAgents,
+  getEngineSubAgentTarget,
+  preserveSubAgentFrontmatter,
+  resolveSubAgentExperimentReferences,
+  ensureClaudeSubAgentName,
+  closeUnterminatedSubAgentMarkers,
+  loadCopilotSDKCustomAgents,
+};

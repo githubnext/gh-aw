@@ -52,6 +52,8 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_SAFE_OUTPUT_SCRIPTS;
     delete process.env.GH_AW_SAFE_OUTPUT_ACTIONS;
     delete process.env.GH_AW_DETECTION_CONCLUSION;
+    delete process.env.GH_AW_DETECTION_REASON;
+    delete process.env.GH_AW_RUN_DETECTION;
     delete process.env.RUNNER_TEMP;
     delete global.github;
     delete global.context;
@@ -1085,6 +1087,123 @@ describe("Safe Output Handler Manager", () => {
       expect(core.info).toHaveBeenCalledWith(expect.stringContaining('Threat-detection warn policy conversion required for "push_to_pull_request_branch" -> "create_pull_request"'));
     });
 
+    // Detection conclude outputs for a warn-mode detection engine failure. The external
+    // path (threat-detect conclude v0.5.2, run 39191157830) wrote conclusion=failure /
+    // reason=agent_failure; the inline path and the normalized external path write warning.
+    describe.each([
+      { name: "external path, engine failure (failure/agent_failure, run 39191157830)", conclusion: "failure", reason: "agent_failure" },
+      { name: "external path, parse error (failure/parse_error)", conclusion: "failure", reason: "parse_error" },
+      { name: "inline/normalized path, engine failure (warning/agent_failure)", conclusion: "warning", reason: "agent_failure" },
+      { name: "inline/normalized path, parse error (warning/parse_error)", conclusion: "warning", reason: "parse_error" },
+    ])("warn-mode detection engine failure: $name", ({ conclusion, reason }) => {
+      beforeEach(() => {
+        process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+        process.env.GH_AW_DETECTION_REASON = reason;
+      });
+
+      it("applies reviewable create_issue and aborts assign_to_agent (WTD1a/WTD3)", async () => {
+        const createIssueHandler = vi.fn().mockResolvedValue({ success: true });
+        const assignHandler = vi.fn().mockResolvedValue({ success: true });
+        const handlers = new Map([
+          ["create_issue", createIssueHandler],
+          ["assign_to_agent", assignHandler],
+        ]);
+        const messages = [
+          { type: "create_issue", title: "Review this", body: "Body" },
+          { type: "assign_to_agent", issue_number: 1 },
+        ];
+
+        const result = await processMessages(handlers, messages);
+
+        expect(createIssueHandler).toHaveBeenCalledTimes(1);
+        expect(assignHandler).not.toHaveBeenCalled();
+        expect(result.results[0].success).toBe(true);
+        expect(result.results[1]).toMatchObject({ type: "assign_to_agent", success: false, cancelled: true, errorCode: "threat_detected_abort_policy" });
+      });
+
+      it("requires push_to_pull_request_branch -> create_pull_request conversion (WTD2)", async () => {
+        const pushHandler = vi.fn().mockResolvedValue({ success: true });
+        const result = await processMessages(new Map([["push_to_pull_request_branch", pushHandler]]), [{ type: "push_to_pull_request_branch", branch: "topic" }]);
+
+        expect(pushHandler).toHaveBeenCalledTimes(1);
+        expect(result.results[0]).toMatchObject({ type: "push_to_pull_request_branch", success: true });
+        expect(core.info).toHaveBeenCalledWith(expect.stringContaining('Threat-detection warn policy conversion required for "push_to_pull_request_branch" -> "create_pull_request"'));
+      });
+    });
+
+    it.each([
+      { conclusion: "success", reason: "" },
+      { conclusion: "skipped", reason: "" },
+      { conclusion: "", reason: "" },
+    ])("applies outputs without warn policy when detection conclusion is '$conclusion'", async ({ conclusion, reason }) => {
+      process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+      process.env.GH_AW_DETECTION_REASON = reason;
+      const assignHandler = vi.fn().mockResolvedValue({ success: true });
+
+      const result = await processMessages(new Map([["assign_to_agent", assignHandler]]), [{ type: "assign_to_agent", issue_number: 1 }]);
+
+      expect(assignHandler).toHaveBeenCalledTimes(1);
+      expect(result.results[0].success).toBe(true);
+    });
+
+    it.each(["threat_detected", "", "unknown_reason"])("never applies any output when detection conclusion is failure with reason '%s' (defence in depth)", async reason => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_REASON = reason;
+      const createIssueHandler = vi.fn().mockResolvedValue({ success: true });
+      const addCommentHandler = vi.fn().mockResolvedValue({ success: true });
+      const handlers = new Map([
+        ["create_issue", createIssueHandler],
+        ["add_comment", addCommentHandler],
+      ]);
+      const messages = [
+        { type: "create_issue", title: "T", body: "B" },
+        { type: "add_comment", body: "C" },
+      ];
+
+      const result = await processMessages(handlers, messages);
+
+      expect(createIssueHandler).not.toHaveBeenCalled();
+      expect(addCommentHandler).not.toHaveBeenCalled();
+      for (const r of result.results) {
+        expect(r).toMatchObject({ success: false, cancelled: true, errorCode: "threat_detection_failure_blocked" });
+      }
+    });
+
+    it.each([undefined, "", "  "])("never applies any output when detection was required but the conclusion is %j (defence in depth)", async conclusion => {
+      process.env.GH_AW_RUN_DETECTION = "true";
+      if (conclusion !== undefined) process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+      const createIssueHandler = vi.fn().mockResolvedValue({ success: true });
+      const addCommentHandler = vi.fn().mockResolvedValue({ success: true });
+      const handlers = new Map([
+        ["create_issue", createIssueHandler],
+        ["add_comment", addCommentHandler],
+      ]);
+      const messages = [
+        { type: "create_issue", title: "T", body: "B" },
+        { type: "add_comment", body: "C" },
+      ];
+
+      const result = await processMessages(handlers, messages);
+
+      expect(createIssueHandler).not.toHaveBeenCalled();
+      expect(addCommentHandler).not.toHaveBeenCalled();
+      expect(result.results).toHaveLength(2);
+      for (const r of result.results) {
+        expect(r).toMatchObject({ success: false, cancelled: true, errorCode: "threat_detection_conclusion_missing" });
+      }
+    });
+
+    it.each(["false", ""])("applies outputs when the conclusion is empty and GH_AW_RUN_DETECTION is '%s'", async runDetection => {
+      process.env.GH_AW_RUN_DETECTION = runDetection;
+      process.env.GH_AW_DETECTION_CONCLUSION = "";
+      const assignHandler = vi.fn().mockResolvedValue({ success: true });
+
+      const result = await processMessages(new Map([["assign_to_agent", assignHandler]]), [{ type: "assign_to_agent", issue_number: 1 }]);
+
+      expect(assignHandler).toHaveBeenCalledTimes(1);
+      expect(result.results[0].success).toBe(true);
+    });
+
     it("should pass the shared temporary ID map to handlers", async () => {
       const messages = [
         { type: "create_issue", title: "Issue", body: "Body", temporary_id: "aw_abc123" },
@@ -1989,10 +2108,10 @@ describe("Safe Output Handler Manager", () => {
       expect(trackedPR.result.number).toBe(10);
     });
 
-    it("should collect missing_tool and missing_data messages and include in result", async () => {
+    it("should collect report_missing_tool and report_missing_data messages and include in result", async () => {
       const messages = [
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
           alternatives: "Use VM",
@@ -2003,13 +2122,13 @@ describe("Safe Output Handler Manager", () => {
           body: "Issue body",
         },
         {
-          type: "missing_data",
+          type: "report_missing_data",
           data_type: "api_key",
           reason: "API credentials missing",
           context: "GitHub API access",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "kubectl",
           reason: "Kubernetes management",
         },
@@ -2022,8 +2141,8 @@ describe("Safe Output Handler Manager", () => {
 
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
-        ["missing_data", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_data", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
       const result = await processMessages(handlers, messages);
@@ -2048,7 +2167,7 @@ describe("Safe Output Handler Manager", () => {
       expect(result.missings.missingData[0].context).toBe("GitHub API access");
     });
 
-    it("should collect noop messages alongside missing_tool and missing_data", async () => {
+    it("should collect noop messages alongside report_missing_tool and report_missing_data", async () => {
       const messages = [
         {
           type: "noop",
@@ -2060,7 +2179,7 @@ describe("Safe Output Handler Manager", () => {
           body: "Issue body",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
         },
@@ -2077,7 +2196,7 @@ describe("Safe Output Handler Manager", () => {
 
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
         ["noop", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
@@ -2115,7 +2234,7 @@ describe("Safe Output Handler Manager", () => {
           reason: "Missing authentication token",
         },
         {
-          type: "missing_tool",
+          type: "report_missing_tool",
           tool: "docker",
           reason: "Need containerization",
         },
@@ -2129,7 +2248,7 @@ describe("Safe Output Handler Manager", () => {
       const handlers = new Map([
         ["create_issue", mockCreateIssueHandler],
         ["report_incomplete", vi.fn().mockResolvedValue({ success: true })],
-        ["missing_tool", vi.fn().mockResolvedValue({ success: true })],
+        ["report_missing_tool", vi.fn().mockResolvedValue({ success: true })],
       ]);
 
       const result = await processMessages(handlers, messages);

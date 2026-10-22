@@ -145,7 +145,7 @@ poll or insist that issues are already closed. Do not close existing reports
 on a no-finding or blocked run.
 
 If the packet is missing/malformed or a required output tool is unavailable,
-report the specific failure using `missing_data`, `missing_tool` or
+report the specific failure using `report_missing_data`, `report_missing_tool` or
 `report_incomplete` as appropriate; do not describe incomplete analysis as `noop`
 success. A safe-output validation error gets one schema-guided correction,
 not a new analysis sweep.

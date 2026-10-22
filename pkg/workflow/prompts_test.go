@@ -231,7 +231,7 @@ func TestDailyFunctionNamerColdStartHandling(t *testing.T) {
 	}
 
 	workflow := string(content)
-	coldStartGuidance := "**On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue."
+	coldStartGuidance := "**On cold start** (`/tmp/gh-aw/cache-memory/function-namer-state.json` missing): treat this as expected initialization, not a failure. Do **not** call `report_missing_data` for a missing state file on first run or cold cache; run the Step 1 script as written, accept `LAST_INDEX=-1`, and continue."
 	if !strings.Contains(workflow, coldStartGuidance) {
 		t.Fatal("Expected daily-function-namer workflow to include explicit cold-start guidance")
 	}
@@ -625,9 +625,9 @@ func TestDailyModelResolutionUsesCopilotEngineWithMiniSubAgentModel(t *testing.T
 
 	workflow := string(content)
 
-	// Verify the top-level engine is copilot (not codex) so gpt-5.4-mini is accepted
+	// Verify the top-level engine is copilot (not codex) so the Copilot mini alias is accepted
 	if strings.Contains(workflow, "id: codex") {
-		t.Fatal("Expected daily-model-resolution workflow to use copilot engine, not codex (gpt-5.4-mini is not a valid Codex model)")
+		t.Fatal("Expected daily-model-resolution workflow to use copilot engine, not codex (the run-analyzer sub-agent uses the Copilot mini alias)")
 	}
 	if !strings.Contains(workflow, "id: copilot") {
 		t.Fatal("Expected daily-model-resolution workflow to use copilot engine")
@@ -638,8 +638,8 @@ func TestDailyModelResolutionUsesCopilotEngineWithMiniSubAgentModel(t *testing.T
 		t.Fatal("Expected daily-model-resolution workflow to define the run-analyzer sub-agent")
 	}
 	agentBlock := workflow[agentStart:]
-	if !strings.Contains(agentBlock, "\nmodel: gpt-5.4-mini\n") {
-		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use explicit model gpt-5.4-mini")
+	if !strings.Contains(agentBlock, "\nmodel: mini\n") {
+		t.Fatal("Expected daily-model-resolution run-analyzer sub-agent to use the mini alias")
 	}
 }
 

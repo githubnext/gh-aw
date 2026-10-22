@@ -59,7 +59,7 @@ tools:
   web-fetch:
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -102,6 +102,21 @@ features:
 sandbox:
   agent:
     id: awf
+post-steps:
+  - name: Assert unified-session contract
+    if: always()
+    uses: actions/github-script@v9.0.0
+    with:
+      script: |
+        const path = require("node:path");
+        const { sessionContractMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
+        await sessionContractMain({
+          core,
+          engine: "codex",
+          expectModelInventory: true,
+          copilotInventory: false,
+          resolutionRoles: [],
+        });
 ---
 
 # Smoke Test: Codex Engine Validation

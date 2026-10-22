@@ -29,6 +29,7 @@ type LogsData struct {
 	Runs                 []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
 	Episodes             []EpisodeData               `json:"episodes" console:"-"`
 	Edges                []EpisodeEdge               `json:"edges" console:"-"`
+	EpisodeRetrieval     *EpisodeRetrieval           `json:"episode_retrieval,omitempty" console:"-"`
 	ToolUsage            []ToolUsageSummary          `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	MCPToolUsage         *MCPToolUsageSummary        `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
 	Observability        []ObservabilityInsight      `json:"observability_insights,omitempty" console:"-"`
@@ -245,7 +246,8 @@ type RunData struct {
 	TaskDomain                 *TaskDomainInfo        `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
-	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	AwContext                  *AwContext             `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
+	EpisodeHops                []EpisodeHop           `json:"episode_hops,omitempty" console:"-"`
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	SteeringNotices            []SteeringNotice       `json:"steering_notices,omitempty" console:"-"`                                               // AWF steering notices delivered on model requests
 	SteeringNoticesUnavailable bool                   `json:"steering_notices_unavailable,omitempty" console:"-"`                                   // True when the unified session could not be read
@@ -530,7 +532,7 @@ func applyGitHubMetadataToRunData(runData *RunData, run WorkflowRun) {
 
 // buildRunData converts a processed run into RunData while accumulating rollup totals.
 // localRepo guards against cross-repo misclassification of intentional-failure workflows.
-func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate) RunData {
+func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate, classifyLocal bool) RunData {
 	if pr.cachedData != nil {
 		agg.accumulateCachedRunTotals(*pr.cachedData)
 		return *pr.cachedData
@@ -552,7 +554,6 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 
 	// Extract engine ID and aw_context from aw_info.json.
 	engineInfo := extractRunEngineInfo(pr)
-	// Accumulate engine counts from aw_info.json data (authoritative source).
 	if engineInfo.engineID != "" {
 		agg.engineCounts[engineInfo.engineID]++
 	}
@@ -560,6 +561,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
 
 	runData := newRunData(pr, engineInfo, chainMetrics, comparison, failureKind, gitHubAPICalls)
+	runData.EpisodeHops = collectRunEpisodeHops(pr, engineInfo.awContext)
 	runData.ModelRouting = pr.ModelRouting
 	runData.SteeringNotices = tokenUsageSteeringNotices(pr.TokenUsage)
 	runData.SteeringNoticesUnavailable = tokenUsageSteeringNoticesUnavailable(pr.TokenUsage)
@@ -572,7 +574,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	// agents and dashboards can exclude them from fleet-health success-rate rollups.
 	// Only classify when the run comes from the same repository as the local checkout
 	// (or when either side is unknown), to avoid cross-repo misclassification.
-	if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
+	if classifyLocal && (localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository)) {
 		runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
 	}
 	if runData.IntentionalFailure {
@@ -687,13 +689,16 @@ func buildLogsDataWithCollectionCoverage(processedRuns []ProcessedRun, outputDir
 	// may match an unrelated local file.  We skip detection when the run's repository
 	// is known and does not match the local checkout.  Fails open (empty string) when
 	// the slug cannot be determined.
-	localRepo, _ := GetCurrentRepoSlug()
+	var localRepo string
+	if !collection.disableLocalClassification {
+		localRepo, _ = GetCurrentRepoSlug()
+	}
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		runData := buildRunData(pr, processedRuns, localRepo, agg)
+		runData := buildRunData(pr, processedRuns, localRepo, agg, !collection.disableLocalClassification)
 		if pr.cachedData == nil {
 			runData.FailureSignals = failureSignalsForRun(pr)
 		}

@@ -173,7 +173,13 @@ func mergeSourceSequence(source, before, after *ast.SequenceNode) (ast.Node, err
 				}
 			}
 		}
-		value.AddColumn(source.Start.Position.Column + 2 - value.GetToken().Position.Column)
+		shiftSourceNode(value, source.Start.Position.Column+2-sourceNodeColumn(value))
+		if source.IsFlowStyle {
+			value, err = flowSourceNode(value)
+			if err != nil {
+				return nil, err
+			}
+		}
 		values = append(values, value)
 		comments = append(comments, comment)
 	}

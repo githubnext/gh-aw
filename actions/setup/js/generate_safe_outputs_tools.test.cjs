@@ -5,6 +5,8 @@ import path from "path";
 import { execSync } from "child_process";
 import { normalizeSafeOutputToolArguments } from "./safe_outputs_mcp_arguments.cjs";
 import { normalizeClaimScope } from "./work_queue_claim_scope.cjs";
+import { loadTools, attachHandlers, registerPredefinedTools, registerDynamicTools } from "./safe_outputs_tools_loader.cjs";
+import { createServer, registerTool } from "./mcp_server_core.cjs";
 
 const scriptPath = path.join(__dirname, "generate_safe_outputs_tools.cjs");
 
@@ -45,7 +47,7 @@ describe("generate_safe_outputs_tools", () => {
       },
     },
     {
-      name: "missing_tool",
+      name: "report_missing_tool",
       description: "Reports a missing tool.",
       inputSchema: { type: "object", properties: {} },
     },
@@ -53,7 +55,7 @@ describe("generate_safe_outputs_tools", () => {
 
   beforeEach(() => {
     const testId = Math.random().toString(36).substring(7);
-    testDir = `/tmp/test-generate-tools-${testId}`;
+    testDir = path.join(__dirname, `.test-generate-tools-${testId}`);
     fs.mkdirSync(testDir, { recursive: true });
 
     toolsSourcePath = path.join(testDir, "safe_outputs_tools.json");
@@ -96,8 +98,48 @@ describe("generate_safe_outputs_tools", () => {
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     expect(result).toHaveLength(2);
     expect(result.map((/** @type {{name: string}} */ t) => t.name)).toEqual(expect.arrayContaining(["create_issue", "add_comment"]));
-    // missing_tool should NOT be included since it's not in config
-    expect(result.map((/** @type {{name: string}} */ t) => t.name)).not.toContain("missing_tool");
+    // report_missing_tool should NOT be included since it's not in config
+    expect(result.map((/** @type {{name: string}} */ t) => t.name)).not.toContain("report_missing_tool");
+  });
+
+  it.each([
+    ["missing_tool", "missing_data"],
+    ["missing-tool", "missing-data"],
+    ["report_missing_tool", "report_missing_data"],
+    ["report-missing-tool", "report-missing-data"],
+  ])("generates and registers canonical diagnostics from %s and %s configuration", (toolKey, dataKey) => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    const config = { [toolKey]: {}, [dataKey]: {} };
+    fs.writeFileSync(configPath, JSON.stringify(config));
+    runScript();
+
+    const originalToolsPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = outputPath;
+    try {
+      const server = createServer({ name: "safeoutputs", version: "test" });
+      const normalize = name => name.replace(/-/g, "_").toLowerCase();
+      const tools = attachHandlers(loadTools(server), { defaultHandler: name => args => ({ name, args }) });
+      expect(tools.map(tool => tool.name)).toEqual(["report_missing_tool", "report_missing_data"]);
+      registerPredefinedTools(server, tools, config, registerTool, normalize);
+      registerDynamicTools(server, tools, config, path.join(testDir, "output.jsonl"), registerTool, normalize);
+      expect(Object.keys(server.tools)).toEqual(["report_missing_tool", "report_missing_data"]);
+      for (const name of Object.keys(server.tools)) {
+        expect(server.tools[name].handler({})).toEqual({ name, args: {} });
+      }
+    } finally {
+      if (originalToolsPath === undefined) delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+      else process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalToolsPath;
+    }
+  });
+
+  it("normalizes configuration before tool-specific lookups", () => {
+    fs.writeFileSync(configPath, JSON.stringify({ "ADD-COMMENT": { discussions: true } }));
+    runScript();
+
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.name).toBe("add_comment");
+    expect(tool.description).toContain("Discussion comments are enabled");
+    expect(tool.description).toContain("Supports reply_to_id for discussion threading.");
   });
 
   it("preserves invalid explicit Claim selectors through argument normalization", () => {

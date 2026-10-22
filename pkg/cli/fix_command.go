@@ -12,7 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/spf13/cobra"
 )
 
@@ -375,10 +375,10 @@ func applyCodemodsUntilStable(content, filePath string, codemods []Codemod) (str
 			fixLog.Printf("Attempting codemod: %s", codemod.ID)
 
 			// Re-parse frontmatter for each codemod to get fresh state
-			currentResult, err := parser.ExtractFrontmatterFromContent(currentContent)
+			currentResult, err := aw.Parse(currentContent)
 			if err != nil {
 				fixLog.Printf("Failed to parse frontmatter for codemod %s: %v", codemod.ID, err)
-				continue
+				return "", nil, fmt.Errorf("parsing AW document for codemod %s: %w", codemod.ID, err)
 			}
 
 			newContent, applied, err := func() (string, bool, error) {

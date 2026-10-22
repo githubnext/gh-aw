@@ -1118,6 +1118,46 @@ describe("check_membership.cjs", () => {
     });
   });
 
+  describe.each(["projects_v2_item", "code_scanning_alert", "dependabot_alert"])("webhook relay %s role checks", event => {
+    it.each([
+      ["read", "read", false],
+      ["read", "triage", false],
+      ["write", "write", true],
+      ["write", "maintain", true],
+      ["admin", "admin", true],
+    ])("checks the dispatch actor with permission %s and role %s", async (permission, role, authorized) => {
+      process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";
+      process.env.GH_AW_ALLOWED_BOTS = "cao-gateway";
+      mockContext.eventName = "repository_dispatch";
+      mockContext.actor = "dispatch-user";
+      mockContext.payload = {
+        action: "gh-aw-webhook-test",
+        sender: { login: "cao-gateway[bot]" },
+        client_payload: {
+          schema_version: 2,
+          actor: "cao-gateway[bot]",
+          aw_context: {
+            webhook: {
+              event,
+              deliveries: [{ delivery_id: "test-delivery", payload: { sender: { login: "admin-user" }, role: "admin" } }],
+            },
+          },
+        },
+      };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission, role_name: role } });
+
+      await runScript();
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledExactlyOnceWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "dispatch-user",
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", String(authorized));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", authorized ? "authorized" : "insufficient_permissions");
+    });
+  });
+
   describe("repository_dispatch GitHub App actors", () => {
     beforeEach(() => {
       process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";
@@ -1147,6 +1187,29 @@ describe("check_membership.cjs", () => {
 
       await runScript();
 
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+
+    it("should not authorize a dispatch from actor or sender claims in the relay envelope", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "my-app";
+      mockContext.actor = "untrusted-user";
+      mockContext.payload = {
+        sender: { login: "my-app[bot]" },
+        client_payload: {
+          actor: "my-app[bot]",
+          payload: { sender: { login: "my-app[bot]" } },
+        },
+      };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "none" } });
+
+      await runScript();
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "untrusted-user",
+      });
       expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
     });

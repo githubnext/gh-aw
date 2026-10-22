@@ -213,6 +213,16 @@ function parseRepoSlug(repoSlug) {
 }
 
 /**
+ * Check that parsed repository parts identify an exact repository, not a wildcard or pattern.
+ * Owner underscores support Enterprise Managed User logins.
+ * @param {RepoParts|null|undefined} repo - Parsed repository parts
+ * @returns {repo is RepoParts}
+ */
+function isExactRepoSlug(repo) {
+  return !!repo && /^[A-Za-z0-9_-]+$/.test(repo.owner) && /^[A-Za-z0-9_.-]+$/.test(repo.repo);
+}
+
+/**
  * Get the repository that owns the current workflow checkout.
  * @returns {string}
  */
@@ -411,6 +421,7 @@ module.exports = {
   validateRepo,
   validateTargetRepo,
   parseRepoSlug,
+  isExactRepoSlug,
   getWorkflowRepoSlug,
   isSideRepoTarget,
   patchWorkspaceTargetsRepo,

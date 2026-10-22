@@ -175,12 +175,13 @@ jobs:
 `))
 	require.NoError(t, err)
 	diagnostics := runTemplateInjection(t, workflow)
-	require.Len(t, diagnostics, 3)
+	require.Len(t, diagnostics, 4)
 	assert.Equal(t, "jobs.test.steps[3].run", diagnostics[0].Path)
 	assert.Equal(t, "env.TITLE", diagnostics[0].Related[0].Path)
 	assert.Equal(t, "jobs.test.steps[5].run", diagnostics[1].Path)
 	assert.Equal(t, "jobs.test.env.BODY", diagnostics[1].Related[0].Path)
 	assert.Equal(t, "jobs.test.steps[7].run", diagnostics[2].Path)
+	assert.Equal(t, "jobs.test.steps[8].with.script", diagnostics[3].Path)
 
 	typed := templateInjectionWorkflow("echo \"$TITLE\"", true)
 	typed.Env = map[string]actions.Expression{"TITLE": actions.Context("github.event.issue.title")}

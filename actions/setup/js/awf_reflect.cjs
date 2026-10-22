@@ -941,7 +941,9 @@ function resolveOpenAICompatibleEndpointFromReflect(options) {
  * endpoints retain a single provider. Models reference their inferred wire API.
  *
  * The primary model is the first model that matches `options.model` (if set),
- * otherwise the first model across all providers.
+ * otherwise (only when no model is configured) the first model across all providers.
+ * A configured model that matches no model is never replaced by another model: the
+ * result has an empty `model` and `configuredModelNotFound: true` so the caller fails.
  * A valid `options.wireApi` routes only the configured Copilot model; it never
  * changes the wire API used by the other models. The primary model is qualified.
  *
@@ -956,6 +958,7 @@ function resolveOpenAICompatibleEndpointFromReflect(options) {
  *   model: string,
  *   providers: Array<{ name: string, type: "openai" | "azure" | "anthropic", baseUrl: string, wireApi?: "completions" | "responses" }>,
  *   models: Array<{ id: string, provider: string }>,
+ *   configuredModelNotFound?: boolean,
  * } | null}
  */
 function resolveMultiProviderFromReflect(options) {
@@ -1089,9 +1092,16 @@ function resolveMultiProviderFromReflect(options) {
     return null;
   }
 
-  // Determine the primary model: prefer the configured model if it appears in the model list;
-  // otherwise fall back to the first model across all providers.
+  // Determine the primary model: use the configured model if it appears in the model list.
+  // Only when no model is configured fall back to the first model across all providers;
+  // a configured model that is not found is never silently replaced by another model.
   let primaryModel = qualifyModelForMultiProvider(configuredModel, { providers, models }) || mappedConfiguredModel;
+  if (!primaryModel && configuredModel && models.length > 0) {
+    // Provisional diagnostic: the caller may still refresh /reflect, so this wording must not
+    // match the unsupported-model classifier (agent_error_patterns.cjs MODEL_NOT_SUPPORTED_PATTERN).
+    logger(`sdk-mode(multi): no awf-reflect endpoint lists the configured model "${configuredModel}"; not selecting a different model`);
+    return { model: "", providers, models, configuredModelNotFound: true };
+  }
   if (!primaryModel && models.length > 0) {
     primaryModel = `${models[0].provider}/${models[0].id}`;
   }

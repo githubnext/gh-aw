@@ -129,6 +129,9 @@ func (a *analyzer) expressions(values map[string]actions.Expression, path string
 		if err != nil {
 			return nil, err
 		}
+		if name == "GH_AW_OTLP_ATTRIBUTES" || name == "OTEL_RESOURCE_ATTRIBUTES" {
+			a.emit(Site{Kind: OTLPAttribute, Path: path + "." + name, Input: name}, sources)
+		}
 		result["env."+strings.ToLower(name)] = sources
 		result["shell."+name] = sources
 	}
@@ -320,6 +323,9 @@ func (a *analyzer) step(fields map[string]any, path string, env, persisted, file
 		sources, err := a.text(fmt.Sprint(stepEnv[key]), path+".env."+key, parent)
 		if err != nil {
 			return err
+		}
+		if key == "GH_AW_OTLP_ATTRIBUTES" || key == "OTEL_RESOURCE_ATTRIBUTES" {
+			a.emit(Site{Kind: OTLPAttribute, Path: path + ".env." + key, Input: key}, sources)
 		}
 		bindings["env."+strings.ToLower(key)] = sources
 		bindings["shell."+key] = sources

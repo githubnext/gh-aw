@@ -1486,7 +1486,7 @@ describe("messages.cjs", () => {
       const result = getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("**Threat Detection Engine Failure**");
+      expect(result).toContain("> threat detection engine error");
       expect(result).toContain("What happened");
       expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
       expect(result).not.toContain("<!-- gh-aw-threat-detected -->");
@@ -1504,6 +1504,29 @@ describe("messages.cjs", () => {
 
       expect(result).toContain("> [!CAUTION]");
       expect(result).toContain("could not be completed");
+    });
+
+    it.each(["agent_failure", "parse_error"])("should return the WTD1a warning alert for a warn-mode detection engine failure (failure/%s, external conclude path)", async reason => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_REASON = reason;
+
+      const { getDetectionCautionAlert } = await import("./messages.cjs");
+
+      const result = getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("threat detection engine error");
+      expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
+      expect(result).not.toContain("> [!CAUTION]");
+    });
+
+    it("should return empty string when detection conclusion is failure with a non-tooling reason", async () => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+      process.env.GH_AW_DETECTION_REASON = "threat_detected";
+
+      const { getDetectionCautionAlert } = await import("./messages.cjs");
+
+      expect(getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123")).toBe("");
     });
 
     it("should return empty string when detection conclusion is failure", async () => {

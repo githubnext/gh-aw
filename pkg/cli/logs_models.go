@@ -118,6 +118,7 @@ type ToolCallInfo = workflow.ToolCallInfo
 type ProcessedRun struct {
 	Run                     WorkflowRun
 	AwContext               *AwContext
+	EpisodeContexts         []*AwInfo
 	TaskDomain              *TaskDomainInfo
 	BehaviorFingerprint     *BehaviorFingerprint
 	AgenticAssessments      []AgenticAssessment

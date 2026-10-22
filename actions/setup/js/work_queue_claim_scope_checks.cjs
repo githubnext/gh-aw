@@ -518,8 +518,8 @@ function registerTests({ describe, it }) {
         "upload_asset",
         "upload_artifact",
         "noop",
-        "missing_tool",
-        "missing_data",
+        "report_missing_tool",
+        "report_missing_data",
         "report_incomplete",
         "work_queue_submit",
         "work_queue_dispatch_next",
@@ -884,8 +884,10 @@ function registerTests({ describe, it }) {
         firstReviews.getOrCreate("owner/repo", 42).addComment({ path: "file.go", line: 1, body: "first Claim only" });
         assert.equal(firstReviews.hasAnyContent(), true);
         assert.equal(secondReviews.getOrCreate("owner/repo", 42).getBufferedCount(), 0);
-        const configured = await scope.withClaimExecution({ assignment: batch, claim_handle: "h1", authorize: authorized }, () => manager.loadHandlers({ missing_tool: { "target-repo": "foreign/repo" } }, createPrReviewBufferRegistry()));
-        const reporter = configured.get("missing_tool");
+        const configured = await scope.withClaimExecution({ assignment: batch, claim_handle: "h1", authorize: authorized }, () =>
+          manager.loadHandlers({ report_missing_tool: { "target-repo": "foreign/repo" } }, createPrReviewBufferRegistry())
+        );
+        const reporter = configured.get("report_missing_tool");
         await assert.rejects(
           scope.withClaimExecution(
             {
@@ -893,16 +895,16 @@ function registerTests({ describe, it }) {
               claim_handle: "h1",
               authorize: async request => ({ authorized: request.message.repo !== "foreign/repo", claim_handle: request.claim_handle }),
             },
-            () => reporter({ type: "missing_tool", claim_handle: "h1", reason: "blocked before effects" })
+            () => reporter({ type: "report_missing_tool", claim_handle: "h1", reason: "blocked before effects" })
           ),
           /same-Claim/
         );
         await assert.rejects(
-          scope.withClaimExecution({ assignment: batch, claim_handle: "h2", authorize: authorized }, () => reporter({ type: "missing_tool", claim_handle: "h2", reason: "cannot borrow factory" })),
+          scope.withClaimExecution({ assignment: batch, claim_handle: "h2", authorize: authorized }, () => reporter({ type: "report_missing_tool", claim_handle: "h2", reason: "cannot borrow factory" })),
           /factory context/
         );
         const invalid = await scope.withClaimExecution({ assignment: batch, claim_handle: "h1", authorize: authorized }, () =>
-          manager.processMessages(handlers, [{ type: "missing_data", claim_handle: "h2", data_type: "foreign", reason: "must not become synthetic followup" }])
+          manager.processMessages(handlers, [{ type: "report_missing_data", claim_handle: "h2", data_type: "foreign", reason: "must not become synthetic followup" }])
         );
         assert.equal(invalid.results[0].errorCode, "claim_scope_invalid");
         assert.equal(invalid.missings.missingData.length, 0);

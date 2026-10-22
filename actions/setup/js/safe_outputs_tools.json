@@ -346,6 +346,12 @@
           "description": "Discussion category by name (e.g., 'General'), slug (e.g., 'general'), or ID. If omitted, uses the first available category. Category must exist in the repository. NOTE: the field is named category (not categoryId or category_id as in the GitHub GraphQL API).",
           "x-synonyms": ["categoryId", "category_id"]
         },
+        "temporary_id": {
+          "type": "string",
+          "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
+          "description": "Unique temporary identifier for this discussion. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) \u2014 e.g., '#aw_discuss'. The bare 'aw_discuss' form is also accepted. Use '#aw_ID' in body text or supported target fields to reference this discussion after creation.",
+          "x-synonyms": ["temporaryId"]
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -1656,8 +1662,8 @@
     }
   },
   {
-    "name": "missing_tool",
-    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
+    "name": "report_missing_tool",
+    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this reporting tool when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
     "inputSchema": {
       "type": "object",
       "required": ["reason"],
@@ -2000,8 +2006,8 @@
     }
   },
   {
-    "name": "missing_data",
-    "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
+    "name": "report_missing_data",
+    "description": "Report that data or information needed to complete the task is not available. Use this reporting tool when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {
       "type": "object",
       "required": [],

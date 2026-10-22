@@ -49,13 +49,15 @@ Analyze the repository and create a concise daily status report covering:
 
 ## Capabilities and limitations
 
-The default installation uses Copilot CLI [1.0.98](https://github.com/github/copilot-cli/releases/tag/v1.0.98). CLI 1.0.97 and 1.0.98 include fixes for explicit GitHub MCP tool selections, noninteractive hook permission decisions, resumed tool calls, and command hook completion. Set `engine.version` to override the CLI version; otherwise the installer selects a compatible cached version before falling back to the default.
+The default installation uses Copilot CLI [1.0.101](https://github.com/github/copilot-cli/releases/tag/v1.0.101). This release adds native structured output for dynamic workflow subagents on supported models and fixes MCP inventory, authentication recovery, and model switching. Set `engine.version` to override the CLI version; otherwise the installer selects a compatible cached version before falling back to the default.
 
 Copilot SDK mode (`engine.copilot-sdk: true`) is stable and does not require an experimental opt-in. SDK session artifacts retain `model.call_finished` observations alongside durable events. Live `tool.shell_output` chunks are excluded from SDK artifacts and driver stderr until redaction can protect credentials split across chunks. Unified sessions preserve retained native payloads, including file-edit details and human-response provenance; a logical model dispatch ending is not evidence that the workflow completed.
 
 The built-in SDK driver explicitly registers native MCP servers from a separate converter-owned configuration under `RUNNER_TEMP/gh-aw/mcp-config/copilot-sdk.json`, not the user-managed Copilot CLI catalog. Servers mounted through `tools.cli-proxy` remain CLI-only. Tool permissions and gateway enforcement still apply to registered servers.
 
 The converter atomically replaces the catalog and publishes a SHA-256 digest through the step environment, bound to the run ID, attempt, and job. Missing, malformed, changed, or linked catalogs and stale integrity values fail before inference. Sandboxed agents receive read-only runtime assets; integrity verification does not protect against a compromised runner that can replace both the catalog and its trusted environment.
+
+In sandboxed CLI mode, the harness derives destination-specific URL approvals from the finalized AWF network configuration, including domains added through `network_allowed`. Domain rules cover the apex and subdomains over HTTP and HTTPS unless a protocol or port is specified; blocked domains remain denied. This does not grant shell access, disable URL verification, or bypass the firewall. SDK and unsandboxed sessions retain their existing permission handling.
 
 Copilot supports the broadest set of `gh-aw` engine-specific features: native custom-agent selection with `engine.agent`, custom harnesses, `max-continuations`, bare mode, and per-command bash allowlisting. Offline BYOK mode disables its native web tools. Compilation rejects `tools.web-search` and CLI-mode `tools.web-fetch`; configure an MCP server instead. SDK mode (`engine.copilot-sdk: true`) supports `tools.web-fetch` through a custom proxy-aware implementation. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
 

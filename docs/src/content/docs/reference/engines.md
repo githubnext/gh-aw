@@ -7,6 +7,12 @@ sidebar:
 
 GitHub Agentic Workflows uses an [AI engine](/gh-aw/reference/glossary/#engine) - usually a coding agent - to interpret a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
+## Data handling before setup
+
+The selected engine, model service and enabled integrations determine where workflow context is processed. Authentication, data handling, retention and available safeguards vary by provider and configuration; not every workflow uses GitHub Copilot services.
+
+Before enabling an engine, review its setup documentation and applicable provider terms. Check which repository content and credentials are accessible, which tools and outbound destinations are permitted, and who can access retained logs and artifacts.
+
 ## Built-in AI engines
 
 Set `engine:` in workflow frontmatter and configure the corresponding authentication method:
@@ -244,7 +250,7 @@ Workflows can specify extended configuration for the coding agent:
 ```yaml wrap
 engine:
   id: copilot
-  version: latest                      # optional; defaults to a compiler-pinned version
+  version: "1.0.101"                   # optional; other downloads require checksums-sha256
   model: gpt-5                          # example override; omit to use engine default
   command: /usr/local/bin/copilot       # custom executable path
   args: ["--add-dir", "/workspace"]     # custom CLI arguments
@@ -258,7 +264,7 @@ By default, workflows install a compiler-pinned version of each engine CLI. To o
 
 | Engine | `id` | Example `version` |
 |--------|------|-------------------|
-| GitHub Copilot CLI | `copilot` | `"0.0.422"` |
+| GitHub Copilot CLI | `copilot` | `"1.0.101"` |
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
 | Gemini CLI | `gemini` | `"0.31.0"` |
@@ -267,10 +273,31 @@ By default, workflows install a compiler-pinned version of each engine CLI. To o
 ```yaml wrap
 engine:
   id: copilot
-  version: "0.0.422"
+  version: "1.0.101"
 ```
 
 Pinning is useful when you need reproducible builds or want to avoid breakage from a new CLI release while testing. Remember to update the pinned version periodically to pick up bug fixes and new features.
+
+#### Copilot release checksum pins
+
+To download a Copilot CLI version not covered by the setup action's built-in pins, provide `engine.checksums-sha256` alongside `engine.version`:
+
+```yaml wrap
+engine:
+  id: copilot
+  version: "1.0.101"
+  checksums-sha256: "018625eac68670d66ede904b9b82cdcd6ab8f87ba20e6e1fbdf0b62c8295d5be"
+```
+
+The example uses the manifest digest for v1.0.101; change both fields together for another release. The digest authenticates **`SHA256SUMS.txt`**, not an individual platform archive. It must be a literal string of exactly 64 lowercase hexadecimal characters obtained through an independently trusted channel. Fetching a checksum from the same potentially intercepted origin as the executable is not independent authentication.
+
+An explicit pin overrides the built-in manifest pin and bypasses the runner toolcache. Both the host archive and a requested musl guest archive are verified against the authenticated manifest. Omit `command`, which replaces the built-in installer. This field is only supported by the built-in Copilot CLI installer, not other engines or inline engine definitions.
+
+The engine's version and pin are inherited by detection and eval jobs that reuse that engine. A separate `safe-outputs.threat-detection.engine` override accepts its own `version` and `checksums-sha256`. For AWF, use [`sandbox.agent.checksums-sha256`](/gh-aw/reference/sandbox/#release-integrity-sandboxagentchecksums-sha256).
+
+Without an explicit pin, the existing trusted toolcache policy and built-in release pins apply. An unreviewed download still fails closed. A supplied pin requires a literal semantic release version such as `"1.0.101"` or `"v1.0.101"`; it cannot be combined with `latest`, an omitted version, or a version expression.
+
+#### Parameterized versions
 
 `version` also accepts a GitHub Actions expression string, enabling `workflow_call` reusable workflows to parameterize the engine version via caller inputs. Expressions are passed injection-safely through an environment variable rather than direct shell interpolation:
 
@@ -280,7 +307,7 @@ on:
     inputs:
       engine-version:
         type: string
-        default: latest
+        default: "1.0.101"
 
 ---
 
@@ -288,6 +315,8 @@ engine:
   id: copilot
   version: ${{ inputs.engine-version }}
 ```
+
+For Copilot, a parameterized version must resolve to a trusted cached version or a release covered by the setup action's built-in manifest pins. `checksums-sha256` cannot be parameterized; use a literal version/pin pair for other releases.
 
 ### Copilot Custom Configuration
 
@@ -550,7 +579,7 @@ When an expression is used, it must already be in milliseconds (GitHub Actions e
 | `max-delay-ms` | `60000` | Maximum delay cap in ms |
 | `watchdog-timeout` | `120` | Post-result idle watchdog timeout in seconds before terminating a quiet process |
 
-The post-result watchdog is dormant until the harness observes a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal; diagnostics such as `missing_tool`, `missing_data`, and `report_incomplete` are not. Once armed, any stdout or stderr activity resets the inactivity clock. A quiet child process can still be terminated while it is doing useful work, and the harness may treat that termination as successful when a terminal safe output already exists.
+The post-result watchdog is dormant until the harness observes a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal; diagnostics such as `report_missing_tool`, `report_missing_data`, and `report_incomplete` are not. Once armed, any stdout or stderr activity resets the inactivity clock. A quiet child process can still be terminated while it is doing useful work, and the harness may treat that termination as successful when a terminal safe output already exists.
 
 Claude arms the watchdog only for terminal outputs added during the current attempt. Its soft deadline also stops an active attempt before the Actions hard timeout. Resumable retries use the captured session ID and a short continuation prompt, not the original task. Empty-input resume requires a deferred tool marker and cannot recover ordinary API-error terminations. Fresh restarts after partial work are refused unless `engine.env.GH_AW_CLAUDE_ALLOW_FRESH_RESTART: "true"` explicitly declares the workflow replay-safe.
 
@@ -570,6 +599,8 @@ Threat detection runs default `max-retries` to **0** instead of inheriting the h
 - Without AWF (`sandbox.agent: false`) there is no live model list. Exact ids pass through, and so does a value whose id is listed in gh-aw's bundled model catalogue (`models.json`) even when an alias has the same name, such as `copilot/gpt-5.4` or `gpt-5-mini`. Other aliases, such as `small` or `opus`, fail with `catalog_unavailable`; Claude never falls back to Claude Code's own `opus`, `sonnet` or `haiku`.
 
 The harness logs the configured and resolved model and records them as a `model.resolution` event in `usage/aw_session.jsonl`, so audits show when an alias moved to a different model. Gemini and declarative engines do not resolve aliases yet: they receive the configured model unchanged, and the compiler warns when one of them is given an alias. Built-in aliases are listed in [Model Aliases](/gh-aw/reference/model-tables/).
+
+If Pi rejects a sub-agent's model during its startup availability check, the resolution record for every sub-agent using that model reports `status: failed`, `cause: model_unavailable`, and `resolved_model: null`. This replaces the earlier successful resolution record in both routed and unrouted runs; startup stops before the sub-agent executes.
 
 ### Ordered model fallback (`fallback-models`)
 
@@ -610,10 +641,30 @@ The built-in SDK driver loads inline sub-agents and repository
 sub-agent models against the AWF model catalog. Copilot models use separate
 Responses and Chat Completions providers according to their supported endpoints,
 so GPT and Claude agents can use different wire APIs in the same session.
-The aliases `small`, `medium`, and `large` inherit the session model; an unknown
-sub-agent model logs a warning and inherits it. Sub-agent activity and final model
-results, including BYOK status, are retained in `usage/aw_session.jsonl`.
-This behavior applies to SDK mode, not the default CLI mode.
+Sub-agent activity and final model results, including BYOK status, are retained
+in `usage/aw_session.jsonl`.
+
+In both SDK and CLI mode, the harness resolves each sub-agent's `model:` before
+Copilot starts, including on routed runs. It uses gh-aw model aliases (for
+example `small` and `large`) and checks the live AWF model catalog. Each result
+is recorded as a `model.resolution` event whose role is the agent name. `medium`
+is not an alias and is treated as a literal model id. A sub-agent without
+`model:` inherits the main model and has no resolution record.
+
+Workflow-declared sub-agents (inline `## agent:` blocks) fail closed: if a model
+cannot be resolved, is not in the live catalog, or does not qualify in SDK mode,
+the run fails before Copilot starts. Other repository `.github/agents/*.agent.md`
+files, which are often shared with VS Code, do not stop the run: a model that
+cannot be resolved is recorded with `status: failed` and logged as a warning. In
+CLI mode, that agent is used unchanged; in SDK mode, it inherits the session
+model. An inline sub-agent overrides a repository agent with the same name.
+
+In CLI mode, when the resolved id differs from the declared `model:`, the harness
+writes a copy of the agent file, with the same file name and only `model:`
+changed, to Copilot CLI's personal agents directory
+(`${COPILOT_HOME:-$HOME/.copilot}/agents/`). A personal agent overrides the
+repository agent with the same ID, so files in the checkout are never modified.
+Sub-agent resolution is skipped in the threat-detection phase.
 
 Use top-level `max-tool-denials` to stop SDK inference when
 tool requests are repeatedly denied. The default is `5`.

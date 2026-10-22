@@ -3,12 +3,13 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { EMPTY_OUTPUT_FAILURE_CAUSES } = require("./empty_output_outcome.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 const fs = require("fs");
 const path = require("path");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle } = require("./work_queue_claim_scope.cjs");
 
-const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const DIAGNOSTIC_AGENT_OUTPUT_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "report_incomplete"]);
 const TASK_COMPLETE_REGISTRATION_SIGNALS = ["not registering", "not registered", "not recognizing", "not recognized", "recognition issue", "not yet marked", "haven't marked", "tool calls are not registering"];
 const TASK_COMPLETE_COMPLETION_SIGNALS = ["completed successfully", "safe-output", "safe output", "no remaining work"];
 const TASK_COMPLETE_COMPLETION_REGEXPS = [/\banalysis steps? completed\b/, /\ball steps completed\b/];
@@ -59,7 +60,12 @@ function shouldIgnoreTaskCompleteRegistrationReports(items) {
     return false;
   }
   const reports = items.filter(item => item?.type === "report_incomplete");
-  return reports.length > 0 && hasAgentTerminalReasonCompleted() && items.some(item => item && typeof item.type === "string" && !DIAGNOSTIC_AGENT_OUTPUT_TYPES.has(item.type)) && reports.every(isTaskCompleteRegistrationIssue);
+  return (
+    reports.length > 0 &&
+    hasAgentTerminalReasonCompleted() &&
+    items.some(item => item && typeof item.type === "string" && !DIAGNOSTIC_AGENT_OUTPUT_TYPES.has(normalizeSafeOutputName(item.type))) &&
+    reports.every(isTaskCompleteRegistrationIssue)
+  );
 }
 
 /**
@@ -156,6 +162,8 @@ function loadAgentOutput(options = {}) {
     core.info(`Parsed content: ${truncateForLogging(JSON.stringify(validatedOutput))}`);
     return { success: false };
   }
+
+  validatedOutput.items = validatedOutput.items.map(item => (item && typeof item.type === "string" ? { ...item, type: normalizeSafeOutputName(item.type) } : item));
 
   return {
     success: true,

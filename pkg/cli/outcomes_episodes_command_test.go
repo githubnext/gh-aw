@@ -92,6 +92,30 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 	assert.Contains(t, rendered.String(), "AIC per accepted outcome: unavailable")
 }
 
+func TestRunOutcomesEpisodesWithBoundedRetrieval(t *testing.T) {
+	f := newEpisodeRetrievalFixture(t)
+	f.add("org/one", 2, "canonical", "org/one", 2)
+	opts := episodeRetrievalTestOptions(t)
+	logs, err := retrieveEpisodeLogs(t.Context(), opts, f.request)
+	require.NoError(t, err)
+	content, err := json.Marshal(logs)
+	require.NoError(t, err)
+	logsPath := filepath.Join(opts.OutputDir, "episode.json")
+	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
+	outcomesDir := filepath.Join(opts.OutputDir, "outcomes")
+	observation := episodeObservation(2, "item-1", OutcomeStatusAccepted)
+	writeOutcomeJSONL(outcomesDir, 2, []OutcomeReport{observation.OutcomeReport})
+	var stdout, stderr bytes.Buffer
+	require.NoError(t, runOutcomesEpisodes(logsPath, outcomesDir, opts.OutputDir, true, &stdout, &stderr))
+	var data EpisodeOutcomesData
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &data))
+	require.Len(t, data.Episodes, 1)
+	require.NotNil(t, data.Episodes[0].ObservedAIC)
+	require.InDelta(t, 0.25, *data.Episodes[0].ObservedAIC, 1e-9)
+	require.Equal(t, 1, data.Episodes[0].Summary.Accepted)
+	require.Empty(t, stderr.String())
+}
+
 type episodeOutputErrorWriter struct {
 	err error
 }

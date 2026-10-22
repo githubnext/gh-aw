@@ -10,7 +10,9 @@ const validateLockdownRequirements = require("./validate_lockdown_requirements.c
 const { writeMergedModelsJSON } = require("./merge_frontmatter_models.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
-const { buildWorkflowCallId, normalizeLegacyWorkQueueContext, normalizeWorkQueueContext, resolveWorkQueueRuntime } = require("./aw_context.cjs");
+const { buildWorkflowCallId, normalizeLegacyWorkQueueContext, normalizeWorkQueueContext, resolveWorkQueueRuntime, readInboundAwContext } = require("./aw_context.cjs");
+const { normalizeWebhookContext, redactWebhookPayloads } = require("./webhook_context.cjs");
+const { normalizeEngineHarness, parseCompiledModelConfig } = require("./routing_analytics.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -178,15 +180,38 @@ async function main(core, ctx, githubClient) {
     awInfo.sub_agent_models = models;
   }
 
+  // Harness identity comes from the compiled configuration, never from engine_id or model output.
+  const engineHarness = normalizeEngineHarness(process.env.GH_AW_INFO_ENGINE_HARNESS);
+  if (engineHarness) {
+    awInfo.engine_harness = engineHarness;
+  } else if (process.env.GH_AW_INFO_ENGINE_HARNESS) {
+    core.warning(`Ignoring unsupported GH_AW_INFO_ENGINE_HARNESS: ${JSON.stringify(process.env.GH_AW_INFO_ENGINE_HARNESS)}`);
+  }
+  // workflow_ref is the executing workflow reference (job.workflow_ref), distinct from caller_workflow_ref.
+  if (workflowId) {
+    awInfo.workflow_ref = workflowId;
+  }
+  const serverUrl = parseServerUrl(ctx.serverUrl || process.env.GITHUB_SERVER_URL);
+  if (serverUrl) {
+    awInfo.server_url = serverUrl;
+  }
+  // Configured routing, model policy and budget, published even when routing is disabled or later fails.
+  const modelConfig = parseCompiledModelConfig(process.env.GH_AW_INFO_MODEL_CONFIG, process.env.GH_AW_INFO_MAX_AI_CREDITS, message => core.warning(message));
+  if (modelConfig) {
+    awInfo.model_config = modelConfig;
+  }
+
   // Include aw_context when the workflow was triggered by a caller that relayed
   // orchestration context via workflow inputs or repository_dispatch client payload.
   // Validates JSON format and structure before populating the context key in aw_info.json.
   const queueRuntime = process.env.GH_AW_WORK_QUEUE_ENABLED === "true" ? resolveWorkQueueRuntime(ctx.payload) : null;
+  const webhookContext = normalizeWebhookContext(readInboundAwContext(ctx.payload));
   const awContextRaw = ctx.payload?.inputs?.aw_context ?? ctx.payload?.client_payload?.aw_context;
   let expressionAwContext = "{}";
   if (awContextRaw != null) {
     try {
       let parsed = typeof awContextRaw === "string" ? JSON.parse(awContextRaw) : awContextRaw;
+      if (webhookContext) parsed = { ...parsed, ...webhookContext, item_type: "", item_number: "", comment_id: "", comment_node_id: "" };
 
       // Validate: must be a plain non-null object (not an array or primitive)
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -204,9 +229,9 @@ async function main(core, ctx, githubClient) {
           parsed = null;
         }
         if (parsed !== null) {
-          // Only the schema-checked queue assignment may contain nested data.
+          // Only validated batch context and queue assignments may contain nested data.
           const nestedKeys = Object.entries(parsed)
-            .filter(([k, v]) => k !== (queueRuntime ? "work_queue_assignment" : "work_queue") && v !== null && typeof v === "object")
+            .filter(([k, v]) => k !== (queueRuntime ? "work_queue_assignment" : "work_queue") && !(webhookContext && ["webhook", "items"].includes(k)) && v !== null && typeof v === "object")
             .map(([k]) => k);
           if (nestedKeys.length > 0) {
             core.warning(`aw_context contains nested objects for keys: ${nestedKeys.join(", ")}. Ignoring aw_context.`);
@@ -215,7 +240,7 @@ async function main(core, ctx, githubClient) {
             // Validate: required fields must be present
             const requiredFields = ["run_id", "repo", "workflow_id"];
             const missingFields = requiredFields.filter(f => !(f in parsed));
-            if (missingFields.length > 0) {
+            if (missingFields.length > 0 && !webhookContext) {
               core.warning(`aw_context is missing required fields: ${missingFields.join(", ")}. Ignoring aw_context.`);
             } else {
               awInfo.context = parsed;
@@ -224,7 +249,7 @@ async function main(core, ctx, githubClient) {
         }
       }
     } catch {
-      core.warning(`Failed to parse aw_context input as JSON: ${String(awContextRaw)}`);
+      core.warning("Failed to parse aw_context input as JSON.");
     }
   }
   core.setOutput("aw_context", expressionAwContext);
@@ -302,8 +327,23 @@ async function main(core, ctx, githubClient) {
     }
   }
 
+  /**
+   * Keep only the origin of an http(s) server URL.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function parseServerUrl(value) {
+    if (typeof value !== "string" || !value) return "";
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:" ? url.origin : "";
+    } catch {
+      return "";
+    }
+  }
+
   core.info("Generated aw_info.json at: " + tmpPath);
-  core.info(JSON.stringify(awInfo, null, 2));
+  core.info(JSON.stringify({ ...awInfo, ...(awInfo.context ? { context: redactWebhookPayloads(awInfo.context) } : {}) }, null, 2));
 
   // Set model and engine_id as outputs for reuse in other steps/jobs
   core.setOutput("model", awInfo.model);

@@ -40,7 +40,7 @@ permissions: read
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "permissions: read-all")
+	assertPolicyCodemodValue(t, result, "read-all", "permissions")
 	assert.NotContains(t, result, "permissions: read\n")
 }
 
@@ -64,7 +64,7 @@ permissions: write
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "permissions: write-all")
+	assertPolicyCodemodValue(t, result, "write-all", "permissions")
 	assert.NotContains(t, result, "permissions: write\n")
 }
 
@@ -222,7 +222,7 @@ permissions: write-all
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "permissions: read-all")
+	assertPolicyCodemodValue(t, result, "read-all", "permissions")
 	assert.NotContains(t, result, "write-all")
 }
 
@@ -246,7 +246,7 @@ permissions: write
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "permissions: read")
+	assertPolicyCodemodValue(t, result, "read", "permissions")
 	assert.NotContains(t, result, "permissions: write")
 }
 
@@ -275,8 +275,8 @@ permissions:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "contents: read")
-	assert.Contains(t, result, "issues: read")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "issues")
 	assert.NotContains(t, result, "contents: write")
 }
 
@@ -307,9 +307,9 @@ permissions:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "contents: read")
-	assert.Contains(t, result, "pull-requests: read")
-	assert.Contains(t, result, "issues: read")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "pull-requests")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "issues")
 }
 
 func TestWritePermissionsCodemod_NoPermissionsField(t *testing.T) {
@@ -388,8 +388,10 @@ permissions:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "  contents: read")
-	assert.Contains(t, result, "  issues: read")
+	assert.Contains(t, result, "\n  contents:")
+	assert.Contains(t, result, "\n  issues:")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "issues")
 }
 
 func TestWritePermissionsCodemod_PreservesComments(t *testing.T) {
@@ -417,8 +419,10 @@ permissions:
 
 	require.NoError(t, err)
 	assert.True(t, applied)
-	assert.Contains(t, result, "contents: read  # Write access for commits")
-	assert.Contains(t, result, "issues: read  # Read-only for issues")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
+	assert.Contains(t, result, "# Write access for commits")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "issues")
+	assert.Contains(t, result, "# Read-only for issues")
 }
 
 func TestWritePermissionsCodemod_PreservesMarkdown(t *testing.T) {
@@ -534,8 +538,8 @@ permissions:
 
 	require.NoError(t, err, "codemod should not return an error")
 	assert.True(t, applied, "codemod should be applied when non-write-only permissions have write")
-	assert.Contains(t, result, "contents: read", "contents permission should be downgraded from write to read")
-	assert.Contains(t, result, "issues: read", "issues permission should be downgraded from write to read")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "issues")
 	// id-token must remain write — "read" is not a valid value for it
 	assert.Contains(t, result, "id-token: write", "id-token permission should remain write after codemod")
 	assert.NotContains(t, result, "id-token: read", "id-token should never be converted to read")
@@ -566,7 +570,7 @@ permissions:
 
 	require.NoError(t, err, "codemod should not return an error")
 	assert.True(t, applied, "codemod should be applied when non-write-only permissions have write")
-	assert.Contains(t, result, "contents: read", "contents permission should be downgraded from write to read")
+	assertPolicyCodemodValue(t, result, "read", "permissions", "contents")
 	// copilot-requests must remain write — "read" is not a valid value for it
 	assert.Contains(t, result, "copilot-requests: write", "copilot-requests permission should remain write after codemod")
 	assert.NotContains(t, result, "copilot-requests: read", "copilot-requests should never be converted to read")

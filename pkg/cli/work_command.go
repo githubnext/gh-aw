@@ -30,7 +30,8 @@ type nativeDeliveryHostKey struct{}
 // point. An embedding host supplies approved callbacks, never a CLI receipt
 // filename, verifier executable, digest, or actor/source assertion.
 func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *cobra.Command {
-	cmd := &cobra.Command{
+	var root *cobra.Command
+	root = &cobra.Command{
 		Use: "work-queue", Aliases: []string{"work"}, Short: "Inspect and publish the current fair Git-backed DAG work queue",
 		Long: "Inspect and publish the current fair Git-backed DAG work queue.\n\n" +
 			"Direct claim and operator finish are unsupported. Use dispatch-next for mandatory\n" +
@@ -47,21 +48,30 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 			if storage != "git" {
 				return errors.New("unsupported_backend: work queues require Git storage; Issues storage is not supported")
 			}
+			repo, _ := cmd.Flags().GetString("repo")
+			fileReplay := cmd.Name() == "replay" && cmd.Flags().Changed("file")
+			if repo == "" && cmd.Parent() == root && !fileReplay {
+				repo, err := getWorkQueueRepoSlug()
+				if err != nil {
+					return err
+				}
+				return cmd.Flags().Set("repo", repo)
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
-	cmd.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
-	cmd.PersistentFlags().String("storage", "git", "Queue storage (git only)")
-	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
-	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
-	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
+	root.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	root.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
+	root.PersistentFlags().String("storage", "git", "Queue storage (git only)")
+	root.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
+	root.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
+	root.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
-		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
-	return cmd
+		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workSyncIssuesCommand(), workTUICommand())
+	return root
 }
 
 func workBranch(cmd *cobra.Command) workqueue.Branch {
@@ -736,7 +746,7 @@ func workReconcileCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return workPrint(cmd, result, result.Reason+"; Work "+workID)
+				return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; Work "+workID)
 			}
 			var result workqueue.Reconciliation
 			if cancelReserved {
@@ -747,7 +757,7 @@ func workReconcileCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return workPrint(cmd, result, result.Reason+"; dispatch "+id)
+			return workPrintTerminalPublication(cmd, result.Publication, result, result.Reason+"; dispatch "+id)
 		},
 	}
 	cmd.Flags().String("dispatch-id", "", "Immutable native reservation identity")

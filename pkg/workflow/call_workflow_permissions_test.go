@@ -93,7 +93,7 @@ func TestExtractJobPermissionsFromParsedWorkflow_NoPermissionsOnJobs(t *testing.
 	assert.Empty(t, perms.RenderToYAML(), "Should return empty when jobs have no permissions")
 }
 
-func TestExtractCallWorkflowPermissionImport_MDWithoutPermissionsReturnsNil(t *testing.T) {
+func TestExtractCallWorkflowPermissionImport_MDWithoutPermissionsIncludesActivation(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowsDir, 0755), "Failed to create workflows directory")
@@ -112,7 +112,9 @@ engine: copilot
 
 	imported, err := extractCallWorkflowPermissionImport("worker-no-perms", markdownPath)
 	require.NoError(t, err, "Should not error when markdown worker has no permissions")
-	assert.Nil(t, imported, "Should treat markdown workers with no permissions like other missing-import cases")
+	require.NotNil(t, imported)
+	assert.Contains(t, imported.permissions.RenderToYAML(), "contents: read")
+	assert.Contains(t, imported.permissions.RenderToYAML(), "id-token: write")
 }
 
 func TestExtractCallWorkflowPermissionImport_TracksReviewSource(t *testing.T) {
@@ -224,6 +226,7 @@ jobs:
 	assert.NotEmpty(t, job.Permissions, "Job should have permissions set")
 	assert.Contains(t, job.Permissions, "contents: write", "Permissions should include contents: write")
 	assert.Contains(t, job.Permissions, "issues: write", "Permissions should include issues: write")
+	assert.NotContains(t, job.Permissions, "id-token: write", "A lock-only worker without OIDC must not gain that permission")
 	assert.Contains(t, job.Permissions, "pull-requests: write", "Permissions should include pull-requests: write")
 }
 

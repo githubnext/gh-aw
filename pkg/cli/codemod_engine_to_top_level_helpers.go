@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 type migrateEngineFieldToTopLevelOptions struct {
@@ -16,98 +15,36 @@ type migrateEngineFieldToTopLevelOptions struct {
 	migratedMessage        string
 }
 
-func migrateEngineFieldToTopLevel(
-	content string,
-	frontmatter map[string]any,
-	opts migrateEngineFieldToTopLevelOptions,
-) (string, bool, error) {
-	engineValue, hasEngine := frontmatter["engine"]
-	if !hasEngine {
-		return content, false, nil
-	}
-	engineMap, ok := engineValue.(map[string]any)
-	if !ok {
-		return content, false, nil
-	}
-	if _, hasEngineField := engineMap[opts.engineField]; !hasEngineField {
-		return content, false, nil
-	}
-
-	hasPreservedTopLevelField := false
-	for _, field := range opts.preserveTopLevelFields {
-		if _, exists := frontmatter[field]; exists {
-			hasPreservedTopLevelField = true
-			break
+func migrateEngineFieldToTopLevel(content string, _ map[string]any, opts migrateEngineFieldToTopLevelOptions) (string, bool, error) {
+	return codemod.Apply(content, func(f *codemod.Frontmatter) error {
+		path := []string{"engine", opts.engineField}
+		if _, exists := f.Lookup(path...); !exists {
+			return nil
 		}
-	}
-
-	return applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if !isTopLevelKey(line) || !strings.HasPrefix(trimmed, "engine:") {
-				continue
-			}
-			inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmed, "engine:"))
-			if strings.HasPrefix(inlineValue, "{") && strings.Contains(inlineValue, opts.engineField+":") {
-				if opts.log != nil {
-					opts.log.Print(opts.skipInlineMessage)
-				}
-				return lines, false
-			}
-		}
-
-		fieldSuffix := ""
-		inEngineBlock := false
-		engineIndent := ""
-		engineFieldPrefix := opts.engineField + ":"
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
-				inEngineBlock = true
-				engineIndent = getIndentation(line)
-				continue
-			}
-			if inEngineBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(getIndentation(line)) <= len(engineIndent) {
-				inEngineBlock = false
-			}
-			if inEngineBlock && strings.HasPrefix(trimmed, engineFieldPrefix) {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					fieldSuffix = parts[1]
-				}
+		preserve := false
+		for _, key := range opts.preserveTopLevelFields {
+			if _, exists := f.Lookup(key); exists {
+				preserve = true
 				break
 			}
 		}
-
-		result, removed := removeFieldFromBlock(lines, opts.engineField, "engine")
-		if !removed {
-			return lines, false
-		}
-
-		if hasPreservedTopLevelField {
-			if opts.log != nil {
-				opts.log.Print(opts.removedMessage)
+		if preserve {
+			if err := f.Remove(path...); err != nil {
+				return err
 			}
-			return result, true
+		} else if err := f.Move(path, []string{opts.targetTopLevelField}); err != nil {
+			return err
 		}
-
-		insertAt := 0
-		for i, line := range result {
-			if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "engine:") {
-				insertAt = i
-				break
-			}
+		if err := f.PruneEmpty("engine"); err != nil {
+			return err
 		}
-
-		topLevelLine := opts.targetTopLevelField + ":" + fieldSuffix
-		withTopLevel := make([]string, 0, len(result)+1)
-		withTopLevel = append(withTopLevel, result[:insertAt]...)
-		withTopLevel = append(withTopLevel, topLevelLine)
-		withTopLevel = append(withTopLevel, result[insertAt:]...)
-
 		if opts.log != nil {
-			opts.log.Print(opts.migratedMessage)
+			if preserve {
+				opts.log.Print(opts.removedMessage)
+			} else {
+				opts.log.Print(opts.migratedMessage)
+			}
 		}
-		return withTopLevel, true
+		return nil
 	})
 }

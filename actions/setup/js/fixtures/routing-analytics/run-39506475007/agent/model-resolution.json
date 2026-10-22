@@ -1,0 +1,11 @@
+[
+  {
+    "engine": "copilot",
+    "role": "main",
+    "configured_model": "auto",
+    "resolved_model": "claude-sonnet-5.5",
+    "provider": "copilot",
+    "status": "resolved",
+    "cause": null
+  }
+]

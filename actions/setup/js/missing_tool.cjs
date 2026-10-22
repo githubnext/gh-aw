@@ -8,11 +8,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  */
 
 /** @type {string} Safe output type handled by this module */
-const HANDLER_TYPE = "missing_tool";
+const HANDLER_TYPE = "report_missing_tool";
 
 /**
- * Main handler factory for missing_tool
- * Returns a message handler function that processes individual missing_tool messages
+ * Main handler factory for report_missing_tool
+ * Returns a message handler function that processes individual report_missing_tool messages
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
@@ -25,15 +25,15 @@ async function main(config = {}) {
   let processedCount = 0;
 
   /**
-   * Message handler function that processes a single missing_tool message
-   * @param {Object} message - The missing_tool message to process
-   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number} (unused for missing_tool)
+   * Message handler function that processes a single report_missing_tool message
+   * @param {Object} message - The report_missing_tool message to process
+   * @param {Object} resolvedTemporaryIds - Map of temporary IDs to {repo, number} (unused for report_missing_tool)
    * @returns {Promise<Object>} Result with success/error status
    */
   return async function handleMissingTool(message, resolvedTemporaryIds) {
     // Check if we've hit the max limit
     if (maxCount > 0 && processedCount >= maxCount) {
-      core.warning(`Skipping missing_tool: max count of ${maxCount} reached`);
+      core.warning(`Skipping report_missing_tool: max count of ${maxCount} reached`);
       return {
         success: false,
         error: `Max count of ${maxCount} reached`,
@@ -42,7 +42,7 @@ async function main(config = {}) {
 
     // Validate required fields (only reason is required now)
     if (!message.reason) {
-      core.warning(`missing_tool message missing 'reason' field: ${JSON.stringify(message)}`);
+      core.warning(`report_missing_tool message missing 'reason' field: ${JSON.stringify(message)}`);
       return {
         success: false,
         error: "Missing required field: reason",

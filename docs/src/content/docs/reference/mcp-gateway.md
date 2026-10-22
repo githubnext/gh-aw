@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.17.0
+**Version**: 1.18.0
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -234,6 +234,11 @@ Each server configuration MUST support:
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
 
+The `stdioServerConfig.container` schema field accepts an image reference with an optional tag and an optional digest: `image[:tag][@sha256:<64 hex>]`. The `@sha256:<64 hex>` suffix is valid with or without a tag and MUST contain exactly 64 hexadecimal characters (`0-9`, `a-f`, or `A-F`) after `sha256:`. References without a digest remain valid.
+
+> [!NOTE]
+> Digest-pinned server images require MCP Gateway v0.4.36 or later, which includes the [upstream schema validation fix](https://github.com/github/gh-aw-mcpg/pull/15212). The default gateway version includes this fix. Container digests are preserved in generated server configurations, including replacements configured through `container_pins`.
+
 **Note**: The `command` field is NOT supported. Stdio servers MUST use the `container` field to specify a containerized MCP server. Direct command execution is not supported by this specification.
 
 #### 4.1.3 Gateway Configuration Fields
@@ -382,6 +387,8 @@ payload_size_threshold = 262144   # 256KB - more aggressive disk storage
 
 The optional `trustedBots` field in the gateway configuration passes an additional list of GitHub bot identity strings to the gateway. The gateway merges this list with its own built-in trusted identity list to form the effective set of identities it recognizes.
 
+Workflow frontmatter accepts only the kebab-case `sandbox.mcp.trusted-bots` key. The compiler translates it into camelCase `gateway.trustedBots` in the generated gateway JSON; `trustedBots` is not a frontmatter alias.
+
 > **Important**: `trustedBots` is **additive**. The gateway maintains its own internal list of trusted bot identities. The `trustedBots` field extends that internal list with additional identities; it cannot remove or override the gateway's built-in trusted identities.
 
 **Configuration Example**:
@@ -402,17 +409,30 @@ The optional `trustedBots` field in the gateway configuration passes an addition
 
 **Frontmatter Example** (workflow author):
 
-```yaml
+```aw wrap title=".github/workflows/trusted-bots.md"
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  issues: read
+engine: copilot
+tools:
+  github:
+    toolsets: [issues]
 sandbox:
   mcp:
     trusted-bots:
       - github-actions[bot]
       - copilot-swe-agent[bot]
+---
+
+Summarize the open issues in this repository.
 ```
 
 **Requirements**:
 - `trustedBots` MUST be a non-empty array of strings when present
 - Each entry MUST be a non-empty string (typically a GitHub username such as `github-actions[bot]`)
+- When configured through workflow frontmatter, entries MUST contain only ASCII letters, digits, hyphens, or underscores, optionally followed by `[bot]`. The compiler also validates these characters before rendering the gateway configuration to prevent shell expansion.
 - `trustedBots` entries are **merged** with the gateway's internal built-in trusted identities to form the effective list passed to the gateway
 - `trustedBots` MUST NOT be used to remove or override entries in the gateway's internal built-in trusted identity list
 
@@ -1304,15 +1324,27 @@ In this case, the audience defaults to `"https://my-server.example.com/mcp"`.
 
 **Frontmatter Example** (workflow author):
 
-```yaml
-tools:
-  mcp-servers:
-    my-mcp-server:
-      type: http
-      url: "https://my-server.example.com/mcp"
-      auth:
-        type: github-oidc
-        audience: "https://my-server.example.com"
+```aw wrap title=".github/workflows/oidc-mcp.md"
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  id-token: write
+engine: copilot
+network:
+  allowed:
+    - defaults
+    - my-server.example.com
+mcp-servers:
+  my-mcp-server:
+    type: http
+    url: "https://my-server.example.com/mcp"
+    auth:
+      type: github-oidc
+      audience: "https://my-server.example.com"
+---
+
+Use my-mcp-server to summarize the available project information.
 ```
 
 #### 7.6.2 Interaction with Static Headers
@@ -2308,6 +2340,13 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.18.0 (Draft)
+
+- **Changed**: `stdioServerConfig.container` accepts an optional `@sha256:<64 hex>` suffix, with or without a tag (Section 4.1.2)
+- **Updated**: JSON Schema — container image patterns in both canonical schema copies accept digest-pinned references
+- **Changed**: Generated MCP server configurations preserve explicit, resolved, and mapped container digests instead of stripping them for older gateways
+- **Requires**: MCP Gateway v0.4.36 or later for digest-pinned server images; the default gateway version includes the upstream fix
 
 ### Version 1.17.0 (Draft)
 

@@ -89,6 +89,21 @@ Missing root fields remain unknown; the CLI does not infer a canonical root from
 
 Both compact and verbose JSON retain all canonical episode and edge details, including single-run episodes. `total_duration` sums execution durations rather than measuring wall-clock time between the first and last hop.
 
+To expand a selected run into a bounded episode selection, use
+[`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
+The collector follows recorded parents and roots and scans explicitly allowed
+repositories for canonical members within a fixed time window. Candidate-run,
+request, and timeout caps are reported in `episode_retrieval`; reaching them
+qualifies coverage rather than presenting the observed total as a complete
+episode cost.
+
+`episodes[].explanation` separates recorded hops from `run_costs`. Reusable
+workflow hops can share a run ID; that run's tokens and AI credits appear once
+in the accounting list and are not attributed to individual hops.
+`gh aw logs episode <run-id-or-url> --view hops` shows the same evidence and gaps.
+Repeated queries reuse the cached snapshot without GitHub requests; use
+`--refresh` to recollect rather than treating cached costs as current.
+
 The episode-level `root_run_id` and `primary_workflow` fields have been removed. Migrate selected-data consumers to `representative_run_id` and `representative_workflow`; use `recorded_roots[]` for canonical root claims. Historical data without `context.episode_id` remains available for per-run analysis but is not backfilled into synthetic episodes.
 
 `--count` defaults to 10 even with a date filter. Choose a larger explicit count and inspect `.continuation` or `.continuations[]` before interpreting a date-window report. Continuing a query can recover more selected data, but neither an exhausted cursor nor high lineage confidence proves that all episode descendants were observed.
@@ -259,6 +274,8 @@ An enterprise-wide default can be set with the compiler process environment vari
 
 Use `max-daily-ai-credits` to set a 24-hour AI Credits cap for one workflow. The guardrail sums runs from the past 24 hours of the same workflow across the repository, regardless of who triggered them.
 
+When a configured [admission service](/gh-aw/specs/admission-service-specification/) returns a valid approval, that decision supersedes daily validation for the current activation. The daily scan and its preparatory API work are skipped, but usage collection and historical ledger publication continue. Admission-disabled runs and ignored admission outages still use the daily guardrail below; denial or invalid approval blocks activation. The primary and optional threat-detection/evals allowances are passed to existing jobs and replace their respective runtime credit limits; omitted optional allowances retain the configured component limits.
+
 ```aw wrap
 max-daily-ai-credits: 15M
 ```
@@ -268,7 +285,7 @@ When the total from the past 24 hours exceeds this threshold, activation reports
 When omitted, the guardrail inherits the default daily limit (5000 AI Credits unless overridden). Positive values accept plain integers or `K`/`M` suffixes such as `100M`.
 
 > [!CAUTION]
-> Every activation lists the current 24-hour window (up to 10 pages of 100 completed runs). A cold scan also reads usage artifacts. Activation publishes all resolved observations, including nonzero usage, so later scans can reuse them without reading each historical artifact again.
+> Every activation requiring daily fallback lists the current 24-hour window (up to 10 pages of 100 completed runs). A cold scan also reads usage artifacts. Activation publishes all resolved observations, including nonzero usage, so later scans can reuse them without reading each historical artifact again.
 
 Scan snapshots are optional accelerators, not authoritative daily totals. Each record must match the repository, workflow, run attempt, and completed-run timestamps. Missing, expired, and incomplete snapshots require resolving the missing records. The artifact fallback accepts the same workflow's `pull_request_target` runs and default-branch `push`, `schedule`, or `workflow_dispatch` runs; contributor-controlled `pull_request` snapshots are not trusted. This storage path does not require writable Actions cache scopes.
 
@@ -277,6 +294,14 @@ An incomplete history, permanent API failure, or quota restriction stops activat
 Activation logs identify artifact discovery and accounting failures with the underlying error and guidance to check Actions read permissions, artifact retention, and accounting coverage. The activation summary separates recorded usage, confirmed-zero runs, and conservative estimates. The exceeded-guardrail log also reports measured and assumed AIC separately. These totals are guardrail accounting, not provider billing; reconcile charges with the provider.
 
 Cold scans check the compiler-owned `agent`, `detection`, and `evals` jobs independently. Every executed component needs valid accounting; empty collector placeholders and evaluation results alone do not prove zero usage. Raw token usage takes precedence over overlapping summaries. Invalid numeric fields make the accounting unknown. Failed-only reruns retain successful components from earlier attempts, but a rerun component needs a producer artifact from its own job execution. Missing carried-forward usage remains unknown. Older snapshots without component-coverage validation are not reused.
+
+#### Repo-Memory Bootstrap
+
+With `max-daily-ai-credits.backend: repo-memory`, a missing memory branch does not require an insecure override. After the clone step confirms the branch is absent, activation checks authoritative workflow history and usage artifacts under the same daily limit. This requires Actions read access and fails closed on incomplete accounting or API restrictions.
+
+Recompile existing workflows after upgrading so activation receives the clone result required for secure bootstrap.
+
+The trusted memory writer records when ledger coverage starts. New branches and existing ledgers without coverage metadata continue using artifact accounting until that coverage is at least 24 hours old; subsequent activations use the trusted cloned ledger. This prevents a new empty ledger from erasing recent spending. Preserve the coverage files under `daily-aic-ledger/` with the JSONL shards. Do not enable `GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC` or `continue-on-error` to bootstrap.
 
 To disable the guardrail explicitly, set `-1`:
 

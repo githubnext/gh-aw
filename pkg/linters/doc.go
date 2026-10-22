@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 82 active analyzers:
+// All 84 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
@@ -23,6 +23,7 @@
 //   - execcommandwithoutcontext — flags exec.Command calls inside functions that already receive context.Context
 //   - fileclosenotdeferred — flags file Close() calls that are not deferred
 //   - fmterrorfnoverbs — flags fmt.Errorf calls with no format verbs, recommending errors.New
+//   - formatintitoa — flags strconv.FormatInt(int64(x), 10) for int arguments that should use strconv.Itoa
 //   - fprintferrorunchecked — flags fmt.Fprintf/Fprint/Fprintln assignments that explicitly discard all return values
 //   - fprintlnsprintf — flags fmt.Fprintln(..., fmt.Sprintf(...)) patterns
 //   - generatedyamlheredoc — flags shell heredocs embedded in generated workflow YAML and directs callers to JavaScript rendering
@@ -46,6 +47,7 @@
 //   - nilctxpassed — flags function calls where nil is passed as a context.Context argument
 //   - osexitinlibrary — flags os.Exit calls in library packages
 //   - osgetenvlibrary — flags os.Getenv calls in library packages
+//   - osisnotexist — flags legacy os error predicates that should use errors.Is or errors.As for wrapped errors
 //   - ossetenvlibrary — flags os.Setenv calls in library packages
 //   - packagelevelmutableslicemap — reports mutation of package-level slice/map variables from inside function bodies, which risks data races and cross-call state leaks
 //   - panic-in-library-code — flags panic() calls in library packages

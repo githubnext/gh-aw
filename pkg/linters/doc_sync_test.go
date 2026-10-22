@@ -32,12 +32,14 @@ var notYetEnforced = map[string]string{
 	"errorfwrapv":                 "requires an enforcement audit after the recent false-positive fix (#51928)",
 	"errormessage":                "dedicated lint-error-messages CI job is intentionally advisory (continue-on-error per #54800)",
 	"excessivefuncparams":         "existing production violations need remediation before enforcement; nolint suppression already works",
+	"formatintitoa":               "existing FormatInt conversions need remediation before CI enforcement",
 	"fprintferrorunchecked":       "existing production violations need remediation before enforcement; nolint suppression already works",
 	"goroutineresourceleak":       "requires an enforcement-readiness audit before native and WebAssembly CI enable it",
 	"hardcodedfilepath":           "requires an enforcement audit after the same-package constant fix (#52428)",
 	"largefunc":                   "existing production violations need remediation before enforcement; nolint suppression already works",
 	"lenstringzero":               "requires an enforcement audit after the diagnostic-message fix (#54717)",
 	"manualpathconcat":            "existing production violations need remediation",
+	"osisnotexist":                "existing os error predicates need case-by-case review before CI enforcement",
 	"packagelevelmutableslicemap": "existing production violations need remediation",
 	"reflectdeepequalusage":       "existing reflect.DeepEqual uses need case-by-case review before CI enforcement",
 	"seenmapbool":                 "existing production violations need remediation",
@@ -162,18 +164,8 @@ func TestCIEnforcedLintersMatchTargets(t *testing.T) {
 	require.NotEmpty(t, native, "cgo.yml must enforce custom linters on native Go code")
 	require.NotEmpty(t, wasm, "cgo.yml must enforce custom linters on WebAssembly code")
 
-	// Track the pre-existing asymmetry separately from analyzers not enforced at all.
-	nativeOnly := map[string]string{
-		"contextcancelnotdeferred": "existing native-only enforcement is tracked in #65753; remove this exception when wasm enables it",
-	}
-	expectedNativeOnly := make(map[string]struct{}, len(nativeOnly))
-	for name, reason := range nativeOnly {
-		assert.NotEmptyf(t, reason, "native-only analyzer %q must have a reason", name)
-		expectedNativeOnly[name] = struct{}{}
-	}
-	assert.Equal(t, sortedKeys(expectedNativeOnly), linterSetDifference(native, wasm),
-		"native and wasm CI must enforce the same custom linters except documented native-only exceptions; "+
-			"mirror dedicated steps as well as bulk flags, and remove exceptions once parity is restored")
+	assert.Empty(t, linterSetDifference(native, wasm),
+		"native and wasm CI must enforce the same custom linters; mirror dedicated steps as well as bulk flags")
 	assert.Empty(t, linterSetDifference(wasm, native),
 		"wasm CI must not enforce custom linters missing from native CI")
 }

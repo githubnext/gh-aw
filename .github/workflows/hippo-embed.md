@@ -43,7 +43,7 @@ tools:
 steps:
   - name: Install @xenova/transformers
     run: |
-      npm install -g @xenova/transformers
+      npm install -g @xenova/transformers@2.17.2
 
 imports:
   - shared/pmg.md

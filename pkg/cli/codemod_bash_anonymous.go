@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var bashAnonymousCodemodLog = logger.New("cli:codemod_bash_anonymous")
@@ -38,7 +39,9 @@ func getBashAnonymousRemovalCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, replaceBashAnonymousWithTrue)
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return f.Set([]string{"tools", "bash"}, true)
+			})
 			if applied {
 				bashAnonymousCodemodLog.Print("Applied bash anonymous removal, replaced with 'bash: true'")
 			}

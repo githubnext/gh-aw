@@ -36,20 +36,19 @@ type HealthConfig struct {
 	explicitTimeWindow bool
 }
 
-// NewHealthCommand creates the health command
-func NewHealthCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "health [workflow]",
-		Short: "Display workflow health metrics and success rates",
-		Long: `Display workflow health metrics, success rates, and execution trends.
+const healthCommandDescription = `Display workflow health metrics, success rates, and execution trends.
 
 Shows health metrics for workflows including:
 - Current-revision success/failure rates from recent runs
-- Revision-aware recovery evidence, shared failure clusters, and cached sub-agent failures
+- Revision-aware recovery evidence, shared job/step failure clusters, and cached sub-agent failures
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
 - Warnings when success rate drops below threshold
+- Work-queue diagnostics when a selected published workflow uses work-queue
 
+Inventories failure signals from run-list payloads, verifies one representative
+per branch/event, then samples successful and pending runs. Reuses local Git
+objects when the checkout matches the target, with GitHub API fallback.
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
 
@@ -57,9 +56,29 @@ Use --start-date and --end-date to bound run creation times. Accepts UTC dates,
 RFC3339 timestamps, or relative times such as -24h and -1w. An explicit start
 replaces --days; otherwise --days counts backward from --end-date (default: now).
 The report remains a bounded current-revision sample, not an exhaustive history.
+Health compares each workflow's Markdown source with its pushed branch version,
+stops at source changes, and excludes superseded failures from investigation.
+An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
+PR cancellations are ignored only with merge/closure or head-deletion evidence
+during the attempt and complete jobs without genuine failures. Failed PR checkouts
+require an explicit closed-PR diagnostic and matching closure evidence. Ignored
+runs are not successes. Unavailable lifecycle evidence remains explicit and the
+run is retained. Lifecycle requests are cached and capped at 40 per collection,
+including targeted failed-checkout job logs; no artifacts are downloaded.
+Job-presence checks do not decode job/step details. Optional representative Jobs
+enrichment is best-effort: incomplete inventories warn and remain metadata-only
+unless compatible cached evidence is available. API quota and request limits
+still stop collection; primary inventory and presence errors remain errors.
 
-` + WorkflowIDExplanation,
+`
+
+// NewHealthCommand creates the health command
+func NewHealthCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "health [workflow]",
+		Short: "Display workflow health metrics and success rates",
+		Long:  healthCommandDescription + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` health                       # Current status of all workflows
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster         # Detailed metrics for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` health --days 30             # Look back at most 30 days
@@ -106,7 +125,7 @@ func addHealthFlags(cmd *cobra.Command) {
 	cmd.Flags().String("end-date", "", "Include runs created at or before this UTC date, RFC3339 timestamp, or relative time (default: now)")
 	cmd.MarkFlagsMutuallyExclusive("days", "start-date")
 	cmd.Flags().Float64("threshold", 80.0, "Success rate threshold for warnings (percentage)")
-	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering and sub-agent failures (no artifact downloads)")
+	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering and sub-agent failures (reports cache compatibility; no artifact downloads)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 }
@@ -128,10 +147,14 @@ func RunHealth(config HealthConfig) error {
 
 	// Fetch workflow runs from GitHub
 	config.collection = &HealthCollection{
-		Host:        normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
-		StartDate:   config.StartDate,
-		EndDate:     config.EndDate,
-		MaximumDays: max(1, int(math.Ceil(end.Sub(start).Hours()/24))),
+		ProducerVersion:     GetVersion(),
+		ReportSchemaVersion: 1,
+		ObservedAt:          time.Now().UTC(),
+		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering", "work_queue"},
+		Host:                normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
+		StartDate:           config.StartDate,
+		EndDate:             config.EndDate,
+		MaximumDays:         max(1, int(math.Ceil(end.Sub(start).Hours()/24))),
 	}
 	if err := discoverHealthWorkflows(&config); err != nil {
 		return err
@@ -140,6 +163,7 @@ func RunHealth(config HealthConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow runs: %w", err)
 	}
+	collectHealthWorkQueue(config.collection)
 
 	if len(runs) == 0 && len(config.collection.workflows) == 0 && !config.collection.Partial {
 		if config.WorkflowName != "" {
@@ -151,6 +175,9 @@ func RunHealth(config HealthConfig) error {
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflow runs found created from %s to %s", config.StartDate, config.EndDate)))
+			if config.JSONOutput {
+				return displayHealthSummary(runs, config)
+			}
 		}
 		return nil
 	}
@@ -250,6 +277,8 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 func displayDetailedHealthStatus(health WorkflowHealth, threshold float64) {
 	if health.SubagentFailureCount > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d sub-agent invocation(s) failed across %d run(s); Actions success rate does not establish healthy delegation", health.SubagentFailureCount, health.SubagentFailureRuns)))
+	} else if health.Status == "no_current_revision_runs" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Current workflow revision has no matching runs; awaiting new evidence instead of investigating superseded failures"))
 	} else if health.BelowThresh {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Success rate (%.1f%%) is below threshold (%.1f%%)", health.SuccessRate, threshold)))
 	} else if health.Status == "healthy" || health.Status == "recovery_observed" {
@@ -279,13 +308,18 @@ func outputHealthTable(summary HealthSummary, threshold float64) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Display summary message
+	fmt.Fprintf(os.Stderr, "[health_population] workflows=%d healthy=%d observed_failure_workflows=%d subagent_degraded_workflows=%d statuses=%v\n",
+		summary.TotalWorkflows, summary.HealthyWorkflows, summary.ObservedFailureWorkflows, summary.DegradedWorkflows, summary.StatusCounts)
+	if summary.ObservedFailureWorkflows > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) have sampled current-revision Actions failures", summary.ObservedFailureWorkflows)))
+	}
 	if summary.DegradedWorkflows > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) have failed sub-agent invocations across %d run(s)", summary.DegradedWorkflows, summary.SubagentFailureRuns)))
 	}
 	if summary.BelowThreshold > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) below %.0f%% success threshold", summary.BelowThreshold, threshold)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run '%s health <workflow-name>' for details", string(constants.CLIExtensionPrefix))))
-	} else if summary.DegradedWorkflows == 0 && summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
+	} else if summary.ObservedFailureWorkflows == 0 && summary.DegradedWorkflows == 0 && summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All evaluated workflows above %.0f%% success threshold", threshold)))
 	} else if summary.InsufficientWorkflows > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflows have insufficient current-revision evidence", summary.InsufficientWorkflows)))

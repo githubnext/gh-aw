@@ -16,7 +16,7 @@ const { scanDailyAIC } = require("./daily_aic_scan.cjs");
 const { API_READ_OPERATIONS, createAPIBudget, retryNotBefore, safeResponseHeaders, isQuotaError, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
 const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 const { loadBillableJobs, allBillableJobsNotStarted, allBillableJobsSkipped, sumCoveredComponents } = require("./daily_aic_component_coverage.cjs");
-const { readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
+const { readLedgerEntries, readLedgerCoverageStart, WINDOW_MS } = require("./daily_aic_repo_memory_ledger.cjs");
 
 const PRIMARY_GUARDRAIL_ARTIFACT_NAMES = ["usage"];
 const MAX_WORKFLOW_RUN_PAGES = 10;
@@ -711,34 +711,48 @@ async function main(options = {}) {
 
   const token = process.env.GH_AW_GITHUB_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
   const backend = dailyAICBackend();
-  if (!token && backend !== REPO_MEMORY_BACKEND) {
-    const message = "Daily workflow AI Credits are unknown: no artifact lookup token.";
-    core.setOutput("daily_ai_credits_guardrail_status", "structural_error");
-    core.setOutput("daily_ai_credits_guardrail_error", message);
-    core.setFailed(message);
-    return;
-  }
 
   // Quota and permanent API failures stop the scan; transient historical reads
   // may use conservative per-run estimates after bounded retries.
   try {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || process.env.GH_AW_WORKFLOW_ID || "workflow";
     let actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || process.env.GITHUB_ACTOR || "";
+    const repository = `${context.repo.owner}/${context.repo.repo}`;
+    const workflowId = process.env.GH_AW_WORKFLOW_ID || workflowName;
+    const repoMemoryDir = options.repoMemoryDir || process.env.GH_AW_DAILY_AIC_REPO_MEMORY_DIR;
+    let useLedger = false;
     if (backend === REPO_MEMORY_BACKEND) {
       const trustedLedger = process.env.GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED === "true";
+      const branchMissing = process.env.GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING === "true";
       const allowInsecureLedger = process.env.GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC === "true";
-      if (!trustedLedger && !allowInsecureLedger) {
-        const message = "Daily workflow AI Credits repo-memory ledger is untrusted; set GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC to true to explicitly allow it.";
+      if (!trustedLedger && !branchMissing && !allowInsecureLedger) {
+        const message = "Daily workflow AI Credits repo-memory ledger is untrusted; restore a trusted ledger branch or verify that the branch is absent before artifact-backed bootstrap.";
         core.setOutput("daily_ai_credits_guardrail_status", "structural_error");
         core.setOutput("daily_ai_credits_guardrail_error", message);
         core.setFailed(message);
         return;
       }
-      const repository = `${context.repo.owner}/${context.repo.repo}`;
+      const coverageStart = trustedLedger && !allowInsecureLedger ? readLedgerCoverageStart({ repoMemoryDir, repository, workflowId }) : null;
+      useLedger = allowInsecureLedger || (trustedLedger && coverageStart !== null && coverageStart <= Date.now() - WINDOW_MS);
+      if (!useLedger) {
+        logDailyGuardrail("Bootstrapping repo-memory AIC with authoritative artifact accounting", {
+          reason: branchMissing ? "branch_missing" : coverageStart === null ? "coverage_unavailable" : "coverage_warming",
+          requiredCoverageHours: 24,
+        });
+      }
+    }
+    if (!token && !useLedger) {
+      const message = "Daily workflow AI Credits are unknown: no artifact lookup token.";
+      core.setOutput("daily_ai_credits_guardrail_status", "structural_error");
+      core.setOutput("daily_ai_credits_guardrail_error", message);
+      core.setFailed(message);
+      return;
+    }
+    if (useLedger) {
       const countedRuns = readLedgerEntries({
-        repoMemoryDir: options.repoMemoryDir || process.env.GH_AW_DAILY_AIC_REPO_MEMORY_DIR,
+        repoMemoryDir,
         repository,
-        workflowId: process.env.GH_AW_WORKFLOW_ID || workflowName,
+        workflowId,
       }).map(entry => ({
         id: entry.run_id,
         html_url: entry.run_url || "",
@@ -787,6 +801,7 @@ async function main(options = {}) {
       token,
       fallbackAIC: maxAICredits,
       cachePath: options.cachePath,
+      recovery: options.recovery,
     });
     const totalAIC = calculateDailyAICStats(countedRuns).total;
     const estimatedAIC = countedRuns.reduce((sum, run) => sum + (run.source === "estimated" ? run.aic : 0), 0);

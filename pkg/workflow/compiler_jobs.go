@@ -131,6 +131,33 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 	return false
 }
 
+// getJobsDependingOnAgent includes the agent and every job that transitively needs it.
+func getJobsDependingOnAgent(jobs map[string]any) map[string]struct{} {
+	dependents := make(map[string][]string)
+	for name, config := range jobs {
+		if job, ok := config.(map[string]any); ok {
+			for _, need := range parseNeedsField(job["needs"]) {
+				dependents[need] = append(dependents[need], name)
+			}
+		}
+	}
+
+	queue := []string{string(constants.AgentJobName)}
+	blocked := map[string]struct{}{string(constants.AgentJobName): {}}
+	for len(queue) > 0 {
+		current := queue[0] //nolint:uncheckedsliceindex // The loop requires a nonempty queue.
+		queue = queue[1:]
+		for _, name := range dependents[current] {
+			if setutil.Contains(blocked, name) {
+				continue
+			}
+			blocked[name] = struct{}{}
+			queue = append(queue, name)
+		}
+	}
+	return blocked
+}
+
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation
 // but NOT on activation. These jobs run after pre_activation but before activation, and activation
 // should depend on them. Jobs that also depend on activation cannot run before activation.
@@ -294,6 +321,13 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// inspect the processed "on" field for activation decisions.
 	frontmatter := data.RawFrontmatter
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
+
+	if err := c.addGatewayProvenanceJob(data); err != nil {
+		return err
+	}
+	if err := c.addGatewayAdmissionJob(data); err != nil {
+		return err
+	}
 
 	if err := c.resolveSafeOutputActionSchemas(data, markdownPath); err != nil {
 		return fmt.Errorf("failed to resolve safe-output action schemas: %w", err)
@@ -479,16 +513,10 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	//   - skip-roles/bots checks, rate limit check, command position check
 	//   - on.steps injection, label-names filter
 	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasSkipAuthorAssociations || hasCommandTrigger || hasRateLimit || hasCooldown || hasOnSteps || hasOnNeeds || hasLabelNames {
-		compilerJobsLog.Print("Building pre-activation job")
-		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
+		preActivationJobCreated, err = c.addPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
-			return false, false, fmt.Errorf("%s job could not be built: %w. Check the activation-related frontmatter fields (roles, if, stop-time, etc.)", constants.PreActivationJobName, err)
+			return false, false, err
 		}
-		if err := c.jobManager.AddJob(preActivationJob); err != nil {
-			return false, false, fmt.Errorf("%s job could not be added: %w. Check that no other job in the workflow reuses its name", constants.PreActivationJobName, err)
-		}
-		compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
-		preActivationJobCreated = true
 	}
 
 	// Determine if we need to add workflow_run repository safety check
@@ -501,18 +529,27 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	// Build activation job if needed (preamble job that handles runtime conditions)
 	if c.isActivationJobNeeded() {
 		compilerJobsLog.Print("Building activation job")
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
-		if err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be built: %w. Check the workflow triggers and activation-related frontmatter fields", err)
-		}
-		if err := c.jobManager.AddJob(activationJob); err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be added: %w. Check that no other job in the workflow reuses its name", err)
+		if err := c.buildActivationAndAdmissionJobs(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename); err != nil {
+			return preActivationJobCreated, false, err
 		}
 		compilerJobsLog.Print("Successfully added activation job")
 		activationJobCreated = true
 	}
 
 	return preActivationJobCreated, activationJobCreated, nil
+}
+
+func (c *Compiler) addPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (bool, error) {
+	compilerJobsLog.Print("Building pre-activation job")
+	preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
+	if err != nil {
+		return false, fmt.Errorf("%s job could not be built: %w. Check the activation-related frontmatter fields (roles, if, stop-time, etc.)", constants.PreActivationJobName, err)
+	}
+	if err := c.jobManager.AddJob(preActivationJob); err != nil {
+		return false, fmt.Errorf("%s job could not be added: %w. Check that no other job in the workflow reuses its name", constants.PreActivationJobName, err)
+	}
+	compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
+	return true, nil
 }
 
 // buildMainJobWrapper builds the main workflow job and adds it to the job manager.
@@ -745,12 +782,13 @@ func (c *Compiler) updateConclusionJobDependencies(pushRepoMemoryJobName, pushLe
 }
 
 // ensureConclusionIsLastJob ensures the conclusion job depends on ALL other workflow jobs,
-// making it truly the last job to execute. This is a final-pass check that catches any
-// custom or auto-generated jobs that were not explicitly added to conclusion's needs
-// during the incremental build process (e.g. user-defined post-agent jobs).
+// except its isolated admission callback, making the callback the final dependent job.
+// This is a final-pass check that catches any custom or auto-generated jobs that were not
+// explicitly added to conclusion's needs during the incremental build process.
 //
 // Jobs intentionally excluded:
 //   - "conclusion" itself
+//   - the isolated conclusion-admission callback, which runs after conclusion
 //   - "pre_activation" / "pre-activation" – runs at the very start, before activation
 func (c *Compiler) ensureConclusionIsLastJob() error {
 	conclusionJob, exists := c.jobManager.GetJob("conclusion")
@@ -769,10 +807,11 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	// Jobs that must never appear in conclusion's needs
 	exclude := map[string]struct {
 	}{
-		"conclusion":                           {},
-		string(constants.GradersJobName):       {},
-		string(constants.PreActivationJobName): {},
-		"pre-activation":                       {},
+		"conclusion": {},
+		string(constants.ConclusionAdmissionJobName): {},
+		string(constants.GradersJobName):             {},
+		string(constants.PreActivationJobName):       {},
+		"pre-activation":                             {},
 	}
 
 	// Iterate over all jobs in alphabetical order for deterministic output

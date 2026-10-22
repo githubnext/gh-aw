@@ -80,6 +80,17 @@ func TestWorkQueueArtifactReplayLocalPredictsWithoutPublishingOrExposingPayloads
 	require.Equal(t, data, after)
 }
 
+func TestWorkCommandFileReplayDoesNotRequireRepository(t *testing.T) {
+	data := workQueueReplayTestSnapshot(t)
+	t.Chdir(t.TempDir())
+	file := filepath.Join(".", workQueueSnapshotFile)
+	require.NoError(t, os.WriteFile(file, data, 0o600))
+	command := NewWorkCommand()
+	command.SetOut(io.Discard)
+	command.SetArgs([]string{"replay", "--file", file})
+	require.NoError(t, command.Execute())
+}
+
 func TestWorkQueueArtifactReplayDownloadsOnlyExactRunAndActivationSnapshot(t *testing.T) {
 	data := workQueueReplayTestSnapshot(t)
 	archive := workQueueReplayTestZIP(t, data, "../ignored", workQueueSnapshotFile)

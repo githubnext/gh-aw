@@ -21,7 +21,7 @@ engine:
   id: copilot
   fallback-models:
     - copilot/claude-sonnet-5
-    - copilot/gpt-5.4-mini
+    - copilot/gpt-5.3-codex
   copilot-sdk: true
   bare: true
 imports:
@@ -45,6 +45,21 @@ features:
 sandbox:
   agent:
     id: awf
+post-steps:
+  - name: Assert unified-session contract
+    if: always()
+    uses: actions/github-script@v9.0.0
+    with:
+      script: |
+        const path = require("node:path");
+        const { sessionContractMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
+        await sessionContractMain({
+          core,
+          engine: "copilot",
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: ["main"],
+        });
 ---
 
 # Smoke Test: Copilot SDK Engine Validation

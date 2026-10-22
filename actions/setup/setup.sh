@@ -210,6 +210,10 @@ fi
 
 echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
+if ! bash "${DESTINATION}/runtime_trust_inventory.sh"; then
+  echo "::warning::Runtime TLS inventory inspection failed; trust status unknown. Continuing setup; artifact-integrity checks remain required."
+fi
+
 # Copy prompt markdown files to their expected directory
 PROMPTS_DEST="${GH_AW_ROOT}/prompts"
 debug_log "Copying prompt markdown files to ${PROMPTS_DEST}"
@@ -244,6 +248,7 @@ MCP_SCRIPTS_FILES=(
   "mcp_scripts_mcp_server_http.cjs"
   "mcp_scripts_tool_factory.cjs"
   "mcp_server_core.cjs"
+  "safe_output_names.cjs"
   "mcp_dependencies_manager.cjs"
   "mcp_logger.cjs"
   "mcp_http_transport.cjs"
@@ -271,6 +276,11 @@ MCP_SCRIPTS_FILES=(
   "json_string_scanner.cjs"
   "mask_value_matcher.cjs"
   "aw_context.cjs"
+  "webhook_context.cjs"
+  "webhook_resource.cjs"
+  "gateway_command_webhook.cjs"
+  "github_notification_webhook.cjs"
+  "github_notification_webhooks.json"
   "diagnostic_sanitization.cjs"
   "experiment_helpers.cjs"
   "finish_work_queue_claim.cjs"
@@ -282,6 +292,7 @@ MCP_SCRIPTS_FILES=(
   "messages_core.cjs"
   "pi_session_redaction.cjs"
   "otlp_header_helpers.cjs"
+  "provider_issue_webhook.cjs"
   "redact_secrets.cjs"
   "safe_output_redaction.cjs"
   "safe_outputs_tools.json"
@@ -376,6 +387,7 @@ SAFE_OUTPUTS_FILES=(
   "optional_field_normalizer.cjs"
   "safe_outputs_bootstrap.cjs"
   "safe_outputs_tools_loader.cjs"
+  "safe_output_names.cjs"
   "safe_outputs_config.cjs"
   "safe_output_redaction.cjs"
   "safe_outputs_config_redact.cjs"
@@ -471,7 +483,13 @@ SAFE_OUTPUTS_FILES=(
   "invocation_context_helpers.cjs"
   "data_schema_normalizer.cjs"
   "aw_context.cjs"
+  "webhook_context.cjs"
+  "webhook_resource.cjs"
+  "gateway_command_webhook.cjs"
+  "github_notification_webhook.cjs"
+  "github_notification_webhooks.json"
   "otlp_header_helpers.cjs"
+  "provider_issue_webhook.cjs"
   "redact_secrets.cjs"
   "experiment_helpers.cjs"
   "safe_output_helpers.cjs"

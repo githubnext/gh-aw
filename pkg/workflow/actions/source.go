@@ -71,6 +71,10 @@ func sourceSyntax(content string) (*ast.File, *ast.DocumentNode, error) {
 }
 
 func (source *workflowSource) emit(lowered string) (string, error) {
+	return source.emitWithValidation(lowered, validateSourceEmission)
+}
+
+func (source *workflowSource) emitWithValidation(lowered string, validate func(string, string) error) (string, error) {
 	if source.lowered == lowered {
 		return source.text, nil
 	}
@@ -106,7 +110,7 @@ func (source *workflowSource) emit(lowered string) (string, error) {
 		content = strings.ReplaceAll(content, "\r\n", "\n")
 		content = strings.ReplaceAll(content, "\n", "\r\n")
 	}
-	if err := validateSourceEmission(content, lowered); err != nil {
+	if err := validate(content, lowered); err != nil {
 		return "", err
 	}
 	return content, nil
@@ -163,9 +167,8 @@ func detachSourceAliases(node, decoded ast.Node) (ast.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				if err := field.Replace(replacement); err != nil {
-					return nil, err
-				}
+				shiftSourceNode(replacement, field.Value.GetToken().Position.Column-replacement.GetToken().Position.Column)
+				field.Value = replacement
 				continue
 			}
 			if target == nil {
@@ -175,9 +178,8 @@ func detachSourceAliases(node, decoded ast.Node) (ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			if err := field.Replace(child); err != nil {
-				return nil, err
-			}
+			shiftSourceNode(child, field.Value.GetToken().Position.Column-child.GetToken().Position.Column)
+			field.Value = child
 		}
 	case *ast.SequenceNode:
 		sequence, ok := decoded.(*ast.SequenceNode)
@@ -190,9 +192,8 @@ func detachSourceAliases(node, decoded ast.Node) (ast.Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				if err := value.Replace(index, replacement); err != nil {
-					return nil, err
-				}
+				shiftSourceNode(replacement, value.Values[index].GetToken().Position.Column-replacement.GetToken().Position.Column)
+				value.Values[index] = replacement
 			}
 		}
 	}

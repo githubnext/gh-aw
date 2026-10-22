@@ -5,6 +5,7 @@ package cli_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -182,7 +183,7 @@ func TestSpec_Constants_CheckState(t *testing.T) {
 // TestSpec_Constants_DockerImages validates the documented default scanner images.
 func TestSpec_Constants_DockerImages(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "ghcr.io/zizmorcore/zizmor:1.30.1@sha256:a2eb396d886c053073405c7a980f2139ba2248ec172243cfa3841e57196e8101", cli.ZizmorImage, "ZizmorImage should match the README specification")
+	assert.Equal(t, "ghcr.io/zizmorcore/zizmor:1.31.1@sha256:42d409dbb851d4c5d35a058cf042b828bea1e3f2884378c526eb0974780e18d9", cli.ZizmorImage, "ZizmorImage should match the README specification")
 	assert.Equal(t, "ghcr.io/boostsecurityio/poutine:1.1.6@sha256:722a8e0999b583c1540fe2974e691032b2d9d21b9256a17965132b6bfd0081b0", cli.PoutineImage, "PoutineImage should match the README specification")
 	assert.Equal(t, "rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667", cli.ActionlintImage, "ActionlintImage should match the README specification")
 	assert.Equal(t, "ghcr.io/vigilant-llc/runner-guard:3.1.5@sha256:2df426ef96d21f1622e05b21329f26bd263fc46110609cefb6afe43457613ac0", cli.RunnerGuardImage, "RunnerGuardImage should match the README specification")
@@ -202,6 +203,52 @@ func TestSpec_Constants_TimelineEvents(t *testing.T) {
 	assert.Equal(t, cli.TimelineKindAgentTurn, cli.TimelineEventKind("agent_turn"), "agent-turn kind should match the README specification")
 	assert.Equal(t, cli.TimelineKindAgentToolStart, cli.TimelineEventKind("agent_tool_start"), "agent tool-start kind should match the README specification")
 	assert.Equal(t, cli.TimelineKindAgentToolDone, cli.TimelineEventKind("agent_tool_done"), "agent tool-done kind should match the README specification")
+}
+
+// TestSpec_Constants_ArtifactSets validates the documented artifact-set values.
+func TestSpec_Constants_ArtifactSets(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		actual   cli.ArtifactSet
+		expected cli.ArtifactSet
+	}{
+		{name: "activation", actual: cli.ArtifactSetActivation, expected: "activation"},
+		{name: "agent", actual: cli.ArtifactSetAgent, expected: "agent"},
+		{name: "all", actual: cli.ArtifactSetAll, expected: "all"},
+		{name: "detection", actual: cli.ArtifactSetDetection, expected: "detection"},
+		{name: "evals", actual: cli.ArtifactSetEvals, expected: "evals"},
+		{name: "experiment", actual: cli.ArtifactSetExperiment, expected: "experiment"},
+		{name: "firewall", actual: cli.ArtifactSetFirewall, expected: "firewall"},
+		{name: "github api", actual: cli.ArtifactSetGitHubAPI, expected: "github-api"},
+		{name: "mcp", actual: cli.ArtifactSetMCP, expected: "mcp"},
+		{name: "usage", actual: cli.ArtifactSetUsage, expected: "usage"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, tt.actual, "ArtifactSet constant %q should match the README specification", tt.name)
+		})
+	}
+}
+
+// TestSpec_Constants_LogFetchingLimits validates the documented batching,
+// concurrency, retention, and cooldown values.
+func TestSpec_Constants_LogFetchingLimits(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 100, cli.BatchSize, "BatchSize should match the README specification")
+	assert.Equal(t, 100, cli.BatchSizeForAllWorkflows, "BatchSizeForAllWorkflows should match the README specification")
+	assert.Equal(t, 90, cli.GitHubActionsRetentionDays, "GitHubActionsRetentionDays should match the README specification")
+	assert.Equal(t, 10, cli.MaxConcurrentDownloads, "MaxConcurrentDownloads should match the README specification")
+	assert.Equal(t, 500*time.Millisecond, cli.APICallCooldown, "APICallCooldown should match the README specification")
+}
+
+// TestSpec_Errors_SentinelsExist validates the two documented sentinel errors.
+func TestSpec_Errors_SentinelsExist(t *testing.T) {
+	t.Parallel()
+	require.Error(t, cli.ErrInterrupted, "ErrInterrupted should be an exported sentinel error")
+	require.Error(t, cli.ErrNoArtifacts, "ErrNoArtifacts should be an exported sentinel error")
 }
 
 // TestSpec_Constants_WorkflowIDExplanation validates the documented workflow-ID explanation.

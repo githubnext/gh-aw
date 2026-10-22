@@ -42,3 +42,11 @@ func badEmbeddedCloser(c EmbeddedCloser) {
 func badTypeParameter[T GenericCloser](c T) {
 	defer c.Close() // want "defer close\\(\\) call ignores error return value"
 }
+
+func parenthesizedClose(c io.Closer) {
+	defer (c.Close)() // want "defer close\\(\\) call ignores error return value"
+}
+
+func suppressedClose(c io.Closer) {
+	defer c.Close() //nolint:unchecked_deferredclose
+}

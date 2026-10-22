@@ -1,0 +1,63 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "claude-haiku-4.5",
+  "version": "1.0.98",
+  "agent_version": "1.0.98",
+  "workflow_name": "Smoke Copilot SDK Routed Claude",
+  "workflow_id": "github/gh-aw/.github/workflows/smoke-copilot-sdk-routed-claude.lock.yml@refs/heads/copilot/fix-copilot-sub-agent-models",
+  "workflow_call_id": "39499464895-1:github/gh-aw/.github/workflows/smoke-copilot-sdk-routed-claude.lock.yml@refs/heads/copilot/fix-copilot-sub-agent-models",
+  "caller_workflow_ref": "github/gh-aw/.github/workflows/smoke-copilot-sdk-routed-claude.lock.yml@refs/heads/copilot/fix-copilot-sub-agent-models",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": false,
+  "run_id": 39499464895,
+  "run_number": 93,
+  "run_attempt": "1",
+  "repository": "github/gh-aw",
+  "ref": "refs/heads/copilot/fix-copilot-sub-agent-models",
+  "sha": "b9f7f48a3baa4e58e9509232f6eaaea674a942ff",
+  "actor": "SivaKesava1",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": [
+    "defaults"
+  ],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.62",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-20T21:20:47.191Z",
+  "frontmatter_emoji": "🧭",
+  "features": {
+    "gh-aw-detection": false
+  },
+  "sub_agent_models": [
+    {
+      "model": "gpt-5.4-mini",
+      "name": "mini-whoami",
+      "patterns": [
+        "github-copilot/gpt-5.4-mini"
+      ]
+    }
+  ],
+  "requested_model": "auto",
+  "model_routing": {
+    "status": "selected",
+    "source": "awf-routing",
+    "provider": "copilot",
+    "wire_model": "claude-haiku-4.5",
+    "model": "github-copilot/claude-haiku-4.5",
+    "endpoint": "/chat/completions",
+    "selected_endpoint": "/chat/completions",
+    "mode": "unknown",
+    "selected_id": "choice-0001",
+    "router_version": "0.1.3"
+  },
+  "routed_model": "claude-haiku-4.5"
+}

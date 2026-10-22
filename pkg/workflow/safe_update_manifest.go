@@ -72,7 +72,7 @@ type GHAWManifestDetectionPolicy struct {
 // comment in generated lock files. It records the secrets, external actions, and
 // container images that were detected at the time the lock file was last compiled
 // so that subsequent compilations can detect newly introduced secrets when safe
-// update mode is enabled.
+// update mode is enabled. Webhook subscriptions declare discovery metadata for CAO.
 type GHAWManifest struct {
 	Version                     int                                  `json:"version"`
 	Secrets                     []string                             `json:"secrets"`
@@ -88,6 +88,8 @@ type GHAWManifest struct {
 	MCPServers                  []GHAWManifestMCPServer              `json:"mcp_servers"`                         // MCP servers/tools exposed to the agent, independent of engine-specific allowlist syntax
 	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
 	ThreatDetection             *GHAWManifestDetectionPolicy         `json:"threat_detection,omitempty"`
+	Admission                   bool                                 `json:"admission"`
+	WebhookSubscriptions        []WebhookSubscription                `json:"webhook_subscriptions,omitempty"`
 }
 
 // NewGHAWManifest builds a GHAWManifest from the raw secret names, action reference

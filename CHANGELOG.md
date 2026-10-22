@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+`compile --dry-run` now rejects authored host steps, custom MCP servers/scripts,
+custom safe-output scripts, enabled Bash graders, and authored OIDC permissions,
+including imports. Custom jobs and custom safe-output jobs become disabled,
+credential-free placeholders with empty outputs. Existing actionable scanner
+findings fail alongside added findings. Migrate by removing unsupported
+declarations in a separate diagnostic workflow, reviewing skipped dependencies,
+and resolving actionable findings before live testing. Ordinary compilation is
+unchanged; dry-run is still not a hosted execution sandbox.
+
+AWF and downloaded Copilot CLI releases now require a reviewed checksum-manifest
+digest bundled in the trusted setup action or supplied as literal
+`sandbox.agent.checksums-sha256` (AWF) / `engine.checksums-sha256` (Copilot)
+frontmatter alongside an explicit release version. These values pin
+`checksums.txt` / `SHA256SUMS.txt`, not individual executables. Unreviewed
+downloads without a supplied pin and `latest` downloads fail closed instead of
+trusting a checksum from the same HTTPS origin. Built-in pins cover AWF v0.28.62,
+Copilot CLI v1.0.98, and the legacy Copilot v1.0.21 manifest. Obtain other
+manifest digests through an independently trusted channel and update/recompile
+workflows to consume the new setup action. Explicit Copilot pins bypass
+toolcache selection; without a supplied pin, trusted toolcache behavior is
+unchanged. Repository Go tooling, module requirements and generated runtime
+defaults now use Go 1.27.3; release builds reject older toolchains. Go root
+capture and Serena setup clear stale GOROOT values before discovering the
+selected toolchain, preventing mixed-version compiler/standard-library failures.
+
 Logs episode rollups now require a recorded nonempty `context.episode_id`.
 Call-ID grouping, synthetic episode IDs, metadata-inferred lineage, and bridges
 through uncorrelated runs are removed. Runs without canonical identity remain

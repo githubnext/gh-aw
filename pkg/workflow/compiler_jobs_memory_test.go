@@ -22,10 +22,12 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 
 	// Create workflow data with repo-memory config
 	data := &WorkflowData{
-		Name:        "Test Workflow",
-		AI:          "copilot",
-		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n  contents: read",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		Permissions:     "permissions:\n  contents: read",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		RepoMemoryConfig: &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{
 				{
@@ -52,7 +54,9 @@ func TestJobsWithRepoMemoryDependencies(t *testing.T) {
 	compiler.jobManager.AddJob(agentJob)
 
 	// Build safe outputs jobs (creates detection job when threat detection is enabled)
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	// Build push_repo_memory job
 	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
@@ -94,9 +98,11 @@ func TestJobsWithRepoMemoryWithoutConsolidatedSafeOutputs(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()
 	data := &WorkflowData{
-		Name:   "Test Workflow",
-		AI:     "copilot",
-		RunsOn: "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		RepoMemoryConfig: &RepoMemoryConfig{
 			Memories: []RepoMemoryEntry{{ID: "test-memory", BranchName: "memory-branch"}},
 		},
@@ -134,10 +140,12 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 
 	// Create workflow data with cache-memory config
 	data := &WorkflowData{
-		Name:        "Test Workflow",
-		AI:          "copilot",
-		RunsOn:      "runs-on: ubuntu-latest",
-		Permissions: "permissions:\n  contents: read",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		Permissions:     "permissions:\n  contents: read",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{
@@ -163,7 +171,9 @@ func TestJobsWithCacheMemoryDependencies(t *testing.T) {
 	compiler.jobManager.AddJob(agentJob)
 
 	// Build safe outputs jobs (creates detection job when threat detection is enabled)
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	// Build update_cache_memory job (only created with threat detection)
 	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil
@@ -203,10 +213,12 @@ func TestUpdateCacheMemoryJobHasWorkflowIDEnv(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 
 	data := &WorkflowData{
-		Name:       "Test Workflow",
-		WorkflowID: "daily-repo-status",
-		AI:         "copilot",
-		RunsOn:     "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		WorkflowID:      "daily-repo-status",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},
@@ -224,7 +236,9 @@ func TestUpdateCacheMemoryJobHasWorkflowIDEnv(t *testing.T) {
 	agentJob, _ := compiler.buildMainJob(data, true)
 	compiler.jobManager.AddJob(agentJob)
 
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	if err != nil {
@@ -253,9 +267,11 @@ func TestUpdateCacheMemoryJobConditionRequiresAgentSuccess(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 
 	data := &WorkflowData{
-		Name:   "Test Workflow",
-		AI:     "copilot",
-		RunsOn: "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},
@@ -273,7 +289,9 @@ func TestUpdateCacheMemoryJobConditionRequiresAgentSuccess(t *testing.T) {
 	agentJob, _ := compiler.buildMainJob(data, true)
 	compiler.jobManager.AddJob(agentJob)
 
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	if err != nil {
@@ -298,9 +316,11 @@ func TestUpdateCacheMemoryJobHasActionsWritePermission(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 
 	data := &WorkflowData{
-		Name:   "Test Workflow",
-		AI:     "copilot",
-		RunsOn: "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},
@@ -318,7 +338,9 @@ func TestUpdateCacheMemoryJobHasActionsWritePermission(t *testing.T) {
 	agentJob, _ := compiler.buildMainJob(data, true)
 	compiler.jobManager.AddJob(agentJob)
 
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	if err != nil {
@@ -340,9 +362,11 @@ func TestUpdateCacheMemoryJobHasActionsWritePermissionInDevMode(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 
 	data := &WorkflowData{
-		Name:   "Test Workflow",
-		AI:     "copilot",
-		RunsOn: "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default"},
@@ -360,7 +384,9 @@ func TestUpdateCacheMemoryJobHasActionsWritePermissionInDevMode(t *testing.T) {
 	agentJob, _ := compiler.buildMainJob(data, true)
 	compiler.jobManager.AddJob(agentJob)
 
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	if err != nil {
@@ -383,9 +409,11 @@ func TestUpdateCacheMemoryJobSkippedForRestoreOnlyCaches(t *testing.T) {
 	compiler.jobManager = NewJobManager()
 
 	data := &WorkflowData{
-		Name:   "Test Workflow",
-		AI:     "copilot",
-		RunsOn: "runs-on: ubuntu-latest",
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		RunsOn:          "runs-on: ubuntu-latest",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 		CacheMemoryConfig: &CacheMemoryConfig{
 			Caches: []CacheMemoryEntry{
 				{ID: "default", RestoreOnly: true},
@@ -403,7 +431,9 @@ func TestUpdateCacheMemoryJobSkippedForRestoreOnlyCaches(t *testing.T) {
 	agentJob, _ := compiler.buildMainJob(data, true)
 	compiler.jobManager.AddJob(agentJob)
 
-	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+	if err := compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md"); err != nil {
+		t.Fatalf("buildSafeOutputsJobs() error: %v", err)
+	}
 
 	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
 	if err != nil {

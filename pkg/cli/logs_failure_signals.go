@@ -64,6 +64,8 @@ func failureTarget(run *RunData) FailureClusterTarget {
 		WorkflowName: run.WorkflowName, WorkflowPath: run.WorkflowPath,
 		Engine: run.EngineID, Model: run.Model, CreatedAt: run.CreatedAt,
 		URL: run.URL, LogsPath: run.LogsPath, AuditPath: run.AuditPath,
+		Branch: run.Branch, Event: run.Event, HeadSHA: run.HeadSHA,
+		Attempt: run.RunAttempt, UpdatedAt: run.UpdatedAt,
 	}
 }
 

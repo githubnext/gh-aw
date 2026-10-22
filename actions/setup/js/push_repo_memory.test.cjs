@@ -88,6 +88,129 @@ describe("push_repo_memory.cjs - nested memory persistence", () => {
   });
 });
 
+describe("push_repo_memory.cjs - trusted daily AIC ledger persistence", () => {
+  it.each(
+    [
+      {
+        name: "root-only glob",
+        fileGlobFilter: "*.jsonl",
+        allowedExtensions: '[".json", ".jsonl"]',
+        expectedAgentFiles: ["agent.jsonl"],
+        coveragePassesFilters: false,
+        usagePassesFilters: false,
+      },
+      {
+        name: "JSONL-only extension",
+        fileGlobFilter: "",
+        allowedExtensions: '[".jsonl"]',
+        expectedAgentFiles: ["agent.jsonl", "nested/agent.jsonl"],
+        coveragePassesFilters: false,
+        usagePassesFilters: true,
+      },
+      {
+        name: "JSON-only extension",
+        fileGlobFilter: "",
+        allowedExtensions: '[".json"]',
+        expectedAgentFiles: ["agent.json"],
+        coveragePassesFilters: true,
+        usagePassesFilters: false,
+      },
+      {
+        name: "JSON-only recursive glob",
+        fileGlobFilter: "**/*.json",
+        allowedExtensions: '[".json", ".jsonl"]',
+        expectedAgentFiles: [],
+        coveragePassesFilters: true,
+        usagePassesFilters: false,
+      },
+    ].flatMap(testCase => [undefined, "false", "true"].map(trustedWriter => ({ ...testCase, trustedWriter })))
+  )("applies $name with trusted writer=$trustedWriter", async ({ fileGlobFilter, allowedExtensions, expectedAgentFiles, coveragePassesFilters, usagePassesFilters, trustedWriter }) => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "repo-memory-daily-aic-"));
+    const artifactDir = path.join(tempDir, "artifact");
+    const usageDir = path.join(tempDir, "usage");
+    const workspaceDir = path.join(tempDir, "workspace");
+    const now = Date.parse("2026-09-23T13:02:21.000Z");
+    const repository = "owner/repo";
+    const workflowId = "daily-metrics";
+    const runId = "42";
+    const core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn() };
+    const pushSignedCommits = vi.fn().mockResolvedValue(undefined);
+    const require = createRequire(import.meta.url);
+    const { appendCurrentRunLedgerEntry, readLedgerCoverageStart, readLedgerEntries } = require("./daily_aic_repo_memory_ledger.cjs");
+    const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
+    const module = { exports: {} };
+    const acceptedAgentFiles = expectedAgentFiles.map(file => `?? ${file}`).join("\n");
+    const mocks = {
+      "./git_helpers.cjs": {
+        execGitSync: vi.fn(args => {
+          if (args[0] === "status")
+            return `?? daily-aic-ledger/2026-09-23.jsonl\n?? daily-aic-ledger/coverage-${require("crypto")
+              .createHash("sha256")
+              .update(JSON.stringify([repository, workflowId]))
+              .digest("hex")}.json\n${acceptedAgentFiles}\n`;
+          if (args[0] === "rev-parse") return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
+          return "";
+        }),
+      },
+      "./git_patch_utils.cjs": { getStagedPatchDiffSizeBytes: () => 100 },
+      "./git_auth_helpers.cjs": { getGitAuthEnv: () => ({}) },
+      "./push_signed_commits.cjs": { pushSignedCommits },
+    };
+
+    try {
+      fs.mkdirSync(path.join(artifactDir, "nested"), { recursive: true });
+      fs.mkdirSync(usageDir, { recursive: true });
+      fs.mkdirSync(workspaceDir);
+      fs.writeFileSync(path.join(artifactDir, "agent.json"), "{}");
+      fs.writeFileSync(path.join(artifactDir, "agent.jsonl"), "{}\n");
+      fs.writeFileSync(path.join(artifactDir, "nested", "agent.jsonl"), "{}\n");
+      fs.writeFileSync(path.join(usageDir, "agent_usage.jsonl"), `${JSON.stringify({ aic: 7 })}\n`);
+
+      vi.stubEnv("GITHUB_RUN_ID", runId);
+      vi.stubEnv("GITHUB_REPOSITORY", repository);
+      vi.stubEnv("GH_AW_WORKFLOW_ID", workflowId);
+      appendCurrentRunLedgerEntry({ repoMemoryDir: artifactDir, usageRoot: usageDir, now });
+
+      vm.runInNewContext(fs.readFileSync(scriptPath, "utf8"), {
+        require: id => mocks[id] || require(id),
+        module,
+        core,
+        context: { repo: { owner: "owner", repo: "repo" } },
+        github: {},
+        exec: {},
+        process: {
+          env: {
+            ARTIFACT_DIR: artifactDir,
+            GITHUB_WORKSPACE: workspaceDir,
+            MEMORY_ID: "test",
+            TARGET_REPO: "owner/repo",
+            BRANCH_NAME: "memory/test",
+            GH_TOKEN: "test-token",
+            GITHUB_RUN_ID: runId,
+            FILE_GLOB_FILTER: fileGlobFilter,
+            ALLOWED_EXTENSIONS: allowedExtensions,
+            GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: trustedWriter,
+          },
+        },
+      });
+
+      await module.exports.main();
+
+      const repoMemoryDir = workspaceDir;
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(readLedgerEntries({ repoMemoryDir, repository, workflowId, now })).toMatchObject(trustedWriter === "true" || usagePassesFilters ? [{ run_id: 42, aic: 7 }] : []);
+      expect(readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now })).toBe(trustedWriter === "true" || coveragePassesFilters ? now : null);
+      expect(fs.existsSync(path.join(workspaceDir, "agent.json"))).toBe(expectedAgentFiles.includes("agent.json"));
+      expect(fs.existsSync(path.join(workspaceDir, "agent.jsonl"))).toBe(expectedAgentFiles.includes("agent.jsonl"));
+      expect(fs.existsSync(path.join(workspaceDir, "nested", "agent.jsonl"))).toBe(expectedAgentFiles.includes("nested/agent.jsonl"));
+      expect(pushSignedCommits).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllEnvs();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("push_repo_memory.cjs - untrusted ledger artifacts", () => {
   it("ignores coverage files and artifacts that overwrite trusted shards", () => {
     const trusted = new Set(["00000000-0000-4000-8000-000000000000"]);

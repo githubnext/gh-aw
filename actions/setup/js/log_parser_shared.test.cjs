@@ -704,7 +704,7 @@ describe("log_parser_shared.cjs", () => {
       const { formatInitializationSummary } = await import("./log_parser_shared.cjs");
 
       const initEntry = {
-        tools: ["safeoutputs-create_discussion", "safeoutputs-close_discussion", "safeoutputs-upload_asset", "safeoutputs-missing_tool", "safeoutputs-noop"],
+        tools: ["safeoutputs-create_discussion", "safeoutputs-close_discussion", "safeoutputs-upload_asset", "safeoutputs-report_missing_tool", "safeoutputs-noop"],
       };
 
       const result = formatInitializationSummary(initEntry);
@@ -713,7 +713,7 @@ describe("log_parser_shared.cjs", () => {
       expect(result.markdown).toContain("create_discussion");
       expect(result.markdown).toContain("close_discussion");
       expect(result.markdown).toContain("upload_asset");
-      expect(result.markdown).toContain("missing_tool");
+      expect(result.markdown).toContain("report_missing_tool");
       expect(result.markdown).toContain("noop");
       // Should NOT contain the prefix in output
       expect(result.markdown).not.toContain("safeoutputs-");
@@ -2256,10 +2256,10 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("**Message:** Nothing to do here");
     });
 
-    it("should surface the reason field for missing_tool/missing_data entries", async () => {
+    it("should surface the reason field for report_missing_tool/report_missing_data entries", async () => {
       const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
 
-      const safeOutputs = JSON.stringify({ type: "missing_tool", tool: "docker", reason: "Docker is not available" });
+      const safeOutputs = JSON.stringify({ type: "report_missing_tool", tool: "docker", reason: "Docker is not available" });
       const plain = formatSafeOutputsPreview(safeOutputs, { isPlainText: true });
       const markdown = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
 

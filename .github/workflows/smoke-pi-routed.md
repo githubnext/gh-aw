@@ -69,8 +69,11 @@ post-steps:
           allowedModels: ["gpt-5.6-luna"],
           subAgents: [
             { name: "haiku-whoami", model: "claude-haiku-4.5", endpoint: "/v1/messages" },
-            { name: "mini-whoami", model: "gpt-5.4-mini", endpoint: "/responses" },
+            { name: "mini-whoami", model: "gpt-5.3-codex", endpoint: "/responses" },
           ],
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: ["haiku-whoami", "mini-whoami"],
         });
 ---
 
@@ -109,7 +112,7 @@ Do not call tools. No extra words, punctuation, or formatting.
 ## agent: `mini-whoami`
 ---
 description: Returns a fixed reply for model-routing smoke testing
-model: copilot/gpt-5.4-mini
+model: copilot/gpt-5.3-codex
 ---
 When asked `who am i?`, reply with this single plain-text line, without Markdown
 or backticks:

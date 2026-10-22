@@ -41,6 +41,58 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it.each([
+    ["primary", {}, { status: "admitted", maxAiCredits: 321 }],
+    [
+      "all components",
+      { GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: "123", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "2147483647" },
+      { status: "admitted", maxAiCredits: 321, threatDetectionMaxAiCredits: 123, evalsMaxAiCredits: 2147483647 },
+    ],
+    ["detection only", { GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: "1" }, { status: "admitted", maxAiCredits: 321, threatDetectionMaxAiCredits: 1 }],
+    ["evals only", { GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "456" }, { status: "admitted", maxAiCredits: 321, evalsMaxAiCredits: 456 }],
+  ])("persists validated admission allowances for %s without private context", (_name, optional, expected) => {
+    const admission = {
+      GH_AW_ADMISSION_RESULT: "admitted",
+      GH_AW_ADMISSION_MAX_AI_CREDITS: "321",
+      GH_AW_DEFAULT_ADMISSION_URL: "PRIVATE_ENDPOINT",
+      GH_AW_ADMISSION_WORKFLOW_HASH: "PRIVATE_HASH",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "PRIVATE_TOKEN",
+      GITHUB_ACTOR: "PRIVATE_ACTOR",
+      ...optional,
+    };
+    const events = writeUnifiedSession({ rootDir: root, admission });
+    expect(events.filter(event => event.type === "guardrail.admission")).toEqual([{ type: "guardrail.admission", data: expected, provenance: { component: "guardrail", phase: "admission", path: "usage/aw_session.jsonl", index: 0 } }]);
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(writeUnifiedSession({ rootDir: root, admission }).filter(event => event.type === "guardrail.admission")).toHaveLength(1);
+  });
+
+  it.each(["ignored", "skipped"])("records %s without stale service allowances", status => {
+    const { events } = collectUnifiedSession({ rootDir: root, admission: { GH_AW_ADMISSION_RESULT: status, GH_AW_ADMISSION_MAX_AI_CREDITS: "321", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "123" } });
+    expect(events.filter(event => event.type === "guardrail.admission")).toMatchObject([{ data: { status } }]);
+    expect(events.find(event => event.type === "guardrail.admission").data).toEqual({ status });
+  });
+
+  it.each(["", "0", "-1", "1.5", "1e2", "01", "2147483648", "PRIVATE_INVALID", "$(echo PRIVATE_PAYLOAD)"])("rejects invalid admission allowances without exposing values: %s", raw => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, admission: { GH_AW_ADMISSION_RESULT: "admitted", GH_AW_ADMISSION_MAX_AI_CREDITS: raw }, warn });
+    expect(events.some(event => event.type === "guardrail.admission")).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("invalid_admission_metadata"));
+    expect(JSON.stringify([events, warn.mock.calls])).not.toContain("PRIVATE_");
+  });
+
+  it("rejects invalid optional allowances and unknown decisions atomically", () => {
+    for (const admission of [{ GH_AW_ADMISSION_RESULT: "admitted", GH_AW_ADMISSION_MAX_AI_CREDITS: "123", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "0" }, { GH_AW_ADMISSION_RESULT: "PRIVATE_STATUS" }]) {
+      const warn = vi.fn();
+      const { events } = collectUnifiedSession({ rootDir: root, admission, warn });
+      expect(events.some(event => event.type === "guardrail.admission")).toBe(false);
+      expect(warn).toHaveBeenCalled();
+      expect(JSON.stringify([events, warn.mock.calls])).not.toContain("PRIVATE_");
+    }
+    expect(collectUnifiedSession({ rootDir: root, admission: {} }).events.some(event => event.type === "guardrail.admission")).toBe(false);
+  });
+
   it("grades the complete redacted log before persisting conclusion results", () => {
     write("aw_info.json", { engine_id: "copilot", run_id: 123, run_attempt: 2 });
     write("agent-session.jsonl", [
@@ -629,6 +681,7 @@ describe("Unified conclusion session", () => {
     const records = [
       { engine: "pi", role: "main", configured_model: "copilot/opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null },
       { engine: "pi", role: "reader", configured_model: "copilot/claude-opus-5", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" },
+      { engine: "pi", role: "writer", configured_model: "claude-sonnet-5.5", resolved_model: null, provider: "copilot", status: "failed", cause: "unsupported_endpoint" },
     ];
     write(
       "agent/model-resolution.json",
@@ -639,7 +692,7 @@ describe("Unified conclusion session", () => {
       records.map((data, index) => ({ type: "model.resolution", data, provenance: { component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", index } }))
     );
     expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
-    expect(events.at(-1).data.sources).toContainEqual({ component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", events: 2 });
+    expect(events.at(-1).data.sources).toContainEqual({ component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", events: 3 });
   });
 
   it.each([

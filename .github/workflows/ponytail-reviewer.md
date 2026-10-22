@@ -12,7 +12,7 @@ on:
       - '.changeset/**'
   slash_command:
     strategy: centralized
-    name: ponytail
+    name: [ponytail, review]
     events: [pull_request_comment, pull_request_review_comment]
 engine:
   id: codex

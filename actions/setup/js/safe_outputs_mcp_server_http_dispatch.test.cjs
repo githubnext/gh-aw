@@ -40,8 +40,8 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
           "test-workflow": ".yml",
         },
       },
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
       noop: { max: 1 },
     };
 
@@ -86,8 +86,8 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
 
     // Config WITHOUT dispatch_workflow
     const config = {
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
       noop: { max: 1 },
     };
 
@@ -156,14 +156,14 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
   it("should register regular tools when their name is in config", () => {
     // Regular tool (no _workflow_name)
     const tool = {
-      name: "missing_tool",
+      name: "report_missing_tool",
       description: "Report missing tool",
       inputSchema: { type: "object", properties: {} },
     };
 
     const config = {
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
     };
 
     const enabledTools = new Set();
@@ -200,8 +200,8 @@ describe("safe_outputs_mcp_server_http dispatch_workflow registration", () => {
     };
 
     const config = {
-      missing_tool: {},
-      missing_data: {},
+      report_missing_tool: {},
+      report_missing_data: {},
     };
 
     const enabledTools = new Set();

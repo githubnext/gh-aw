@@ -330,12 +330,20 @@ interface PushToPrBranchItem extends BaseSafeOutputItem {
  * JSONL item for reporting missing tools
  */
 interface MissingToolItem extends BaseSafeOutputItem {
-  type: "missing_tool";
+  type: "report_missing_tool" | "missing_tool";
   /** Optional: Name of the missing tool */
   tool?: string;
   /** Reason why the tool is needed or information about the limitation */
   reason: string;
   /** Optional alternatives or workarounds */
+  alternatives?: string;
+}
+
+interface MissingDataItem extends BaseSafeOutputItem {
+  type: "report_missing_data" | "missing_data";
+  data_type?: string;
+  reason?: string;
+  context?: string;
   alternatives?: string;
 }
 
@@ -532,6 +540,7 @@ type SafeOutputItem =
   | UpdatePullRequestItem
   | PushToPrBranchItem
   | MissingToolItem
+  | MissingDataItem
   | UploadAssetItem
   | AssignMilestoneItem
   | SetIssueTypeItem
@@ -579,6 +588,7 @@ export {
   UpdatePullRequestItem,
   PushToPrBranchItem,
   MissingToolItem,
+  MissingDataItem,
   UploadAssetItem,
   AssignMilestoneItem,
   SetIssueTypeItem,

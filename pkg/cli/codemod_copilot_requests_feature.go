@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var copilotRequestsFeatureCodemodLog = logger.New("cli:codemod_copilot_requests_feature")
@@ -41,17 +42,22 @@ func getCopilotRequestsFeatureToPermissionsCodemod() Codemod {
 			}
 
 			addPermission := enabled && !frontmatterHasCopilotRequestsPermission(frontmatter)
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				result, modified := removeFieldFromBlock(lines, "copilot-requests", "features")
-				if !modified {
-					return lines, false
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := f.Remove("features", "copilot-requests"); err != nil {
+					return err
 				}
-
+				if err := f.PruneEmpty("features"); err != nil {
+					return err
+				}
 				if addPermission {
-					result = ensureCopilotRequestsWritePermission(result)
+					if value, exists := f.Lookup("permissions"); exists {
+						if _, mapping := value.(map[string]any); !mapping {
+							return f.Set([]string{"permissions"}, map[string]any{"copilot-requests": "write"})
+						}
+					}
+					return f.Set([]string{"permissions", "copilot-requests"}, "write")
 				}
-
-				return result, true
+				return nil
 			})
 			if applied {
 				if addPermission {
@@ -93,70 +99,4 @@ func canSafelyAddCopilotRequestsPermission(frontmatter map[string]any) bool {
 	}
 	trimmed := strings.TrimSpace(strValue)
 	return trimmed == "" || trimmed == "{}"
-}
-
-func ensureCopilotRequestsWritePermission(lines []string) []string {
-	return ensureCopilotRequestsPermission(lines, "write", false)
-}
-
-func ensureCopilotRequestsPermission(lines []string, level string, replaceExisting bool) []string {
-	permissionsIdx := -1
-	permissionsIndent := ""
-	permissionsEnd := len(lines)
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
-			permissionsIdx = i
-			permissionsIndent = getIndentation(line)
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					permissionsEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-	if permissionsIdx == -1 {
-		insertAt := findPermissionsInsertIndex(lines)
-		result := make([]string, 0, len(lines)+2)
-		result = append(result, lines[:insertAt]...)
-		result = append(result, "permissions:", "  copilot-requests: "+level)
-		result = append(result, lines[insertAt:]...)
-		return result
-	}
-	trimmedPermissionsLine := strings.TrimSpace(lines[permissionsIdx])
-	inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmedPermissionsLine, "permissions:"))
-	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
-		// Extract the value before any comment
-		valuePart := inlineValue
-		if beforeComment, _, hasComment := strings.Cut(inlineValue, "#"); hasComment {
-			valuePart = strings.TrimSpace(beforeComment)
-		}
-		if valuePart == "{}" {
-			result := make([]string, 0, len(lines)+1)
-			result = append(result, lines[:permissionsIdx]...)
-			result = append(result, permissionsIndent+"permissions:")
-			result = append(result, permissionsIndent+"  copilot-requests: "+level)
-			result = append(result, lines[permissionsIdx+1:]...)
-			return result
-		}
-		return lines
-	}
-	for i := permissionsIdx + 1; i < permissionsEnd; i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if parseYAMLMapKey(trimmed) == "copilot-requests" {
-			if replaceExisting {
-				result := append([]string(nil), lines...)
-				result[i] = getIndentation(lines[i]) + "copilot-requests: " + level
-				return result
-			}
-			return lines
-		}
-	}
-
-	result := make([]string, 0, len(lines)+1)
-	result = append(result, lines[:permissionsEnd]...)
-	result = append(result, permissionsIndent+"  copilot-requests: "+level)
-	result = append(result, lines[permissionsEnd:]...)
-	return result
 }

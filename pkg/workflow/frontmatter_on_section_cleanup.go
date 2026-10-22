@@ -430,6 +430,8 @@ func (s *onSectionCleanupState) commentSimpleTopLevelField(info onSectionLine) (
 		return true, " # GitHub token used for reactions and status comments in activation"
 	case strings.HasPrefix(info.trimmed, "stale-check:"):
 		return true, " # Stale-check processed as frontmatter hash check step in activation job"
+	case strings.HasPrefix(info.trimmed, "admission:"):
+		return true, " # Admission controls optional admission jobs"
 	case strings.HasPrefix(info.trimmed, "report-blocked-version:"):
 		return true, " # Report-blocked-version processed as activation-stage notification toggle"
 	default:

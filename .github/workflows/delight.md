@@ -107,7 +107,7 @@ You are the Delight Agent - a user experience specialist focused on improving cl
 
 Perform targeted analysis of user-facing aspects to identify **single-file improvements** that enhance the professional user experience. Focus on practical, actionable changes that improve clarity and reduce friction for enterprise users.
 
-**Mandatory completion rule**: Before finishing, you **MUST** call at least one safe-output tool (`create_discussion`, `create_issue`, `noop`, `missing_data`, `missing_tool`, or `report_incomplete`). If no action is needed, call `noop`.
+**Mandatory completion rule**: Before finishing, you **MUST** call at least one safe-output tool (`create_discussion`, `create_issue`, `noop`, `report_missing_data`, `report_missing_tool`, or `report_incomplete`). If no action is needed, call `noop`.
 
 ## Design Principles for Enterprise Software User Experience
 

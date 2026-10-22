@@ -412,10 +412,11 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	"create_discussion": {
 		DefaultMax: 1,
 		Fields: map[string]FieldValidation{
-			"title":    {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
-			"body":     {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinDiscussionBodyLength},
-			"category": {Type: "string", Sanitize: true, MaxLength: 128},
-			"repo":     {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"title":        {Required: true, Type: "string", Sanitize: true, MaxLength: 128},
+			"body":         {Required: true, Type: "string", Sanitize: true, MaxLength: MaxBodyLength, MinLength: MinDiscussionBodyLength},
+			"category":     {Type: "string", Sanitize: true, MaxLength: 128},
+			"repo":         {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
+			"temporary_id": {Type: "string", Pattern: "^#?aw_[A-Za-z0-9_]{3,12}$"},
 		},
 	},
 	"close_discussion": {
@@ -463,7 +464,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"inputs":        {Type: "object"},
 		},
 	},
-	"missing_tool": {
+	"report_missing_tool": {
 		DefaultMax: 20,
 		Fields: map[string]FieldValidation{
 			"tool":         {Required: false, Type: "string", Sanitize: true, MaxLength: 128},
@@ -679,7 +680,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 			"repo":       {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"
 		},
 	},
-	"missing_data": {
+	"report_missing_data": {
 		DefaultMax: 20,
 		Fields: map[string]FieldValidation{
 			"data_type":    {Type: "string", Sanitize: true, MaxLength: 128},

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -16,9 +14,6 @@ func getRolesToOnRolesCodemod() Codemod {
 		Description:  "Moves the top-level 'roles' field to 'on.roles' as per the new frontmatter structure",
 		IntroducedIn: "0.10.0",
 		FieldKey:     "roles",
-		IsInlineSingle: func(v string) bool {
-			return v == "all" || strings.HasPrefix(v, "[")
-		},
-		Log: rolesCodemodLog,
+		Log:          rolesCodemodLog,
 	})
 }

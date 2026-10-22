@@ -196,9 +196,9 @@ func TestModelRoutingCandidateExpressionsAndImportedCandidates(t *testing.T) {
 	}, apiProxy["routing"].(map[string]any)["candidateModels"])
 	require.Equal(t, "cost", apiProxy["routing"].(map[string]any)["objective"].(map[string]any)["goal"])
 
-	_, err = intersectModelRoutingPolicy(
-		[]string{"github-copilot/${{ inputs.extra-model }}"},
-		[]string{"gpt-6-sol"}, nil,
+	_, _, err = intersectModelRoutingPolicy(
+		[]modelRoutingCandidateGroup{{Name: "${{ inputs.extra-model }}", Patterns: []string{"github-copilot/${{ inputs.extra-model }}"}}},
+		[]string{"gpt-6-sol"}, nil, false,
 	)
 	require.ErrorContains(t, err, "cannot be checked against models.allowed or models.blocked")
 }

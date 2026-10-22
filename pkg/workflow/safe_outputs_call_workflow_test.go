@@ -397,7 +397,9 @@ func TestCallWorkflowConclusionDependencies(t *testing.T) {
 				},
 			},
 		},
-		On: "issues",
+		On:              "issues",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 	}
 
 	err = compiler.buildSafeOutputsJobs(workflowData, "main", testFile)

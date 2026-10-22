@@ -307,7 +307,7 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(parent, &caller))
 	binding := caller.Jobs["agy-conformance"]
 	assert.Equal(t, map[string]string{"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}"}, binding.Secrets)
-	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "pull-requests": "read"}, binding.Permissions)
+	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "id-token": "write", "pull-requests": "read"}, binding.Permissions)
 	assert.Equal(t, "${{ inputs['agy-conformance'] }}", binding.If)
 	assert.Equal(t, "./.github/workflows/agy-conformance-reusable.lock.yml", binding.Uses)
 	for _, entry := range []struct {
@@ -331,6 +331,9 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			}
 			for name, config := range callee.Jobs {
 				allowedPermissions := map[string]string{"actions": "read", "contents": "read"}
+				if name == string(constants.ConclusionAdmissionJobName) {
+					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
+				}
 				if entry.id == "agy-conformance-reusable" && name == "safe_outputs" {
 					allowedPermissions["pull-requests"] = "read"
 					assert.Equal(t, map[string]string{"pull-requests": "read"}, config.Permissions)
@@ -344,13 +347,35 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					switch name {
 					case "activation", "conclusion":
 						allowedPermissions = map[string]string{"actions": "read", "contents": "write", "issues": "write"}
+					case "admission":
+						allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 					case "safe_outputs":
-						allowedPermissions = map[string]string{"actions": "write", "contents": "write"}
+						allowedPermissions = map[string]string{"actions": "write", "contents": "write", "issues": "write"}
 					}
 					if name == "activation" || name == "safe_outputs" {
 						assert.Equal(t, allowedPermissions, config.Permissions, "%s must have only its required queue permissions", name)
 						continue
 					}
+				}
+				if name == "activation" {
+					assert.NotContains(t, config.Permissions, "id-token")
+				}
+				if name == "admission" {
+					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
+				}
+				if name == "conclusion" {
+					if entry.id != "engine-conformance-agy" {
+						allowedPermissions = map[string]string{"actions": "read"}
+					}
+					for _, step := range config.Steps {
+						if step["id"] == "mint-otlp-oidc-token" {
+							allowedPermissions["id-token"] = "write"
+						}
+					}
+					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion must have only its required reporting permissions")
+				}
+				if name == string(constants.ConclusionAdmissionJobName) {
+					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion admission must have only callback permissions")
 				}
 				for permission, level := range config.Permissions {
 					expectedLevel, allowed := allowedPermissions[permission]
@@ -361,11 +386,30 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					assert.Equal(t, allowedPermissions, config.Permissions, "%s must retain queue-worker permissions", name)
 				}
 			}
+			steps, _, _ := agyConformanceStepContent(callee)
+			callback := steps["Report admission conclusion"]
+			require.NotNil(t, callback)
+			assert.Equal(t, "always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''", callback["if"])
+			callbackWith, ok := callback["with"].(map[string]any)
+			require.True(t, ok)
+			assert.Contains(t, callbackWith["script"], "conclusion_admission.cjs")
+			callbackEnv, ok := callback["env"].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "${{ needs.conclusion.outputs.usage_artifact_id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_ID"])
+			assert.Equal(t, "${{ needs.conclusion.outputs.usage_artifact_retry_id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_RETRY_ID"])
 			assert.Equal(t, 10, callee.Jobs["agent"].TimeoutMinutes)
 			assert.Equal(t, 2, callee.Jobs["safe_outputs"].TimeoutMinutes)
-			assert.Contains(t, string(lock), fmt.Sprintf(`"maxAiCredits":%d,`, entry.credits))
-			assert.Contains(t, string(lock), `"maxCacheMisses":12`)
-			assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
+			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))
+			assert.Contains(t, string(lock), `GH_AW_ADMISSION_MAX_AI_CREDITS`)
+			assert.Contains(t, string(lock), `\"maxCacheMisses\":12`)
+			if entry.id == "engine-conformance-agy" {
+				assert.NotContains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`,
+					"queue workers must settle Claims without workflow-wide staging")
+				assert.Contains(t, string(lock), `\"noop\":{\"max\":2,\"report-as-issue\":\"false\"}`,
+					"the conformance noop must remain probe-only")
+			} else {
+				assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
+			}
 			assert.Contains(t, string(lock), `"threat_detection":{"mode":"disabled"}`)
 			assert.NotContains(t, callee.Jobs, "detection")
 			assertAgyConformanceProbes(t, callee, false)
@@ -393,6 +437,10 @@ func TestAgyConformanceEntryPointsShareConfiguration(t *testing.T) {
 	delete(canonical, "max-ai-credits")
 	delete(canonical, "imports")
 	delete(canonical, "tools")
+	safeOutputs, ok := canonical["safe-outputs"].(map[string]any)
+	require.True(t, ok)
+	require.NotContains(t, safeOutputs, "staged", "queue workers must keep Claim settlement live")
+	safeOutputs["staged"] = true
 	for _, entry := range []struct {
 		id, trigger string
 		credits     int

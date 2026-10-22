@@ -128,10 +128,18 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
           "-e",
           `
             const assert = require("node:assert/strict");
+            const { createServer } = require("./mcp_server_core.cjs");
+            const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
+            assert.equal(createServer({ name: "mcpscripts", version: "test" }).serverInfo.name, "mcpscripts");
+            assert.equal(normalizeSafeOutputName("missing_tool"), "report_missing_tool");
             const manifest = require("./safe_output_manifest.cjs");
             const summary = require("./work_queue_summary_renderer.cjs");
             const native = require("./work_queue_native.cjs");
             const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof summary.renderWorkQueue, "function");
             assert.equal(typeof native.authenticatePublisher, "function");
             assert.equal(typeof provisioning.verifiedDefaultReference, "function");
@@ -186,10 +194,18 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
           "-e",
           `
             const assert = require("node:assert/strict");
+            const { createServer, registerTool } = require("./mcp_server_core.cjs");
+            const server = createServer({ name: "safeoutputs", version: "test" });
+            registerTool(server, { name: "missing_tool", description: "", inputSchema: { type: "object", properties: {} } });
+            assert.deepEqual(Object.keys(server.tools), ["report_missing_tool"]);
             const { getFooterMessage } = require("./messages_footer.cjs");
             const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
             const native = require("./work_queue_native.cjs");
             const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof native.authenticatePublisher, "function");
             assert.equal(typeof provisioning.verifiedDefaultReference, "function");
             const assignment = {

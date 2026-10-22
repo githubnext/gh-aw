@@ -1,6 +1,6 @@
 module github.com/github/gh-aw
 
-go 1.26.9
+go 1.27.3
 
 require (
 	charm.land/bubbles/v2 v2.2.1
@@ -8,15 +8,17 @@ require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/colorprofile v0.4.3
+	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/exp/golden v0.1.0
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/cli/go-gh/v2 v2.16.1
+	github.com/cli/go-gh/v2 v2.16.2
 	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pelletier/go-toml/v2 v2.4.3
+	github.com/rhysd/actionlint v1.7.12
 	github.com/rivo/uniseg v0.4.7
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sourcegraph/conc v0.3.0
@@ -24,25 +26,20 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/goleak v1.3.0
+	go.yaml.in/yaml/v3 v3.0.5
 	// Only golang.org/x/crypto/nacl/box is used. The unmaintained
 	// golang.org/x/crypto/openpgp subpackage (advisory GO-2026-5932, no fix
 	// available) must never be imported; enforced by the depguard rule in
 	// .golangci.yml.
 	golang.org/x/crypto v0.58.0
 	golang.org/x/mod v0.42.0
+	golang.org/x/net v0.61.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.47.0
 	golang.org/x/tools v0.52.0
 	gonum.org/v1/gonum v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 	mvdan.cc/sh/v3 v3.14.1
-)
-
-require (
-	github.com/charmbracelet/x/ansi v0.11.9
-	github.com/rhysd/actionlint v1.7.12
-	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/net v0.61.0
 )
 
 require (

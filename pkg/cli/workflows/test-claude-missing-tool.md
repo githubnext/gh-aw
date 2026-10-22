@@ -3,7 +3,7 @@ engine: claude
 on:
   workflow_dispatch:
     inputs:
-      missing_tool:
+      report_missing_tool:
         description: 'Tool to report as missing'
         required: true
         default: 'example-missing-tool'
@@ -37,9 +37,9 @@ Your job is to:
 ## Instructions
 
 1. First, check your memory to see if you've reported any missing tools before
-2. Report that the tool specified in the input (${{ github.event.inputs.missing_tool }}) is missing
+2. Report that the tool specified in the input (${{ github.event.inputs.report_missing_tool }}) is missing
 3. Use the safe output functionality to properly report the missing tool with:
-   - Tool name: ${{ github.event.inputs.missing_tool }}
+   - Tool name: ${{ github.event.inputs.report_missing_tool }}
    - Reason: "This tool is not available in the current workflow environment"
    - Alternatives: "Consider using alternative tools or requesting tool addition"
    - Context: "Testing missing-tool safe output with Claude engine"

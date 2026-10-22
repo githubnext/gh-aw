@@ -2744,8 +2744,10 @@ engine:
     # these profiles per task.
     mode: "economy"
 
-    # Optional exact Copilot model names that narrow the router's choice for the main
-    # agent only. This is not a request policy; put patterns such as gpt-* in
+    # Optional exact Copilot model names or gh-aw model aliases (such as small or
+    # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+    # to their GitHub Copilot model patterns, limited to the engine's model family for
+    # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
     # models.allowed or models.blocked. When omitted, the router chooses from the
     # models that policy allows (Claude and Codex only from their own model family).
     # Among workflows that enable routing for the same engine, if any omits
@@ -19336,7 +19338,7 @@ safe-outputs:
   # Accepted formats:
 
   # Format 1: Configuration for reporting missing tools from agentic workflow output
-  missing-tool:
+  report-missing-tool:
     # Maximum number of missing tool reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19603,11 +19605,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing tool reporting with default configuration
-  missing-tool: null
+  report-missing-tool: null
 
   # Format 3: Explicitly disable missing tool reporting (false). Missing tool
   # reporting is enabled by default when safe-outputs is configured.
-  missing-tool: true
+  report-missing-tool: true
 
   # Enable AI agents to report when required data or context is missing. Used for
   # workflow troubleshooting and data validation.
@@ -19617,7 +19619,7 @@ safe-outputs:
   # Format 1: Configuration for reporting missing data required to achieve workflow
   # goals. Encourages AI agents to be truthful about data gaps instead of
   # hallucinating information.
-  missing-data:
+  report-missing-data:
     # Maximum number of missing data reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19884,11 +19886,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing data reporting with default configuration
-  missing-data: null
+  report-missing-data: null
 
   # Format 3: Explicitly disable missing data reporting (false). Missing data
   # reporting is enabled by default when safe-outputs is configured.
-  missing-data: true
+  report-missing-data: true
 
   # Enable AI agents to explicitly indicate no action is needed. Used for workflow
   # control flow and conditional logic.
@@ -21367,8 +21369,10 @@ safe-outputs:
         # these profiles per task.
         mode: "economy"
 
-        # Optional exact Copilot model names that narrow the router's choice for the main
-        # agent only. This is not a request policy; put patterns such as gpt-* in
+        # Optional exact Copilot model names or gh-aw model aliases (such as small or
+        # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+        # to their GitHub Copilot model patterns, limited to the engine's model family for
+        # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
         # models.allowed or models.blocked. When omitted, the router chooses from the
         # models that policy allows (Claude and Codex only from their own model family).
         # Among workflows that enable routing for the same engine, if any omits

@@ -75,6 +75,14 @@ function generateSpanId() {
   return randomBytes(8).toString("hex");
 }
 
+/** W3C version-00 propagation with locally controlled sampling; no baggage.
+ * @param {string} traceId @param {string} spanId
+ */
+function buildTraceparent(traceId, spanId) {
+  if (!isValidTraceId(traceId) || !isValidSpanId(spanId)) throw new Error("Invalid trace context");
+  return `00-${traceId}-${spanId}-01`;
+}
+
 /**
  * Convert a Unix timestamp in milliseconds to a nanosecond string suitable for
  * OTLP's `startTimeUnixNano` / `endTimeUnixNano` fields.
@@ -1303,7 +1311,7 @@ const TRACE_ID_RE = /^[0-9a-f]{32}$/;
  * @returns {boolean}
  */
 function isValidTraceId(id) {
-  return TRACE_ID_RE.test(id);
+  return TRACE_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -1318,7 +1326,7 @@ const SPAN_ID_RE = /^[0-9a-f]{16}$/;
  * @returns {boolean}
  */
 function isValidSpanId(id) {
-  return SPAN_ID_RE.test(id);
+  return SPAN_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -2375,21 +2383,14 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Ranked AIC sources: env var → non-zero file → engine metrics → file (may be zero).
   // When the firewall proxy writes ai_credits=0 to agent_usage.json, the engine result
   // event (from agent-stdio.log) is tried next so its non-zero value is not lost.
-  // For jobs that own token usage (agent, detection, engine), gh-aw.aic is ALWAYS
-  // emitted as a numeric attribute — defaulting to 0 when no data is available.
-  // This guarantees Sentry EAP infers the field as numeric (not string) so that
-  // sum()/avg()/percentile() aggregations work without manual schema configuration,
-  // and Tempo indexes it so { span."gh-aw.aic" > 0 } is queryable immediately.
+  // Missing cost data must remain unknown, not a synthetic zero. Explicit zero
+  // values remain numeric so consumers can distinguish them from absent data.
   const aiCreditsFromEnv = normalizeNonNegativeNumber(process.env.GH_AW_AIC);
-  const aiCreditsFromFile = agentUsage.ai_credits;
-  const aiCreditsFromMetrics = runtimeMetrics.tokenUsage?.ai_credits;
-  const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile ?? 0))) : undefined;
-  if (typeof aiCredits === "number") {
-    // Always encode gh-aw.aic as doubleValue (not intValue) so that Sentry EAP
-    // infers the field schema as float on first emission, enabling sum()/avg()/
-    // percentile() aggregations even when the value is 0 (an integer in JS).
-    attributes.push(buildDoubleAttr("gh-aw.aic", aiCredits));
-  }
+  // Detection may download agent artifacts even when its own scan is skipped.
+  // Only its job-local env value can establish detection's cost.
+  const aiCreditsFromFile = jobName === "detection" ? undefined : agentUsage.ai_credits;
+  const aiCreditsFromMetrics = jobName === "detection" ? undefined : runtimeMetrics.tokenUsage?.ai_credits;
+  const aiCredits = jobEmitsOwnTokenUsage ? (aiCreditsFromEnv ?? ((aiCreditsFromFile ?? 0) > 0 ? aiCreditsFromFile : (aiCreditsFromMetrics ?? aiCreditsFromFile))) : undefined;
   if (typeof runtimeMetrics.turns === "number") {
     attributes.push(buildAttr("gh-aw.turns", runtimeMetrics.turns));
   }
@@ -2568,6 +2569,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // When no agent span is emitted the attributes fall through to the conclusion span
   // so a single query is still sufficient for observability.
   const usageAttrs = [];
+  if (typeof aiCredits === "number") {
+    usageAttrs.push(buildDoubleAttr("gh-aw.aic", aiCredits));
+  }
   if (typeof agentUsage.input_tokens === "number" && agentUsage.input_tokens > 0) {
     usageAttrs.push(buildAttr("gen_ai.usage.input_tokens", agentUsage.input_tokens));
   }
@@ -2681,6 +2685,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 }
 
 module.exports = {
+  buildTraceparent,
   SPAN_KIND_INTERNAL,
   SPAN_KIND_SERVER,
   SPAN_KIND_CLIENT,

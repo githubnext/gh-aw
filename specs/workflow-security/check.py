@@ -14,7 +14,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-JAR_SHA256 = "15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac"
+JAR_SHA256 = "5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2"
 MUTATIONS = {
     "agent-write": "JobIsolation",
     "persist-credentials": "NoCredentialPersistence",
@@ -123,6 +123,92 @@ MCP_COMPILE_WITNESSES = {
     "nested-include-success": "NoNestedIncludeSuccess",
     "trusted-no-emit-import-refresh": "NoTrustedNoEmitImportRefresh",
 }
+ADMISSION_MUTATIONS = {
+    "shared-activation-oidc": "AdmissionJobIsolation",
+    "admission-dependency-bypass": "AdmissionDependency",
+    "endpoint-bypass": "NoEndpointNoRequest",
+    "credential-delegation": "OIDCOnly",
+    "identity-bypass": "IdentityVerified",
+    "trigger-bypass": "TriggeringActorVerified",
+    "actor-substitution": "OriginalActorPrivileges",
+    "cross-invocation": "InvocationBound",
+    "retry-result": "StableRetryDecision",
+    "retry-overflow": "RetryBound",
+    "deny-as-outage": "DenialBlocks",
+    "malformed-as-outage": "MalformedBlocks",
+    "fatal-as-outage": "FatalErrorsBlock",
+    "ignore-block": "OutagePolicyHonored",
+    "cap-not-validated": "CeilingValidated",
+    "optional-cap-ignored": "CeilingValidated",
+    "agent-cap-mutation": "RuntimeBudgetsResolved",
+    "admission-context-forwarded": "RuntimeBudgetsResolved",
+    "daily-after-admission": "DailyAdmissionPrecedence",
+    "daily-fallback-bypass": "DailyFallbackEnforced",
+    "deadline-retry": "DeadlineHonored",
+    "denial-leak": "PrivateDenial",
+    "spend-ceiling": "SpendPrivateCeiling",
+    "admission-charge": "NoFinancialEffects",
+    "correlation-drop": "CorrelationPreserved",
+    "traceparent-omitted": "TraceparentRequired",
+    "server-trace-override": "CallerTracePreserved",
+    "force-export": "OptionalExport",
+    "activation-bypass": "ActivationGate",
+}
+ADMISSION_MUTATION_SETTINGS = {
+    "ignore-block": {"outage_policy": "block"},
+    "force-export": {"otel_enabled": False},
+}
+ADMISSION_WITNESSES = {
+    "failed-admission-job-block": "NoFailedAdmissionJobBlock",
+    "admitted-start": "NoAdmittedStart",
+    "skipped-start": "NoSkippedStart",
+    "outage-start": "NoOutageStart",
+    "retry-recovery": "NoRetryRecovery",
+    "verified-rerun": "NoVerifiedRerun",
+    "unexported-admission": "NoUnexportedAdmission",
+    "existing-trace": "NoExistingTraceAdmission",
+    "generated-trace": "NoGeneratedTraceAdmission",
+    "primary-only-allowance": "NoPrimaryOnlyAllowance",
+    "detection-only-allowance": "NoDetectionOnlyAllowance",
+    "evals-only-allowance": "NoEvalsOnlyAllowance",
+    "combined-allowances": "NoCombinedAllowances",
+    "completed-denial": "NoCompletedDenial",
+    "admitted-daily-bypass": "NoAdmittedDailyBypass",
+    "skipped-daily-block": "NoSkippedDailyBlock",
+    "outage-daily-block": "NoOutageDailyBlock",
+    "early-timeout": "NoEarlyTimeout",
+}
+CONCLUSION_MUTATIONS = {
+    "callback-before-upload": "ArtifactBeforeConclusion",
+    "endpoint-bypass": "NoEndpointNoRequest",
+    "invalid-session": "InvalidInputNoRequest",
+    "token-handoff": "ConclusionOIDCOnly",
+    "identity-bypass": "InvocationVerified",
+    "unfiltered-session": "CompactProjection",
+    "oversized-payload": "BoundedPayload",
+    "artifact-id-spoof": "ArtifactReferences",
+    "artifact-ids-omitted": "ArtifactReferences",
+    "compact-replaces-artifact": "FullArtifactPreserved",
+    "retry-payload": "StablePayload",
+    "retry-overflow": "RetryBound",
+    "deadline-retry": "DeadlineHonored",
+    "delivery-fails-workflow": "BestEffort",
+    "ack-before-store": "DurableAcceptance",
+    "duplicate-processing": "SingleProcessing",
+    "conflict-overwrite": "AcceptedSessionImmutable",
+    "conclusion-charge": "NoFinancialEffects",
+    "retry-trace": "TraceCorrelation",
+}
+CONCLUSION_WITNESSES = {
+    "delivered": "NoDeliveredConclusion",
+    "retry-recovery": "NoRetryRecovery",
+    "upload-failure-delivery": "NoUploadFailureDelivery",
+    "agent-failure-delivery": "NoAgentFailureDelivery",
+    "ignored-admission-delivery": "NoIgnoredAdmissionDelivery",
+    "rejected-conflict": "NoRejectedConflict",
+    "deadline-warning": "NoDeadlineWarning",
+    "artifact-reference-delivery": "NoArtifactReferenceDelivery",
+}
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
     "persist-credentials": "Compiler mutation: actions/checkout persists its entry token.",
@@ -215,7 +301,7 @@ def concretize(fault, invariant, destination, trace):
 def run_case(java, jar, results, name, fault="none", profile="sparse",
              invariant=None, witness=False, effect="issue", detection_policy="required",
              detection_enabled=True, checkout_mode="transient", artifact_mode="plain",
-             model="CompiledWorkflow"):
+             model="CompiledWorkflow", outage_policy="ignore", otel_enabled=True):
     destination = results / name
     destination.mkdir()
     config = (ROOT / f"{model}.cfg").read_text()
@@ -226,6 +312,8 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
     config = config.replace("DetectionEnabled = TRUE", f"DetectionEnabled = {'TRUE' if detection_enabled else 'FALSE'}")
     config = config.replace('CheckoutMode = "transient"', f'CheckoutMode = "{checkout_mode}"')
     config = config.replace('ArtifactMode = "plain"', f'ArtifactMode = "{artifact_mode}"')
+    config = config.replace('OutagePolicy = "ignore"', f'OutagePolicy = "{outage_policy}"')
+    config = config.replace("OTelEnabled = TRUE", f"OTelEnabled = {str(otel_enabled).upper()}")
     if witness:
         config += f"\nINVARIANT {invariant}\n"
     (destination / "model.cfg").write_text(config)
@@ -280,6 +368,10 @@ def run_case(java, jar, results, name, fault="none", profile="sparse",
         report.update({"profile": profile, "effect": effect,
                        "detection_policy": detection_policy, "detection_enabled": detection_enabled,
                        "checkout_mode": checkout_mode, "artifact_mode": artifact_mode})
+    elif model in {"ActivationAdmission", "AdmissionConclusion"}:
+        report["outage_policy"] = outage_policy
+        if model == "ActivationAdmission":
+            report["otel_enabled"] = otel_enabled
     return report
 
 
@@ -326,6 +418,38 @@ def check_mcp_compile(java, jar, results):
     for name, invariant in MCP_COMPILE_WITNESSES.items():
         cases.append(run_case(java, jar, results, f"mcp-compile-{name}",
                               invariant=invariant, witness=True, model="MCPCompile"))
+    return cases
+
+
+def check_activation_admission(java, jar, results):
+    cases = []
+    for policy in ["ignore", "block"]:
+        for otel in [True, False]:
+            name = f"admission-secure-{policy}-{'otel' if otel else 'unexported'}"
+            cases.append(run_case(java, jar, results, name, model="ActivationAdmission",
+                                  outage_policy=policy, otel_enabled=otel))
+    for fault, invariant in ADMISSION_MUTATIONS.items():
+        cases.append(run_case(java, jar, results, f"admission-{fault}", fault,
+                              invariant=invariant, model="ActivationAdmission",
+                              **ADMISSION_MUTATION_SETTINGS.get(fault, {})))
+    for name, invariant in ADMISSION_WITNESSES.items():
+        cases.append(run_case(java, jar, results, f"admission-{name}",
+                              invariant=invariant, witness=True, model="ActivationAdmission",
+                              otel_enabled=name != "unexported-admission"))
+    return cases
+
+
+def check_admission_conclusion(java, jar, results):
+    cases = [run_case(java, jar, results, f"conclusion-secure-{policy}",
+                      model="AdmissionConclusion", outage_policy=policy)
+             for policy in ["ignore", "block"]]
+    for fault, invariant in CONCLUSION_MUTATIONS.items():
+        cases.append(run_case(java, jar, results, f"conclusion-{fault}", fault,
+                              invariant=invariant, model="AdmissionConclusion",
+                              outage_policy="block" if fault == "delivery-fails-workflow" else "ignore"))
+    for name, invariant in CONCLUSION_WITNESSES.items():
+        cases.append(run_case(java, jar, results, f"conclusion-{name}",
+                              invariant=invariant, witness=True, model="AdmissionConclusion"))
     return cases
 
 
@@ -384,29 +508,7 @@ def check_compiled_workflows(verifier, directory, results):
     print(f"Compiled workflow conformance: {len(reports)}/{len(reports)} pass; policies {dict(policy_counts)}.")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, help="New directory for all reports and traces")
-    parser.add_argument("--compiler", type=Path, help="Local gh-aw binary for source acceptance/rejection checks")
-    parser.add_argument("--write-examples", action="store_true", help="Regenerate checked-in representative traces")
-    parser.add_argument("--verifier", type=Path, help="Built gh-aw-security-model binary")
-    parser.add_argument("--compiled-workflows", type=Path, help="Directory of existing lock files to verify")
-    args = parser.parse_args()
-    if bool(args.verifier) != bool(args.compiled_workflows):
-        parser.error("--verifier and --compiled-workflows must be supplied together")
-    jar_env = os.environ.get("TLA2TOOLS_JAR")
-    if not jar_env:
-        parser.error("Set TLA2TOOLS_JAR to the official v1.8.0 tla2tools.jar")
-    jar = Path(jar_env).resolve()
-    if not jar.is_file() or hashlib.sha256(jar.read_bytes()).hexdigest() != JAR_SHA256:
-        parser.error("TLA2TOOLS_JAR is missing or does not match the pinned SHA-256")
-    results = args.results.resolve() if args.results else Path(
-        tempfile.mkdtemp(prefix="workflow-security-tlc-")
-    )
-    if args.results:
-        results.mkdir(parents=True, exist_ok=False)
-    java = os.environ.get("JAVA_BIN", "java")
-    print(f"Reports: {results}", flush=True)
+def check_workflow_models(java, jar, results):
     cases = [
         run_case(java, jar, results, "secure-sparse"),
         run_case(java, jar, results, "secure-full", profile="full"),
@@ -437,6 +539,40 @@ def main():
                               invariant=invariant, witness=True,
                               model="RuntimeRepositoryCheckout"))
     cases.extend(check_mcp_compile(java, jar, results))
+    return cases
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", choices=["all", "admission", "conclusion"], default="all",
+                        help="Check all models, admission and conclusion, or only conclusion")
+    parser.add_argument("--results", type=Path, help="New directory for all reports and traces")
+    parser.add_argument("--compiler", type=Path, help="Local gh-aw binary for source acceptance/rejection checks")
+    parser.add_argument("--write-examples", action="store_true", help="Regenerate checked-in representative traces")
+    parser.add_argument("--verifier", type=Path, help="Built gh-aw-security-model binary")
+    parser.add_argument("--compiled-workflows", type=Path, help="Directory of existing lock files to verify")
+    args = parser.parse_args()
+    if bool(args.verifier) != bool(args.compiled_workflows):
+        parser.error("--verifier and --compiled-workflows must be supplied together")
+    if args.model != "all" and (args.compiler or args.verifier or args.write_examples):
+        parser.error("--compiler, --verifier, and --write-examples require --model all")
+    jar_env = os.environ.get("TLA2TOOLS_JAR")
+    if not jar_env:
+        parser.error("Set TLA2TOOLS_JAR to the official v1.8.0 tla2tools.jar")
+    jar = Path(jar_env).resolve()
+    if not jar.is_file() or hashlib.sha256(jar.read_bytes()).hexdigest() != JAR_SHA256:
+        parser.error("TLA2TOOLS_JAR is missing or does not match the pinned SHA-256")
+    results = args.results.resolve() if args.results else Path(
+        tempfile.mkdtemp(prefix="workflow-security-tlc-")
+    )
+    if args.results:
+        results.mkdir(parents=True, exist_ok=False)
+    java = os.environ.get("JAVA_BIN", "java")
+    print(f"Reports: {results}", flush=True)
+    cases = check_workflow_models(java, jar, results) if args.model == "all" else []
+    if args.model in {"all", "admission"}:
+        cases.extend(check_activation_admission(java, jar, results))
+    cases.extend(check_admission_conclusion(java, jar, results))
     current_hashes = {model: hashlib.sha256((ROOT / f"{model}.tla").read_bytes()).hexdigest()
                       for model in {case["model"] for case in cases}}
     if any(case["model_sha256"] != current_hashes[case["model"]] for case in cases):
@@ -445,9 +581,9 @@ def main():
         check_sources(args.compiler, results)
     if args.verifier:
         check_compiled_workflows(args.verifier, args.compiled_workflows, results)
+    models = list(dict.fromkeys(case["model"] for case in cases))
     (results / "results.json").write_text(
-        json.dumps({"model": "CompiledWorkflow",
-                    "additional_models": ["RuntimeRepositoryCheckout", "MCPCompile"], "bounded": True,
+        json.dumps({"model": models[0], "additional_models": models[1:], "bounded": True,
                     "jar_sha256": JAR_SHA256, "cases": cases}, indent=2) + "\n"
     )
     if args.write_examples:

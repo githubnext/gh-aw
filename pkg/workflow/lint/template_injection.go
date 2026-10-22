@@ -19,7 +19,7 @@ func TemplateInjectionRule() Rule {
 	return Rule{
 		ID:           "template-injection",
 		ThreatRuleID: "CTR-006",
-		Description:  "Detect attacker-controlled Actions expressions interpolated into run scripts",
+		Description:  "Detect attacker-controlled Actions expressions interpolated into run or github-script code",
 		Severity:     Error,
 		Targets:      ActionsAST | AWAST,
 		Check:        checkTemplateInjection,
@@ -79,32 +79,72 @@ func (c *templateInjectionChecker) step(ctx context.Context, step actions.Step, 
 	var script string
 	var env map[string][]taint.Source
 	var err error
+	javascript := false
 	switch value := step.(type) {
 	case actions.RunStep:
 		script = value.Run
 		env, err = c.environment(ctx, value.Env, path+".env", job, workflow, bindings)
 	case actions.RawStep:
-		run, exists := value.Fields["run"]
+		return c.rawStep(ctx, value.Fields, path, bindings)
+	case actions.ActionStep:
+		if actionName(value.Uses) != "actions/github-script" {
+			return nil
+		}
+		expression, exists := value.With["script"]
 		if !exists {
 			return nil
 		}
-		var ok bool
-		script, ok = run.(string)
-		if !ok {
-			return fmt.Errorf("run script must be a string at %s.run", path)
+		javascript = true
+		script, err = actions.RenderExpression(expression, job, workflow, true)
+		if err != nil {
+			return fmt.Errorf("cannot render executable script at %s.with.script; correct the action input before linting", path)
 		}
-		env, err = c.rawEnvironment(ctx, value.Fields["env"], path+".env", bindings)
-	case actions.ActionStep:
-		return nil
+		env, err = c.environment(ctx, value.Env, path+".env", job, workflow, bindings)
 	default:
 		return fmt.Errorf("unsupported step at %s", path)
 	}
 	if err != nil {
 		return err
 	}
+	scriptPath := path + ".run"
+	if javascript {
+		scriptPath = path + ".with.script"
+	}
+	return c.checkScript(ctx, script, scriptPath, javascript, env)
+}
+
+func (c *templateInjectionChecker) rawStep(ctx context.Context, fields map[string]any, path string, bindings map[string][]taint.Source) error {
+	raw, exists := fields["run"]
+	scriptPath, javascript, kind := path+".run", false, "run script"
+	if !exists {
+		if actionName(fields["uses"]) != "actions/github-script" {
+			return nil
+		}
+		with, err := policyMapping(fields["with"], path+".with")
+		if err != nil {
+			return err
+		}
+		raw, exists = with["script"]
+		if !exists {
+			return nil
+		}
+		scriptPath, javascript, kind = path+".with.script", true, "github-script code"
+	}
+	script, ok := raw.(string)
+	if !ok {
+		return fmt.Errorf("%s must be a string at %s", kind, scriptPath)
+	}
+	env, err := c.rawEnvironment(ctx, fields["env"], path+".env", bindings)
+	if err != nil {
+		return err
+	}
+	return c.checkScript(ctx, script, scriptPath, javascript, env)
+}
+
+func (c *templateInjectionChecker) checkScript(ctx context.Context, script, scriptPath string, javascript bool, env map[string][]taint.Source) error {
 	// Interpolation happens before every shell/interpreter starts, even
 	// within apparent quotes, comments, or quoted heredoc bodies.
-	expressions, err := c.text(ctx, script, path+".run", env)
+	expressions, err := c.text(ctx, script, scriptPath, env)
 	for _, expression := range expressions {
 		if len(expression.Sources) == 0 {
 			continue
@@ -113,10 +153,14 @@ func (c *templateInjectionChecker) step(ctx context.Context, step actions.Step, 
 		for _, source := range expression.Sources {
 			related = append(related, RelatedLocation{Path: source.Path})
 		}
+		remediation := "bind it through env and use a quoted variable expansion instead"
+		if javascript {
+			remediation = "bind it through env and read process.env instead"
+		}
 		c.diagnostics = append(c.diagnostics, Diagnostic{
-			Path: path + ".run", Line: expression.Line, Related: slices.Compact(related),
+			Path: scriptPath, Line: expression.Line, Related: slices.Compact(related),
 			Message: "Attacker-controlled Actions value is interpolated into executable script text; " +
-				"bind it through env and use a quoted variable expansion instead",
+				remediation,
 		})
 	}
 	return err

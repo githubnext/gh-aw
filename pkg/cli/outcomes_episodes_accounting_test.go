@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func episodeAccountingAWFRecord(id string, delta, total float64) string {
-	return fmt.Sprintf(`{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":%q,"provider":"unknown","ai_credits_this_response":%g,"ai_credits_total":%g}`, id, delta, total)
-}
 
 func writeEpisodeAccountingFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
@@ -253,22 +248,60 @@ func TestEpisodeAccountingPhaseSources(t *testing.T) {
 	}
 }
 
-func TestEpisodeAccountingIndependentStreamTotals(t *testing.T) {
+func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
+	t.Parallel()
+	runDir := t.TempDir()
+	collectionDir := filepath.Join(runDir, "collection")
+	require.NoError(t, os.MkdirAll(collectionDir, 0o700))
+	rootInfo, err := json.Marshal(AwInfo{RunID: NumericID(42), RunAttempt: "2", Repository: "org/repo"})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, "aw_info.json"), rootInfo, 0o600))
+	writeArtifact := func(name, attempt, usage string) {
+		t.Helper()
+		dir := filepath.Join(runDir, name)
+		info, err := json.Marshal(AwInfo{RunID: NumericID(42), RunAttempt: attempt, Repository: "org/repo"})
+		require.NoError(t, err)
+		writeEpisodeAccountingFiles(t, dir, map[string]string{
+			"aw_info.json":            string(info),
+			"agent/token_usage.jsonl": usage,
+		})
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".episode-complete"), []byte("v1\n"), 0o600))
+	}
+	writeArtifact("20-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25))
+	writeArtifact("21-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25)+"\n"+
+		episodeAccountingAWFRecord("independent-request", 0.75, 1.0))
+	writeArtifact("22-usage", "1", episodeAccountingAWFRecord("old-request", 9, 9))
+	inventory, err := json.Marshal([]string{"../20-usage", "../21-usage"})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, ".episode-artifacts.json"), inventory, 0o600))
+	usage, err := analyzeTokenUsageAICOnly(collectionDir, false)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	assert.InDelta(t, 1.0, usage.TotalAIC, 1e-9)
+}
+
+func TestEpisodeOutcomesUseConfinedFallbackForRelocatedReport(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	files := map[string]string{
-		"usage/agent/token_usage.jsonl":        episodeAccountingAWFRecord("first-stream", 7, 8),
-		"usage/agent/second-token-usage.jsonl": episodeAccountingAWFRecord("second-stream", 2, 2),
-	}
-	writeEpisodeAccountingFiles(t, dir, files)
-	paths, warnings := findUsageJSONLFiles(dir)
-	require.Empty(t, warnings)
-	total, found, warnings, err := sumAICFromUsageJSONLFilesWithWarnings(paths)
+	logsPath := filepath.Join(dir, "logs.json")
+	logs := episodeLogs(42)
+	logs.Runs[0].LogsPath = "/old/cache/run-42"
+	content, err := json.Marshal(logs)
 	require.NoError(t, err)
-	assert.True(t, found)
-	assert.InDelta(t, 10, total, 1e-9, "independent counters remain authoritative, not summed per-request deltas")
-	require.Len(t, warnings, 1)
-	assert.Contains(t, warnings[0], "cumulative AI Credits total differs")
+	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
+	outcomesDir := filepath.Join(dir, "outcomes")
+	writeOutcomeJSONL(outcomesDir, 42, []OutcomeReport{episodeObservation(42, "item-42", OutcomeStatusAccepted).OutcomeReport})
+	writeEpisodeAccountingFiles(t, filepath.Join(dir, "run-42"), map[string]string{
+		"usage/agent_usage.jsonl": episodeAccountingAWFRecord("relocated-run", 0.5, 0.5),
+	})
+	var stdout, stderr bytes.Buffer
+	require.NoError(t, runOutcomesEpisodes(logsPath, outcomesDir, dir, true, &stdout, &stderr))
+	var report EpisodeOutcomesData
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
+	require.Len(t, report.Episodes, 1)
+	require.NotNil(t, report.Episodes[0].ObservedAIC)
+	assert.InDelta(t, 0.5, *report.Episodes[0].ObservedAIC, 1e-9)
+	require.Empty(t, stderr.String())
 }
 
 func TestEpisodeAccountingPrefixedAgentDiscovery(t *testing.T) {

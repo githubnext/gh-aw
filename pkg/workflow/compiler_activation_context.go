@@ -76,6 +76,11 @@ func (c *Compiler) newActivationJobBuildContext(
 		return nil, err
 	}
 	c.addActivationSetupAndWorkflowCallSteps(ctx, setupActionRef)
+	webhookSteps, err := buildWebhookValidationStep(data)
+	if err != nil {
+		return nil, err
+	}
+	ctx.steps = append(ctx.steps, webhookSteps...)
 	// Experiment variants must be selected before the aw_info step, which reads
 	// steps.pick-experiment.outputs.<name> when engine.model references an experiment.
 	c.addActivationExperimentSteps(ctx)
@@ -136,6 +141,13 @@ func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) error {
 func (c *Compiler) addActivationSetupAndWorkflowCallSteps(ctx *activationJobBuildContext, setupActionRef string) {
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(ctx.data)...)
 	activationSetupTraceID, activationSetupParentSpanID := buildActivationSetupParentSpans(ctx.preActivationJob)
+	if ctx.data.AdmissionEnabled {
+		if activationSetupTraceID == "" {
+			activationSetupTraceID = "${{ needs.admission.outputs.trace-id }}"
+		} else {
+			activationSetupTraceID = "${{ needs.admission.outputs.trace-id || " + stripExpressionWrapper(activationSetupTraceID) + " }}"
+		}
+	}
 	enableArtifactClient := hasMaxDailyAICGuardrail(ctx.data)
 	artifactClientCondition := ""
 	if enableArtifactClient {

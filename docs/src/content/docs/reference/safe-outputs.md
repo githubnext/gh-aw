@@ -7,7 +7,9 @@ sidebar:
 
 The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) (validated GitHub operations) element of your workflow's [frontmatter](/gh-aw/reference/glossary/#frontmatter) declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels - all without giving the agentic portion of the workflow any write permissions.
 
-Safe outputs enforce security through separation: agents run read-only and request actions via structured output, while separate permission-controlled jobs execute those requests. This provides least privilege, defense against prompt injection, auditability, and controlled limits per operation.
+Safe outputs separate action requests from execution: the agent requests actions through structured output, and separate permission-controlled jobs execute permitted requests. This separation limits the agent's direct permissions and supports validation, auditability and per-operation limits.
+
+Configured outputs may publish content, update metadata or merge pull requests automatically. Review requirements depend on the output configuration and applicable policy gates.
 
 When no `safe-outputs:` section is present (or when only [system types](#system-types-auto-enabled) are configured), `create-issue` is automatically enabled with conservative defaults (`max: 1`, labels and title-prefix set to the workflow ID).
 
@@ -29,7 +31,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
-The tables below summarize the built-in safe output handlers. `noop`, `missing-tool`, and `missing-data` are always available, and `create-issue` is auto-injected only when no non-system safe outputs are configured and it is not explicitly disabled.
+The tables below summarize the built-in safe output handlers. `noop`, `report-missing-tool`, and `report-missing-data` are always available, and `create-issue` is auto-injected only when no non-system safe outputs are configured and it is not explicitly disabled.
 
 ### Issues & Discussions
 
@@ -161,9 +163,9 @@ When the workflow references `${{ secrets.LINEAR_TEAM_ID }}`, a repository varia
 | Output | Key | Description |
 |--------|-----|-------------|
 | [No-Op](#no-op-logging-noop) | `noop` | Log completion messages for transparency (max: 2, same-repo only) |
-| [Missing Tool](#missing-tool-reporting-missing-tool) | `missing-tool` | Report missing tools (max: unlimited, same-repo only) |
-| [Missing Data](#missing-data-reporting-missing-data) | `missing-data` | Report missing data required to achieve goals (max: unlimited, same-repo only) |
-| [Create Issue](#issue-creation-create-issue) | `create-issue` | Auto-injected when no `safe-outputs:` section is present or when only system types (`noop`, `missing-tool`, `missing-data`) are configured (max: 1, labels and title-prefix set to workflow ID). |
+| [Missing Tool](#missing-tool-reporting-report-missing-tool) | `report-missing-tool` | Report missing tools (max: unlimited, same-repo only) |
+| [Missing Data](#missing-data-reporting-report-missing-data) | `report-missing-data` | Report missing data required to achieve goals (max: unlimited, same-repo only) |
+| [Create Issue](#issue-creation-create-issue) | `create-issue` | Auto-injected when no `safe-outputs:` section is present or when only system types (`noop`, `report-missing-tool`, `report-missing-data`) are configured (max: 1, labels and title-prefix set to workflow ID). |
 
 ### Custom Safe Output Jobs (`jobs:`)
 
@@ -1285,23 +1287,23 @@ If no action is needed, you MUST call the `noop` tool with a message explaining 
 {"noop": {"message": "No action needed: [brief explanation]"}}
 ```
 
-### Missing Tool Reporting (`missing-tool:`)
+### Missing Tool Reporting (`report-missing-tool:`)
 
 Enabled by default. Automatically detects and reports tools lacking permissions or unavailable functionality.
 
 ```yaml wrap
 safe-outputs:
-  create-issue:           # missing-tool enabled automatically
-  missing-tool: false     # explicitly disable
+  create-issue:                  # report-missing-tool enabled automatically
+  report-missing-tool: false     # explicitly disable
 ```
 
-### Missing Data Reporting (`missing-data:`)
+### Missing Data Reporting (`report-missing-data:`)
 
 Enabled by default. Allows AI agents to report missing data required to achieve their goals, encouraging truthfulness over hallucination.
 
 ```yaml wrap
 safe-outputs:
-  missing-data:
+  report-missing-data:
     create-issue: true          # create GitHub issues for missing data
     title-prefix: "[data]"      # prefix for issue titles (default: "[missing data]")
     labels: [data, blocked]     # labels to attach to issues
@@ -1788,6 +1790,7 @@ safe-outputs:
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
 | `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
 | `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output, or the final engine result reported an error even if the process exited 0 and safe outputs exist |
+| `secret_redaction_failure` | The selected failing step is secret redaction; can be included or excluded independently of generic agent failures |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
 | `missing_terminal_safe_output` | Agent finished with no terminal safe output, including diagnostic-only exits |
@@ -1803,9 +1806,13 @@ safe-outputs:
 | `code_push_failures` | Failures pushing code to branches |
 | `assignment_errors` | Failures assigning issues or reviewers |
 
-When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`report_missing_tool` or `report_missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
+
+The diagnostic tool names are `report_missing_tool` and `report_missing_data`, configured with `safe-outputs.report-missing-tool` and `safe-outputs.report-missing-data`. Legacy calls and recorded output types named `missing_tool` and `missing_data` remain supported. The old YAML keys `missing-tool` and `missing-data` are deprecated aliases; run `gh aw fix --write` to migrate them. The fix also corrects `missing-tools` to `report-missing-tool`, preserves configuration values and comments, and reports conflicts for manual resolution rather than overwriting either entry. Failure category names (`missing_tool`, `missing_data`) are unchanged.
 
 An observed `not_started` agent execution marker is classified as `agent_startup_failure`, not agent omission. Failure reports identify the failing startup step when available and direct investigation to setup and gateway logs. Missing, unreadable, invalid, or mismatched run evidence does not establish a startup failure; observed agent execution takes precedence over a stale marker.
+
+An unexplained nonzero driver exit is classified as `driver_crash`, not `unknown` or an inferred provider outage. Fatal-signal exits take precedence over earlier request errors; crash categories from recovered attempts do not override a recorded non-crash final exit. Reports include the exit code, an inferred signal when recognized, and a fixed summary of the last classified driver diagnostic; raw stderr and agent text are excluded. Explicit provider, request, and budget evidence still explains ordinary nonzero exits, including handled SDK errors. A failed **Redact secrets in logs** step is reported separately as `secret_redaction_failure`, with its own bounded redactor operation/error-code diagnostics when available, rather than a generic driver-exit message. A recorded startup failure retains priority over a later redaction failure.
 
 When the Actions jobs API confirms that the entire run has no jobs, failure reporting stays silent: no failure issue, update, or parent report is created. Such runs may be awaiting or lacking user approval and are not agent failures. API errors or missing agent metadata in a nonempty job list do not establish this condition; genuine setup failures within a started job remain reportable.
 

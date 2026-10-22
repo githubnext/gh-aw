@@ -34,9 +34,9 @@ describe("missing_data.cjs handler", () => {
   });
 
   describe("Message Processing", () => {
-    it("should process valid missing_data message", async () => {
+    it("should process valid report_missing_data message", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
         data_type: "user_preferences",
         reason: "User preferences not found in database",
         context: "Needed to customize dashboard layout",
@@ -54,7 +54,7 @@ describe("missing_data.cjs handler", () => {
 
     it("should process message with alternatives", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
         data_type: "api_credentials",
         reason: "API credentials not configured",
         alternatives: "Could use default read-only access",
@@ -68,7 +68,7 @@ describe("missing_data.cjs handler", () => {
 
     it("should process message without context", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
         data_type: "simple_data",
         reason: "Simple reason",
       };
@@ -82,7 +82,7 @@ describe("missing_data.cjs handler", () => {
 
     it("should process message with only data_type", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
         data_type: "some_data",
       };
 
@@ -97,7 +97,7 @@ describe("missing_data.cjs handler", () => {
 
     it("should process message with only reason", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
         reason: "No data type specified",
       };
 
@@ -110,7 +110,7 @@ describe("missing_data.cjs handler", () => {
 
     it("should process message with no fields (empty message)", async () => {
       const message = {
-        type: "missing_data",
+        type: "report_missing_data",
       };
 
       const result = await handler(message, {});
@@ -130,15 +130,15 @@ describe("missing_data.cjs handler", () => {
       const limitedHandler = await (await import("./missing_data.cjs")).main({ max: 2 });
 
       // First message should succeed
-      const result1 = await limitedHandler({ type: "missing_data", data_type: "data1" }, {});
+      const result1 = await limitedHandler({ type: "report_missing_data", data_type: "data1" }, {});
       expect(result1.success).toBe(true);
 
       // Second message should succeed
-      const result2 = await limitedHandler({ type: "missing_data", reason: "reason2" }, {});
+      const result2 = await limitedHandler({ type: "report_missing_data", reason: "reason2" }, {});
       expect(result2.success).toBe(true);
 
       // Third message should fail
-      const result3 = await limitedHandler({ type: "missing_data" }, {});
+      const result3 = await limitedHandler({ type: "report_missing_data" }, {});
       expect(result3.success).toBe(false);
       expect(result3.error).toContain("Max count");
     });

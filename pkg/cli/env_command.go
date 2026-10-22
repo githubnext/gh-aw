@@ -3,11 +3,13 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -31,6 +33,9 @@ const (
 )
 
 type defaultsFile struct {
+	DefaultAdmissionURL               *string `yaml:"default_admission_url"`
+	DefaultAdmissionAudience          *string `yaml:"default_admission_audience"`
+	DefaultAdmissionOnOutage          *string `yaml:"default_admission_on_outage"`
 	DefaultArtifactRetentionDays      *string `yaml:"default_artifact_retention_days"`
 	DefaultMaxAICredits               *string `yaml:"default_max_ai_credits"`
 	DefaultMaxTurnCacheMisses         *string `yaml:"default_max_turn_cache_misses"`
@@ -102,6 +107,9 @@ func (e *defaultsGHError) Unwrap() error {
 }
 
 var defaultsBindings = []defaultsBinding{
+	{envName: compilerenv.DefaultAdmissionURL, fieldName: "default_admission_url", get: func(f *defaultsFile) **string { return &f.DefaultAdmissionURL }},
+	{envName: compilerenv.DefaultAdmissionAudience, fieldName: "default_admission_audience", get: func(f *defaultsFile) **string { return &f.DefaultAdmissionAudience }},
+	{envName: compilerenv.DefaultAdmissionOnOutage, fieldName: "default_admission_on_outage", get: func(f *defaultsFile) **string { return &f.DefaultAdmissionOnOutage }},
 	{envName: compilerenv.DefaultArtifactRetentionDays, fieldName: "default_artifact_retention_days", get: func(f *defaultsFile) **string { return &f.DefaultArtifactRetentionDays }},
 	{envName: compilerenv.DefaultMaxAICredits, fieldName: "default_max_ai_credits", get: func(f *defaultsFile) **string { return &f.DefaultMaxAICredits }},
 	{envName: compilerenv.DefaultMaxTurnCacheMisses, fieldName: "default_max_turn_cache_misses", get: func(f *defaultsFile) **string { return &f.DefaultMaxTurnCacheMisses }},
@@ -160,7 +168,7 @@ Scope resolution:
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFile := "file.yml"
-			if len(args) == 1 {
+			if len(args) > 0 {
 				outputFile = args[0]
 			}
 			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, "", false)
@@ -200,7 +208,7 @@ Scope and flag behavior:
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputFile := "file.yml"
-			if len(args) == 1 {
+			if len(args) > 0 {
 				inputFile = args[0]
 			}
 			if err := validateDefaultsVisibility(scope, visibility, cmd.Flags().Changed("visibility")); err != nil {
@@ -305,6 +313,9 @@ func defaultsParseFile(inputFile string, data []byte) (defaultsFile, error) {
 func defaultsValidateFile(file *defaultsFile) error {
 	var validationErrors []string
 
+	if err := validateAdmissionDefaults(file); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
 	if err := validateDefaultArtifactRetentionDays(file.DefaultArtifactRetentionDays); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
@@ -336,15 +347,6 @@ func defaultsValidateFile(file *defaultsFile) error {
 			validationErrors = append(validationErrors, field+" cannot be empty when set")
 		}
 	}
-	validateUTCOffset := func(field string, value *string) {
-		if value == nil {
-			return
-		}
-		if _, err := workflow.NormalizeUTCOffset(*value); err != nil {
-			validationErrors = append(validationErrors, field+" "+err.Error())
-		}
-	}
-
 	validateNonZeroInt("default_max_ai_credits", file.DefaultMaxAICredits)
 	validatePositiveInt("default_max_turn_cache_misses", file.DefaultMaxTurnCacheMisses)
 	validateNonZeroInt("default_detection_max_ai_credits", file.DefaultDetectionMaxAICredits)
@@ -354,13 +356,59 @@ func defaultsValidateFile(file *defaultsFile) error {
 	validatePositiveInt("default_agent_job_timeout_minutes", file.DefaultAgentJobTimeoutMinutes)
 	validatePositiveInt("default_detection_job_timeout_minutes", file.DefaultDetectionJobTimeoutMinutes)
 	validateNonEmpty("default_detection_model", file.DefaultDetectionModel)
-	validateUTCOffset("default_utc", file.DefaultUTC)
+	if err := validateDefaultUTCOffset(file.DefaultUTC); err != nil {
+		validationErrors = append(validationErrors, err.Error())
+	}
 	validateNonEmpty("default_model_copilot", file.DefaultModelCopilot)
 	validateNonEmpty("default_model_claude", file.DefaultModelClaude)
 	validateNonEmpty("default_model_codex", file.DefaultModelCodex)
 
 	if len(validationErrors) > 0 {
 		return fmt.Errorf("invalid defaults file: %s", strings.Join(validationErrors, "; "))
+	}
+	return nil
+}
+
+func validateDefaultUTCOffset(value *string) error {
+	if value == nil {
+		return nil
+	}
+	if _, err := workflow.NormalizeUTCOffset(*value); err != nil {
+		return fmt.Errorf("default_utc %w", err)
+	}
+	return nil
+}
+
+func validateAdmissionDefaults(file *defaultsFile) error {
+	invalidLiteral := func(value string) bool {
+		return strings.Contains(value, "${{") || strings.ContainsFunc(value, unicode.IsControl)
+	}
+	if value := file.DefaultAdmissionURL; value != nil && *value != "" {
+		u, err := url.Parse(*value)
+		validAuthority := true
+		if err == nil {
+			if port := u.Port(); port != "" {
+				number, portErr := strconv.Atoi(port)
+				validAuthority = portErr == nil && number >= 0 && number <= 65535
+			}
+			if strings.HasPrefix(u.Host, "[") && net.ParseIP(u.Hostname()) == nil {
+				validAuthority = false
+			}
+		}
+		if err != nil || invalidLiteral(*value) || strings.TrimSpace(*value) != *value ||
+			!validAuthority ||
+			u.Scheme != "https" || u.Hostname() == "" || u.User != nil ||
+			u.Path != "/api/admission" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery ||
+			u.Fragment != "" || strings.ContainsAny(*value, "\\#") ||
+			!strings.HasSuffix(*value, "/api/admission") {
+			return errors.New("default_admission_url must be an absolute HTTPS /api/admission URL without credentials, query, fragment, or expressions")
+		}
+	}
+	if value := file.DefaultAdmissionAudience; value != nil && invalidLiteral(*value) {
+		return errors.New("default_admission_audience must be a literal value without control characters or expressions")
+	}
+	if value := file.DefaultAdmissionOnOutage; value != nil && *value != "" && *value != "ignore" && *value != "block" {
+		return errors.New("default_admission_on_outage must be ignore or block")
 	}
 	return nil
 }

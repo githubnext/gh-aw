@@ -5,7 +5,8 @@
  *
  * Minimal standalone program launched by copilot_harness.cjs.  Reads
  * configuration from environment variables, delegates the full session
- * lifecycle to copilot_sdk_session.cjs, and exits with the session's exit code.
+ * lifecycle to copilot_sdk_session.cjs, and exits with the session's exit code
+ * (COPILOT_MODEL_VERIFICATION_EXIT_CODE when main-session model verification fails).
  *
  *   GH_AW_PROMPT                            — path to the prompt file
  *   COPILOT_SDK_URI                          — SDK server URI (set by the harness)
@@ -13,6 +14,8 @@
  *   COPILOT_MODEL                            — model override (optional)
  *   GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON   — JSON-encoded multi-provider config (required).
  *                                             Shape: { model, providers: NamedProviderConfig[], models: ProviderModelConfig[] }
+ *   GH_AW_COPILOT_SDK_SUBAGENT_MODELS       — JSON map of custom agent name → model resolved by the harness (optional)
+ *   GH_AW_COPILOT_CONFIGURED_MODEL          — requested model (`auto` when routed) recorded with main-session model observation (set by the harness)
  *   GH_AW_COPILOT_SDK_SERVER_ARGS           — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a

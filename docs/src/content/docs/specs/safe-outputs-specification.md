@@ -201,7 +201,7 @@ An implementation satisfying ALL normative requirements (MUST, SHALL, REQUIRED s
 An implementation satisfying ALL security-critical normative requirements but omitting support for optional safe output types. Partial conformance requires:
 
 - Complete security architecture (non-negotiable)
-- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`, `missing_tool`, `missing_data`, `report_incomplete`
+- Mandatory safe output types: `create_issue`, `add_comment`, `create_pull_request`, `noop`, `report_missing_tool`, `report_missing_data`, `report_incomplete`
 - Clear documentation listing unsupported optional types
 - Warning messages when workflows attempt to use unsupported types
 
@@ -621,12 +621,15 @@ When evaluating cross-repository operations, implementations MUST apply these ru
    - MUST reject cross-repository operations
    - Same-repository operations are permitted
 
+**Invocation-context authorization** is a separate runtime check applied when resolving a `workflow_dispatch` target repository after safe-output processing. If parsing `GH_AW_ALLOWED_REPOS` yields one or more entries, that list MUST remain authoritative and MUST NOT be extended with handler configuration. Otherwise, when handler configuration is valid, the resolver MUST build a fallback from configured per-handler `allowed_repos` entries, retaining their existing matching semantics, and exact, valid per-handler `target-repo` slugs. Handler `target-repo` values MUST be trimmed and validated as exact repository slugs before inclusion; wildcard and malformed values MUST be ignored. The resolver MUST reject any dispatch target that is neither the workflow repository nor allowed by this effective list. This fallback preserves the handler's configured target without authorizing arbitrary repositories.
+
 **Matching Rules**
 
-- Matching is EXACT (case-sensitive)
-- Wildcards (*, ?) are NOT supported
-- Pattern matching is NOT supported
-- Each repository MUST be explicitly listed
+- Literal repository entries match EXACTLY (case-sensitive)
+- Explicit allowlist patterns retain the matching semantics supported by that allowlist; `?` is NOT supported
+- A per-handler `target-repo` fallback value is never treated as a pattern, even if the safe-output handler supports a wildcard target
+- Exact fallback slugs allow ASCII alphanumerics, hyphens, and underscores in the owner (including Enterprise Managed User logins), and additionally dots in the repository name
+- Each repository MUST be explicitly listed or match an explicit supported allowlist pattern
 
 Internal work-queue Claim adapters use the authenticated worker profile's `effect_scope` as a singleton repository allowlist. Declared adapters MUST specify a fixed literal `target-repo`, validated by `work_queue_claim_adapters.cjs`. Every selected repository, including native adapter runtime fallbacks and independently resolved mutation targets, MUST match the profile allowlist through `assertClaimAuthorized` before effects execute. Repository allowlist rejection carries error code E004 while preserving the queue protocol message `work_queue_effect_scope_denied`. This queue-specific authorization does not replace type-specific or global allowlists for user-facing safe-output handlers.
 
@@ -1096,7 +1099,7 @@ When no `safe-outputs:` section is present, the compiler automatically injects a
 #     title-prefix: "[<workflowID>]"
 ```
 
-This auto-injection is suppressed when any safe output type other than the system types (`noop`, `missing-tool`, `missing-data`) is explicitly configured.
+This auto-injection is suppressed when any safe output type other than the system types (`noop`, `report-missing-tool`, `report-missing-data`) is explicitly configured.
 
 **Compilation Layer**:
 
@@ -2444,8 +2447,8 @@ The following table defines the exact `createHandlers()` function used for each 
 | `autofix_code_scanning_alert` | `defaultHandler("autofix_code_scanning_alert")` |
 | `create_check_run` | `defaultHandler("create_check_run")` |
 | `create_agent_session` | `defaultHandler("create_agent_session")` |
-| `missing_tool` | `defaultHandler("missing_tool")` |
-| `missing_data` | `defaultHandler("missing_data")` |
+| `report_missing_tool` | `defaultHandler("report_missing_tool")` |
+| `report_missing_data` | `defaultHandler("report_missing_data")` |
 | `report_incomplete` | `defaultHandler("report_incomplete")` |
 
 ### 7.0.3 Declared Field Payload Construction
@@ -2901,7 +2904,7 @@ Paths in this table are under `actions/setup/js/`. The bounded [Git-operation mo
 
 ### 7.2 System Types
 
-System types are always available in every workflow. The types `noop`, `missing-tool`, and `missing-data` are unconditionally enabled, while `create-issue` is conditionally auto-injected when no other safe output types are explicitly configured (see Section 4.3 for auto-injection rules).
+System types are always available in every workflow. The types `noop`, `report-missing-tool`, and `report-missing-data` are unconditionally enabled, while `create-issue` is conditionally auto-injected when no other safe output types are explicitly configured (see Section 4.3 for auto-injection rules).
 
 #### Type: noop
 
@@ -4920,9 +4923,11 @@ safe-outputs:
 
 ---
 
-#### Type: missing_tool
+#### Type: report_missing_tool
 
 **Purpose**: Report when AI requests unavailable functionality for feature discovery.
+
+The YAML configuration key is `report-missing-tool`. The legacy tool/output type `missing_tool` and YAML key `missing-tool` remain accepted as aliases. `gh aw fix --write` migrates the legacy YAML key.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
@@ -4948,9 +4953,11 @@ safe-outputs:
 
 ---
 
-#### Type: missing_data
+#### Type: report_missing_data
 
 **Purpose**: Report when AI lacks required information to complete goals.
+
+The YAML configuration key is `report-missing-data`. The legacy tool/output type `missing_data` and YAML key `missing-data` remain accepted as aliases. `gh aw fix --write` migrates the legacy YAML key.
 
 **Default Max**: unlimited  
 **Cross-Repository Support**: N/A (logging only)  
@@ -4970,7 +4977,7 @@ safe-outputs:
 
 **Notes**:
 
-- Same permission model as `missing_tool`
+- Same permission model as `report_missing_tool`
 - Base functionality requires no permissions (logging only)
 - Optional issue creation requires `issues: write` when `create-issue: true`
 
@@ -5575,7 +5582,7 @@ Operations execute in:
 
 1. NDJSON file order
 2. Type grouping (same type together)
-3. System types last (noop, missing_tool, missing_data, report_incomplete)
+3. System types last (noop, report_missing_tool, report_missing_data, report_incomplete)
 
 ### 10.3 Idempotency
 
@@ -5612,7 +5619,7 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 2. A visible threat label string: `agentic threat detected`.
 3. An XML comment marker in emitted markdown content: `<!-- gh-aw-threat-detected -->`.
 
-**Requirement WTD1a (Threat Engine Error Annotation)**: When warn-mode threat detection produces a tooling-failure reason (`agent_failure` or `parse_error`) instead of a real threat verdict, implementations MUST emit a review-first artifact with all of the following:
+**Requirement WTD1a (Threat Engine Error Annotation)**: When warn-mode threat detection produces a tooling-failure reason (`agent_failure` or `parse_error`) instead of a real threat verdict, including when the detection execution step itself failed, implementations MUST emit a review-first artifact with all of the following. A warn-mode detection conclusion of `failure` with a tooling-failure reason MUST be handled as `warning` and MUST NOT be treated as a passed detection:
 
 1. A prominent warning section:
 
@@ -5669,8 +5676,8 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 | `create_code_scanning_alert` | Reviewable |
 | `autofix_code_scanning_alert` | Abort |
 | `create_agent_session` | Abort |
-| `missing_tool` | Reviewable |
-| `missing_data` | Reviewable |
+| `report_missing_tool` | Reviewable |
+| `report_missing_data` | Reviewable |
 | `report_incomplete` | Reviewable |
 
 **Compliance Testing**:
@@ -6084,7 +6091,7 @@ Operators SHOULD communicate this expected one-time cache miss to their teams to
   - [ ] Content sanitization pipeline
 
 - [ ] Safe Output Types
-  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop, missing_tool, missing_data, report_incomplete
+  - [ ] Mandatory: create_issue, add_comment, create_pull_request, noop, report_missing_tool, report_missing_data, report_incomplete
   - [ ] Optional types documented if unsupported
 
 - [ ] Protocol

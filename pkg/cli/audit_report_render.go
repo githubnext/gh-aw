@@ -54,6 +54,7 @@ func renderConsole(data AuditData, logsPath string) {
 	renderConsoleActionableSections(data)
 	renderConsoleOperationalSections(data)
 	renderConsolePolicyAndExperiments(data)
+	renderConsoleEvidenceSearch(data.EvidenceSearch)
 	renderConsoleLogsPath(logsPath)
 }
 

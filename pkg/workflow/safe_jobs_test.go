@@ -444,7 +444,7 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 		},
 	})
 
-	require.Equal(t, "runs-on:\n      - self-hosted\n        - linux", safeJobs["deploy"].RunsOn)
+	require.Equal(t, "runs-on:\n      - self-hosted\n      - linux", safeJobs["deploy"].RunsOn)
 
 	workflowData := &WorkflowData{
 		Name:        "test-workflow",
@@ -464,7 +464,7 @@ func TestParseAndBuildSafeJobsRunsOnList(t *testing.T) {
 	}
 
 	// Multiple labels parsed as a list are rendered as a YAML list.
-	require.Equal(t, "runs-on:\n      - self-hosted\n        - linux", job.RunsOn)
+	require.Equal(t, "runs-on:\n      - self-hosted\n      - linux", job.RunsOn)
 }
 
 func TestParseAndBuildSafeJobsRunsOnObject(t *testing.T) {

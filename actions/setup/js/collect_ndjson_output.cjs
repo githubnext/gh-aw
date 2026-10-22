@@ -11,6 +11,7 @@ const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { isProbingNoopMessage } = require("./intent_probe.cjs");
 const { buildEmptyOutputOutcome, collectOutcomeSession, hasFailedFinalResult } = require("./empty_output_outcome.cjs");
+const { normalizeSafeOutputName, normalizeSafeOutputConfig } = require("./safe_output_names.cjs");
 
 const MENTION_AWARE_OUTPUT_TYPES = new Set(["add_comment", "close_discussion", "create_discussion", "create_issue", "create_pull_request", "create_pull_request_review_comment", "reply_to_pull_request_review_comment"]);
 
@@ -205,7 +206,7 @@ async function main() {
         // safeOutputsConfig is already a parsed object from the file
         // Normalize all config keys to use underscores instead of dashes
         core.info(`[INGESTION] Normalizing config keys (dash -> underscore)`);
-        expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+        expectedOutputTypes = normalizeSafeOutputConfig(safeOutputsConfig);
         core.info(`[INGESTION] Expected output types after normalization: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
         core.info(`[INGESTION] Expected output types full config: ${JSON.stringify(expectedOutputTypes)}`);
         // Extract max-bot-mentions from config (defaults to undefined, using neutralizeBotTriggers default)
@@ -255,7 +256,7 @@ async function main() {
         }
         // Normalize type to use underscores (convert any dashes to underscores for resilience)
         const originalType = item.type;
-        const itemType = item.type.replace(/-/g, "_");
+        const itemType = normalizeSafeOutputName(item.type.replace(/-/g, "_"));
         core.info(`[INGESTION] Line ${i + 1}: Original type='${originalType}', Normalized type='${itemType}'`);
         // Update item.type to normalized value
         item.type = itemType;
@@ -370,7 +371,7 @@ async function main() {
     let collectorDriverExitCode;
     let collectorRetryCount;
     let collectorEngineErrorType;
-    const hasTerminalOutput = parsedItems.some(item => !["missing_tool", "missing_data"].includes(item.type));
+    const hasTerminalOutput = parsedItems.some(item => !["report_missing_tool", "report_missing_data"].includes(item.type));
     let failedFinalResult = false;
     let session;
     if (!queueScope && hasTerminalOutput) {

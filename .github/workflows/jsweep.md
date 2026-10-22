@@ -40,7 +40,7 @@ lsp:
 steps:
   - name: Install Node.js dependencies
     working-directory: actions/setup/js
-    run: npm install
+    run: npm ci
 safe-outputs:
   create-pull-request:
     expires: 2d
@@ -100,7 +100,7 @@ fi
 {"cleaned_files":[{"file":"name.cjs","cleaned_at":"YYYY-MM-DD"}],"last_run":"YYYY-MM-DD","last_file":"name.cjs","cache_hit_history":[{"run_id":"123","date":"YYYY-MM-DD","status":"hit"}]}
 ```
 
-**On cold start** (state file missing): initialize to an empty `cleaned_files` list and note this as a cold start. Do not call `missing_data` — a cold start is expected on first run; simply proceed with an empty history.
+**On cold start** (state file missing): initialize to an empty `cleaned_files` list and note this as a cold start. Do not call `report_missing_data` — a cold start is expected on first run; simply proceed with an empty history.
 
 **Selecting the next file:**
 - Files to scan: `/home/runner/work/gh-aw/gh-aw/actions/setup/js/*.cjs`

@@ -17,6 +17,16 @@
     }
   },
   "properties": {
+    "admission": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable admission and conclusion_admission jobs for all workflows. Admission is also enabled by on.admission: true in an individual workflow."
+    },
+    "gateway-dispatch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Experimental. Enable nested on.gateway-dispatch triggers delivered through repository_dispatch by an approved gateway server. Disabled unless explicitly true. This setting does not deploy a server or grant dispatch authority."
+    },
     "work_queue": {
       "description": "Global scheduling and backing Issue/label overrides. AW supplies authorization and approved worker routes. Missing settings use one pool, concurrency 16, pending limit 4096 and three attempts with 30-second backoff.",
       "type": "object",

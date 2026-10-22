@@ -76,10 +76,18 @@ func TestGooseReleaseDownloadNetwork(t *testing.T) {
 			require.NoError(t, NewCompiler().CompileWorkflow(path))
 			lock, err := os.ReadFile(filepath.Join(dir, "test.lock.yml"))
 			require.NoError(t, err)
-			_, config, ok := strings.Cut(string(lock), `printf '%s\n' '`)
-			require.True(t, ok, "compiled execution must configure AWF")
-			config, _, ok = strings.Cut(config, "' >")
-			require.True(t, ok)
+			compiled := string(lock)
+			configPath := `> "${RUNNER_TEMP}/gh-aw/awf-config.json"`
+			configEnd := strings.Index(compiled, configPath)
+			require.NotEqual(t, -1, configEnd, "compiled execution must configure AWF")
+			printf := `printf '%s\n' "`
+			configStart := strings.LastIndex(compiled[:configEnd], printf)
+			require.NotEqual(t, -1, configStart, "compiled execution must write AWF configuration")
+			config := compiled[configStart+len(printf) : configEnd]
+			config = strings.ReplaceAll(config, `\"`, `"`)
+			config = strings.ReplaceAll(config, `\$`, `$`)
+			config = strings.TrimSuffix(strings.TrimSpace(config), `"`)
+			config = strings.ReplaceAll(config, "${GH_AW_MAX_AI_CREDITS}", "5")
 			var awf struct {
 				Network struct {
 					AllowDomains []string `json:"allowDomains"`

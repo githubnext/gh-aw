@@ -1,0 +1,82 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "claude-sonnet-5.5",
+  "version": "1.0.98",
+  "agent_version": "1.0.98",
+  "workflow_name": "Smoke Copilot",
+  "workflow_id": "github/gh-aw/.github/workflows/smoke-copilot.lock.yml@refs/heads/copilot/expand-experiment-model-expressions",
+  "workflow_call_id": "39506475007-1:github/gh-aw/.github/workflows/smoke-copilot.lock.yml@refs/heads/copilot/expand-experiment-model-expressions",
+  "caller_workflow_ref": "github/gh-aw/.github/workflows/smoke-copilot.lock.yml@refs/heads/copilot/expand-experiment-model-expressions",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": true,
+  "run_id": 39506475007,
+  "run_number": 3902,
+  "run_attempt": "1",
+  "repository": "github/gh-aw",
+  "ref": "refs/heads/copilot/expand-experiment-model-expressions",
+  "sha": "9c8c823adbd92a3c2478741e47bf0c1128344fa6",
+  "actor": "SivaKesava1",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": [
+    "*.grafana.net",
+    "*.sentry.io",
+    "defaults",
+    "github",
+    "host.docker.internal",
+    "local",
+    "node",
+    "playwright"
+  ],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.62",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-20T22:14:07.792Z",
+  "frontmatter_emoji": "🧪",
+  "features": {
+    "gh-aw-detection": false
+  },
+  "sub_agent_models": [
+    {
+      "model": "large",
+      "name": "file-summarizer",
+      "patterns": [
+        "github-copilot/*haiku*",
+        "anthropic/*haiku*",
+        "github-copilot/gpt-5*mini*",
+        "openai/gpt-5*mini*",
+        "github-copilot/gpt-5*nano*",
+        "openai/gpt-5*nano*",
+        "github-copilot/gemini-*flash*lite*",
+        "google/gemini-*flash*lite*",
+        "gemini/gemini-*flash*lite*",
+        "github-copilot/*sonnet*",
+        "anthropic/*sonnet*",
+        "github-copilot/gpt-6*",
+        "openai/gpt-6*",
+        "github-copilot/gpt-5*pro*",
+        "openai/gpt-5*pro*",
+        "github-copilot/gpt-5*",
+        "openai/gpt-5*",
+        "github-copilot/gemini-*pro*",
+        "google/gemini-*pro*",
+        "gemini/gemini-*pro*"
+      ]
+    }
+  ],
+  "requested_model": "auto",
+  "model_selection": {
+    "status": "observed",
+    "configured_model": "auto",
+    "resolved_model": "claude-sonnet-5.5",
+    "effective_model": "claude-sonnet-5.5"
+  }
+}

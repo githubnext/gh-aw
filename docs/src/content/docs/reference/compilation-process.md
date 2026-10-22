@@ -119,7 +119,7 @@ The agent job runs: repository checkout and runtime setup (Node.js, Python, Go) 
 
 ### Safe Output Jobs
 
-Every safe output job follows the same pattern: download the agent artifact, parse its JSON, execute the corresponding GitHub API operation with the right permissions, and link to related items. Available types include `create_issue`, `create_discussion`, `add_comment`, `create_pull_request`, `create_pr_review_comment`, `create_code_scanning_alert`, `add_labels`, `assign_milestone`, `update_issue`, `update_release`, `push_to_pr_branch`, `upload_assets`, `update_project`, `missing_tool`, and `noop`.
+Every safe output job follows the same pattern: download the agent artifact, parse its JSON, execute the corresponding GitHub API operation with the right permissions, and link to related items. Available types include `create_issue`, `create_discussion`, `add_comment`, `create_pull_request`, `create_pr_review_comment`, `create_code_scanning_alert`, `add_labels`, `assign_milestone`, `update_issue`, `update_release`, `push_to_pr_branch`, `upload_assets`, `update_project`, `report_missing_tool`, and `noop`.
 
 ### Custom Jobs
 
@@ -273,7 +273,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw compile my-workflow` | Compile specific workflow |
 | `gh aw compile --verbose` | Enable verbose output |
 | `gh aw compile --strict` | Enhanced security validation |
-| `gh aw compile my-workflow --dry-run` | Compile with staging and mandatory validation/shellcheck/model checks; gate added medium-or-higher scanner findings against pre-compilation locks; Docker scanners are opt-in |
+| `gh aw compile my-workflow --dry-run` | Compile with staging and mandatory validation/shellcheck/model checks; reject existing and added actionable scanner findings and unsupported host effects; Docker scanners are opt-in |
 | `gh aw compile my-workflow --environment gh-aw-debug` | Replace the environment on every generated job |
 | `gh aw compile --no-emit` | Validate without generating files |
 | `gh aw compile --actionlint --zizmor --poutine --grant` | Run security scanners |
@@ -296,7 +296,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 
 The optional `--actionlint`, `--zizmor`, and `--poutine` scanners prefer local
 binaries on `PATH` when their versions meet the pinned Docker image versions
-(actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6). Missing, older, or
+(actionlint ≥ 1.7.12, zizmor ≥ 1.31.1, poutine ≥ 1.1.6). Missing, older, or
 unrecognized versions fall back to Docker. Local actionlint uses shellcheck and
 pyflakes from `PATH` when those integrations are enabled; it does not install them.
 
@@ -307,9 +307,19 @@ and `--models`. These settings are
 forced regardless of frontmatter; explicitly disabling a required flag is rejected.
 Enabled scanners first scan the existing lock files before compilation, then scan
 the emitted diagnostic locks with the same scanner configuration and result filters.
-Only added medium-or-higher findings, or added findings with unknown severity,
+Existing and added medium-or-higher findings, or findings with unknown severity,
 fail the scanner gate. Matching uses finding identity and occurrence counts, not
-aggregate totals, and tolerates shifted YAML lines and steps with stable IDs/names.
+aggregate totals. Actions and AW ASTs anchor findings to field values and logical
+steps, tolerating line shifts, YAML quoting and comments, and reordered steps
+with stable IDs or unique names. Steps without an ID or unique name use a
+content fingerprint, so repeated names or action references do not conflate
+different steps. Ambiguous locations and unparseable workflows retain
+coordinates and a file fingerprint rather than guessing a matching field.
+Zizmor findings retain all primary and related symbolic scopes, including
+source/sink relationships across files. Finding identity includes the reported
+semantic scope, not just its step label. Incomplete diagnostics and
+operational errors joined with findings remain fatal; usable findings cannot
+hide partial scanner failures.
 Low-severity and informational findings remain visible but do not fail the gate.
 Zizmor's `secrets-outside-env` rule is excluded in dry-run mode because repository
 and organization secrets are common in agentic workflows; ordinary compilation
@@ -385,6 +395,11 @@ issue locking. `aw_info.json` records the boolean `dry_run` flag. Failure handli
 local diagnostics, step summaries, and run artifacts remain enabled. No new
 memory-tool fields are required; ordinary compilation preserves persistence.
 
+On GitHub.com, dry-run locks also set workflow-level `cache-mode: read`, allowing
+cache restores but preventing saves, including caches used by authored steps and
+setup actions. GHES compilation omits this setting because it is not supported
+there; compiler-managed caches remain restore-only.
+
 Dry-run compilation adds `workflow_dispatch`, preserves existing manual inputs,
 and copies reusable-workflow inputs when adding manual dispatch. Actor roles are
 restricted to `admin`/`maintainer` (including `maintain`); an existing narrower
@@ -403,17 +418,23 @@ Set `DEBUG=workflow:compiler_development,cli:compile_development` to log each
 dry-run configuration mutation, removed environment key, disabled job, and forced
 CLI flag to stderr. Logs identify changed fields/keys, never their values.
 
-Dry-run locks omit `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*` variables,
+Dry-run locks omit telemetry configuration under `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*`,
 W3C trace context (`TRACEPARENT`, `TRACESTATE`, `BAGGAGE`), and
 `CLAUDE_CODE_ENABLE_TELEMETRY` from workflow, job,
 step, container, and service environment mappings, including user-defined values.
 Workflow environment suppression occurs before job and header generation so
 telemetry-only masking steps and environment-source entries are also omitted.
 Engine environment overrides are filtered before native engine configuration is rendered.
+The emitted workflow environment sets `OTEL_SDK_DISABLED=true`,
+`GH_TELEMETRY=false`, `DO_NOT_TRACK=1`, `DISABLE_TELEMETRY=1`,
+`DISABLE_ERROR_REPORTING=1`, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`.
+These opt-outs are inherited by jobs and steps. Conflicting overrides in job,
+step, container, and service environment mappings are replaced.
 Automatic OTLP export configuration and telemetry authentication steps are also
 disabled. Existing network permissions, local diagnostics, summaries, and artifacts remain
-available; ordinary compilation preserves telemetry configuration. This does not
-rewrite custom scripts that configure their own exporters.
+available; ordinary compilation preserves telemetry configuration. Tools that
+ignore these variables can still emit telemetry. This does not rewrite custom
+scripts that configure their own exporters.
 
 The emitted lock's `gh-aw-metadata` header records `"dry_run":true`. Normal and
 older locks omit this optional field, which readers interpret as `false`.
@@ -423,9 +444,24 @@ does not disable its telemetry. Any permitted live test must review and execute
 the same emitted lock revision; dispatching an unchanged remote ref executes its
 existing lock instead.
 
-Custom scripts/jobs, agent shell commands, external MCP servers, and custom
-credentials remain unverified and are explicitly reported at runtime. Dry-run is
-not an execution sandbox or a guarantee that those extensions cannot mutate GitHub.
+Authored custom jobs, including reusable calls and custom safe-output jobs, become
+disabled placeholders with no original steps, permissions, environment, or inherited
+secrets. Output names are retained with empty values; dependent jobs may be skipped.
+Staging overrides in custom publishing steps cannot reactivate these jobs.
+Reusable output contracts and required self-hosted runner policies are preserved
+without retaining the original executable target or matrix-dependent runner.
+
+Dry-run rejects authored host steps (`steps`, `pre-steps`, `pre-agent-steps`,
+`post-steps`, `on.steps`, safe-output and threat-detection steps, secret-masking
+steps, and unsafe built-in job overrides), custom MCP servers, `mcp-scripts`,
+custom safe-output scripts/actions, enabled Bash graders, and authored
+`id-token: write` permissions, including safe-output and imported declarations.
+Compiler-generated pull-request stack gates remain available. Remove unsupported
+declarations in a separate diagnostic workflow; there is no unsafe override.
+
+Agent shell commands, custom engine execution, custom credentials, and
+compiler-managed OIDC integrations still require review. Dry-run is not an
+execution sandbox or a guarantee of side-effect-free hosted execution.
 
 `--dry-run` cannot be combined with `--no-emit`, `--watch`, `--approve`, or
 `--allow-action-refs`, because those options bypass required checks or the trusted
@@ -457,7 +493,7 @@ status and the entire result array, not only individual workflow `valid` fields.
 Preflight failures can stop compilation before this summary is emitted.
 `compile_only` is true and `execution_authorized` is false even when the gate
 passes. `unverified_effects` lists excluded surfaces, not a per-workflow effect
-inventory; custom code, hosted identity/approvals, live model availability, and
+inventory; agent code, hosted identity/approvals, live model availability, and
 diagnostic exports remain unverified. Ordinary compilation keeps its existing
 output shape.
 

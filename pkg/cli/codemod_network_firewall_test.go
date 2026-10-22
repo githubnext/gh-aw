@@ -5,6 +5,7 @@ package cli
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -495,7 +496,11 @@ network:
 	assert.NotContains(t, result, "firewall:", "Should remove firewall field")
 	assert.Contains(t, result, "sandbox:", "Should add sandbox block")
 	assert.Contains(t, result, "id: awf", "Should create sandbox.agent object")
-	assert.Contains(t, result, `version: "v1.2.3"`, "Should preserve firewall.version as sandbox.agent.version")
+	parsed, parseErr := parser.ExtractFrontmatterFromContent(result)
+	require.NoError(t, parseErr)
+	sandbox := parsed.Frontmatter["sandbox"].(map[string]any)
+	agent := sandbox["agent"].(map[string]any)
+	assert.Equal(t, "v1.2.3", agent["version"], "Should preserve firewall.version as a string")
 }
 
 func TestNormalizeFirewallVersion_Float32Uses32BitPrecision(t *testing.T) {

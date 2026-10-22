@@ -60,6 +60,21 @@ describe("generate_aw_info.cjs", () => {
     expect(info.skills).toBeUndefined();
   });
 
+  // Compiled GH_AW_INFO_SUB_AGENT_MODELS of typist (Claude) and daily-arxiv-researcher (Codex,
+  // whose run 39394965127 never delegated), as written to their lock files.
+  it.each([
+    ["claude", '[{"model":"small","name":"duplicate-type-finder","patterns":["anthropic/*haiku*"]}]'],
+    [
+      "codex",
+      '[{"model":"openai/gpt-5.4-mini","name":"preliminary-investigator","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"paper-screener","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"relevance-ranker","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.6-sol","name":"opportunity-extractor","patterns":["openai/gpt-5.6-sol"]}]',
+    ],
+  ])("claude_codex_aw_info_contains_declared_subagent_models (%s)", async (_engine, declarations) => {
+    process.env.GH_AW_INFO_SUB_AGENT_MODELS = declarations;
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.sub_agent_models).toEqual(JSON.parse(declarations));
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     // Keep compiler-fixed runner paths in memory; never write to the host's /tmp.
@@ -470,6 +485,38 @@ describe("generate_aw_info.cjs", () => {
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("aw_context", "{}");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse aw_context input as JSON"));
+  });
+
+  it("exposes normalized webhook arrays in aw_info and expression outputs without requiring caller-run fields", async () => {
+    const deliveries = [
+      { delivery_id: "first", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
+      { delivery_id: "second", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/2", type: ["created"] } },
+      { delivery_id: "third", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
+    ];
+    const raw = { webhook: { event: "projects_v2_item", deliveries: [...deliveries, deliveries[0]] }, items: [{ item_number: "forged" }], item_number: "first-item-must-not-be-selected" };
+    const expected = {
+      webhook: { event: "projects_v2_item", deliveries },
+      items: [1, 2].map(number => ({ item_type: "projects_v2_item", item_number: String(number), repo: "", source: "https://api.github.com/orgs/org/projectsV2/1", url: `https://api.github.com/orgs/org/projectsV2/1/items/${number}` })),
+    };
+    for (const payload of [{ client_payload: { schema_version: 2, aw_context: raw } }, { inputs: { aw_context: JSON.stringify({ repo: "org/repo", run_id: "1", workflow_id: "parent", ...raw }) } }]) {
+      vi.clearAllMocks();
+      await main(mockCore, { ...mockContext, eventName: "repository_dispatch", payload });
+      const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+      expect(info.context).toMatchObject(expected);
+      expect(info.context.item_number).toBe("");
+      const [, json] = mockCore.setOutput.mock.calls.find(([key]) => key === "aw_context");
+      expect(JSON.parse(json)).toMatchObject(expected);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("forged");
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("do-not-log-payload");
+    }
+  });
+
+  it("fails malformed webhook arrays instead of returning an empty context", async () => {
+    const payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [] } } } };
+    await expect(main(mockCore, { ...mockContext, payload })).rejects.toThrow(/non-empty array/);
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("aw_context", expect.anything());
+    expect(fs.existsSync(awInfoPath)).toBe(false);
   });
 
   it("should reject aw_context with nested objects", async () => {

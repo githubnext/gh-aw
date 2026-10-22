@@ -111,7 +111,7 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 	}{
 		{
 			name:     "mutable action",
-			workflow: "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n",
+			workflow: "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n        with:\n          persist-credentials: false\n",
 			ruleID:   "action-pin", severity: workflowlint.Warning,
 		},
 		{
@@ -164,6 +164,60 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 	}
 }
 
+func TestNeedsConsistencyCLI(t *testing.T) {
+	const source = "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n"
+	for _, extension := range []string{".yml", ".md"} {
+		t.Run(extension, func(t *testing.T) {
+			content := source
+			if extension == ".md" {
+				content = "---\n" + source + "---\nA prompt.\n"
+			}
+			file := filepath.Join(t.TempDir(), "workflow"+extension)
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=needs-consistency", "--json", file})
+			require.NoError(t, cmd.Execute())
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "needs-consistency", diagnostics[0].RuleID)
+			assert.Equal(t, workflowlint.Warning, diagnostics[0].Severity)
+			assert.Equal(t, "jobs.check.if", diagnostics[0].Path)
+			assert.Equal(t, file, diagnostics[0].File)
+		})
+	}
+}
+
+func TestActionPinFormattingCLI(t *testing.T) {
+	const source = "jobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: \"./action\\u2028PRIVATE_PIN\"\n"
+	for _, extension := range []string{".yml", ".md"} {
+		t.Run(extension, func(t *testing.T) {
+			content := source
+			if extension == ".md" {
+				content = "---\nstrict: false\n" + source + "---\n"
+			}
+			file := filepath.Join(t.TempDir(), "workflow"+extension)
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=action-pin", "--json", file})
+			require.ErrorContains(t, cmd.Execute(), "workflow lint found 1 error")
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "action-pin", diagnostics[0].RuleID)
+			assert.Equal(t, workflowlint.Error, diagnostics[0].Severity)
+			assert.Equal(t, "jobs.check.steps[0].uses", diagnostics[0].Path)
+			assert.NotContains(t, output.String(), "PRIVATE_PIN")
+		})
+	}
+}
+
 func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 	for _, tt := range []struct {
 		ruleID string
@@ -173,6 +227,7 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 	}{
 		{"version-check", "strict: false\ncheck-for-updates: false", "check-for-updates", workflowlint.Warning},
 		{"conditional-import", "imports:\n  - path: shared/a.md\n    if: false", "imports[0].if", workflowlint.Error},
+		{"gateway-dispatch-literals", "strict: false\non: {gateway-dispatch: {issue: {filters: {labels: ['${{ vars.PRIVATE_VALUE }}']}}}}", "on.gateway-dispatch.issue.filters.labels[0]", workflowlint.Error},
 		{"private-to-public", "tools:\n  github:\n    private-to-public-flows: allow", "tools.github.private-to-public-flows", workflowlint.Error},
 		{"install-scripts", "runtimes:\n  node:\n    run-install-scripts: true", "runtimes.node.run-install-scripts", workflowlint.Error},
 		{"allowed-labels", "safe-outputs:\n  create-issue:\n    allowed-labels: ['*']", "safe-outputs.create-issue.allowed-labels", workflowlint.Error},

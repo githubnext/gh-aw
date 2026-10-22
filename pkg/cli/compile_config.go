@@ -1,5 +1,7 @@
 package cli
 
+import "github.com/github/gh-aw/pkg/workflow"
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles             []string // Files to compile (empty for all files)
@@ -65,12 +67,13 @@ func (c CompileConfig) shellcheckEnabled() bool {
 
 // ValidationResult represents workflow validation or a batch-scoped compiler/scanner diagnostic.
 type ValidationResult struct {
-	Scope        string               `json:"scope,omitempty"` // "batch" for diagnostics not attributable to a single workflow
-	Workflow     string               `json:"workflow"`
-	Valid        bool                 `json:"valid"`
-	Errors       []ValidationIssue    `json:"errors"`
-	Warnings     []ValidationIssue    `json:"warnings"`
-	CompiledFile string               `json:"compiled_file,omitempty"`
-	Labels       []string             `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
-	DryRun       *DryRunCompileReport `json:"dry_run,omitempty"`
+	Scope                string                         `json:"scope,omitempty"` // "batch" for diagnostics not attributable to a single workflow
+	Workflow             string                         `json:"workflow"`
+	Valid                bool                           `json:"valid"`
+	Errors               []ValidationIssue              `json:"errors"`
+	Warnings             []ValidationIssue              `json:"warnings"`
+	CompiledFile         string                         `json:"compiled_file,omitempty"`
+	Labels               []string                       `json:"labels,omitempty"` // Labels referenced in safe-outputs configurations
+	DryRun               *DryRunCompileReport           `json:"dry_run,omitempty"`
+	WebhookSubscriptions []workflow.WebhookSubscription `json:"webhook_subscriptions,omitempty"`
 }

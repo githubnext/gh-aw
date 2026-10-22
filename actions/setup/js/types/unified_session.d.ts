@@ -166,6 +166,70 @@ export interface ModelRoutingData {
   status?: JsonValue;
   /** AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase. */
   phase?: JsonValue;
+  /** Identifier-only provider or AWF error code on failed request records; absent means unknown. */
+  errorCode?: string;
+  /** Identifier-only provider or AWF error type on failed request records; absent means unknown. */
+  errorType?: string;
+  /** Whether a failed request was rejected by the upstream provider or by AWF; absent means unknown. */
+  errorSource?: "upstream" | "awf";
+}
+
+/** Proxy-written upstream error response, projected without bodies, headers or messages. */
+export interface FirewallUpstreamErrorData {
+  requestId?: string;
+  provider?: string;
+  model?: string;
+  /** @asType integer */
+  httpStatus?: number;
+  /** Identifier-shaped provider error code; absent means the provider did not supply one. */
+  errorCode?: string;
+  errorType?: string;
+  errorParam?: string;
+}
+
+/** Runner-written configured model policy; absent fields are unknown, not false, empty or zero. */
+export interface ModelConfigData {
+  /** Configured routing policy, never the router's per-run selection. */
+  routing: {
+    enabled: boolean;
+    goal?: string;
+    mode?: string;
+    /** Configured routing candidates as authored (exact ids or gh-aw aliases) without provider prefix; absent means the router default or unknown. */
+    allowedModels?: string[];
+    /** Effective router pool sent to AWF as provider-qualified ids or patterns: aliases expanded, narrowed by the model policy; absent when unknown or expression-valued. */
+    candidateModels?: string[];
+  };
+  /** Configured model allow/block policy; empty lists mean no restriction was configured. */
+  models?: { allowed: string[]; blocked: string[] };
+  /**
+   * Effective per-run AI credit budget.
+   * @asType integer
+   * @minimum 1
+   * @maximum 2147483647
+   */
+  maxAiCredits?: number;
+  /** Provenance of the budget: compiled frontmatter, the repository default, or the admission allowance. */
+  maxAiCreditsSource?: "frontmatter" | "default" | "admission";
+  /** Concrete main model the run would use without routing, after alias resolution. */
+  baselineModel?: string;
+}
+
+/** Collector-written repricing of main-agent requests at the baseline model; routed runs only. */
+export interface ModelBaselineEstimateData {
+  estimated: true;
+  baselineModel?: string;
+  /** Sum over priced main-agent requests; absent when no request could be priced. */
+  aic?: number;
+  /** @asType integer @minimum 0 */
+  mainRequests: number;
+  /** @asType integer @minimum 0 */
+  pricedRequests: number;
+  /** @asType integer @minimum 0 */
+  unpricedRequests: number;
+  /** @asType integer @minimum 0 */
+  unattributedRequests: number;
+  /** True only when every agent-phase request was attributed and every main request was priced. */
+  complete: boolean;
 }
 
 export interface ModelRoutingRankedChoice {
@@ -196,7 +260,7 @@ export interface ModelResolutionData {
   resolved_model: string | null;
   provider: string | null;
   status: "resolved" | "exact" | "failed";
-  cause: "model_unavailable" | "catalog_unavailable" | null;
+  cause: "model_unavailable" | "catalog_unavailable" | "unsupported_endpoint" | null;
 }
 
 export interface UnifiedModelRoutingData {
@@ -404,6 +468,23 @@ export interface WorkflowJobResultData {
   durationMs?: SessionCount;
 }
 
+/** Validated admission allowances, not spend or credentials. */
+export interface AdmissionDecisionData {
+  status: "admitted" | "ignored" | "skipped";
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  maxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  threatDetectionMaxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  evalsMaxAiCredits?: number;
+}
+
 export interface DailyAICDecisionData {
   status: "disabled" | "skipped" | "under_budget" | "exceeded" | "structural_error" | "transient_error";
   exceeded?: boolean;
@@ -438,6 +519,8 @@ export interface ModelSelectionData {
 
 export interface WorkflowInfoData {
   engineId?: JsonValue;
+  /** Compiled Copilot harness; absent means unknown, never inferred from engineId. */
+  engineHarness?: "copilot-cli" | "copilot-sdk";
   agentVersion?: JsonValue;
   cliVersion?: JsonValue;
   awfVersion?: JsonValue;
@@ -451,6 +534,8 @@ export interface WorkflowInfoData {
   workflow?: JsonValue;
   /** Executing workflow reference supplied by the compiler from job.workflow_ref. */
   workflowId?: JsonValue;
+  /** Executing workflow reference (job.workflow_ref); same value as workflowId. */
+  workflowRef?: JsonValue;
   /** Current workflow invocation ID from aw_info, separate from the caller's ID. */
   workflowCallId?: JsonValue;
   /** GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows. */
@@ -458,6 +543,8 @@ export interface WorkflowInfoData {
   repository?: JsonValue;
   runId?: JsonValue;
   runAttempt?: JsonValue;
+  /** GitHub server origin, such as https://github.com. */
+  serverUrl?: JsonValue;
   ref?: JsonValue;
   sha?: JsonValue;
   actor?: JsonValue;
@@ -524,6 +611,8 @@ export interface CollectionData {
 export interface UnifiedSessionEventDataMap {
   "workflow.job_result": WorkflowJobResultData;
   "model.inventory": ModelInventoryData;
+  "model.config": ModelConfigData;
+  "model.baseline_estimate": ModelBaselineEstimateData;
   "skill.inventory": SkillInventoryData;
   "skill.conflict": SkillConflictData;
   "skill.invoked": SkillInvokedData;
@@ -627,6 +716,7 @@ export interface UnifiedSessionEventDataMap {
   "firewall.http_access": FirewallAccessData;
   "firewall.token_usage": UsageReportData;
   "firewall.model_routing": ModelRoutingData;
+  "firewall.upstream_error": FirewallUpstreamErrorData;
   "model_routing.outcome": ModelRoutingOutcomeData;
   "model_endpoint.mismatch": ModelEndpointMismatchData;
   "model.resolution": ModelResolutionData;
@@ -643,6 +733,7 @@ export interface UnifiedSessionEventDataMap {
   "usage.report": UsageReportData;
   "execution.result": ExecutionResultData;
   "detection.result": DetectionResultData;
+  "guardrail.admission": AdmissionDecisionData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
   "plugin.installation": PluginInstallationData;

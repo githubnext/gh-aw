@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -41,7 +42,7 @@ func isCopilotWorkflowContent(content string) bool {
 
 // addCopilotRequestsPermissionToContent injects `permissions.copilot-requests: write`
 // into the workflow frontmatter, enabling GitHub Actions token auth for Copilot (org billing).
-// It delegates to ensureCopilotRequestsWritePermission, which locates or creates the
+// It delegates to ensureCopilotRequestsPermission, which locates or creates the
 // permissions block and appends the copilot-requests entry if not already present.
 // The function is idempotent: calling it on content that already contains the permission
 // returns the content unchanged.
@@ -61,18 +62,7 @@ func addCopilotRequestsPermissionToContentWithLevel(content, level string, repla
 	var injectionFailed bool
 	newContent, modified, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
 		updated := ensureCopilotRequestsPermission(lines, level, replaceExisting)
-		// Detect whether ensureCopilotRequestsWritePermission actually made a change.
-		// When lengths differ, a line was added — modified is true without needing element comparison.
-		// When lengths are equal, compare element-by-element (safe since len(updated)==len(lines)).
-		modified := len(updated) != len(lines)
-		if !modified {
-			for i := range lines {
-				if lines[i] != updated[i] {
-					modified = true
-					break
-				}
-			}
-		}
+		modified := !slices.Equal(updated, lines)
 		if !modified {
 			// Lines unchanged — either the permission is already present (idempotent) or
 			// it could not be injected (e.g., `permissions:` is a scalar like `read-all`).
@@ -93,9 +83,64 @@ func addCopilotRequestsPermissionToContentWithLevel(content, level string, repla
 	return newContent, nil
 }
 
-// copilotRequestsPermissionPresentInLines returns true when the frontmatter lines contain
-// a `copilot-requests:` key (ignoring comment lines). It is used to distinguish the idempotent
-// case (permission already present) from the injection-failure case (scalar permissions field).
+// ensureCopilotRequestsPermission retains the add command's permission insertion
+// behavior independently of the AST-backed fix codemods.
+func ensureCopilotRequestsPermission(lines []string, level string, replaceExisting bool) []string {
+	permissionsIdx := -1
+	permissionsIndent := ""
+	permissionsEnd := len(lines)
+	var header string
+	for i, line := range lines {
+		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
+			permissionsIdx = i
+			permissionsIndent = getIndentation(line)
+			header = line
+			for offset, next := range lines[i+1:] {
+				if isTopLevelKey(next) {
+					permissionsEnd = i + 1 + offset
+					break
+				}
+			}
+			break
+		}
+	}
+	if permissionsIdx == -1 {
+		insertAt := findPermissionsInsertIndex(lines)
+		result := make([]string, 0, len(lines)+2)
+		result = append(result, lines[:insertAt]...)
+		result = append(result, "permissions:", "  copilot-requests: "+level)
+		return append(result, lines[insertAt:]...)
+	}
+	inlineValue := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(header), "permissions:"))
+	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
+		valuePart, _, _ := strings.Cut(inlineValue, "#")
+		if strings.TrimSpace(valuePart) == "{}" {
+			result := make([]string, 0, len(lines)+1)
+			result = append(result, lines[:permissionsIdx]...)
+			result = append(result, permissionsIndent+"permissions:", permissionsIndent+"  copilot-requests: "+level)
+			return append(result, lines[permissionsIdx+1:]...)
+		}
+		return lines
+	}
+	for offset, line := range lines[permissionsIdx+1 : permissionsEnd] {
+		if parseYAMLMapKey(strings.TrimSpace(line)) == "copilot-requests" {
+			if replaceExisting {
+				position := permissionsIdx + 1 + offset
+				result := append([]string(nil), lines[:position]...)
+				result = append(result, getIndentation(line)+"copilot-requests: "+level)
+				return append(result, lines[position+1:]...)
+			}
+			return lines
+		}
+	}
+	result := make([]string, 0, len(lines)+1)
+	result = append(result, lines[:permissionsEnd]...)
+	result = append(result, permissionsIndent+"  copilot-requests: "+level)
+	return append(result, lines[permissionsEnd:]...)
+}
+
+// copilotRequestsPermissionPresentInLines distinguishes idempotent injection from
+// a permissions field that cannot accept a new mapping entry.
 func copilotRequestsPermissionPresentInLines(lines []string) bool {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)

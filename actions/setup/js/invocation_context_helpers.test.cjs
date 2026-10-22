@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 
 const { resolveInvocationContext } = await import("./invocation_context_helpers.cjs");
 
@@ -152,6 +152,91 @@ describe("invocation_context_helpers", () => {
         process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = originalHandlerConfig;
       }
     }
+  });
+
+  describe("handler target-repo fallback", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    function resolveTargetRepo(targetRepo = "target-owner/target-repo") {
+      return resolveInvocationContext({
+        eventName: "workflow_dispatch",
+        repo: { owner: "side-owner", repo: "side-repo" },
+        payload: { inputs: { target_repo: targetRepo } },
+      });
+    }
+
+    it.each(["target-owner/target-repo", "  target-owner/target-repo  "])("allows configured target-repo %j without allowed_repos", targetRepo => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": targetRepo } }));
+
+      expect(resolveTargetRepo().eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+    });
+
+    it.each([undefined, ""])("allows an underscored handler target owner with global allowlist %j", allowedRepos => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", allowedRepos);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": "mona_acme/tools" } }));
+
+      expect(resolveTargetRepo("mona_acme/tools").eventRepo).toEqual({ owner: "mona_acme", repo: "tools" });
+    });
+
+    it("combines target-repo and allowed_repos across handlers", () => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", "");
+      vi.stubEnv(
+        "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
+        JSON.stringify({
+          create_pull_request: { "target-repo": "target-owner/target-repo", allowed_repos: ["other-owner/other-repo"] },
+          create_issue: { "target-repo": "issue-owner/issue-repo" },
+        })
+      );
+
+      expect(resolveTargetRepo().eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+      expect(resolveTargetRepo("other-owner/other-repo").eventRepo).toEqual({ owner: "other-owner", repo: "other-repo" });
+      expect(resolveTargetRepo("issue-owner/issue-repo").eventRepo).toEqual({ owner: "issue-owner", repo: "issue-repo" });
+      expect(() => resolveTargetRepo("unlisted-owner/unlisted-repo")).toThrow(/ERR_VALIDATION: Repository 'unlisted-owner\/unlisted-repo' is not in the allowed-repos list/);
+    });
+
+    it("does not extend an explicit global allowlist with handler target-repo", () => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", "global-owner/global-repo");
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": "target-owner/target-repo" } }));
+
+      expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
+      expect(resolveTargetRepo("global-owner/global-repo").eventRepo).toEqual({ owner: "global-owner", repo: "global-repo" });
+    });
+
+    it.each(["*", "target-owner/*", "*/target-repo", "target-*/target-repo", "target-owner/target-*"])("does not treat target-repo %j as an allowlist pattern", targetRepo => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": targetRepo } }));
+
+      expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
+      expect(resolveTargetRepo("side-owner/side-repo").eventRepo).toEqual({ owner: "side-owner", repo: "side-repo" });
+    });
+
+    it.each(["target owner/target-repo", "target-owner/target repo", "target-owner/target?repo", "target-owner/target[repo]", "target@owner/target-repo"])("does not allow malformed target-repo %j", targetRepo => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": targetRepo } }));
+
+      expect(() => resolveTargetRepo(targetRepo)).toThrow(/ERR_VALIDATION:/);
+    });
+
+    it.each(["*", "target-owner/*"])("preserves explicit handler allowed_repos pattern %j", allowedRepo => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": "*", allowed_repos: [allowedRepo] } }));
+
+      expect(resolveTargetRepo().eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
+    });
+
+    it.each([undefined, null, "", "   ", "target-owner", "/target-repo", "target-owner/", "target-owner/target-repo/extra", 42, ["target-owner/target-repo"], { repo: "target-owner/target-repo" }])(
+      "ignores invalid target-repo %j",
+      targetRepo => {
+        vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
+        vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ create_pull_request: { "target-repo": targetRepo } }));
+
+        expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
+        expect(resolveTargetRepo("side-owner/side-repo").eventRepo).toEqual({ owner: "side-owner", repo: "side-repo" });
+      }
+    );
   });
 
   it("allows workflow_dispatch without target_repo inputs", () => {

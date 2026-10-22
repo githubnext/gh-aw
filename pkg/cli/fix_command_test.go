@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -388,9 +389,11 @@ This is a test workflow.
 		t.Error("Expected log-level field to be removed, but it still exists")
 	}
 
-	if strings.Contains(updatedStr, "version: v1.0.0") {
-		t.Error("Expected version field to be removed, but it still exists")
-	}
+	parsed, err := parser.ExtractFrontmatterFromContent(updatedStr)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"allowed": []any{"defaults", "node", "github"},
+	}, parsed.Frontmatter["network"], "Only allowed domains should remain under network")
 
 	if !strings.Contains(updatedStr, "sandbox:") {
 		t.Errorf("Expected sandbox field to be added for nested firewall, got:\n%s", updatedStr)
@@ -398,9 +401,9 @@ This is a test workflow.
 	if !strings.Contains(updatedStr, "agent:") {
 		t.Errorf("Expected sandbox.agent object to be added for nested firewall, got:\n%s", updatedStr)
 	}
-	if !strings.Contains(updatedStr, `version: "v1.0.0"`) {
-		t.Errorf("Expected firewall version to be migrated to sandbox.agent.version, got:\n%s", updatedStr)
-	}
+	assert.Equal(t, map[string]any{
+		"agent": map[string]any{"id": "awf", "version": "v1.0.0"},
+	}, parsed.Frontmatter["sandbox"], "Firewall version should migrate to sandbox.agent as a string")
 
 	// Verify compilation works
 	// This ensures the codemod produces valid YAML
@@ -482,9 +485,14 @@ This workflow tests comment and empty line handling.
 		t.Error("Expected log-level field to be removed, but it still exists")
 	}
 
-	if strings.Contains(updatedStr, "version: v1.0.0") {
-		t.Error("Expected version field to be removed, but it still exists")
-	}
+	parsed, err := parser.ExtractFrontmatterFromContent(updatedStr)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"allowed": []any{"defaults", "github"},
+	}, parsed.Frontmatter["network"], "Only allowed domains should remain under network")
+	assert.Equal(t, map[string]any{
+		"agent": map[string]any{"id": "awf", "version": "v1.0.0"},
+	}, parsed.Frontmatter["sandbox"], "Firewall version should migrate to sandbox.agent as a string")
 
 	// Comments within the firewall block should also be removed
 	if strings.Contains(updatedStr, "# Firewall configuration") {

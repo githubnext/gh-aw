@@ -12,7 +12,7 @@ timeout-minutes: 10
 max-ai-credits: 5
 features:
   gh-aw-detection: false
-model: copilot/gpt-5.4
+model: copilot/gpt-5.6-luna
 engine:
   id: crush
   env:

@@ -72,10 +72,13 @@ type WorkflowData struct {
 	ImportedMarkdown               string   // Only imports WITH inputs (for compile-time substitution)
 	ImportPaths                    []string // Import file paths for runtime-import macro generation (imports without inputs)
 	PromptImports                  []parser.PromptImportEntry
-	MainWorkflowMarkdown           string         // main workflow markdown without imports (for runtime-import)
-	IncludedFiles                  []string       // list of files included via @include directives (rendered as comment in lock file)
-	ImportInputs                   map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
+	MainWorkflowMarkdown           string               // main workflow markdown without imports (for runtime-import)
+	DeferredPromptExpressions      []*ExpressionMapping // prompt values resolved after activation in the agent job
+	IncludedFiles                  []string             // list of files included via @include directives (rendered as comment in lock file)
+	ImportInputs                   map[string]any       // input values from imports with inputs (for github.aw.inputs.* substitution)
 	On                             string
+	AdmissionEnabled               bool // Opt-in from on.admission or repository admission configuration
+	WebhookSubscriptions           []WebhookSubscription
 	Permissions                    string
 	Network                        string // top-level network permissions configuration
 	Concurrency                    string // workflow-level concurrency configuration
@@ -85,7 +88,8 @@ type WorkflowData struct {
 	If                             string
 	TimeoutMinutes                 string
 	CustomSteps                    string
-	PreSteps                       string // steps to run at the very start of the agent job, before checkout
+	PreSteps                       string // authored/imported steps to run at the very start of the agent job, before checkout
+	GeneratedPreSteps              string // compiler-owned pre-steps, kept separate from authored/imported steps for effect validation
 	PreAgentSteps                  string // steps to run immediately before the agent execution step
 	PostSteps                      string // steps to run after AI execution
 	RunsOn                         string

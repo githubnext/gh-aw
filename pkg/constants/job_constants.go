@@ -57,6 +57,7 @@ func (m MCPServerID) String() string {
 
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
+const AdmissionJobName JobName = "admission"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const PreActivationHyphenJobName JobName = "pre-activation"
@@ -68,11 +69,18 @@ const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
+const ConclusionAdmissionJobName JobName = "conclusion_admission"
 const GradersJobName JobName = "graders"
 const UnlockJobName JobName = "unlock"
 
 // AgentFailureStepName is the generated conclusion step that reports agent failures.
 const AgentFailureStepName = "Handle agent failure"
+
+// DeferredPromptStepName identifies the generated agent step resolving deferred prompt bindings.
+const DeferredPromptStepName = "Resolve deferred prompt expressions"
+
+// DeferredPromptStepID anchors the compiler/linter contract for GH_AW_DEFERRED_* bindings.
+const DeferredPromptStepID StepID = "resolve_deferred_prompt"
 
 // KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
 // It is used for O(1) membership checks when validating or filtering user-defined job
@@ -80,6 +88,7 @@ const AgentFailureStepName = "Handle agent failure"
 // can check this map before treating a frontmatter jobs.<name> entry as a custom job.
 var KnownBuiltInJobNames = map[string]struct{}{
 	string(AgentJobName):               {},
+	string(AdmissionJobName):           {},
 	string(ActivationJobName):          {},
 	string(PreActivationJobName):       {},
 	string(PreActivationHyphenJobName): {},
@@ -91,6 +100,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(UploadCodeScanningJobName):  {},
 	string(UploadCodeCoverageJobName):  {},
 	string(ConclusionJobName):          {},
+	string(ConclusionAdmissionJobName): {},
 	string(GradersJobName):             {},
 	string(UnlockJobName):              {},
 }

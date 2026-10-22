@@ -21,9 +21,34 @@ Honor supplied scope. Default: current repository, last 24 hours. Record actual
 window and collection limits.
 
 For "healthy now" or fix-verification questions, use `gh aw health --json`.
+It inventories registered AW `failure` conclusions from run-list payloads before
+any job or revision lookups, then verifies one job-backed representative per
+branch/event. `collection.potential_issues` are approximate, list-only signals;
+they may include jobless, historical, or superseded failures. Check each
+`representative_status`; do not audit a `superseded` representative.
+`failure_listing_complete` covers the cheap inventory; `failure_pass_complete`
+covers representative verification. Counts survive budget exhaustion even if
+verification is unfinished. The later chronological pass adds successful and
+pending evidence, prioritizing recently failing workflows. A truncated sample is
+not a fleet failure rate or proof that remaining workflows are healthy.
+The inventory keeps up to five candidates per workflow and stops when every
+registered workflow reaches that count or after ten pages. The page cap marks
+collection partial while leaving chronological sampling available.
 It samples backward per AW toward five completed first-attempt runs, bounded by
 `--days` and API quota. Read `collection` and `workflows[].revisions`: compare
 `gh-aw-metadata` frontmatter/body hashes, not repository commits alone.
+Health also compares the workflow Markdown source's blob SHA at each supported run
+with the pushed branch source, even when the lock file has not been recompiled.
+It reads committed Git objects from a matching local checkout first, never dirty
+files or stale tracking refs. A pushed branch head is resolved once per collection;
+missing local history or blobs fall back to GitHub without fetching or deepening
+the checkout. Fleet API fallback reuses directory snapshots per ref and lock
+metadata per blob SHA, rather than reading each file for each run.
+It stops collecting older revisions of that branch/event when the source differs
+and excludes those superseded failures from investigation. `source_sha` identifies
+the pushed source and the previous source in revision cohorts. Wait for evidence
+from the updated source instead of auditing failures it supersedes; a source edit
+alone does not prove a fix. Unrelated repository changes do not stop sampling.
 `recovery_observed` is evidence, not causation. A pushed revision without runs,
 missing hashes, or a sparse/quota-truncated sample is not healthy. Health clusters
 cover current-revision failures; use `logs` below for historical failures.
@@ -91,6 +116,46 @@ gh aw audit <run-id-1> <run-id-2> --group --json
   availability before comparing runs.
 - For optimization, correlate failures with AIC, input/output tokens, duration,
   and wasted retries; use successful runs as baselines. Frequency alone is not value.
+
+### Retrieve and cluster session evidence
+
+After reading deterministic findings, use a concrete error code, tool, domain,
+or path to retrieve bounded evidence from a single run:
+
+```bash
+gh aw audit <run-id-or-url> --search "api.example.com ERR_AUTH_401" --search-limit 5 --json > audit.json
+jq '.evidence_search | {source, indexed_events, matching_events, truncated, matches}' audit.json
+```
+
+Reuse the same `--output` directory for successive queries.
+This CLI-only search reads the actual redacted unified session
+(`usage/aw_session.jsonl` or root `aw_session.jsonl`), not synthesized `ProcessedRun`
+events or raw engine logs. Narrowed artifact selections automatically include
+`usage`. Missing/invalid sessions are unavailable evidence, not zero matches.
+
+Read each match's `evidence.reference`, `references`, and neighboring `context`
+before inferring a cause. Grouping is automatic; do not configure Drain3.
+BM25 ranks original event fields and types, never templates or anomaly scores.
+Exact duplicates share counts without mining. Drain3 is used only when repeated
+top candidates crowd the result limit and grouping saves excerpt text.
+Groups preserve structured outcomes: successes and failures remain separate.
+`occurrences` counts the outcome-specific group's events, not failures;
+`matching_occurrences` counts query-matching events. Ungrouped results omit
+`cluster_id`, `template`, and `anomaly_score`.
+Drain3 groups use run-local component/phase/type stage and cluster ID.
+`bm25_score` is relevance; an optional `anomaly_score` is a separate online Drain3 signal.
+Neither determines severity, confidence, threat absence, or audit completeness.
+Respect `truncated` and excerpt bounds; inspect referenced records when more
+context is needed. Search results are not stored in the shared audit cache.
+
+Keep the three grouping levels distinct: fleet `failure_clusters` select runs;
+`audit --group` groups deterministic findings by `[run, code]`; single-run
+`audit --search` automatically groups repetitive event evidence when useful.
+Search cannot be combined with multi-run arguments, `--group`, or job/step URLs.
+Never join Drain3 cluster IDs across runs, sum overlapping groups as affected
+runs, or infer a shared root cause from a common template. Compare signatures
+and first failing boundaries using the referenced events instead. Zero search
+matches do not suppress findings or establish that a run is safe.
 
 ## Report
 

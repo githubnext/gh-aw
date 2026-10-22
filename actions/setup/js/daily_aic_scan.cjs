@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { AIC_SCAN_CACHE_FILE_PATH, readScanCache, matchesCompletedRun, scanCacheEntry } = require("./daily_aic_cache_helpers.cjs");
-const { API_READ_OPERATIONS, getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders, getAPIReadFailure } = require("./daily_aic_api_budget.cjs");
+const { API_READ_OPERATIONS, getErrorStatus, isQuotaError, isTransientError, safeResponseHeaders, getAPIReadFailure, withQuotaResetRecovery } = require("./daily_aic_api_budget.cjs");
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_PAGES = 25;
@@ -13,7 +13,7 @@ const MAX_PAGES = 25;
  * Publish only individually resolved observations, including nonzero usage.
  * Missing entries and concurrent snapshots are safe misses, never zero usage.
  */
-async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC, listPage, token, fallbackAIC = 0, cachePath = AIC_SCAN_CACHE_FILE_PATH, now = Date.now() }) {
+async function scanDailyAICOnce({ github, context, budget, artifactClient, getRunAIC, listPage, token, fallbackAIC = 0, cachePath = AIC_SCAN_CACHE_FILE_PATH, now = Date.now() }) {
   const { owner, repo } = context.repo;
   const repository = `${owner}/${repo}`;
   const currentResponse = await budget.request(() => github.rest.actions.getWorkflowRun({ owner, repo, run_id: context.runId }), true, API_READ_OPERATIONS.CURRENT_RUN);
@@ -155,6 +155,10 @@ async function scanDailyAIC({ github, context, budget, artifactClient, getRunAIC
   }
   core.info(`[daily-workflow-aic] Completed authoritative AIC scan: ${JSON.stringify({ candidateRuns: candidates.size, countedRuns: countedRuns.length, cacheHits })}`);
   return { countedRuns, candidateRunsCount: candidates.size, cacheHits, current };
+}
+
+async function scanDailyAIC(options) {
+  return withQuotaResetRecovery(() => scanDailyAICOnce(options), options.recovery);
 }
 
 module.exports = { scanDailyAIC };

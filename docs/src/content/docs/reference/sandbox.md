@@ -210,6 +210,23 @@ When omitted, AWF's own default memory limit applies. Specifying an invalid form
 > [!NOTE]
 > Exit code 137 means the process received `SIGKILL`. A memory limit can be one cause, but verify with logs before changing `memory`. If you increase `memory`, leave headroom for the runner OS and other processes.
 
+#### Release integrity (`sandbox.agent.checksums-sha256`)
+
+To download an AWF version not covered by the setup action's built-in pins, set its version and checksum-manifest digest together:
+
+```yaml wrap
+sandbox:
+  agent:
+    version: v0.28.62
+    checksums-sha256: "0b03f6ea5b638356a799fa541ade4fd7902a6ac8d7c3f0252ee09d8259a4ce8f"
+```
+
+The example pins v0.28.62; change both fields for another release. `checksums-sha256` authenticates the release's **`checksums.txt` manifest**, which supplies digests for the Node bundle and platform binaries. It is not an individual binary or container-image digest.
+
+The value must contain exactly 64 lowercase hexadecimal characters from an independently trusted channel. The version must be a literal semantic release tag, with an optional `v` prefix. Missing versions, `latest`, expressions, disabled sandboxes, and custom `command` installers are rejected when a pin is supplied. Without a supplied pin, only releases covered by the setup action's built-in pins can be downloaded.
+
+The version and pin propagate to AWF installations in agent, threat-detection, and eval jobs. A mismatch fails installation before execution; a bundle integrity failure cannot fall back to a binary. Container-image pins and guest attestations remain separate controls. For the Copilot CLI, use [`engine.checksums-sha256`](/gh-aw/reference/engines/#copilot-release-checksum-pins).
+
 #### Model fallback (`sandbox.agent.model-fallback`)
 
 AWF's API proxy resolves unrecognized model selections against its built-in model catalog and may rewrite them. Set `model-fallback: false` to pass the configured model through to the provider verbatim:

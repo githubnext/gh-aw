@@ -115,7 +115,7 @@ class TransportRunnerTest(unittest.TestCase):
 
 class RuntimePinTest(unittest.TestCase):
     def test_release_pin_matches_workflow_and_documentation(self):
-        expected = "15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac"
+        expected = "5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2"
         self.assertEqual(check.JAR_SHA256, expected)
         workflow = (check.ROOT.parents[1] / ".github/workflows/daily-workflow-security-model.md").read_text()
         self.assertIn("https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar",
@@ -312,7 +312,9 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
                  patch.object(check, "run_case", side_effect=run_case), patch("sys.stdout"):
                 check.main()
             report = json.loads((results / "results.json").read_text())
-            self.assertEqual(report["additional_models"], ["RuntimeRepositoryCheckout", "MCPCompile"])
+            self.assertEqual(report["additional_models"],
+                             ["RuntimeRepositoryCheckout", "MCPCompile", "ActivationAdmission",
+                              "AdmissionConclusion"])
             cases = {case["case"] for case in report["cases"]
                      if case["model"] == "RuntimeRepositoryCheckout"}
             self.assertEqual(cases, {"secure-runtime-checkout"} |
@@ -323,6 +325,12 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
             self.assertEqual(mcp_cases, {"secure-mcp-compile"} |
                              {f"mcp-compile-{fault}" for fault in check.MCP_COMPILE_MUTATIONS} |
                              {f"mcp-compile-{name}" for name in check.MCP_COMPILE_WITNESSES})
+            self.assertEqual(sum(case["model"] == "ActivationAdmission"
+                                 for case in report["cases"]),
+                             4 + len(check.ADMISSION_MUTATIONS) + len(check.ADMISSION_WITNESSES))
+            self.assertEqual(sum(case["model"] == "AdmissionConclusion"
+                                 for case in report["cases"]),
+                             2 + len(check.CONCLUSION_MUTATIONS) + len(check.CONCLUSION_WITNESSES))
 
 
 class MCPCompileModelTest(unittest.TestCase):
@@ -354,6 +362,153 @@ class MCPCompileModelTest(unittest.TestCase):
                 call.kwargs.get("invariant"), call.kwargs.get("witness", False))
         self.assertEqual(observed, expected)
         self.assertEqual(len(cases), len(expected))
+
+
+class AdmissionModelTest(unittest.TestCase):
+    def test_controls_and_witnesses_are_declared(self):
+        model = (check.ROOT / "ActivationAdmission.tla").read_text()
+        config = (check.ROOT / "ActivationAdmission.cfg").read_text()
+        for fault, invariant in check.ADMISSION_MUTATIONS.items():
+            with self.subTest(fault=fault):
+                self.assertIn(f'"{fault}"', model)
+                self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+                self.assertRegex(config, rf"(?m)^\s+{invariant}$")
+        for invariant in check.ADMISSION_WITNESSES.values():
+            self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+            self.assertNotRegex(config, rf"(?m)^\s+{invariant}$")
+        self.assertIn("PROPERTY Termination", config)
+
+    def test_runner_checks_profiles_controls_and_witnesses(self):
+        with patch.object(check, "run_case", return_value={}) as run_case:
+            cases = check.check_activation_admission("java", Path("jar"), Path("results"))
+        calls = run_case.call_args_list
+        self.assertEqual({(call.kwargs["outage_policy"], call.kwargs["otel_enabled"])
+                          for call in calls[:4]},
+                         {("ignore", True), ("ignore", False), ("block", True), ("block", False)})
+        controls = calls[4:4 + len(check.ADMISSION_MUTATIONS)]
+        self.assertEqual({call.args[4]: call.kwargs["invariant"] for call in controls},
+                         check.ADMISSION_MUTATIONS)
+        for call in controls:
+            for key, value in check.ADMISSION_MUTATION_SETTINGS.get(call.args[4], {}).items():
+                self.assertEqual(call.kwargs[key], value)
+        witnesses = calls[4 + len(check.ADMISSION_MUTATIONS):]
+        self.assertEqual({call.args[3]: call.kwargs["invariant"] for call in witnesses},
+                         {f"admission-{name}": invariant
+                          for name, invariant in check.ADMISSION_WITNESSES.items()})
+        self.assertTrue(all(call.kwargs["witness"] for call in witnesses))
+        self.assertTrue(all(call.kwargs["model"] == "ActivationAdmission" for call in calls))
+        self.assertEqual(len(cases), 4 + len(controls) + len(witnesses))
+
+    def test_profile_reaches_tlc_and_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def tlc(command, cwd, **options):
+                config = (cwd / "model.cfg").read_text()
+                self.assertEqual(command[-1], "ActivationAdmission.tla")
+                self.assertIn('OutagePolicy = "block"', config)
+                self.assertIn("OTelEnabled = FALSE", config)
+                self.assertIn("PROPERTY Termination", config)
+                return subprocess.CompletedProcess(
+                    command, 0, "Model checking completed. No error has been found.\n"
+                    "10 states generated, 8 distinct states found", "")
+
+            with patch.object(check.subprocess, "run", side_effect=tlc), patch("sys.stdout"):
+                report = check.run_case("java", root / "jar", root, "profile",
+                                        model="ActivationAdmission", outage_policy="block",
+                                        otel_enabled=False)
+            self.assertEqual(report["outage_policy"], "block")
+            self.assertFalse(report["otel_enabled"])
+            self.assertNotIn("profile", report)
+
+    def test_focused_main_skips_unrelated_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "fixture.jar"
+            jar.write_bytes(b"runtime fixture")
+            results = root / "results"
+            case = {"model": "ActivationAdmission", "model_sha256": hashlib.sha256(
+                (check.ROOT / "ActivationAdmission.tla").read_bytes()).hexdigest()}
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(sys, "argv", ["check.py", "--model", "admission",
+                                           "--results", str(results)]), \
+                 patch.object(check, "JAR_SHA256", hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                 patch.object(check, "check_workflow_models") as other_models, \
+                 patch.object(check, "check_activation_admission", return_value=[case]), \
+                 patch.object(check, "check_admission_conclusion", return_value=[]) as conclusion, \
+                 patch("sys.stdout"):
+                check.main()
+            other_models.assert_not_called()
+            conclusion.assert_called_once()
+            report = json.loads((results / "results.json").read_text())
+            self.assertEqual(report["model"], "ActivationAdmission")
+            self.assertEqual(report["additional_models"], [])
+
+    def test_focused_mode_rejects_unrelated_options(self):
+        for options in [["--write-examples"], ["--compiler", "binary"],
+                        ["--verifier", "binary", "--compiled-workflows", "workflows"]]:
+            with self.subTest(options=options), \
+                 patch.object(sys, "argv", ["check.py", "--model", "admission", *options]), \
+                 patch.object(check, "run_case") as run, patch("sys.stderr"):
+                with self.assertRaises(SystemExit) as error:
+                    check.main()
+                self.assertEqual(error.exception.code, 2)
+                run.assert_not_called()
+
+
+class ConclusionModelTest(unittest.TestCase):
+    def test_controls_and_witnesses_are_declared(self):
+        model = (check.ROOT / "AdmissionConclusion.tla").read_text()
+        config = (check.ROOT / "AdmissionConclusion.cfg").read_text()
+        for fault, invariant in check.CONCLUSION_MUTATIONS.items():
+            with self.subTest(fault=fault):
+                self.assertIn(f'"{fault}"', model)
+                self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+                self.assertRegex(config, rf"(?m)^\s+{invariant}$")
+        for invariant in check.CONCLUSION_WITNESSES.values():
+            self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+            self.assertNotRegex(config, rf"(?m)^\s+{invariant}$")
+        self.assertIn("PROPERTY Termination", config)
+
+    def test_runner_checks_policies_controls_and_witnesses(self):
+        with patch.object(check, "run_case", return_value={}) as run:
+            cases = check.check_admission_conclusion("java", Path("jar"), Path("results"))
+        calls = run.call_args_list
+        self.assertEqual({call.kwargs["outage_policy"] for call in calls[:2]}, {"ignore", "block"})
+        controls = calls[2:2 + len(check.CONCLUSION_MUTATIONS)]
+        self.assertEqual({call.args[4]: call.kwargs["invariant"] for call in controls},
+                         check.CONCLUSION_MUTATIONS)
+        best_effort = next(call for call in controls if call.args[4] == "delivery-fails-workflow")
+        self.assertEqual(best_effort.kwargs["outage_policy"], "block")
+        witnesses = calls[2 + len(check.CONCLUSION_MUTATIONS):]
+        self.assertEqual({call.args[3]: call.kwargs["invariant"] for call in witnesses},
+                         {f"conclusion-{name}": invariant
+                          for name, invariant in check.CONCLUSION_WITNESSES.items()})
+        self.assertTrue(all(call.kwargs["witness"] for call in witnesses))
+        self.assertTrue(all(call.kwargs["model"] == "AdmissionConclusion" for call in calls))
+        self.assertEqual(len(cases), 2 + len(controls) + len(witnesses))
+
+    def test_conclusion_only_mode_skips_start_time_admission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "fixture.jar"
+            jar.write_bytes(b"fixture")
+            case = {"model": "AdmissionConclusion", "model_sha256": hashlib.sha256(
+                (check.ROOT / "AdmissionConclusion.tla").read_bytes()).hexdigest()}
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(sys, "argv", ["check.py", "--model", "conclusion",
+                                           "--results", str(root / "results")]), \
+                 patch.object(check, "JAR_SHA256", hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                 patch.object(check, "check_workflow_models") as others, \
+                 patch.object(check, "check_activation_admission") as activation, \
+                 patch.object(check, "check_admission_conclusion", return_value=[case]), \
+                 patch("sys.stdout"):
+                check.main()
+            others.assert_not_called()
+            activation.assert_not_called()
+            report = json.loads((root / "results" / "results.json").read_text())
+            self.assertEqual(report["model"], "AdmissionConclusion")
+            self.assertEqual(report["additional_models"], [])
 
 
 if __name__ == "__main__":

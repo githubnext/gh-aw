@@ -158,16 +158,18 @@ func formatIndentedYAMLField(fieldName string, value any, trimTrailingNewline bo
 	// lists, services ports) are indented under their parent key rather than
 	// aligned with it, satisfying yamllint's default indentation rule.
 	marshalOptions := append(append([]yaml.EncodeOption{}, DefaultMarshalOptions...), yaml.IndentSequence(true))
-	yamlBytes, err := yaml.MarshalWithOptions(value, marshalOptions...)
+	yamlBytes, err := yaml.MarshalWithOptions(map[string]any{fieldName: value}, marshalOptions...)
 	if err != nil {
 		return "", err
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(yamlBytes)), "\n")
+	lines := strings.Split(strings.TrimSuffix(string(yamlBytes), "\n"), "\n")
 	var b strings.Builder
-	b.WriteString(fieldName + ":\n")
-	for _, line := range lines {
-		b.WriteString("      " + line + "\n")
+	for i, line := range lines {
+		if i > 0 {
+			b.WriteString("    ")
+		}
+		b.WriteString(line + "\n")
 	}
 
 	formatted := b.String()
