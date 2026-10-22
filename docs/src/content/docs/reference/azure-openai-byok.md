@@ -157,6 +157,6 @@ gh aw compile .github/workflows/my-workflow.md --watch
 
 ## Learn More
 
-- [AI Engines Reference](/gh-aw/reference/engines/#copilot-bring-your-own-key-byok-mode)
+- [AI Engines Reference](/gh-aw/reference/engines/copilot/#copilot-bring-your-own-key-byok-mode)
 - [Network Configuration Guide](/gh-aw/guides/network-configuration/)
 - [Sandbox Reference](/gh-aw/reference/sandbox/)

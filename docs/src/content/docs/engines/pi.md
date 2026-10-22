@@ -1,218 +1,54 @@
 ---
 title: Using Pi with GitHub Agentic Workflows
-description: Select and authenticate Pi as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
+description: Authenticate Pi and run your first GitHub Agentic Workflow.
 ---
 
-[Pi](https://pi.dev/) is a provider-agnostic coding agent for repository analysis and code changes. GitHub Agentic Workflows runs Pi through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
+Run Pi on GitHub events with GitHub Copilot, Anthropic, OpenAI, or Google inference.
 
-The default Pi version is [v1.3.0](https://github.com/earendil-works/pi/releases/tag/v1.3.0); it must be available in the runner's npm registry. Pi supports native MCP through the gh-aw policy gateway. GitHub CLI proxy mode and `tools.cli-proxy: true` remain optional transport choices. The default model is `copilot/auto` when no model is configured for the Copilot backend with the default gateway enabled. Native execution without the gateway retains `copilot/gpt-5.4`.
+## Connect your account
 
-## Selecting Pi + GitHub as the AI engine
+Use the Copilot configuration below with [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission), or configure [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) for personal subscription billing.
 
-To select Pi as the AI engine, with inference hosted and billed through a GitHub Copilot subscription, use a `copilot/` model. A model without a provider prefix also uses the Copilot backend.
+For another provider, set `model: anthropic/<model>`, `openai/<model>`, or `google/<model>` and configure its [API key](/gh-aw/reference/auth/). Threat detection uses Copilot by default even when Pi uses another provider; supply Copilot authentication or [select a detection engine](/gh-aw/reference/threat-detection/).
 
-```yaml
-engine:
-  id: pi
-  model: copilot/auto
-```
+## Run a daily report
 
-Both `auto` and `copilot/auto` delegate model selection to the Copilot gateway. The `auto` routing sentinel does not need to appear in the gateway's concrete-model inventory. Set a concrete model such as `copilot/gpt-5.4` to pin model selection.
-
-To authenticate:
-
-- For organization-billed usage, grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission).
-- Otherwise, provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret containing a fine-grained PAT with Copilot Requests access.
-
-## Selecting Pi + Anthropic as the AI engine
-
-To run Pi with inference hosted and billed through Anthropic, use an `anthropic/` model:
-
-```yaml
-engine:
-  id: pi
-  model: anthropic/claude-sonnet-4.6
-```
-
-To authenticate, provide [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) as a GitHub Actions repository secret.
-
-## Selecting Pi + OpenAI as the AI engine
-
-To run Pi with inference hosted and billed through OpenAI, use an `openai/` or `codex/` model:
-
-```yaml
-engine:
-  id: pi
-  model: openai/gpt-5.4
-```
-
-To authenticate, provide a [`CODEX_API_KEY`](/gh-aw/reference/auth/#openai_api_key) or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) as a GitHub Actions repository secret.
-
-Pi routes `openai/` and `codex/` models through OpenAI's [Responses API](https://developers.openai.com/api/docs/guides/responses-vs-chat-completions) rather than Chat Completions, since OpenAI rejects function tool calls on Chat Completions whenever reasoning is enabled. This matches Pi's own OpenAI model catalog and requires no additional configuration. The Copilot and Anthropic backends are unaffected and keep using their existing wire protocols.
-
-## Authenticating threat detection
-
-By default, threat detection for Pi workflows runs on the GitHub Copilot CLI, regardless of Pi's model provider. Grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) or provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret for detection. This credential is separate from the OpenAI or Anthropic key used by the Pi agent.
-
-For any provider, recompile the workflow with `gh aw compile` and commit the changes to the repository.
-
-## Example: scheduled repository report
+After [setting up gh-aw](/gh-aw/setup/quick-start/), save this workflow:
 
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:
+  workflow_dispatch:
   schedule: daily
-
 permissions:
   contents: read
   issues: read
   pull-requests: read
   copilot-requests: write
-
-engine:
-  id: pi
-  model: copilot/gpt-5.4
-
+engine: pi
+model: copilot/auto
 tools:
   github:
-    mode: gh-proxy
-    toolsets: [default]
-
+    toolsets: [issues, pull_requests]
 safe-outputs:
   create-issue:
     title-prefix: "[status] "
-    labels: [report]
-    close-older-issues: true
 ---
 
-# Daily Repository Status
+# Daily repository status
 
-Analyze the repository and create a concise daily status report covering:
-- Open issues and their priority
-- Recent PR activity
-- Upcoming work items
+Summarize open issues and recent pull request activity in one concise issue.
 ```
+
+Compile with `gh aw compile daily-status`, then commit and push both the Markdown and generated lock file. Run it from the repository's Actions tab or wait for its schedule.
 
 ## Capabilities and limitations
 
-Pi supports native MCP tools and resources, codemode, tool search, provider-prefixed models, and workflow-installed Pi packages. Native MCP connects only to the compiler-managed gateway; provider and GitHub credentials remain outside the sandbox.
+Pi supports multiple providers, native MCP, and sub-agents. See the [Pi reference](/gh-aw/reference/engines/pi/) for provider routing, tool restrictions, extensions, and SDK/RPC modes.
 
-Safe-output instructions use native MCP by default. Workflows with `tools.bash: false` must explicitly set `tools.cli-proxy: false` and use native tools. Explicit `tools.cli-proxy: true` selects CLI-only instructions for mounted safe-output tools, just as it does for other MCP-capable engines. GitHub `gh-proxy` mode changes GitHub reads only; it does not disable native safe-output tools.
+## Next steps
 
-Codemode batches tool calls and reduces results before they enter model context. Its classifier and image-generation APIs are available when the configured provider route supports those model types. Custom providers still need a compatible API-proxy target and credentials; enabling codemode does not grant additional credentials or network access.
-
-For Copilot models using the Responses API, gh-aw disables grammar-based custom tools (`model.compat.supportsOpenAIGrammarTools: false`) so Pi sends codemode as a JSON-schema function tool. Codemode remains enabled; the Copilot compatibility adapter does not accept its custom-tool format. Other provider routes retain their configured compatibility settings.
-
-| Option | Pi behavior |
-|---|---|
-| `max-turns`, `max-ai-credits` | Enforced by the AWF inference proxy. |
-| `max-tool-calls` | Pre-dispatch limit covering local, MCP, and nested codemode calls. |
-| `max-tool-denials` | Stops inference after repeated policy denials. |
-| `tools.bash` | Supports disabling bash, executable-name rules, exact multiword commands, and explicit argument wildcards (`:*` or ` *`). Restricted commands reject shell comments, dynamic expansions, redirections, grouping, and background execution. |
-| `tools.edit: false` | Disables native `edit` and `write` tools. |
-| `engine.bare: true` | Disables automatic context, skill, prompt-template, extension, and theme discovery; retains explicit workflow infrastructure extensions and workflow-declared or imported inline skills. |
-| `engine.extensions` | Installs npm, pinned git, or local Pi packages into the managed runtime directory. |
-| `engine.driver: pi_agent_core_driver.cjs` | Uses the full coding-agent SDK session layer, including tools, resources, compaction, and retries. |
-| `engine.driver: pi_rpc_driver.cjs` | Runs a headless RPC subprocess through Pi's RPC client. |
-
-In bare mode, ambient repository and user skills are not discovered. Inline skills (`## skill:` blocks) that activation extracts from the workflow, its imports, or runtime imports remain available: before Pi starts, gh-aw reads the list of skills activation extracted and passes one explicit `--skill /tmp/gh-aw/pi-agent-dir/skills/<name>/SKILL.md` per skill to the CLI, sub-agents, and the SDK and RPC drivers. Workflows without inline skills get no `--skill` arguments.
-
-Project-local executable resources remain untrusted by default. Workflow-installed packages and activation-installed skills use the managed agent directory. Model catalog metadata preserves thinking, vision, token limits, pricing, and cache lifetimes through gateway routing. Workflow system instructions remain separate from user instructions so compaction does not summarize them away.
-
-When AWF `/reflect` completes model discovery and reports reasoning-effort support for the selected provider and model, Pi uses that capability information instead of model-name exceptions. If discovery is incomplete or reflection does not report reasoning capability data, Pi retains the model catalog or `engine.config.model` reasoning setting. Missing effort fields alone do not disable reasoning.
-
-Custom executables without the npm SDK must supply complete model metadata (`reasoning`, `input`, `contextWindow`, and `maxTokens`) in `engine.config.model`.
-
-The integration runs Pi headlessly; terminal UI controls, interactive authentication, and `/share` uploads are not workflow outputs. Native provider fixes, prompt-cache behavior, model switching, codemode worker limits, and session tool restoration come from the installed Pi release. The `kimi-coding` provider uses Chat Completions in v1.3.0; custom native base URLs must include `/v1`. Sandboxed custom routes still require a compatible AWF endpoint.
-
-The built-in `tools.playwright` integration uses `playwright-cli`; omit its `mode` field. Native `tools.web-search`, `max-continuations`, native `engine.agent` selection, and custom `engine.harness` scripts remain unsupported. Custom drivers must implement their own policies and cannot opt into the built-in aggregate tool budgets.
-
-Pi resolves [model aliases](/gh-aw/reference/engines/#model-aliases) for the main model and for sub-agents with the same rules as Copilot: `model: copilot/opus` runs on the newest live Opus. Exact ids are checked against AWF `/reflect` before Pi starts, and an unlisted id fails with `model_unavailable`, producing the same unavailable-model failure issue as Copilot. When AWF's model discovery is incomplete, exact ids pass through and aliases fail with `catalog_unavailable`; sub-agents no longer fall back to Pi's built-in model list.
-
-## Sub-agents
-
-Define [inline sub-agents](/gh-aw/reference/inline-sub-agents/) with a non-empty `description` and instruct the parent to call the `subagent` tool:
-
-```aw wrap
-Use subagent with {"agent":"reader","task":"Summarize README.md"}.
-
-## agent: `reader`
----
-description: Reads and summarizes files
-model: small
-tools: [read, grep, find, ls]
----
-Read the requested files and report the facts.
-```
-
-The built-in CLI, SDK, and RPC modes load managed delegation, including with `engine.bare: true`. Each invocation starts an isolated, ephemeral child session with the agent's instructions and the workflow system prompt. The tool accepts one agent and task per call; it does not accept chain or parallel-task parameters, and children cannot recursively delegate.
-
-An omitted model inherits the parent's configured model. Bare model IDs use the parent's provider; aliases such as `small` resolve against that provider's models in AWF `/reflect`, using the same rules as the main model. A declaration cannot switch to another provider or silently fall back to the parent model when alias resolution fails. The optional `?effort=` parameter supports `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`; Pi maps `none` to `off` and clamps thinking to the selected model's capabilities. The `max` effort requires installed Pi v1.3.0 or newer and is rejected during runtime setup on older installations. Other model parameters are rejected. An explicit `name` must match the agent marker.
-
-Children retain the workflow's inference gateway, MCP configuration, steering, bash allowlist, and edit restrictions. Tool-call and denial budgets are shared with the parent. Children use compiler-managed execution arguments rather than inheriting `engine.args` overrides. Optional automatically discovered extensions are disabled in children; only the managed infrastructure extensions are loaded. Custom drivers do not support this delegation path.
-
-Children return task results to the parent instead of emitting workflow-completion reports or `noop` safe outputs. Task-required safe-output actions remain available. Time-pressure steering applies to ongoing tool turns, not completed answers, so it does not reopen a finished child session.
-
-Dispatch logs record both the requested alias and resolved model. `gh aw audit` reports `subagent_model_not_observed` when usage evidence exists but no agent inference matches a declared model. This means the agent may not have run or its model was not honored; model presence alone does not prove delegation. Detection requests are not treated as agent-model evidence.
-
-## Additional providers
-
-`google/` models use the Gemini gateway and `GEMINI_API_KEY`. Other API-compatible providers can use an explicit inference family and endpoint:
-
-```yaml wrap
-engine:
-  id: pi
-  model: openrouter/anthropic/claude-sonnet-4
-  model-provider: openai
-  env:
-    OPENAI_BASE_URL: https://openrouter.ai/api/v1
-    OPENAI_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-network:
-  allowed: [defaults, openrouter.ai]
-```
-
-Compatible provider catalogs, including classifier and image models, retain their native identities but route through the same credential-isolated gateway. Requests must be supported by that gateway and upstream endpoint. Providers requiring different protocols or ambient cloud authentication can run natively only when the agent sandbox is explicitly disabled; this removes credential isolation and is not the recommended deployment mode. Unsupported sandboxed provider routes fail compilation instead of silently switching to Copilot.
-
-## Pi runtime configuration
-
-`engine.config` accepts JSON with four optional objects:
-
-| Object | Purpose |
-|---|---|
-| `settings` | Pi settings, including `defaultThinkingLevel`, `codemode`, compaction, retries, and cache warming. Project trust remains disabled. |
-| `model` | Model metadata overrides: API protocol, reasoning, input types, context/output limits, pricing, compatibility, and prompt-cache lifetimes. |
-| `mcp` | Default `exposure` (`direct`, `deferred`, `codemode`, or `hidden`) and per-server `toolExposure` patterns. Defaults to `direct`, making configured MCP tools available without tool search. Does not add servers or credentials. |
-| `session` | `enabled`, optional `id`, `resume` or `fork`, and `export`. |
-
-The compiler supplies `mcp.exposure: "direct"` when omitted, including when other
-configuration objects or per-tool overrides are present. Explicit exposure modes
-and per-tool overrides are preserved.
-
-```yaml wrap
-engine:
-  id: pi
-  config: |
-    {
-      "settings": {"defaultThinkingLevel": "high", "codemode": {"mode": "on"}},
-      "session": {"enabled": true, "export": true}
-    }
-max-tool-calls: 100
-```
-
-Sessions are ephemeral by default. Persistent JSONL sessions are written under `/tmp/gh-aw/agent/pi-sessions`; restore a previous session artifact there before using `resume` or `fork`. HTML exports are stored at `/tmp/gh-aw/pi-agent-dir/session.html`. Both are secret-redacted before artifact upload.
-
-Settings are passed through to Pi, including `codemode.inlineBudget`, per-model thinking and compaction overrides, and v1.3.0's `sessionShareDestination`. The latter configures Pi's `/share` command; it does not publish workflow artifacts automatically. Installed `defaultTools` selections are merged with gh-aw's `+codemode` and `+tool_search` defaults; explicit `engine.config.settings.defaultTools` replaces that list. On resume, Pi restores tools activated in the saved session; explicit CLI `--tools` selections or exclusions still apply. See the [Pi settings reference](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/docs/settings.md).
-
-See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison) and [Pi extensions reference](/gh-aw/reference/engines/#pi-extensions-extensions).
-
-## GitHub Agentic Workflows vs. running Pi directly in Actions
-
-Running coding agent CLIs such as Pi directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows provides sandboxing, credential isolation, scoped permissions, safe outputs, and workflow portability across AI engines.
-
-## Learn More
-
-- [Quick start](/gh-aw/setup/quick-start/)
-- [Engine reference](/gh-aw/reference/engines/)
-- [Authentication](/gh-aw/reference/auth/)
-- [Security architecture](/gh-aw/introduction/architecture/)
-- [Gallery](/gh-aw/gallery/)
+- [Pi technical reference](/gh-aw/reference/engines/pi/)
+- [Create a workflow](/gh-aw/setup/creating-workflows/)
+- [Workflow examples](/gh-aw/gallery/)
+- [Compare engines](/gh-aw/reference/engines/#engine-feature-comparison)

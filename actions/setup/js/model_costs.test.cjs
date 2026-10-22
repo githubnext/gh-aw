@@ -56,11 +56,29 @@ describe("model_costs.cjs", () => {
     expect(aic).toBeCloseTo(0.54825, 6);
   });
 
-  it("formats AI Credits for footer display", async () => {
+  it("formats AI Credits with their existing precision", async () => {
     const { formatAIC } = await import("./model_costs.cjs");
     expect(formatAIC(0.125)).toBe("0.125");
     expect(formatAIC(1.25)).toBe("1.25");
     expect(formatAIC(12.5)).toBe("12.5");
+  });
+
+  it.each([
+    [0.33 + 0.56 + 0.11, "~1"],
+    [0.66 + 1.12 + 0.22, "~2"],
+    [1.000000000001, "~2"],
+    [Number.MIN_VALUE, "~1"],
+    [0.000000000001, "~1"],
+    [12.4, "~13"],
+    [1000.1, "~1001"],
+    [1000000.1, "~1000001"],
+    [0, ""],
+    [-1, ""],
+    [NaN, ""],
+    [Infinity, ""],
+  ])("formats %s as the whole-credit estimate %s", async (value, formatted) => {
+    const { formatEstimatedAIC } = await import("./model_costs.cjs");
+    expect(formatEstimatedAIC(value)).toBe(formatted);
   });
 
   it("resolves 'copilot' provider alias to 'github-copilot' for AIC lookup", async () => {

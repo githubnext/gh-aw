@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,6 +59,8 @@ class Coder:
     def run(self, with_message):
         self.num_reflections = 0
         self.cur_messages = []
+        self.shell_commands = []
+        self.aider_edited_files = set()
         if os.environ["AIDER_TEST_SCENARIO"] == "empty-context":
             context = self.get_chat_files_messages()[0]["content"]
             if context == self.gpt_prompts.files_no_full_files:
@@ -66,20 +69,26 @@ class Coder:
         while True:
             self.reflected_message = None
             context = self.get_chat_files_messages()
+            self.show_send_output(SimpleNamespace(choices=[]))
             self.io.assistant_output("discovery" if self.num_reflections == 0 else "continuation")
             if self.num_reflections:
                 if os.environ["AIDER_TEST_SCENARIO"] == "malformed":
                     assert with_message == "native edit error"
                 elif os.environ["AIDER_TEST_SCENARIO"] == "existing":
                     assert with_message == "native retry"
+                elif os.environ["AIDER_TEST_SCENARIO"] == "edit-only" and self.num_reflections == 2:
+                    assert "applied edits" in with_message
                 else:
                     assert "Exit code:" in with_message
                     assert str(1 if os.environ["AIDER_TEST_SCENARIO"] == "failed" else 0) in with_message
-            self.shell_commands = ["discover"] if self.num_reflections == 0 else ["safeoutputs noop"]
+            self.shell_commands += ["discover"] if self.num_reflections == 0 else ["safeoutputs noop"]
+            if os.environ["AIDER_TEST_SCENARIO"] == "edit-only" and self.num_reflections == 1:
+                self.shell_commands = []
+                self.aider_edited_files.add("sample.go")
             if os.environ["AIDER_TEST_SCENARIO"] == "no-shell":
                 self.shell_commands = []
             if os.environ["AIDER_TEST_SCENARIO"] == "loop":
-                self.shell_commands = ["discover"]
+                self.shell_commands = self.shell_commands[:-1] + ["discover"]
             if os.environ["AIDER_TEST_SCENARIO"] in ("budget", "malformed"):
                 self.shell_commands = ["discover"]
                 if self.num_reflections == self.max_reflections:
@@ -93,6 +102,8 @@ class Coder:
                 output = self.run_shell_commands()
             if output:
                 self.cur_messages.extend([{"role": "user", "content": output}, {"role": "assistant", "content": "Ok"}])
+            if os.environ["AIDER_TEST_SCENARIO"] == "edit-only" and self.num_reflections == 2:
+                return
             if not self.reflected_message or self.num_reflections >= self.max_reflections:
                 return
             self.num_reflections += 1
@@ -102,7 +113,7 @@ class Coder:
             if self.num_reflections == 2:
                 self.shell_commands = []
                 self.reflected_message = None
-                if os.environ["AIDER_TEST_SCENARIO"] not in ("loop", "budget", "malformed"):
+                if os.environ["AIDER_TEST_SCENARIO"] not in ("loop", "budget", "malformed", "edit-only"):
                     return
 
 def run_cmd(command, *args, **kwargs):
@@ -146,7 +157,7 @@ def main():
 `), 0o600))
 	prompt := filepath.Join(dir, "prompt.md")
 	require.NoError(t, os.WriteFile(prompt, []byte("perform workflow"), 0o600))
-	for _, scenario := range []string{"empty-context", "output", "empty", "failed", "existing", "no-shell", "loop", "budget", "malformed", "exception"} {
+	for _, scenario := range []string{"empty-context", "output", "empty", "failed", "existing", "no-shell", "loop", "budget", "malformed", "edit-only", "exception"} {
 		t.Run(scenario, func(t *testing.T) {
 			terminal := filepath.Join(t.TempDir(), "terminal")
 			cmd := exec.Command("python3", loadAiderSample(t).Behaviors.Execution.Args...)
@@ -167,10 +178,18 @@ def main():
 				require.NoError(t, readErr, "%s", output)
 				assert.Equal(t, "report_incomplete", string(record))
 				assert.Contains(t, string(output), `"numTurns": 4`)
+			case "edit-only":
+				require.NoError(t, readErr, "%s", output)
+				assert.Equal(t, "noop", string(record))
+				assert.Contains(t, string(output), `"numTurns": 3`)
 			default:
 				require.NoError(t, readErr, "must consume discovery results and execute the next model command: %s", output)
 				assert.Equal(t, "noop", string(record))
 				assert.Contains(t, string(output), `"numTurns": 2`)
+			}
+			if scenario == "output" || scenario == "edit-only" {
+				assert.Equal(t, 1, strings.Count(string(output), `"command": "discover"`),
+					"edit-only replies must not replay earlier discovery commands")
 			}
 		})
 	}

@@ -252,7 +252,7 @@ header.header {
   margin-top: 0.5rem;
 }
 
-.sidebar .top-level li li a {
+.sidebar .top-level li li :is(a, button.sidebar-more) {
   transition: color var(--aw-duration-fast) ease, background-color var(--aw-duration-fast) ease;
   color: var(--aw-color-text-muted);
   font-size: var(--aw-text-ui);
@@ -268,7 +268,7 @@ header.header {
 @media (max-width: 49.99rem) {
   .sidebar .top-level > li > details > summary,
   .sidebar .top-level > li > a,
-  .sidebar .top-level li li a {
+  .sidebar .top-level li li :is(a, button.sidebar-more) {
     min-height: 40px;
     display: flex;
     align-items: center;
@@ -286,7 +286,8 @@ header.header {
   }
 }
 
-.sidebar .top-level li li a:hover {
+.sidebar .top-level li li a:hover,
+.sidebar .top-level li li button.sidebar-more:is(:hover, :focus-visible) {
   color: var(--aw-color-text);
 }
 

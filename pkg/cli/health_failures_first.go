@@ -25,13 +25,16 @@ type HealthPotentialIssue struct {
 
 // Inventory list-only signals before verifying one representative per scope.
 func collectHealthFailures(startDate, repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
-	candidates, err := listHealthFailureInventory(startDate, repoOverride, collection)
+	inventory := newHealthFailureInventory(startDate, collection)
+	candidates, err := inventory.fill(repoOverride, collection)
 	if err != nil {
 		return nil, err
 	}
+	collection.failureInventory = candidates
 	scopes := make(map[string]struct{})
 	var runs []WorkflowRun
-	for _, run := range candidates {
+	for index := 0; index >= 0 && index < len(collection.failureInventory); index++ {
+		run := collection.failureInventory[index]
 		scope := failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
 		if _, sampled := scopes[scope]; sampled {
 			continue
@@ -41,7 +44,9 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 			return runs, err
 		}
 		if !hasJobs {
-			markHealthPotentialIssue(run, collection, "jobless")
+			if err := inventory.observeJobless(run, repoOverride, collection); err != nil {
+				return runs, err
+			}
 			continue
 		}
 		resolveHealthRevision(run, collection)
@@ -86,46 +91,82 @@ func healthFailureSampleScope(run WorkflowRun) string {
 }
 
 func listHealthFailureInventory(startDate, repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
+	return newHealthFailureInventory(startDate, collection).fill(repoOverride, collection)
+}
+
+type healthFailureInventory struct {
+	targets   map[string]GitHubWorkflow
+	seen      map[int64]struct{}
+	opts      ListWorkflowRunsOptions
+	batches   [][]workflowRunAPIResponse
+	page      int
+	pages     int
+	exhausted bool
+}
+
+func (inventory *healthFailureInventory) observeJobless(run WorkflowRun, repoOverride string, collection *HealthCollection) error {
+	if err := observeHealthApprovalExpiry(run, collection); err != nil {
+		return err
+	}
+	markHealthPotentialIssue(run, collection, "jobless")
+	if collection.ApprovalExpiryEvidence[run.DatabaseID].Status == "ignored" {
+		backfill, err := inventory.fill(repoOverride, collection)
+		collection.failureInventory = append(collection.failureInventory, backfill...)
+		return err
+	}
+	return nil
+}
+
+func newHealthFailureInventory(startDate string, collection *HealthCollection) *healthFailureInventory {
 	targets := make(map[string]GitHubWorkflow)
 	for _, target := range collection.workflows {
 		targets[target.Path] = target
 	}
-	if len(targets) == 0 {
-		collection.FailureListingComplete = true
-		return nil, nil
+	return &healthFailureInventory{
+		targets: targets, seen: make(map[int64]struct{}), page: 1,
+		opts: ListWorkflowRunsOptions{StartDate: startDate, EndDate: collection.EndDate, Limit: 100},
 	}
-	opts := ListWorkflowRunsOptions{StartDate: startDate, EndDate: collection.EndDate, Limit: 100}
-	seen := make(map[int64]struct{})
+}
+
+func (inventory *healthFailureInventory) fill(repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
 	issues := make(map[string]int)
 	candidatesByWorkflow := make(map[string]int)
+	for index, issue := range collection.PotentialIssues {
+		issues[issue.WorkflowPath] = index
+		candidatesByWorkflow[issue.WorkflowPath] = issue.FailedRuns
+	}
 	var runs []WorkflowRun
-	listingPages := 0
-	for page := 1; ; page++ {
-		if listingPages >= healthMaximumFailureListingPages {
-			collection.Partial, collection.Reason = true, "failure_listing_limit"
-			collection.Warning = fmt.Sprintf("Health failure inventory stopped after %d pages; chronological sampling will continue", listingPages)
+	// Reuse already fetched overflow before requesting older pages after an exclusion.
+	for _, batch := range inventory.batches {
+		runs = appendHealthFailureCandidates(batch, inventory.targets, inventory.seen, candidatesByWorkflow, issues, runs, collection)
+	}
+	for {
+		if inventory.exhausted || allHealthFailureWorkflowsSaturated(inventory.targets, candidatesByWorkflow) {
+			collection.FailureListingComplete = true
 			return runs, nil
 		}
-		batch, oldest, err := healthListFailureCandidates(opts, page, repoOverride, collection)
+		collection.FailureListingComplete = false
+		if inventory.pages >= healthMaximumFailureListingPages {
+			collection.Partial, collection.Reason = true, "failure_listing_limit"
+			collection.Warning = fmt.Sprintf("Health failure inventory stopped after %d pages; chronological sampling will continue", inventory.pages)
+			return runs, nil
+		}
+		batch, oldest, err := healthListFailureCandidates(inventory.opts, inventory.page, repoOverride, collection)
 		if err != nil {
 			return runs, err
 		}
-		listingPages++
-		runs = appendHealthFailureCandidates(batch, targets, seen, candidatesByWorkflow, issues, runs, collection)
-		if len(batch) < opts.Limit {
-			collection.FailureListingComplete = true
-			return runs, nil
-		}
-		if allHealthFailureWorkflowsSaturated(targets, candidatesByWorkflow) {
-			collection.FailureListingComplete = true
-			return runs, nil
-		}
-		if page*opts.Limit >= healthMaximumRunSearchResults {
-			if !advanceHealthRunWindow(&opts, oldest, collection) {
+		inventory.pages++
+		inventory.batches = append(inventory.batches, batch)
+		runs = appendHealthFailureCandidates(batch, inventory.targets, inventory.seen, candidatesByWorkflow, issues, runs, collection)
+		inventory.exhausted = len(batch) < inventory.opts.Limit
+		if !inventory.exhausted && inventory.page*inventory.opts.Limit >= healthMaximumRunSearchResults &&
+			!allHealthFailureWorkflowsSaturated(inventory.targets, candidatesByWorkflow) {
+			if !advanceHealthRunWindow(&inventory.opts, oldest, collection) {
 				return runs, nil
 			}
-			page = 0
+			inventory.page = 0
 		}
+		inventory.page++
 	}
 }
 
@@ -137,10 +178,10 @@ func appendHealthFailureCandidates(batch []workflowRunAPIResponse, targets map[s
 		if _, duplicate := seen[run.DatabaseID]; duplicate || !registered || run.Conclusion != "failure" {
 			continue
 		}
-		seen[run.DatabaseID] = struct{}{}
 		if candidatesByWorkflow[run.WorkflowPath] >= healthMinimumRuns {
 			continue
 		}
+		seen[run.DatabaseID] = struct{}{}
 		if filterHealthPRLifecycleRun(run, collection) {
 			continue
 		}

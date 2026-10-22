@@ -9,6 +9,9 @@ sidebar:
 
 This page covers configuration options specific to GitHub Enterprise Server (GHES) and GitHub Enterprise Cloud (GHEC) deployments.
 
+For human sponsorship, independent code review, and evidence requirements, see
+[Human Review and Compliance Patterns](/gh-aw/reference/compliance-patterns/).
+
 ## GitHub Enterprise Server (GHES) Compatibility
 
 ### GHES Compatibility Mode

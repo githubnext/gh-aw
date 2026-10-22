@@ -3,7 +3,7 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical traces, full unified artifacts, and bounded compact unified sessions.
 sidebar:
   order: 1365
-version: "2.3.0"
+version: "2.4.0"
 status: Draft
 publication_date: "2026-10-22"
 editors:
@@ -13,7 +13,7 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 2.3.0<br>
+**Version**: 2.4.0<br>
 **Status**: Draft<br>
 **Publication Date**: 2026-10-22<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 2.3.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 2.4.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -837,7 +837,8 @@ imply that an engine selected the wrong skill.
 
 `firewall.token_usage` and its `usage.report` alias expose the following
 source-dependent fields: `provider`, `model`, `purpose` (for example `agent`,
-`subagent`, or `routing_classification`), `path`, `xInitiator`, `requestId`,
+`subagent`, or `routing_classification`), `agentName`, `callerSource`, `path`,
+`xInitiator`, `requestId`,
 `status`, `durationMs`, `aic`, `totalAic`, `premiumRequests`, `steering`, and
 `usage`. `steering` is the AWF notice delivered on that request, retaining only
 its `type` (`ai_credit`, `timeout`, or `token`) and `threshold` (80, 90, 95, or
@@ -851,6 +852,33 @@ Consumers identify router and classifier traffic by `purpose`; a missing
 `purpose`, `path`, and `xInitiator` values on `firewall.token_usage` and
 `usage.report` events. A consumer MUST treat a missing `purpose` as unknown and
 MUST NOT classify the event as agent traffic by default.
+
+**T-UAS-083 — Proxy caller attribution.** AWF v0.28.67 and later record the
+sandbox's `x-awf-caller` declaration (`main` or `subagent/<name>`, at most 128
+characters, matching `^(?:main|subagent/[A-Za-z0-9_.:/-]+)$`) as `purpose`
+(`agent` or `subagent`), `agent_name`, and `caller_source: caller_header`; a
+trusted AWF purpose such as `routing_classification` wins and is recorded with
+`caller_source: awf`. A producer MUST preserve supplied `purpose`, MUST map
+`agent_name` to `agentName` and `caller_source` to `callerSource`, MUST accept
+the canonical camelCase names, and MUST NOT synthesize absent caller fields. The
+caller declaration is unauthenticated attribution metadata only; it MUST NOT
+change routing, policy, steering, budgets, token counts, or costs. When
+attributing proxy requests to the main agent or a named sub-agent, a consumer
+MUST prefer explicit caller fields over token, model, or time correlation; MUST
+NOT assign an explicitly named record to a different agent or infer an explicit
+main record as a child; and MUST keep its correlation fallback for records
+without caller fields, where a missing `purpose` remains unknown. AWF-owned
+purposes remain non-agent traffic. A harness MUST send `x-awf-caller` only where
+the request's caller is known at a real process or request boundary and MUST NOT
+send a provider- or process-wide `main` that sub-agent requests would inherit.
+
+| Engine (pinned runtime) | `x-awf-caller` support |
+| --- | --- |
+| Pi 1.3.0 | Each Pi process sets the header in its provider extension's `before_provider_headers` hook: `main` in the parent (SDK/agent-core, RPC, and CLI paths) and `subagent/<name>` in each sub-agent process, whose declared name is passed in that process's environment. The hook is registered only when the AWF api-proxy is present (`AWF_REFLECT_ENABLED=1`). API selection and `models.json` are unchanged. |
+| Copilot SDK 1.0.16 | None. `providers[].headers` apply to every request to a provider and `MessageOptions.requestHeaders` to a whole turn; built-in and inherited-model sub-agents share the session provider, and per-agent provider clones would change qualified model IDs. Requests remain unattributed. |
+| Copilot CLI | None. `COPILOT_PROVIDER_HEADERS` and provider-registry headers are provider- and process-wide. |
+| Claude Code | None. `ANTHROPIC_CUSTOM_HEADERS` is process-wide and shared by in-process sub-agents. |
+| Codex 0.163.0 | None. Provider `http_headers`/`env_http_headers` are provider-wide; role overrides do not copy provider headers. |
 
 **T-UAS-071 — Firewall steering notices.** A producer MUST preserve a supplied
 `steering` notice type and threshold on `firewall.token_usage` and
@@ -1871,6 +1899,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-076–T-UAS-079 | Conversation/tool events, nested agent payloads, finite and nonfinite scalars, exact 128-record/16 KiB boundaries, Unicode and JSON escaping, giant lines with later accounting, scan-limit fragments, append races, malformed files, and initial/retry artifact IDs | Only bounded allowlisted metadata survives; explicit loss statistics; unchanged full artifact; deterministic output; exact UTF-8 size caps; bounded framing without whole-file reads; invalid sources fail explicitly; full-session retrieval uses verified artifact identity. |
 | T-UAS-080 | Real compiled inputs and agent artifacts of routed SDK, unrouted CLI, and failed routed SDK runs; older sessions without the new metadata | One `model.config` per run with configured (not selected) routing, policy, budget/source, and resolved baseline; `workflow.info` harness, executing reference, and server; older sessions keep the fields absent. |
 | T-UAS-081 | Routed run with main, sub-agent, classifier, and detection requests; replicated proxy copies; unknown pricing, malformed tokens, missing request records, unrouted runs | Only main requests repriced once with `computeInferenceAIC`; unpriced and unattributed coverage explicit; never a complete zero; unrouted runs omit the estimate. |
+| T-UAS-083 | AWF v0.28.70 token records for `main`, `subagent/<name>`, absent, invalid, duplicate, empty-name, illegal-character, over-length, and exact-boundary headers, and AWF-owned classifier purposes; labelled and unlabelled main/sub-agent records sharing model, tokens, and time | Valid caller fields survive projection, rejected or absent fields stay absent, AWF purposes keep `callerSource: awf`; explicit callers determine attribution, unlabelled records keep the correlation fallback, and totals are unchanged. |
 | T-UAS-082 | AWF upstream-error and failed request records from gh-aw-firewall#10211 writers with and without code/type/param/source | Supplied identifiers, status, provider, model, and request ID retained; bodies, headers, and messages excluded; invalid identifiers dropped. |
 
 ### 9.3 Engine and integration fixture matrix
@@ -2393,6 +2422,12 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 2.4.0 - Draft (2026-10-22)
+
+- Added `agentName` and `callerSource` to `firewall.token_usage` and `usage.report`, projected from AWF's `agent_name` and `caller_source`, and required consumers to prefer explicit proxy caller attribution over correlation (T-UAS-083).
+- Documented per-engine `x-awf-caller` support: Pi sends `main` from the parent process and `subagent/<name>` from each sub-agent process; Copilot CLI, Copilot SDK, Claude Code, and Codex send none because their header mechanisms are provider- or process-wide.
+- Retained serialization-format version 1.
 
 ### Version 2.3.0 - Draft (2026-10-22)
 

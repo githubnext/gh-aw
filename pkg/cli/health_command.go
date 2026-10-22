@@ -60,6 +60,9 @@ Health compares each workflow's Markdown source with its pushed branch version,
 stops at source changes, and excludes superseded failures from investigation.
 An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
+Confirmed approval expiries are also removed from potential failure candidates.
+Attempt-specific annotations and unavailable evidence are reported explicitly;
+approval-annotation requests are cached and capped at 20 per collection.
 PR cancellations are ignored only with merge/closure or head-deletion evidence
 during the attempt and complete jobs without genuine failures. Failed PR checkouts
 require an explicit closed-PR diagnostic and matching closure evidence. Ignored
@@ -150,7 +153,7 @@ func RunHealth(config HealthConfig) error {
 		ProducerVersion:     GetVersion(),
 		ReportSchemaVersion: 1,
 		ObservedAt:          time.Now().UTC(),
-		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering", "work_queue"},
+		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering", "approval_expiry_filtering", "work_queue"},
 		Host:                normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
 		StartDate:           config.StartDate,
 		EndDate:             config.EndDate,

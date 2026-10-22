@@ -42,6 +42,9 @@ type HealthCollection struct {
 	PotentialIssues           []HealthPotentialIssue              `json:"potential_issues,omitempty"`
 	PRLifecycleEvidence       map[int64]HealthPRLifecycleEvidence `json:"pr_lifecycle_evidence,omitempty"`
 	LifecycleRequests         int                                 `json:"lifecycle_requests"`
+	ApprovalExpiryEvidence    map[int64]HealthApprovalEvidence    `json:"approval_expiry_evidence,omitempty"`
+	ApprovalRequests          int                                 `json:"approval_requests"`
+	failureInventory          []WorkflowRun
 	lifecycleResponses        map[string]healthLifecycleResponse
 	workflows                 []GitHubWorkflow
 	revisions                 map[string]*workflow.LockMetadata
@@ -120,7 +123,16 @@ func healthAPI(collection *HealthCollection, endpoint string, extra ...string) (
 	out, err := healthRunGH(ctx, "Fetching health evidence...", args...)
 	if err != nil {
 		err = fmt.Errorf("health API request failed: %w: %s", err, strings.TrimSpace(string(out)))
-		if errorutil.IsRateLimitError(err.Error()) {
+		message := err.Error()
+		rateLimited := errorutil.IsRateLimitError(message)
+		// HTML failures may include full pages; bound the error before warnings or debug logging.
+		if slices.Contains(extra, "Accept: text/html") && (len(out) > 0 || len(message) > 256 || strings.Contains(message, "<")) {
+			err = errors.New("health HTML request failed: response omitted")
+			if rateLimited {
+				err = fmt.Errorf("health HTML request failed: %w", errLogsAPIRateLimitReached)
+			}
+		}
+		if rateLimited {
 			stopHealthCollection(collection, err)
 		}
 	}
@@ -148,6 +160,13 @@ func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
 	}
 	if err := renderHealthWorkQueue(w, collection.WorkQueue); err != nil {
 		return err
+	}
+	for _, id := range slices.Sorted(maps.Keys(collection.ApprovalExpiryEvidence)) {
+		evidence := collection.ApprovalExpiryEvidence[id]
+		if _, err := fmt.Fprintf(w, "[health_approval_expiry] run=%d attempt=%d status=%s reason=%q url=%s\n",
+			id, evidence.Attempt, evidence.Status, evidence.Reason, evidence.URL); err != nil {
+			return err
+		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(collection.PRLifecycleEvidence)) {
 		evidence := collection.PRLifecycleEvidence[id]

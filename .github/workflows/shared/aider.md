@@ -159,6 +159,9 @@ engine:
 
           def workflow_show_send_output(coder, completion):
               global turns, capturing_response
+              # Aider accumulates shell suggestions across reflections in run_one.
+              # Only commands parsed from this response may run after its edits.
+              coder.shell_commands = []
               choices = field(completion, "choices")
               usage = native_value(field(completion, "usage"))
               if isinstance(usage, dict):
@@ -245,9 +248,9 @@ engine:
               start = len(command_results)
               shared_output = original_run_shell_commands(coder)
               results = command_results[start:]
-              if results and not coder.reflected_message:
+              if (results or getattr(coder, "aider_edited_files", None)) and not coder.reflected_message:
                   coder.reflected_message = (
-                      "Continue the workflow using the shell results already in the conversation. "
+                      "Continue the workflow using the applied edits and shell results already in the conversation. "
                       "If the task is finished, stop; otherwise perform the next step, including "
                       "the required safeoutputs command. Do not repeat a recorded safe output.\n\n"
                       + "\n\n".join(results)
@@ -525,6 +528,8 @@ engine:
 Aider receives the workflow with `--message-file`. The initial file list can be empty:
 begin with the workflow's discovery commands, not a request for the user to attach files.
 After shell commands, a bounded reflection loop lets you consume their results and continue.
+Shell suggestions are scoped to each response: an edit-only reply never reruns a prior command.
+After applied edits, continue with verification and reporting even if no shell command was suggested.
 Plan discovery, edits, verification, and the terminal safe output within that limit:
 
 - **Edit files with *SEARCH/REPLACE* blocks.** Aider applies them for you, including for new

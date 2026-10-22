@@ -225,7 +225,7 @@ The example pins v0.28.62; change both fields for another release. `checksums-sh
 
 The value must contain exactly 64 lowercase hexadecimal characters from an independently trusted channel. The version must be a literal semantic release tag, with an optional `v` prefix. Missing versions, `latest`, expressions, disabled sandboxes, and custom `command` installers are rejected when a pin is supplied. Without a supplied pin, only releases covered by the setup action's built-in pins can be downloaded.
 
-The version and pin propagate to AWF installations in agent, threat-detection, and eval jobs. A mismatch fails installation before execution; a bundle integrity failure cannot fall back to a binary. Container-image pins and guest attestations remain separate controls. For the Copilot CLI, use [`engine.checksums-sha256`](/gh-aw/reference/engines/#copilot-release-checksum-pins).
+The version and pin propagate to AWF installations in agent, threat-detection, and eval jobs. A mismatch fails installation before execution; a bundle integrity failure cannot fall back to a binary. Container-image pins and guest attestations remain separate controls. For the Copilot CLI, use [`engine.checksums-sha256`](/gh-aw/reference/engines/copilot/#copilot-release-checksum-pins).
 
 #### Model fallback (`sandbox.agent.model-fallback`)
 

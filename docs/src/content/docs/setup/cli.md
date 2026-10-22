@@ -777,7 +777,9 @@ cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 gh aw audit 1234567890 --runtime cloud-hypervisor        # Skip run unless sandbox agent runtime matches
 ```
 
-**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--stdin`, `--timeout`, `--variant`
+**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--group`, `--json/-j`, `--no-baseline`, `--output/-o`, `--parse`, `--repo/-r`, `--runtime`, `--search`, `--search-limit`, `--stdin`, `--timeout`, `--variant`
+
+`--search "query"` retrieves evidence from the run's redacted unified session using local BM25 ranking, without changing audit findings. `--search-limit` bounds returned evidence groups (default: `5`, range: `1–20`). Search requires a single run and cannot be combined with `--group` or job/step URLs. See [Searching session evidence](/gh-aw/reference/audit/#searching-session-evidence) for input limits and automatic repetition grouping.
 
 The `--timeout` flag sets a duration such as `50s` or `5m` (default: `0`, no additional deadline). Timed-out single-run JSON audits exit unsuccessfully and return available metadata or collected analysis with `partial: true`, `complete: false`, and the interrupted `stage`. Incomplete reports are not persisted as complete audit caches.
 
@@ -958,6 +960,8 @@ For release-scoped evidence, pass the release's publication timestamp as `--star
 
 Runs with `skipped` or `action_required` conclusions are excluded from health metrics, revision evidence, and failure clusters. Waiting and failed runs without jobs are also excluded when the Jobs API confirms their run attempt has no jobs, including runs whose approval expired. Job-backed waiting runs remain pending revision evidence. Successful job-presence lookups are reused per run ID and attempt within the collection, including across overlapping search windows. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
 
+For confirmed jobless failures, health checks the attempt-specific GitHub run page for the annotation `This workflow run required approval but was not approved before it expired.` Confirmed approval expiries are also removed from `failure_candidates` and `potential_issues`, without counting as successes. JSON `collection.approval_expiry_evidence` and text `[health_approval_expiry]` entries retain the run URL, attempt, classification, and reason; JSON also retains the matched message and update time. Missing annotations, inaccessible pages, or unrecognized messages never establish approval expiry. These optional page requests use the configured host and repository, share the collection's request budget, and are capped at 20 per collection (`approval_requests`). Results are reused only for the same run attempt and update time. Other jobless failures remain approximate potential issues.
+
 PR-review cancellations are also excluded when an unambiguous PR associated with the run's exact head commit and branch was merged, closed, or had its head deleted during that attempt. Complete Jobs API evidence must show no genuine failed jobs or steps. A closed PR today or a missing branch today does not explain an earlier cancellation. Open PRs, unrelated cancellations, and genuine job failures remain failure evidence.
 
 For runs marked `failure`, health requires the failed agent step to be `Checkout PR branch`, the exact `PR #... closed before its head could be fetched. Stopping rather than running on the previous checkout.` job-log diagnostic for that PR, and a matching closure/merge timestamp no later than the failed checkout. Only a subsequent conclusion job's `Handle agent failure` step is accepted as downstream aftermath; other failures are retained.
@@ -966,7 +970,7 @@ Ignored runs do not count as successes or consume the minimum sample. They are e
 
 Filtered runs do not consume the minimum sample. Health searches backward for five completed first-attempt runs per current-revision scope, stopping at the requested time boundary or API budget rather than a fixed page count. It narrows the search window to continue beyond GitHub's 1,000-run search limit, overlapping boundary timestamps and deduplicating runs. If timestamp ties prevent further progress, the report explicitly marks collection as partial.
 
-Collection prioritizes early detection over exhaustive verification. It inventories registered AW `failure` conclusions using run-list payloads alone, then checks jobs and revisions for one job-backed representative per branch/event. The inventory retains at most five candidates per workflow and stops when all registered workflows reach that count or after ten pages. Hitting the page limit marks collection partial with `failure_listing_limit`; chronological sampling continues. A named-workflow check scopes that inventory to the selected workflow rather than scanning unrelated repository runs. The normal chronological sample adds successful, pending, and other failed conclusions, visiting recently failing workflows first and deduplicating runs across passes. `collection.failure_listing_complete` covers the bounded inventory; `failure_pass_complete` covers representative verification.
+Collection prioritizes early detection over exhaustive verification. It inventories registered AW `failure` conclusions using run-list payloads alone, then checks jobs and revisions for one job-backed representative per branch/event. The inventory retains at most five candidates per workflow and stops when all registered workflows reach that count or after ten pages. Confirmed approval expiries free candidate slots: backfill first reuses overflow retained from fetched pages, then requests older pages if needed, within the same ten-page listing and shared request budgets. Confirmed expiries therefore do not consume the five-retained-candidate limit; the 20-request annotation cap still applies. Hitting the page limit marks collection partial with `failure_listing_limit`; chronological sampling continues. A named-workflow check scopes that inventory to the selected workflow rather than scanning unrelated repository runs. The normal chronological sample adds successful, pending, and other failed conclusions, visiting recently failing workflows first and deduplicating runs across passes. `collection.failure_listing_complete` covers the bounded inventory; `failure_pass_complete` covers representative verification.
 
 `collection.failure_candidates`, `failure_candidate_workflows`, and `potential_issues` retain approximate signals even when verification exhausts the budget. Potential issues include a representative run URL and `run_list_only` evidence; these counts may include jobless, historical, or superseded failures. `representative_status` distinguishes unverified, jobless, superseded, revision-unknown, and revision-checked representatives. These signals do not establish a current issue, recovery, or a fleet failure rate. Confirmed current-revision clusters remain separate.
 
@@ -1276,10 +1280,11 @@ gh aw work-queue stats --repo owner/repo
 
 **Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (explicit `owner/repo` for repository operations; no host prefix or current-repository default), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
 
-**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
+**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `sync-issues`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
 
 | Subcommand | Options and behavior |
 | --- | --- |
+| `sync-issues` | `--request-id ID` selects one committed terminal request for repair of eligible existing Issue mirrors. See [Synchronization and recovery](/gh-aw/reference/work-queue/#synchronization-and-recovery) for projection and authorization rules. |
 | `submit-work` | `--graph-id` sets a nonempty graph namespace (default: canonical payload SHA-256); `--node-key` sets a nonempty node identity within the graph (default: `root`). `--fairness-key` selects an entitled accounting key (default: one shared bucket). |
 | `dispatch-next` | `--max-bytes` limits assignment bytes (default: 49,152), subject to policy and host limits. Grants and reserves assignments without launching workflows. |
 | `dispatch <dispatcher>` | Starts a verified dispatcher at the repository's default-branch snapshot revision. `--dry-run` previews the route without granting Claims or launching workflows; `--wait` waits for the dispatcher, not verification of worker Results. |
@@ -1475,7 +1480,7 @@ See [Common Issues](/gh-aw/troubleshooting/common-issues/) and [Error Reference]
 
 - [Quick Start](/gh-aw/setup/quick-start/) for your first workflow
 - [Frontmatter](/gh-aw/reference/frontmatter/) for configuration options
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for installing workflows from other repositories
 - [Security Guide](/gh-aw/introduction/architecture/) for security best practices
 - [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/) for MCP server configuration
 - [Agent Factory](/gh-aw/agent-factory-status/) for agent factory status

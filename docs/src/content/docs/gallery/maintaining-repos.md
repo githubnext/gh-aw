@@ -1,5 +1,5 @@
 ---
-title: 'Example: Automated Repository Maintenance'
+title: 'Automated repository maintenance'
 description: Use Repo Assist as an example of a recurring GitHub Agentic Workflow for repository maintenance.
 sidebar:
   order: 20

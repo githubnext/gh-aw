@@ -355,6 +355,10 @@ export interface UsageReportData extends UnifiedSessionContextData {
   provider?: JsonValue;
   model?: JsonValue;
   purpose?: JsonValue;
+  /** AWF caller declaration: declared sub-agent name for `purpose: subagent`; absent for the main agent and AWF-owned traffic. */
+  agentName?: JsonValue;
+  /** Origin of `purpose`: `awf` for AWF-owned traffic, `caller_header` for an `x-awf-caller` declaration. */
+  callerSource?: JsonValue;
   path?: JsonValue;
   xInitiator?: JsonValue;
   requestId?: JsonValue;

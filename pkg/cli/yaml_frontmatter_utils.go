@@ -47,24 +47,6 @@ func isTopLevelKey(line string) bool {
 	return indent == "" && strings.Contains(line, ":")
 }
 
-// hasExitedBlock checks if we've left a YAML block (found a line with same or less indentation that's a key)
-func hasExitedBlock(line, blockIndent string) bool {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" {
-		return false
-	}
-
-	currentIndent := getIndentation(line)
-
-	// If it's a comment, check indentation to see if we've exited
-	if strings.HasPrefix(trimmed, "#") {
-		return len(currentIndent) <= len(blockIndent)
-	}
-
-	// For regular lines, we've exited if indentation is same or less and it contains a colon
-	return len(currentIndent) <= len(blockIndent) && strings.Contains(line, ":")
-}
-
 // applyFrontmatterLineTransform parses frontmatter from content, applies a transform
 // function to the frontmatter lines, and reconstructs the content if any changes were made.
 // The transform function receives the frontmatter lines and returns the modified lines

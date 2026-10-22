@@ -60,7 +60,7 @@ func applyUsageSummaryToAuditResults(summary *usageActivitySummary, results *aud
 	results.ledger = summary.Ledger
 	results.friction = summary.Friction
 	applyUsageActivitySteeringSummary(summary.Steering, &results.tokenUsageSummary)
-	usageResult := &DownloadResult{RunAnalysis: RunAnalysis{MCPToolUsage: results.mcpToolUsage}}
+	usageResult := &DownloadResult{MCPToolUsage: results.mcpToolUsage}
 	applyUsageActivityMCPSummary(summary.Gateway, summary.Integrity, usageResult)
 	results.mcpToolUsage = usageResult.MCPToolUsage
 }
