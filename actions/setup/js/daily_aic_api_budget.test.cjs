@@ -281,6 +281,76 @@ describe("daily AIC retry deadlines", () => {
       expect(recovery.now()).toBe(start + 121000);
     });
 
+    it.each([403, 429])("uses Retry-After rather than healthy primary quota for a budget-wrapped HTTP %i limit", async status => {
+      const recovery = clock();
+      const request = vi.fn().mockRejectedValue(apiError(status, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 3600), "retry-after": "60" }, "Secondary rate limit"));
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget().request(request))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+      expect(request).toHaveBeenCalledOnce();
+    });
+
+    it.each([false, true])("uses Retry-After for a direct HTTP 429 without trusting a caller-supplied reserve stop (forged=%s)", async forged => {
+      const recovery = clock();
+      const error = apiError(429, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 3600), "retry-after": "60" }, "Secondary rate limit");
+      if (forged) Object.assign(error, { code: "DAILY_AIC_QUOTA_STOP", reserveStopped: true });
+      const operation = vi.fn().mockRejectedValueOnce(error).mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      [100, 99, 121000],
+      [100, 100, 121000],
+      [100, 101, 61000],
+      [50, 49, 121000],
+      [50, 50, 121000],
+      [50, 51, 61000],
+      [200, 150, 121000],
+      [200, 201, 61000],
+    ])("binds the primary reset at reserve %i only when remaining %i reaches it", async (reserve, remaining, delayMs) => {
+      const recovery = clock();
+      const request = vi.fn().mockRejectedValue(apiError(429, { "x-ratelimit-remaining": String(remaining), "x-ratelimit-reset": String(start / 1000 + 120), "retry-after": "60" }, "Secondary rate limit"));
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget(reserve).request(request))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(delayMs);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it("retains primary reset recovery for a successful response stopped at the reserve", async () => {
+      const recovery = clock();
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => createAPIBudget().request(async () => response(200, { "x-ratelimit-remaining": "100", "x-ratelimit-reset": String(start / 1000 + 60) })))
+        .mockResolvedValue("verified");
+      await expect(withQuotaResetRecovery(operation, recovery)).resolves.toBe("verified");
+      expect(recovery.sleep).toHaveBeenCalledExactlyOnceWith(61000);
+      expect(operation).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      [403, false],
+      [403, true],
+      [429, false],
+      [429, true],
+    ])("fails closed for HTTP %i secondary limits without a known deadline (budget=%s)", async (status, budgetWrapped) => {
+      const recovery = clock();
+      const error = apiError(status, { "x-ratelimit-remaining": "4000", "x-ratelimit-reset": String(start / 1000 + 10) }, "You have exceeded a secondary rate limit");
+      const operation = vi.fn(() => (budgetWrapped ? createAPIBudget().request(() => Promise.reject(error)) : Promise.reject(error)));
+      await expect(withQuotaResetRecovery(operation, recovery)).rejects.toMatchObject({ status });
+      expect(operation).toHaveBeenCalledOnce();
+      expect(recovery.sleep).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('"reason":"unknown_reset"'));
+    });
+
     it.each([
       ["unknown reset", { "x-ratelimit-reset": "" }, {}, "unknown_reset"],
       ["invalid reset", { "x-ratelimit-reset": "9999999999999999" }, {}, "unknown_reset"],

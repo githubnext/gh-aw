@@ -211,13 +211,16 @@ describe("complete daily AIC phase recovery", () => {
       rest: {
         actions: {
           getWorkflowRun: vi.fn(async () => response(current)),
-          listWorkflowRuns: vi.fn(async () => response({ workflow_runs: Array.from({ length: 10 }, (_, id) => ({ ...producer, id })) })),
+          listWorkflowRuns: vi.fn(async ({ per_page }) => response({ workflow_runs: Array.from({ length: 10 }, (_, id) => ({ ...producer, id })).slice(0, per_page) })),
           listWorkflowRunArtifacts,
         },
       },
     };
     await restore(cachePath);
+    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledOnce();
+    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith(expect.objectContaining({ per_page: 10 }));
     expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(2);
+    expect(listWorkflowRunArtifacts.mock.calls.map(([params]) => params.run_id)).toEqual([0, 1]);
     expect(fs.existsSync(cachePath)).toBe(false);
     const f = fixture([run(1), run(2), run(3)]);
     const result = await scanDailyAIC(f);
@@ -1174,7 +1177,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       return { downloadPath: options.path };
     });
     await restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) });
-    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, status: "completed", created: ">=2025-02-01T12:00:00.000Z", per_page: 2 });
+    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, status: "completed", created: ">=2025-02-01T12:00:00.000Z", per_page: 10 });
     expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(2);
     expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":1,"listedRuns":100,"trustedCandidates":0}');
     expect(global.core.info).toHaveBeenCalledWith('[daily-aic-cache] Evaluated repository history page: {"page":2,"listedRuns":3,"trustedCandidates":1}');
@@ -1298,7 +1301,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(list).toHaveBeenCalledOnce();
   });
 
-  it.each(["pull_request_target", "issues", "issue_comment"])("restores a trusted %s snapshot and feeds it to the next authoritative scan", async event => {
+  it.each(["pull_request_target", "issues", "issue_comment"])("restores a trusted %s snapshot behind two newer untrusted PR runs and feeds it to the next authoritative scan", async event => {
     vi.spyOn(Date, "now").mockReturnValue(now);
     const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
     const producer = { ...current, id: 50, event, repository: { full_name: repository }, head_repository: { full_name: repository }, head_branch: "main" };
@@ -1308,7 +1311,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       rest: {
         actions: {
           getWorkflowRun: async () => response(current),
-          listWorkflowRuns: async () => response({ workflow_runs: [{ ...producer, id: 99 }, { ...producer, id: 51, event: "pull_request" }, producer] }),
+          listWorkflowRuns: vi.fn(async ({ per_page }) => response({ workflow_runs: [{ ...producer, id: 99 }, { ...producer, id: 52, event: "pull_request" }, { ...producer, id: 51, event: "pull_request" }, producer].slice(0, per_page) })),
           listWorkflowRunsForRepo: vi.fn(),
           listWorkflowRunArtifacts: vi.fn(async () => response({ artifacts: [{ id: 100, name: "aic-usage-scan-v2", expired: false }] })),
         },
@@ -1321,6 +1324,9 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     // An old prefix cache may exist; it does not suppress the verified artifact.
     writeEntries([{ run_id: 1, aic: 1 }]);
     await restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) });
+    expect(global.github.rest.actions.listWorkflowRuns).toHaveBeenCalledWith({ owner: "example", repo: "project", workflow_id: 7, status: "completed", created: ">=2025-02-01T12:00:00.000Z", per_page: 10 });
+    expect(global.github.rest.actions.listWorkflowRunArtifacts).toHaveBeenCalledOnce();
+    expect(global.github.rest.actions.listWorkflowRunArtifacts).toHaveBeenCalledWith({ owner: "example", repo: "project", run_id: 50, per_page: 100 });
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Querying workflow-specific run history"));
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Workflow-specific run history returned candidates"));
     const f = fixture();
@@ -1331,6 +1337,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     const producerLogs = global.core.info.mock.calls.filter(([message]) => message.startsWith("[daily-aic-cache] Evaluated snapshot producer:")).map(([message]) => JSON.parse(message.slice(message.indexOf("{"))));
     expect(producerLogs).toEqual([
       expect.objectContaining({ producerRunId: 99, isCurrentRun: true, trusted: true }),
+      expect.objectContaining({ producerRunId: 52, isCurrentRun: false, trusted: false }),
       expect.objectContaining({ producerRunId: 51, isCurrentRun: false, trusted: false }),
       expect.objectContaining({ producerRunId: 50, isCurrentRun: false, trusted: true, defaultBranchMatches: true, headRepositoryMatches: true }),
     ]);

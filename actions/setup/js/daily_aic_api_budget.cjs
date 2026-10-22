@@ -14,6 +14,8 @@ const API_READ_OPERATIONS = Object.freeze({
 });
 const READ_OPERATIONS = new Set(Object.values(API_READ_OPERATIONS));
 const READ_FAILURES = new WeakMap();
+// A synthetic quota stop can also represent a secondary limit above the reserve.
+const RESERVE_STOPS = new WeakSet();
 
 function getAPIReadFailure(error) {
   // Artifact transport wrappers retain the original failure as their cause.
@@ -72,7 +74,7 @@ async function withQuotaResetRecovery(operation, { now = Date.now, sleep = delay
   } catch (error) {
     const diagnostic = getGitHubAPIDiagnostic(error, now());
     if (!isQuotaError(error) || ["authentication_failed", "permission_denied"].includes(diagnostic?.classification || "")) throw error;
-    const retryAt = retryNotBefore(error?.response?.headers, now(), true);
+    const retryAt = retryNotBefore(error?.response?.headers, now(), RESERVE_STOPS.has(error));
     const retryAtMs = Date.parse(retryAt);
     const delayMs = retryAtMs + 1000 - now();
     const remainingMs = maxWaitMs - (now() - startedAt);
@@ -105,10 +107,13 @@ function createAPIBudget(reserve = 100) {
       requests++;
       latest = safeResponseHeaders(response.headers);
       const remaining = latest["x-ratelimit-remaining"];
+      const quotaRemaining = getGitHubAPIQuota(latest).remaining;
+      const reserveStopped = quotaRemaining !== null && quotaRemaining <= reserve;
       const limited = response.status === 429 || (response.status === 403 && (remaining === "0" || latest["retry-after"] != null));
-      if (limited || (remaining != null && Number(remaining) <= reserve)) {
+      if (limited || reserveStopped) {
         const sanitizedCause = getSanitizedGitHubAPICause(cause);
         const error = Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP", ...(sanitizedCause ? { cause: sanitizedCause } : {}) });
+        if (reserveStopped) RESERVE_STOPS.add(error);
         const diagnostic = getGitHubAPIDiagnostic(error);
         if (diagnostic) error.message += `: ${diagnostic.message}`;
         throw error;

@@ -12,6 +12,7 @@ const { getGitHubAPIDiagnostic } = require("./github_api_diagnostics.cjs");
 // Snapshot discovery is only an optimization; the guardrail still scans the
 // complete authoritative window after a miss.
 const MAX_SNAPSHOT_PRODUCERS = 2;
+const MAX_SNAPSHOT_LISTED_RUNS = 10;
 const MAX_SNAPSHOT_HISTORY_PAGES = 2;
 
 function isTrustedProducer(run, current, repository, defaultBranch) {
@@ -46,7 +47,7 @@ async function* listRecentWorkflowRuns(owner, repo, current, repository, default
   core.info(`[daily-aic-cache] Querying workflow-specific run history: ${JSON.stringify({ workflowId: current.workflow_id })}`);
   try {
     response = await budget.request(
-      () => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, status: "completed", created: `>=${new Date(Date.now() - CACHE_RETENTION_MS).toISOString()}`, per_page: MAX_SNAPSHOT_PRODUCERS }),
+      () => github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: current.workflow_id, status: "completed", created: `>=${new Date(Date.now() - CACHE_RETENTION_MS).toISOString()}`, per_page: MAX_SNAPSHOT_LISTED_RUNS }),
       true,
       API_READ_OPERATIONS.WORKFLOW_HISTORY
     );
