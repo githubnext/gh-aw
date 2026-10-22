@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.67 | Audit-only clarification of retained PR-head checkout after source-branch deletion. Maps same-repository `pull_request` ref isolation and actual checked-out baseline export to RS-05a, preserves fatal checkout errors and independent safe-output lifecycle checks, and leaves CTR-008/028/030 unchanged. No new threat identifier, permission grant, or lock-file schema change. |
 | 1.0.66 | Extended CTR-005 with custom-job ordering and detection gates. The compiler checks the final graph, rejects unordered and pre-detection downstream jobs, and adds non-overridable successful-job and clean-output guards to downstream custom jobs, including reusable workflow calls. Failure, cancellation, skips, missing results, and warn-mode findings block execution; disabled detection remains exempt. Mapped the transitive Actions/AW `custom-job-detection` subset, registry metadata, graph/condition regressions, and regenerated lock files. No new threat identifier or lock-file schema change. |
 | 1.0.65 | Added `otlp-secret-leak`, an Actions/AW AST lint subset of CTR-017 that detects secret-tainted OTLP span/resource attributes and modeled Actions environment flows with value-free diagnostics. Documented that the check is advisory and cannot identify hard-coded credentials, arbitrary runtime values, or collector trust. No new threat identifier or lock-file schema change. |
 | 1.0.64 | Adds the compromised-intermediate-CA threat and maps bootstrap/runtime controls to security architecture §6.8: independently authenticated AWF/Copilot checksum manifests, literal frontmatter manifest-pin overrides bound to explicit versions, compiler-pinned Compose bytes, authenticated apt signing key, HTTPS-only redirects, actual Go release-toolchain verification and bounded runtime inventory. Overrides propagate through matching detection/eval installations; Copilot overrides bypass toolcache activation. Preserves CTR-011 destination authorization as a separate boundary and records broader download enforcement as a candidate. Unreviewed release downloads without a supplied pin fail closed; no new threat identifier or lock-file schema change. |
@@ -61,6 +62,35 @@ This changelog records the version history and the dated mapping audits for `spe
 | 1.0.7–1.0.0 | Established CTR-001–015, conformance model, and daily reconciliation. |
 
 ## Mapping Audits
+
+### Mapping Audit (2026-10-22)
+
+Reviewed the shared PR checkout change in
+[`PR #71210`](https://github.com/github/gh-aw/pull/71210),
+`actions/setup/js/checkout_pr_branch.cjs`, its regression suite, and Security
+Architecture Specification RS-05a. The same-repository `pull_request` fast path
+now fetches `+refs/pull/<number>/head:refs/remotes/origin/pr-head` and resets the
+local source-named branch from that fetched ref, matching the existing
+fork/other-event path. A deleted source branch no longer prevents checkout of
+the retained PR head; stale local branches and event SHAs cannot select the
+baseline. This is runtime ref isolation, not a new compiler-detectable threat.
+
+The real-Git regressions in `actions/setup/js/checkout_pr_branch.test.cjs`
+first reproduce the missing-source-branch fetch failure, then verify exact PR
+content, local branch, fetched ref, actual checked-out baseline, and unchanged
+shallow/full-clone status for open and closed payloads. They also verify that
+the deleted remote branch is not recreated. These isolated local tests do not
+prove GitHub's ref-retention policy, live API behavior, or atomicity between
+PR-state checks and later effects.
+
+Existing missing-retained-ref and error regressions preserve the distinction
+between live-state-confirmed lifecycle invalidation and authentication,
+permission, network, or unknown failures. Failed checkout still stops the
+agent rather than continuing on base content. Successful retained-head
+checkout does not bypass the safe-output manager's live-state checks;
+intentional closed-event workflows remain supported. Actor trust, CTR-008
+trusted checkout policy, CTR-028/030 configuration provenance, permissions,
+conformance test identifiers, and generated lock formats are unchanged.
 
 ### Mapping Audit (2026-10-19)
 
