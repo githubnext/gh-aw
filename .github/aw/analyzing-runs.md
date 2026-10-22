@@ -134,18 +134,23 @@ events or raw engine logs. Narrowed artifact selections automatically include
 `usage`. Missing/invalid sessions are unavailable evidence, not zero matches.
 
 Read each match's `evidence.reference`, `references`, and neighboring `context`
-before inferring a cause. Drain3 groups events by run-local component/phase/type
-stage and cluster ID; `occurrences` is that template's event count and
-`matching_occurrences` counts query-matching events. BM25 searches original event
-fields as well as templates, so masked parameters remain searchable.
-`bm25_score` is relevance; `anomaly_score` is a separate online Drain3 signal.
+before inferring a cause. Grouping is automatic; do not configure Drain3.
+BM25 ranks original event fields and types, never templates or anomaly scores.
+Exact duplicates share counts without mining. Drain3 is used only when repeated
+top candidates crowd the result limit and grouping saves excerpt text.
+Groups preserve structured outcomes: successes and failures remain separate.
+`occurrences` counts the outcome-specific group's events, not failures;
+`matching_occurrences` counts query-matching events. Ungrouped results omit
+`cluster_id`, `template`, and `anomaly_score`.
+Drain3 groups use run-local component/phase/type stage and cluster ID.
+`bm25_score` is relevance; an optional `anomaly_score` is a separate online Drain3 signal.
 Neither determines severity, confidence, threat absence, or audit completeness.
 Respect `truncated` and excerpt bounds; inspect referenced records when more
 context is needed. Search results are not stored in the shared audit cache.
 
 Keep the three grouping levels distinct: fleet `failure_clusters` select runs;
 `audit --group` groups deterministic findings by `[run, code]`; single-run
-`audit --search` groups retrieved event evidence by Drain3 stage/cluster.
+`audit --search` automatically groups repetitive event evidence when useful.
 Search cannot be combined with multi-run arguments, `--group`, or job/step URLs.
 Never join Drain3 cluster IDs across runs, sum overlapping groups as affected
 runs, or infer a shared root cause from a common template. Compare signatures

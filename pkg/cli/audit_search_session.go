@@ -85,6 +85,9 @@ func readAuditSearchSession(ctx context.Context, runDir string) (docs []auditSea
 		return nil, "", err
 	}
 	docs, err = parseAuditSearchSession(ctx, file)
+	if err == nil {
+		err = validateAuditSearchStages(docs)
+	}
 	return docs, filepath.ToSlash(source), err
 }
 
@@ -177,7 +180,7 @@ func auditSearchEventDocument(event auditSearchSessionEvent, line int) (auditSea
 	}
 	ref.Timestamp = event.Timestamp
 	return auditSearchDocument{
-		ref: ref, text: text.String(),
+		ref: ref, text: text.String(), outcome: auditSearchOutcome(data),
 		stage: strings.Join([]string{ref.Component, ref.Phase, ref.Type}, "/"),
 	}, nil
 }

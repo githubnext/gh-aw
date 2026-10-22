@@ -33,15 +33,15 @@ type AuditEvidenceSearch struct {
 	Matches        []AuditEvidenceMatch `json:"matches"`
 }
 
-// AuditEvidenceMatch groups matching evidence within one run-local Drain3 stage/cluster.
+// AuditEvidenceMatch represents an event or an automatically selected repetition group.
 type AuditEvidenceMatch struct {
 	Score               float64                `json:"bm25_score"`
 	Stage               string                 `json:"stage"`
-	ClusterID           int                    `json:"cluster_id"`
-	Template            string                 `json:"template"`
+	ClusterID           int                    `json:"cluster_id,omitempty"`
+	Template            string                 `json:"template,omitempty"`
 	Occurrences         int                    `json:"occurrences"`
 	MatchingOccurrences int                    `json:"matching_occurrences"`
-	AnomalyScore        float64                `json:"anomaly_score"`
+	AnomalyScore        float64                `json:"anomaly_score,omitempty"`
 	Evidence            AuditEvidenceExcerpt   `json:"evidence"`
 	References          []AuditEvidenceRef     `json:"references"`
 	Context             []AuditEvidenceExcerpt `json:"context,omitempty"`
@@ -56,7 +56,7 @@ type AuditEvidenceExcerpt struct {
 type auditSearchDocument struct {
 	ref       AuditEvidenceRef
 	text      string
-	template  string
+	outcome   string
 	stage     string
 	clusterID int
 	anomaly   float64
@@ -121,7 +121,7 @@ func rankAuditEvidence(ctx context.Context, docs []auditSearchDocument, query st
 			continue
 		}
 		seen[key] = struct{}{}
-		tokens := auditSearchTokens(doc.text + " " + doc.ref.Type + " " + doc.template)
+		tokens := auditSearchTokens(doc.text + " " + doc.ref.Type)
 		freq := auditSearchQueryFrequencies(tokens, queryTerms)
 		for term := range freq {
 			df[term]++
@@ -186,16 +186,11 @@ func searchAuditSession(ctx context.Context, runDir string, runID int64, query s
 	if err != nil {
 		return nil, err
 	}
-	clusters, err := clusterAuditEvidence(ctx, docs)
+	ranked, err := rankAuditEvidence(ctx, docs, query)
 	if err != nil {
 		return nil, err
 	}
-	// Search both final templates and original fields: masking must not erase identifiers.
-	for i := range docs {
-		key := auditEvidenceClusterKey(docs[i])
-		docs[i].template = strings.Join(clusters[key].Template, " ")
-	}
-	ranked, err := rankAuditEvidence(ctx, docs, query)
+	clusters, err := groupAuditEvidence(ctx, docs, ranked, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +198,9 @@ func searchAuditSession(ctx context.Context, runDir string, runID int64, query s
 }
 
 func auditEvidenceClusterKey(doc auditSearchDocument) string {
+	if doc.clusterID == 0 {
+		return doc.stage + "\n" + doc.text
+	}
 	return fmt.Sprintf("%s:%d", doc.stage, doc.clusterID)
 }
 
@@ -239,7 +237,7 @@ func clusterAuditEvidence(ctx context.Context, docs []auditSearchDocument) (map[
 			clusters[fmt.Sprintf("%s:%d", stage, cluster.ID)] = cluster
 		}
 	}
-	return clusters, nil
+	return partitionAuditEvidenceOutcomes(docs, clusters), nil
 }
 
 func selectAuditEvidence(docs []auditSearchDocument, clusters map[string]agentdrain.Cluster, ranked []auditSearchRank, runID int64, source, query string, limit int) *AuditEvidenceSearch {
@@ -348,8 +346,12 @@ func renderConsoleEvidenceSearch(search *AuditEvidenceSearch) {
 	fmt.Fprintf(os.Stderr, "  evidence_search: query=%q source=%s events=%d matching=%d groups=%d truncated=%t (retrieval only)\n",
 		safeModelRoutingText(search.Query), safeModelRoutingText(search.Source), search.IndexedEvents, search.MatchingEvents, len(search.Matches), search.Truncated)
 	for _, match := range search.Matches {
-		fmt.Fprintf(os.Stderr, "    bm25=%.3f cluster=%s:%d occurrences=%d matching=%d anomaly=%.3f line=%d\n      %s\n",
-			match.Score, safeModelRoutingText(match.Stage), match.ClusterID, match.Occurrences, match.MatchingOccurrences, match.AnomalyScore, match.Evidence.Reference.Line, match.Evidence.Text)
+		fmt.Fprintf(os.Stderr, "    bm25=%.3f occurrences=%d matching=%d line=%d",
+			match.Score, match.Occurrences, match.MatchingOccurrences, match.Evidence.Reference.Line)
+		if match.ClusterID != 0 {
+			fmt.Fprintf(os.Stderr, " cluster=%s:%d anomaly=%.3f", safeModelRoutingText(match.Stage), match.ClusterID, match.AnomalyScore)
+		}
+		fmt.Fprintf(os.Stderr, "\n      %s\n", match.Evidence.Text)
 		for _, neighbor := range match.Context {
 			fmt.Fprintf(os.Stderr, "      context line=%d: %s\n", neighbor.Reference.Line, neighbor.Text)
 		}

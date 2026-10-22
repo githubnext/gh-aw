@@ -253,9 +253,13 @@ gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --search-limit 5 
 ```
 
 Use `evidence_search` to locate relevant events in the actual redacted unified
-session, with Drain3 template grouping, occurrence counts, source references,
+session, with automatic repetition grouping, occurrence counts, source references,
 and neighboring context. This single-run CLI capability does not replace the
-full audit or `--group` recurrence checks. Its stage/cluster IDs are run-local;
+full audit or `--group` recurrence checks. Drain3 needs no configuration: it
+activates only when repetitive top matches crowd the limit and grouping saves
+excerpt text. It never changes BM25 ranking; groups keep structured success and
+failure outcomes separate. Ungrouped results omit cluster/template/anomaly fields.
+Its stage/cluster IDs are run-local;
 BM25 relevance and Drain3 anomaly scores are not severity, confidence, or proof
 of safety. Missing sessions remain unavailable, and zero hits do not clear findings.
 Follow [the shared retrieval guidance](../../aw/analyzing-runs.md#retrieve-and-cluster-session-evidence)

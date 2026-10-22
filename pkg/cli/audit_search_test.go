@@ -139,7 +139,8 @@ func TestAuditSearchStagesAndNativeProvenance(t *testing.T) {
 	require.Len(t, search.Matches, 4, "cluster ID 1 in different stages must not collapse")
 	for _, match := range search.Matches {
 		assert.Equal(t, 1, match.Occurrences)
-		assert.Equal(t, 1, match.ClusterID)
+		assert.Zero(t, match.ClusterID, "uncrowded results do not need Drain3")
+		assert.Empty(t, match.Template)
 		if match.Evidence.Reference.AgentID == "child-1" {
 			ref := match.Evidence.Reference
 			require.NotNil(t, ref.Native)

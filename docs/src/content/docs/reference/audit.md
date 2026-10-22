@@ -66,19 +66,36 @@ Ranking uses an in-memory BM25 index with no model calls, embeddings, external
 search service, or persistent index. Paths, tool names, domains, and error codes
 are indexed both as full identifiers and as components. Exact repeated events
 share one ranking document so retries cannot dominate relevance statistics.
+BM25 scores only complete decoded event fields and event types, never Drain3
+templates or anomaly scores. Identifiers remain searchable even when a
+displayed template masks them.
 
-Drain3 mines up to the first 2,048 bytes of each actual event in session order,
-scoped by component, phase, and event type. BM25 indexes complete decoded event
-text, not just this mining prefix. Search covers both final templates and original event fields,
-retaining identifiers hidden by template wildcards. Results group by run-local
-stage and cluster ID, with total and matching occurrence counts, up to three
-matching source references, a representative event, and its preceding and
-following session events. References retain JSONL line numbers, event IDs,
-timestamps, and original artifact paths/indexes when present. Group IDs are not
-stable identifiers across runs or indexes.
+Repetition grouping is automatic; there is no Drain3 option to configure.
+Exact duplicates share occurrence counts without mining. Drain3 runs only when
+more matches exist than the requested result limit and the first `limit + 1`
+ranked candidates include repeated component/phase/type stages with identical
+structured outcomes. It mines up to the first 2,048 bytes of each actual event
+in session order. A template group is used only when it combines at least two
+of those candidates and its displayed template costs fewer bytes than the
+suppressed evidence excerpts. Grouping preserves BM25 scores and the highest
+ranked representative; it never reranks results.
+
+Explicit outcome fields (including success, error, exit code, status, job result,
+and firewall decision) partition groups, so success and failure counts cannot
+be combined. `occurrences` counts all events in that outcome-specific group;
+`matching_occurrences` counts its query-matching events. Ungrouped events and
+exact-duplicate groups omit `cluster_id`, `template`, and `anomaly_score`.
+Drain3 IDs are scoped to the run-local stage and are not stable across queries
+or indexes.
+
+Each result includes up to three matching source references, a representative
+event, and its preceding and following session events. References retain JSONL
+line numbers, event IDs, timestamps, and original artifact paths/indexes when
+present.
 
 `bm25_score` measures query relevance; `anomaly_score` separately describes
-Drain3's online assessment when the representative event was ingested. Neither
+Drain3's online assessment when the representative event was ingested, when
+grouping is used (zero scores may be omitted). Neither
 score determines finding severity, confidence, audit completeness, or threat
 absence. Zero matches do not mean a run is safe. Matches are relevance-ordered;
 their references and neighboring context preserve session chronology.
