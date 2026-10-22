@@ -20,6 +20,7 @@ import {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   injectCustomGatewayEnvArgs,
+  injectProxyEnvArgs,
   computeHealthRetryBudgetMs,
   MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS,
   MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS,
@@ -36,6 +37,96 @@ import {
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
 import { applyGatewayRuntimeTimeouts } from "./tool_timeouts.cjs";
+
+describe("MCP gateway runner proxy environment", () => {
+  it.each([
+    ["HTTP_PROXY", ["HTTP_PROXY", "NO_PROXY"]],
+    ["HTTPS_PROXY", ["HTTPS_PROXY", "NO_PROXY"]],
+    ["NO_PROXY", ["NO_PROXY"]],
+    ["http_proxy", ["NO_PROXY", "http_proxy"]],
+    ["https_proxy", ["NO_PROXY", "https_proxy"]],
+    ["no_proxy", ["no_proxy"]],
+  ])("forwards %s by name without putting values in Docker arguments", (name, names) => {
+    const args = ["run", "--rm", "gateway:latest"];
+    const value = "synthetic-proxy-value with spaces";
+    expect(injectProxyEnvArgs(args, { [name]: value })).toEqual(["run", ...names.flatMap(name => ["-e", name]), "--rm", "gateway:latest"]);
+    expect(args).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it("leaves unset variables to Docker client defaults", () => {
+    expect(injectProxyEnvArgs(["run", "--rm", "gateway:latest"], {})).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it("forwards empty values and preserves explicit container overrides", () => {
+    const args = ["run", "-e", "HTTPS_PROXY=explicit", "gateway:latest"];
+    expect(injectProxyEnvArgs(args, { HTTPS_PROXY: "" })).toEqual(["run", "-e", "HTTPS_PROXY", "-e", "HTTPS_PROXY=explicit", "gateway:latest"]);
+  });
+
+  it("composes inherited proxy forwarding before explicit gateway environment values", () => {
+    const marker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__";
+    const env = {
+      [customGatewayEnvNamesVar]: '["HTTP_PROXY","NO_PROXY"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "explicit-proxy",
+      [`${customGatewayEnvTransportPrefix}1`]: "explicit-no-proxy",
+      HTTP_PROXY: "inherited-proxy",
+      NO_PROXY: "localhost,127.0.0.1",
+    };
+    const args = injectCustomGatewayEnvArgs(["run", marker, "gateway:latest"], env);
+    const result = injectProxyEnvArgs(args, env);
+
+    expect(result).toEqual(["run", "-e", "HTTP_PROXY", "-e", "NO_PROXY", "-e", "HTTP_PROXY=explicit-proxy", "-e", "NO_PROXY=explicit-no-proxy", "gateway:latest"]);
+    expect(env.NO_PROXY).toBe("localhost,127.0.0.1,host.docker.internal,awf-enclave-mcp");
+  });
+
+  it("adds local MCP backend hosts to existing proxy exclusions and preserves Docker defaults when unset", () => {
+    const env = { HTTP_PROXY: "http://proxy.example", NO_PROXY: "localhost,127.0.0.1" };
+    const args = injectProxyEnvArgs(["run", "--rm", "gateway:latest"], env);
+
+    expect(args).toEqual(["run", "-e", "HTTP_PROXY", "-e", "NO_PROXY", "--rm", "gateway:latest"]);
+    expect(env.NO_PROXY).toBe("localhost,127.0.0.1,host.docker.internal,awf-enclave-mcp");
+    expect(injectProxyEnvArgs(["run", "--rm", "gateway:latest"], {})).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"])("adds local MCP backend exclusions with only %s set", name => {
+    const env = { [name]: "http://proxy.example:8080" };
+    const args = ["run", "--rm", "gateway:latest"];
+    const result = injectProxyEnvArgs(args, env);
+
+    expect(env.NO_PROXY).toBe("host.docker.internal,awf-enclave-mcp");
+    expect(env.no_proxy).toBeUndefined();
+    expect(result).toContain(name);
+    expect(result).toContain("NO_PROXY");
+    expect(result).not.toContain(env[name]);
+    expect(injectProxyEnvArgs(args, env)).toEqual(result);
+  });
+
+  it("preserves lowercase runner exclusions without synthesizing uppercase exclusions", () => {
+    const env = { HTTP_PROXY: "http://proxy.example:8080", no_proxy: "localhost,.example.com" };
+    expect(injectProxyEnvArgs(["run", "gateway:latest"], env)).toEqual(["run", "-e", "HTTP_PROXY", "-e", "no_proxy", "gateway:latest"]);
+    expect(env.NO_PROXY).toBeUndefined();
+    expect(env.no_proxy).toBe("localhost,.example.com,host.docker.internal,awf-enclave-mcp");
+  });
+
+  it("keeps explicit gateway exclusions after synthesized proxy-only exclusions", () => {
+    const env = {
+      HTTP_PROXY: "http://proxy.example:8080",
+      [customGatewayEnvNamesVar]: '["NO_PROXY"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "explicit-no-proxy",
+    };
+    const args = injectCustomGatewayEnvArgs(["run", "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__", "gateway:latest"], env);
+    expect(injectProxyEnvArgs(args, env)).toEqual(["run", "-e", "HTTP_PROXY", "-e", "NO_PROXY", "-e", "NO_PROXY=explicit-no-proxy", "gateway:latest"]);
+  });
+
+  it("adds runner proxy flags before launching the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source.indexOf("args = injectProxyEnvArgs(args, gatewayEnv)")).toBeLessThan(source.indexOf("const child = spawn(cmd, args"));
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("redacts %s values in gateway diagnostics", name => {
+    const value = "synthetic-proxy-value";
+    expect(redactGatewayDiagnostics(`proxy connection failed: ${value}`, { [name]: value })).not.toContain(value);
+  });
+});
 
 describe("agenticworkflows backend ownership", () => {
   it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses the runner identity without widening private artifact modes (%s)", container => {
@@ -724,6 +815,32 @@ describe("start_mcp_gateway startup diagnostics", () => {
     const redacted = redactGatewayDiagnostics(sample);
     expect(redacted).not.toContain("redact-me");
     expect(redacted.match(/\[REDACTED\]/g)).toHaveLength(3);
+  });
+
+  it("coalesces registered proxy URLs with overlapping credential patterns", () => {
+    const proxy = `http://token:${"alpha,beta"}@proxy.example:8080`;
+    const redacted = redactGatewayDiagnostics(`gateway proxy ${proxy}`, { HTTPS_PROXY: proxy });
+
+    expect(redacted).toBe("gateway proxy ***");
+    expect(redacted).not.toContain("alpha,beta");
+    expect(redacted).not.toContain("beta@proxy.example");
+  });
+
+  it("preserves credential keys when an environment value overlaps the key", () => {
+    const redacted = redactGatewayDiagnostics("token=credential-value", { HTTP_PROXY: "token" });
+
+    expect(redacted).toBe("token=[REDACTED]");
+    expect(redacted).not.toContain("credential-value");
+  });
+
+  it("redacts earlier gateway diagnostics using later mask registrations", () => {
+    const value = 'synthetic-runtime"\\proxy-credential';
+    const redacted = redactGatewayDiagnostics(`proxy failed: ${value}\nescaped: ${JSON.stringify(value)}\n::add-mask::${value}`, {});
+
+    expect(redacted).toContain("proxy failed:");
+    expect(redacted).not.toContain(value);
+    expect(redacted).not.toContain(JSON.stringify(value).slice(1, -1));
+    expect(redacted).not.toContain("::add-mask::");
   });
 });
 

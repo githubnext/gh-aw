@@ -14,6 +14,7 @@ set +o histexpand
 #   CLI_PROXY_IMAGE     - Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
 #   GH_TOKEN            - GitHub token passed to the proxy container
 #   GITHUB_SERVER_URL   - GitHub server URL for upstream routing
+#   HTTP_PROXY, HTTPS_PROXY, NO_PROXY (and lowercase forms) - Optional upstream proxy settings
 #   GH_AW_SECRET_NAMES  - Optional comma-separated custom secret names to redact
 #   SECRET_*            - Additional supplied secret values to redact
 
@@ -127,6 +128,13 @@ if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
   DOCKER_NETWORK_ARGS=(--network bridge -p 127.0.0.1:18443:18443)
 fi
 
+PROXY_ENV_ARGS=()
+for proxy_var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
+  if [ "${!proxy_var+x}" = x ]; then
+    PROXY_ENV_ARGS+=(-e "$proxy_var")
+  fi
+done
+
 docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
   -e GH_TOKEN \
@@ -137,6 +145,7 @@ docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   -e GITHUB_API_URL \
   -e GITHUB_GRAPHQL_URL \
   -e GITHUB_COPILOT_BASE_URL \
+  "${PROXY_ENV_ARGS[@]}" \
   -e DEBUG='*' \
   -v "$TLS_DIR:$TLS_DIR" \
   -v "$MCP_LOG_DIR:$MCP_LOG_DIR" \
@@ -152,8 +161,7 @@ docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
 PROXY_READY=false
 for i in $(seq 1 30); do
   if [ -f "$TLS_DIR/ca.crt" ]; then
-    if curl -sf --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
-      echo "CLI proxy ready on port 18443"
+    if curl -sf --noproxy '*' --connect-timeout 2 --max-time 2 --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/health" -o /dev/null 2>/dev/null; then
       PROXY_READY=true
       break
     fi
@@ -168,3 +176,25 @@ if [ "$PROXY_READY" = "false" ]; then
   echo "::error::CLI proxy failed to start within 30s"
   exit 1
 fi
+
+# Exercise the proxy's upstream HTTP client, not just its local health endpoint.
+UPSTREAM_READY=false
+for attempt in 1 2 3; do
+  if curl -sf --noproxy '*' --connect-timeout 5 --max-time 15 \
+    --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/rate_limit" -o /dev/null 2>/dev/null; then
+    UPSTREAM_READY=true
+    break
+  fi
+  if [ "$attempt" -lt 3 ]; then
+    sleep 1
+  fi
+done
+
+if [ "$UPSTREAM_READY" = "false" ]; then
+  docker logs awmg-cli-proxy 2>&1 | head -c "$((MAX_DIAGNOSTIC_BYTES + 1))" || true
+  docker rm -f awmg-cli-proxy 2>/dev/null || true
+  echo "::error::CLI proxy could not reach the upstream GitHub API. Check runner connectivity and HTTP(S)_PROXY/NO_PROXY settings."
+  exit 1
+fi
+
+echo "CLI proxy ready on port 18443"
