@@ -255,7 +255,6 @@ describe("interpolate_prompt", () => {
       const { main } = require("./interpolate_prompt.cjs");
       let tmpDir, promptPath, originalEnv;
       const smokeStrategies = [
-        ["single_agent_control", "Do not call any sub-agent."],
         ["delegated_sequential", "Execute and validate each sub-agent one at a time before moving to the next."],
         ["inline_strict", "Validate all three results and keep the current inline orchestration behavior."],
       ];
@@ -311,7 +310,23 @@ describe("interpolate_prompt", () => {
           for (const [otherVariant, otherInstruction] of smokeStrategies) {
             if (otherVariant !== variant) expect(rendered).not.toContain(otherInstruction);
           }
-          expect(rendered.includes("Call `haiku-whoami`")).toBe(variant !== "single_agent_control");
+          expect(rendered).toContain("Call `haiku-whoami`");
+          expect(rendered).not.toContain("{{");
+        }),
+        it.each(smokeStrategies.map(([variant]) => variant))("renders only the assigned %s experiment variant line in the sub-agent smoke output", async variant => {
+          const workflow = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/smoke-copilot-sub-agents.md"), "utf8");
+          const output = workflow.split("\n## Output\n")[1].split("\n## agent:")[0];
+          // GitHub expressions are substituted before interpolate_prompt runs; replace them so only template blocks remain.
+          const outputWithoutExpressions = output.replace(/\$\{\{[^}]*\}\}/g, "EXPR");
+          process.env.GH_AW_EXPERIMENTS_SUB_AGENT_STRATEGY = variant;
+          fs.writeFileSync(promptPath, outputWithoutExpressions);
+
+          await main();
+
+          expect(core.setFailed).not.toHaveBeenCalled();
+          const rendered = fs.readFileSync(promptPath, "utf8");
+          const variantLines = rendered.split("\n").filter(line => line.includes("Experiment variant:"));
+          expect(variantLines).toEqual([`- Experiment variant: \`${variant}\` (scored separately; it does not change the overall status)`]);
           expect(rendered).not.toContain("{{");
         }),
         it("should fail when GH_AW_PROMPT is not set", () => {

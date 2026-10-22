@@ -31,7 +31,7 @@ function evidence() {
   };
 }
 
-async function assertEvidence({ events, requests }, variant = "inline_strict") {
+async function assertEvidence({ events, requests }, execution = "success") {
   const mockRequire = name => {
     if (name.endsWith("unified_session.cjs")) return { writeUnifiedSession() {} };
     if (name === "node:fs") {
@@ -43,13 +43,33 @@ async function assertEvidence({ events, requests }, variant = "inline_strict") {
     return require(name);
   };
   await new AsyncFunction("require", "process", script)(mockRequire, {
-    env: { RUNNER_TEMP: "/tmp", SMOKE_VARIANT: variant, SMOKE_EXECUTION: "success" },
+    env: { RUNNER_TEMP: "/tmp", SMOKE_EXECUTION: execution },
   });
 }
 
 describe("Copilot sub-agent smoke evidence", () => {
   test("accepts completed delegation with qualified models and matching proxy requests", async () => {
     await expect(assertEvidence(evidence())).resolves.toBeUndefined();
+  });
+
+  test("rejects an unexpected sub-agent invocation", async () => {
+    const data = evidence();
+    data.events.push({ type: "subagent.started", data: { agentName: "unexpected-agent", invocationId: "unexpected-agent" } });
+    await expect(assertEvidence(data)).rejects.toThrow("Unexpected sub-agent invocation(s): unexpected-agent");
+  });
+
+  test("rejects extra invocations of an expected sub-agent", async () => {
+    const data = evidence();
+    data.events.push({ type: "subagent.started", data: { agentName: "haiku-whoami", invocationId: "haiku-again" } });
+    await expect(assertEvidence(data)).rejects.toThrow("Expected exactly 3 sub-agent invocations, found 4");
+  });
+
+  test("requires haiku-whoami to be the first sub-agent invoked", async () => {
+    const data = evidence();
+    const first = data.events.findIndex(event => event.type === "subagent.started" && event.data.agentName === "haiku-whoami");
+    const second = data.events.findIndex(event => event.type === "subagent.started" && event.data.agentName === "gpt5-whoami");
+    [data.events[first], data.events[second]] = [data.events[second], data.events[first]];
+    await expect(assertEvidence(data)).rejects.toThrow("haiku-whoami must be the first sub-agent invoked");
   });
 
   test("accepts the served dated Claude model identity", async () => {
@@ -60,7 +80,7 @@ describe("Copilot sub-agent smoke evidence", () => {
 
   test("rejects success without delegation", async () => {
     const data = evidence();
-    await expect(assertEvidence({ events: data.events.filter(event => event.type === "model.resolution"), requests: data.requests })).rejects.toThrow("must actually run");
+    await expect(assertEvidence({ events: data.events.filter(event => event.type === "model.resolution"), requests: data.requests })).rejects.toThrow("Expected exactly 3 sub-agent invocations, found 0");
   });
 
   test("rejects a sub-agent without a model.resolution record", async () => {
@@ -121,8 +141,33 @@ describe("Copilot sub-agent smoke evidence", () => {
     await expect(assertEvidence(data)).rejects.toThrow("failed");
   });
 
-  test("requires no delegation in the negative control", async () => {
-    await expect(assertEvidence({ events: [], requests: [] }, "single_agent_control")).resolves.toBeUndefined();
-    await expect(assertEvidence(evidence(), "single_agent_control")).rejects.toThrow("must not invoke");
+  test("reports a dead child pin's model.resolution cause before the failed execution", async () => {
+    const data = evidence();
+    data.events = data.events.filter(event => event.type === "model.resolution");
+    Object.assign(data.events.find(event => event.data.role === "gpt5-whoami").data, { resolved_model: null, status: "failed", cause: "model_unavailable" });
+    await expect(assertEvidence({ events: data.events, requests: [] }, "failure")).rejects.toThrow("gpt5-whoami model.resolution status is failed, expected resolved (cause: model_unavailable)");
+  });
+
+  test("reports a changed dead child pin's model.resolution cause before the pin mismatch", async () => {
+    const data = evidence();
+    data.events = data.events.filter(event => event.type === "model.resolution");
+    Object.assign(data.events.find(event => event.data.role === "terra-whoami").data, { configured_model: "dead-child-pin", resolved_model: null, status: "failed", cause: "model_unavailable" });
+    await expect(assertEvidence({ events: data.events, requests: [] }, "failure")).rejects.toThrow("terra-whoami model.resolution status is failed, expected exact (cause: model_unavailable)");
+  });
+
+  test("still rejects a changed child pin that resolves", async () => {
+    const data = evidence();
+    data.events.find(event => event.type === "model.resolution" && event.data.role === "gpt5-whoami").data.configured_model = "gpt-5-mini";
+    await expect(assertEvidence(data)).rejects.toThrow("gpt5-whoami model.resolution is for gpt-5-mini, expected gpt-5");
+  });
+
+  test("reports a failed main-model resolution instead of missing child records", async () => {
+    const events = [{ type: "model.resolution", data: { engine: "copilot", role: "main", configured_model: "gpt-5.3-codex", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" } }];
+    const result = assertEvidence({ events, requests: [] }, "failure");
+    await expect(result).rejects.toThrow("Copilot SDK execution failed (outcome: failure) before haiku-whoami model.resolution was recorded; recorded resolution causes: main: model_unavailable");
+  });
+
+  test("reports skipped execution with an empty session instead of missing child records", async () => {
+    await expect(assertEvidence({ events: [], requests: [] }, "skipped")).rejects.toThrow("Copilot SDK execution failed (outcome: skipped) before haiku-whoami model.resolution was recorded; recorded resolution causes: none");
   });
 });
