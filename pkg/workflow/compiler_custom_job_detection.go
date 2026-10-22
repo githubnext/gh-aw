@@ -8,7 +8,6 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow/aw"
-	"github.com/rhysd/actionlint"
 )
 
 // Run after all job augmentation and typed output-derived dependency lowering.
@@ -31,7 +30,7 @@ func (c *Compiler) guardCustomJobDetection(data *WorkflowData) error {
 		}
 		if !graph.DependsOn(id, string(constants.AgentJobName)) && !graph.DependsOn(id, detection) {
 			if !graph.DependsOn(string(constants.AgentJobName), id) {
-				return fmt.Errorf("jobs.%s.needs: custom jobs must run before agent or after detection; add this job to jobs.agent.needs or add detection to this job's needs", id)
+				return fmt.Errorf("jobs.%s.needs: custom jobs must run before agent or after detection; make agent depend on this job or add detection to this job's needs", id)
 			}
 			continue
 		}
@@ -46,10 +45,11 @@ func (c *Compiler) guardCustomJobDetection(data *WorkflowData) error {
 }
 
 func addCustomJobDetectionGuard(job *Job) error {
-	condition := strings.TrimSpace(stripExpressionWrapper(job.If))
+	condition := strings.TrimSpace(job.If)
 	if condition != "" {
-		lexer := actionlint.NewExprLexer(condition + " }}")
-		if _, err := actionlint.NewExprParser().Parse(lexer); err != nil || lexer.Offset() != len(condition+" }}") {
+		var err error
+		condition, _, err = aw.ParseActionsExpression(condition)
+		if err != nil {
 			return fmt.Errorf("jobs.%s.if: expected one valid GitHub Actions expression; remove interpolated text and use one complete ${{ }} wrapper or omit the wrapper", job.Name)
 		}
 	}

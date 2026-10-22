@@ -1,7 +1,7 @@
 # ADR-70997: Enforce Detection Gates for Custom Workflow Jobs in the Compiled Job Graph
 
 **Date**: 2026-10-22
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, Copilot
 
 ---
@@ -12,36 +12,36 @@ Agentic workflows can declare custom top-level `jobs` alongside the compiler-own
 
 ### Decision
 
-We will require every custom job to run either before `agent` or after a successful, clean `detection`. The compiler enforces this on the final job graph, after typed output-derived dependencies have been lowered. A new pass, `guardCustomJobDetection`, builds a transitive `JobDependencyGraph` from the compiled jobs and does three things:
+Every custom job must run either before `agent` or after a successful, clean `detection` when detection is enabled. The compiler enforces this on the resolved job graph, after typed output-derived dependencies have been lowered. The `guardCustomJobDetection` pass builds a transitive `JobDependencyGraph` from the compiled jobs and does three things:
 - rejects custom jobs that are unordered relative to `agent` or that sit between `agent` and `detection`
 - adds `detection` directly to the `needs` of every downstream custom job, including reusable workflow calls
 - wraps the job's `if` in an outer guard that cannot be overridden: `needs.detection.result == 'success' && needs.detection.outputs.detection_success == 'true' && (<authored condition>)`
 
-The `custom-job-detection` lint rule enforces the same contract on the Actions and AW ASTs with transitive dependencies. Workflows that explicitly disable detection are exempt. The contract is recorded in CTR-005 of compiler threat specification 1.0.66.
+The `custom-job-detection` lint rule provides companion diagnostics on the Actions and AW ASTs with transitive dependencies, including missing detection dependencies and conditions that bypass detection job success. It is not a substitute for the compiler's clean-output guard. Workflows with no generated detection job, including workflows that explicitly disable detection, are exempt. The contract is recorded in CTR-005 of compiler threat specification 1.0.66.
 
 ### Alternatives Considered
 
 #### Alternative 1: Lint-only enforcement (authors must add the gate themselves)
 
-Keep `custom-job-detection` as a lint rule that reports missing `needs: detection` or unguarded status functions, without changing the compiled output. This keeps author intent visible in the compiled YAML and avoids rewriting conditions. We rejected it because lint covers only what it analyzes. It does not resolve imports, so shared fragments are missed, and authors can ignore or misconfigure it. A security boundary for tainted agent output should hold no matter what the author writes.
+Keep `custom-job-detection` as a lint rule that reports missing `needs: detection` or unguarded status functions, without changing the compiled output. This keeps author intent visible in the compiled YAML and avoids rewriting conditions. This option was rejected because linting authored input does not see all resolved imports or compiler-derived dependencies, and lint can be omitted. The boundary must hold in emitted workflows without requiring a separate lint invocation.
 
 #### Alternative 2: Gate only on detection job status (`needs.detection.result == 'success'`)
 
-Rely on the job result, or on Actions' implicit success gate, without checking the `detection_success` output. This produces a simpler guard. We rejected it because warn-mode findings leave the `detection` job successful while its output marks the results unsafe. Downstream jobs would still receive flagged output.
+Rely on the job result, or on Actions' implicit success gate, without checking the `detection_success` output. This produces a simpler guard. This option was rejected because warn-mode findings leave the `detection` job successful while its output marks the results unsafe. Downstream jobs would still receive flagged output.
 
 #### Alternative 3: Enforce on the authored (pre-lowering) dependency graph
 
-Validate and inject guards when custom jobs are first parsed. We rejected this because the compiler later adds dependencies from typed output references. Checking the authored graph could miss jobs that only become downstream of `agent` after lowering. It could also misclassify jobs that sit between `agent` and `detection`.
+Validate and inject guards when custom jobs are first parsed. This option was rejected because the compiler later adds dependencies from typed output references. Checking the authored graph could miss jobs that only become downstream of `agent` after lowering. It could also misclassify jobs that sit between `agent` and `detection`. Enforcement after dependency resolution uses the graph that will actually execute.
 
 ### Consequences
 
 #### Positive
 - Downstream custom jobs, including reusable workflow calls and jobs using `always()`, `failure()`, or `cancelled()`, can no longer use agent output after detection fails, is cancelled or skipped, or reports warn-mode findings.
-- The compiler and the lint rule share one transitive dependency model (`aw.JobDependencyGraph`), and CTR-005 records the contract in the threat specification with mapped tests.
+- The compiler and the lint rule share a transitive dependency model (`aw.JobDependencyGraph`), and CTR-005 records the contract in the threat specification with mapped tests.
 - Problem graphs, such as unordered custom jobs or jobs between `agent` and `detection`, fail at compile time with a clear `jobs.<id>.needs` error.
 
 #### Negative
-- Authors can no longer run post-agent custom jobs on detection failure, for example to send failure notifications or clean up. The guard rewrites authored `if` conditions and cannot be turned off without disabling detection entirely.
+- Authors can no longer run post-agent custom jobs on detection failure, cancellation, skipping, or warn-mode findings, for example to send failure notifications or clean up. The compiler rewrites authored `if` conditions as a conjunction with a non-overridable detection guard; `always()` and other authored status overrides cannot bypass it.
 - The compiled conditions are longer and partly redundant, for example `needs.detection.result == 'success'` appears both in the guard and in the authored condition. This made lock files across many workflows (smoke, release, and others) churn.
 - This can break existing workflows: custom jobs that are neither before `agent` nor after `detection`, or that `detection` depends on while also depending on `agent`, now fail to compile. Authored `if` values must be a single valid expression, so interpolated text inside them is rejected.
 
@@ -49,7 +49,3 @@ Validate and inject guards when custom jobs are first parsed. We rejected this b
 - Compiler-owned jobs and `safe-outputs.jobs` are exempt from this pass because they already get compiler-generated guards.
 - Workflows that explicitly disable detection are exempt, so whether the gate applies depends on detection being enabled.
 - The reference docs (`steps-jobs.md`, `workflow-linters.md`) and the threat specification changelog were updated to describe the contract.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*

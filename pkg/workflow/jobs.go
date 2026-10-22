@@ -19,11 +19,11 @@ var jobLog = logger.New("workflow:jobs")
 const runtimeFeaturesEnvVarName = "GH_AW_RUNTIME_FEATURES"
 const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
 
-const pushExperimentsStateJobName = "push_experiments_state"
-const pushEvalsStateJobName = "push_evals_state"
-const pushRepoMemoryJobName = "push_repo_memory"
-const pushLedgerChangesJobName = "push_ledger_changes"
-const updateCacheMemoryJobName = "update_cache_memory"
+const pushExperimentsStateJobName = string(constants.PushExperimentsStateJobName)
+const pushEvalsStateJobName = string(constants.PushEvalsStateJobName)
+const pushRepoMemoryJobName = string(constants.PushRepoMemoryJobName)
+const pushLedgerChangesJobName = string(constants.PushLedgerChangesJobName)
+const updateCacheMemoryJobName = string(constants.UpdateCacheMemoryJobName)
 
 var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
 	string(constants.AgentJobName):               {},

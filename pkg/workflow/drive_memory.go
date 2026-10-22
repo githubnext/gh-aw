@@ -8,7 +8,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 )
 
-const updateDriveMemoryJobName = "update_drive_memory"
+const updateDriveMemoryJobName = string(constants.UpdateDriveMemoryJobName)
 
 func generateDriveMemorySteps(builder *strings.Builder, data *WorkflowData, pinAction func(string) string) {
 	if data.DriveMemoryConfig == nil || len(data.DriveMemoryConfig.Drives) == 0 {

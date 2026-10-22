@@ -30,8 +30,9 @@ func (graph JobDependencyGraph) DependsOn(job, dependency string) bool {
 func AuthoredJobDependencies(jobs map[string]any) JobDependencyGraph {
 	graph := make(JobDependencyGraph)
 	for id := range constants.KnownBuiltInJobNames {
-		switch id {
-		case "pre_activation", "pre-activation", "activation", "admission", "agent":
+		switch constants.JobName(id) {
+		case constants.PreActivationJobName, constants.PreActivationHyphenJobName,
+			constants.ActivationJobName, constants.AdmissionJobName, constants.AgentJobName:
 		default:
 			graph[id] = []string{string(constants.AgentJobName)}
 		}

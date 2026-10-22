@@ -344,7 +344,23 @@ func TestThreatPolicyRulesCLIInputModes(t *testing.T) {
 
 func TestCustomJobDetectionCLIInputModes(t *testing.T) {
 	const source = "---\njobs:\n  report:\n    needs: [agent, detection]\n    if: always()\n---\nPrompt\n"
-	const compiled = "jobs:\n  detection:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo detection\n"
+	const compiled = `jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo agent
+  detection:
+    needs: agent
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo detection
+  report:
+    needs: [agent, detection]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo report
+`
 	for _, extension := range []string{".md", ".lock.yml", ".yaml"} {
 		t.Run(extension, func(t *testing.T) {
 			dir := t.TempDir()
@@ -361,17 +377,12 @@ func TestCustomJobDetectionCLIInputModes(t *testing.T) {
 			err := cmd.Execute()
 			var diagnostics []workflowLintDiagnostic
 			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
-			if extension == ".yaml" {
-				require.NoError(t, err)
-				assert.Empty(t, diagnostics, "native Actions has no authored AW custom jobs")
-				return
-			}
 			require.ErrorContains(t, err, "workflow lint found 1 error")
 			require.Len(t, diagnostics, 1)
 			assert.Equal(t, "custom-job-detection", diagnostics[0].RuleID)
 			assert.Equal(t, "jobs.report.if", diagnostics[0].Path)
 			assert.Equal(t, workflowlint.Error, diagnostics[0].Severity)
-			assert.Empty(t, diagnostics[0].ThreatRuleID)
+			assert.Equal(t, "CTR-005", diagnostics[0].ThreatRuleID)
 		})
 	}
 }

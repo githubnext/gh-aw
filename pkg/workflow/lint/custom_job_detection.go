@@ -39,12 +39,15 @@ func checkCustomJobDetection(ctx context.Context, input Input) ([]Diagnostic, er
 		if err := ctx.Err(); err != nil {
 			return diagnostics, err
 		}
-		if _, builtin := constants.KnownBuiltInJobNames[id]; builtin {
-			continue
-		}
 		fields, err := policyMapping(jobs[id], "jobs."+id)
 		if err != nil {
 			return diagnostics, err
+		}
+		if input.Document == nil && constants.IsCompilerOwnedJobName(id) {
+			continue
+		}
+		if _, builtin := constants.KnownBuiltInJobNames[id]; builtin && fields["uses"] == nil && fields["runs-on"] == nil {
+			continue
 		}
 		if !graph.DependsOn(id, string(constants.AgentJobName)) && !graph.DependsOn(id, string(constants.DetectionJobName)) {
 			_, hasAgent := graph[string(constants.AgentJobName)]
@@ -118,6 +121,12 @@ func customJobDetectionActions(input Input) (map[string]any, aw.JobDependencyGra
 			}
 		}
 		fields := map[string]any{"needs": needs}
+		if input.Document != nil {
+			if sourceFields, ok := authored[id].(map[string]any); ok {
+				fields["uses"] = sourceFields["uses"]
+				fields["runs-on"] = sourceFields["runs-on"]
+			}
+		}
 		if job.If != nil {
 			condition, err := actions.RenderExpression(job.If, job.ID, input.Workflow, false)
 			if err != nil {
@@ -132,9 +141,13 @@ func customJobDetectionActions(input Input) (map[string]any, aw.JobDependencyGra
 
 func customJobDetectionDisabled(input Input) (bool, error) {
 	if input.Workflow != nil {
-		return !slices.ContainsFunc(input.Workflow.Jobs, func(job *actions.Job) bool {
+		hasAgent := slices.ContainsFunc(input.Workflow.Jobs, func(job *actions.Job) bool {
+			return string(job.ID) == string(constants.AgentJobName)
+		})
+		hasDetection := slices.ContainsFunc(input.Workflow.Jobs, func(job *actions.Job) bool {
 			return string(job.ID) == string(constants.DetectionJobName)
-		}), nil
+		})
+		return !hasAgent || !hasDetection, nil
 	}
 	outputs, err := policyMapping(input.Document.Frontmatter["safe-outputs"], "safe-outputs")
 	if err != nil {
@@ -218,20 +231,11 @@ func customJobDetectionCondition(value any) (bool, error) {
 		return true, nil
 	}
 	text, ok := value.(string)
-	if !ok || strings.TrimSpace(text) == "" {
+	if !ok {
 		return false, errors.New("invalid job condition")
 	}
-	text = strings.TrimSpace(text)
-	if body, wrapped := strings.CutPrefix(text, "${{"); wrapped {
-		var closed bool
-		text, closed = strings.CutSuffix(strings.TrimSpace(body), "}}")
-		if !closed {
-			return false, errors.New("invalid job condition")
-		}
-	}
-	lexer := actionlint.NewExprLexer(text + " }}")
-	node, err := actionlint.NewExprParser().Parse(lexer)
-	if err != nil || lexer.Offset() != len(text+" }}") {
+	_, node, err := aw.ParseActionsExpression(text)
+	if err != nil {
 		return false, errors.New("invalid job condition")
 	}
 	statusOverride := false
