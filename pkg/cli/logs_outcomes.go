@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,7 +83,6 @@ func collectRunOutcomes(ctx context.Context, run ProcessedRun, mapping *github.O
 		return report, nil
 	}
 	repository := logsOutcomeRepository(run.Run)
-	items = enrichItemsFromAgentOutput(items, run.Run.LogsPath, repository)
 	report.Items = EvaluateOutcomes(ctx, items, repository, mapping)
 	if err := ctx.Err(); err != nil {
 		return report, err
@@ -115,13 +115,22 @@ func readLogsOutcomeItems(run ProcessedRun) ([]CreatedItemReport, bool, error) {
 	if run.Run.LogsPath == "" {
 		return nil, false, nil
 	}
-	dirs := []string{run.Run.LogsPath, filepath.Join(run.Run.LogsPath, "safe-outputs-items")}
-	artifacts, _, err := readEpisodeArtifactDirs(run.Run.LogsPath)
+	artifacts, err := logsOutcomeEvidenceDirs(run.Run.LogsPath, []string{"safe-outputs-items"})
 	if err != nil {
 		return nil, false, err
 	}
-	dirs = append(dirs, artifacts...)
-	for _, dir := range dirs {
+	// Immutable invocation artifacts are distinct even when their contents match.
+	// Flat and nested run-root copies are mirrors, not additional invocations.
+	dirs := append(slices.Clone(artifacts), run.Run.LogsPath)
+	seen := make(map[[sha256.Size]byte]struct{})
+	seenDirs := make(map[string]struct{})
+	var combined []CreatedItemReport
+	found := false
+	for index, dir := range dirs {
+		if _, duplicate := seenDirs[dir]; duplicate {
+			continue
+		}
+		seenDirs[dir] = struct{}{}
 		path := filepath.Join(dir, safeOutputItemsManifestFilename)
 		items, err := readLogsOutcomeManifest(path)
 		if errors.Is(err, os.ErrNotExist) {
@@ -130,9 +139,26 @@ func readLogsOutcomeItems(run ProcessedRun) ([]CreatedItemReport, bool, error) {
 		if err != nil {
 			return nil, false, fmt.Errorf("read safe-output manifest %s: %w", path, err)
 		}
-		return items, true, nil
+		found = true
+		encoded, err := json.Marshal(items)
+		if err != nil {
+			return nil, false, err
+		}
+		digest := sha256.Sum256(encoded)
+		if _, mirrored := seen[digest]; index >= len(artifacts) && mirrored {
+			continue
+		}
+		seen[digest] = struct{}{}
+		evidenceDir, err := logsOutcomeEnrichmentDir(dir, run.Run.LogsPath)
+		if err != nil {
+			return nil, false, err
+		}
+		if evidenceDir != "" {
+			items = enrichItemsFromAgentOutput(items, evidenceDir, run.Run.Repository)
+		}
+		combined = append(combined, items...)
 	}
-	return nil, false, nil
+	return combined, found, nil
 }
 
 func readLogsOutcomeManifest(path string) (items []CreatedItemReport, returnErr error) {
@@ -208,7 +234,7 @@ func attachLogsOutcomes(data *LogsData, reports []OutcomesData) error {
 			}
 		}
 	}
-	logs := episodeOutcomesLogs{Runs: data.Runs}
+	logs := episodeOutcomesLogs{Runs: data.Runs, Outcomes: reports}
 	for _, episode := range data.Episodes {
 		coverage := episode.Coverage
 		logs.Episodes = append(logs.Episodes, episodeOutcomeMembership{

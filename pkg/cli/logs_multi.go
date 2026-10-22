@@ -275,7 +275,7 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 	processedRuns = sortAndLimitLogsTargetRuns(processedRuns, opts.Count, opts.Verbose)
 	var outcomeReports []OutcomesData
 	if opts.Outcomes {
-		outcomeReports, err = collectLogsOutcomes(activeCtx, processedRuns, opts.OutcomesDir, opts.Verbose)
+		outcomeReports, err = collectLogsOutcomes(ctx, processedRuns, opts.OutcomesDir, opts.Verbose)
 		if err != nil {
 			return err
 		}

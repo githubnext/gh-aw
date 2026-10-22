@@ -79,7 +79,9 @@ Use these deterministic files first:
 
 `safe-output-issue-evaluations.jsonl` contains the current `gh aw logs --outcomes --json` classifications, evidence, workflow attribution, and any available objective attribution. Use these fields directly; never reclassify acceptance from successful issue creation or closure. If objective attribution is unavailable, use non-empty optional `*-with-objective.json` files or compute objective mapping from linked/root issue labels.
 
-Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing.
+Read `safe-output-issue-summary.json` for coverage. When `partial` is true, retain available observations, label safe-output outcome totals and derived impact metrics as partial, and report `evaluated_run_count` / `selected_run_count`, `unavailable_run_count`, and each `run_errors` entry's run ID and `eval_error` in Data Quality. Missing evidence is unknown coverage, not zero outcomes or rejected work. If all selected runs are unavailable, report safe-output outcomes and their impact as unavailable; distinguish this from fully evaluated runs with verified empty outcomes.
+
+Do **not** re-fetch these datasets with GitHub tools unless a required file is missing, empty, or fails JSON parsing. An empty `safe-output-issue-evaluations.jsonl` is valid when the summary reports zero issue outcomes; use its coverage fields to distinguish verified empty results from unavailable evidence rather than re-fetching.
 
 #### Goal
 

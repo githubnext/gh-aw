@@ -27,7 +27,7 @@ func TestLogsOutcomeOptions(t *testing.T) {
 	assert.True(t, options.Outcomes)
 	assert.Equal(t, "observations", options.OutcomesDir)
 	assert.Equal(t, []string{"usage", "outcomes"}, options.ArtifactSets)
-	assert.Equal(t, []string{"usage", "safe-outputs-items"}, ResolveArtifactFilter(options.ArtifactSets))
+	assert.Equal(t, []string{"usage", "safe-outputs-items", "agent-output-fallback"}, ResolveArtifactFilter(options.ArtifactSets))
 	assert.False(t, shouldDownloadWorkflowRunLogs(ResolveArtifactFilter(options.ArtifactSets)))
 	assert.False(t, cachedJSONLCanSatisfy(ResolveArtifactFilter(options.ArtifactSets), false, false, false))
 	stdin, err := loadStdinLogsOptions(cmd)

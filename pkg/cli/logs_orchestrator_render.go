@@ -34,7 +34,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 		defer func() {
 			if err == nil {
 				out := os.Stdout
-				if opts.format == "tsv" {
+				if opts.format == "tsv" || opts.format == "pretty" {
 					out = os.Stderr
 				}
 				err = renderLogsOutcomes(out, logsData)
@@ -176,6 +176,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
+	// These fields are for JSON output; text outcomes are rendered separately by renderLogsOutcomes.
 	report.Outcomes = logsData.Outcomes
 	report.EpisodeOutcomes = logsData.EpisodeOutcomes
 	report.FailureClusters = logsData.FailureClusters

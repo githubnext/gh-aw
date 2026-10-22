@@ -75,11 +75,29 @@ function prepareIssueOutcomes(dataDir, repo) {
     if (!runs.has(id)) runs.set(id, run);
   }
   const reports = collectOutcomeReports(repo, path.join(dataDir, "safe-output-runs"), [...runs.keys()]);
+  if (reports.size !== runs.size || [...reports.keys()].some(id => !runs.has(id))) throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report: selected runs do not match`);
   const rows = [];
+  const runErrors = [];
   for (const [id, run] of runs) {
     const report = reports.get(id);
-    if (!report || report.eval_error || report.run_id !== id || !Array.isArray(report.items) || report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")) {
+    if (
+      !report ||
+      report.run_id !== id ||
+      (report.eval_error !== undefined && typeof report.eval_error !== "string") ||
+      !Array.isArray(report.items) ||
+      report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string") ||
+      (report.eval_error && report.items.length > 0)
+    ) {
       throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report for run ${id}`);
+    }
+    if (report.eval_error) {
+      runErrors.push({
+        run_id: id,
+        workflow_name: report.workflow || run.workflow_name || run.workflowName || "",
+        workflow_run_url: run.html_url || run.url || "",
+        eval_error: report.eval_error,
+      });
+      continue;
     }
     for (const item of report.items) {
       if (item.type !== "create_issue" && item.type !== "close_issue") continue;
@@ -98,6 +116,11 @@ function prepareIssueOutcomes(dataDir, repo) {
   }
 
   const summary = {
+    partial: runErrors.length > 0,
+    selected_run_count: runs.size,
+    evaluated_run_count: runs.size - runErrors.length,
+    unavailable_run_count: runErrors.length,
+    run_errors: runErrors,
     total_issue_outcomes: rows.length,
     create_issue_count: rows.filter(row => row.type === "create_issue").length,
     close_issue_count: rows.filter(row => row.type === "close_issue").length,
