@@ -161,6 +161,21 @@ func isDryRunTelemetryEnv(name string) bool {
 
 // Rewrite only environment mappings so executable scalar contents remain intact.
 func removeDryRunTelemetryEnv(content string) (string, error) {
+	return rewriteDryRunTelemetryEnv(content, nil)
+}
+
+func disableDryRunTelemetryEnv(content string) (string, error) {
+	return rewriteDryRunTelemetryEnv(content, map[string]string{
+		"DO_NOT_TRACK":                             "1",
+		"OTEL_SDK_DISABLED":                        "true",
+		"GH_TELEMETRY":                             "false",
+		"DISABLE_TELEMETRY":                        "1",
+		"DISABLE_ERROR_REPORTING":                  "1",
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+	})
+}
+
+func rewriteDryRunTelemetryEnv(content string, optOuts map[string]string) (string, error) {
 	var document yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &document); err != nil {
 		return "", fmt.Errorf("cannot remove dry-run telemetry environment variables: %w", err)
@@ -171,6 +186,13 @@ func removeDryRunTelemetryEnv(content string) (string, error) {
 	root := document.Content[0] //nolint:uncheckedsliceindex // Exactly one document is required above.
 	lines := strings.SplitAfter(content, "\n")
 	var edits []dryRunEnvEdit
+	if len(optOuts) > 0 && artifactMappingValue(root, "env") == nil {
+		rendered, err := MarshalWithFieldOrder(map[string]any{"env": optOuts}, []string{"env"})
+		if err != nil {
+			return "", fmt.Errorf("cannot render dry-run telemetry opt-outs: %w", err)
+		}
+		edits = append(edits, dryRunEnvEdit{content: string(rendered) + "\n"})
+	}
 	for _, owner := range dryRunEnvOwners(root) {
 		if owner.Kind != yaml.MappingNode {
 			continue
@@ -180,7 +202,7 @@ func removeDryRunTelemetryEnv(content string) (string, error) {
 				continue
 			}
 			value := owner.Content[i+1] //nolint:uncheckedsliceindex // The value index is checked above.
-			edit, err := dryRunTelemetryEnvEdit(key, value, lines)
+			edit, err := dryRunTelemetryEnvEdit(key, value, lines, optOuts, owner == root)
 			if err != nil {
 				return "", err
 			}
@@ -230,20 +252,20 @@ func dryRunEnvOwners(root *yaml.Node) []*yaml.Node {
 	return owners
 }
 
-func dryRunTelemetryEnvEdit(key, value *yaml.Node, lines []string) (*dryRunEnvEdit, error) {
+func dryRunTelemetryEnvEdit(key, value *yaml.Node, lines []string, optOuts map[string]string, workflowEnv bool) (*dryRunEnvEdit, error) {
 	var env map[string]string
 	if err := value.Decode(&env); err != nil {
 		return nil, fmt.Errorf("dry-run telemetry filtering requires an env mapping on line %d: %w", key.Line, err)
 	}
-	removed := false
+	env, changed := applyDryRunTelemetryOptOuts(env, optOuts, workflowEnv, key.Line)
 	for name := range env {
-		if isDryRunTelemetryEnv(name) {
+		if isDryRunTelemetryEnv(name) && optOuts[name] == "" {
 			compilerDevelopmentLog.Printf("Dry-run mutation: removed env key %q on line %d", name, key.Line)
 			delete(env, name)
-			removed = true
+			changed = true
 		}
 	}
-	if !removed {
+	if !changed {
 		return nil, nil
 	}
 	start := key.Line - 1
@@ -283,4 +305,20 @@ func dryRunTelemetryEnvEdit(key, value *yaml.Node, lines []string) (*dryRunEnvEd
 		replacement.WriteString(line)
 	}
 	return &dryRunEnvEdit{start: start, end: end, content: replacement.String()}, nil
+}
+
+func applyDryRunTelemetryOptOuts(env, optOuts map[string]string, workflowEnv bool, line int) (map[string]string, bool) {
+	if env == nil && workflowEnv && len(optOuts) > 0 {
+		env = make(map[string]string)
+	}
+	changed := false
+	for name, value := range optOuts {
+		current, exists := env[name]
+		if (workflowEnv || exists) && current != value {
+			compilerDevelopmentLog.Printf("Dry-run mutation: disabled telemetry with env key %q on line %d", name, line)
+			env[name] = value
+			changed = true
+		}
+	}
+	return env, changed
 }

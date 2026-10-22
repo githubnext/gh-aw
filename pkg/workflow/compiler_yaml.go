@@ -220,7 +220,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		return "", nil, nil, err
 	}
 	if c.dryRun {
-		bodyContent, err = removeDryRunTelemetryEnv(bodyContent)
+		bodyContent, err = disableDryRunTelemetryEnv(bodyContent)
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -248,7 +248,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 				return "", nil, nil, err
 			}
 			if c.dryRun {
-				bodyContent, err = removeDryRunTelemetryEnv(bodyContent)
+				bodyContent, err = disableDryRunTelemetryEnv(bodyContent)
 				if err != nil {
 					return "", nil, nil, err
 				}
