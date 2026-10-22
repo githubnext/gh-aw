@@ -123,6 +123,14 @@ state. There is no built-in scheduled collector or automatic reevaluation.
 Rerun logs with `--outcomes` later for unresolved items; each invocation checks current
 GitHub state rather than reusing a cached classification.
 
+Within one collection, identical successful REST and GraphQL reads are shared
+across actions and runs. Labels already present in an issue or pull request
+response do not require a separate label request. Paginated REST reads request
+100 items per page and still fetch all pages. Each action retains its own
+timestamp-dependent classification.
+This response cache is in memory only: later invocations check GitHub again,
+and failed or partial responses are not retained.
+
 Use JSON output to feed a report or inspect the summary:
 
 ```bash wrap

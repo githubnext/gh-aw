@@ -17,7 +17,6 @@ import (
 	"github.com/github/gh-aw/pkg/intent"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var outcomeEvalLog = logger.New("cli:outcome_eval")
@@ -107,6 +106,7 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 // EvaluateOutcomes checks the current state of all safe output items from a run.
 // The mapping parameter is required and defines how labels map to objective values.
 func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport {
+	ctx = withOutcomeAPICache(ctx)
 	outcomeEvalLog.Printf("Evaluating outcomes: items=%d, repo_override=%q", len(items), repoOverride)
 	if repoOverride == "" {
 		slug, err := GetCurrentRepoSlug()
@@ -239,23 +239,12 @@ func ghAPIGet(ctx context.Context, endpoint string, repo string) (map[string]any
 	if err := validateAPIEndpoint(endpoint); err != nil {
 		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
 	}
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint))}
-	var output []byte
-	var err error
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
-	}
+	result, err := requestOutcomeJSON[map[string]any](ctx, repo, args)
 	if err != nil {
 		outcomeEvalLog.Printf("gh api GET failed: endpoint=%s, err=%v", endpoint, err)
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
-	}
-	var result map[string]any
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("parsing response for %s: %w", endpoint, err)
 	}
 	return result, nil
 }
@@ -265,21 +254,18 @@ func ghAPIGetArray(ctx context.Context, endpoint string, repo string) ([]map[str
 	if err := validateAPIEndpoint(endpoint); err != nil {
 		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
 	}
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint)), "--paginate", "--slurp"}
-	var output []byte
-	var err error
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+	if labels, ok := outcomeCachedLabels(ctx, endpoint, repo); ok {
+		return labels, nil
+	}
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint)),
+		"--method", "GET", "-f", "per_page=100", "--paginate", "--slurp"}
+	pages, err := requestOutcomeJSON[[][]map[string]any](ctx, repo, args)
 	if err != nil {
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
-	}
-	var pages [][]map[string]any
-	if err := json.Unmarshal(output, &pages); err != nil {
-		return nil, fmt.Errorf("parsing response for %s: %w", endpoint, err)
 	}
 	var result []map[string]any
 	for _, page := range pages {
@@ -314,23 +300,13 @@ func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) 
 // ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
 // Values are passed as GraphQL variables rather than interpolated into the query text.
 func ghAPIGraphQL(ctx context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args, err := buildGraphQLArgs(query, variables)
 	if err != nil {
 		return nil, err
 	}
-	var output []byte
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
-	}
+	result, err := requestOutcomeJSON[map[string]any](ctx, repo, args)
 	if err != nil {
 		return nil, fmt.Errorf("gh api graphql: %w", err)
-	}
-	var result map[string]any
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("parsing graphql response for %s: %w", ownerRepo, err)
 	}
 	return result, nil
 }

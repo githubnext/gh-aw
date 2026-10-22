@@ -24,6 +24,7 @@ The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be 
 1. A primary-object `404` for issue, PR, or comment creation is `rejected`/`strong`/`deleted`. A supplementary endpoint `404` MUST NOT imply object deletion.
 2. Other API failures return `error`/`weak`/`evaluation_error`. Failure to fetch supplementary PR effort evidence does not undo authoritative merge acceptance, but MUST prevent zero-touch proof.
 3. Evaluation workers MUST NOT infer acceptance from unavailable data. Each logs invocation with `--outcomes` checks current state; reevaluation requires a later invocation. Automatic scheduling and API-specific backoff remain outside this command.
+4. Successful API reads are reused across selected runs within a single collection, keyed by host and request arguments, including GraphQL variables and REST pagination. Paginated REST reads request 100 items per page and follow all pages. Complete labels in an issue or PR response satisfy label reads without another request. Failed requests, malformed responses, and GraphQL responses with errors are not cached. The in-memory cache never survives a collection or replaces action-specific classification.
 
 ## Provenance Limits
 

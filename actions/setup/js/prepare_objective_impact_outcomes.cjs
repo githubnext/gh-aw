@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
+const { getSetupTimeoutMs, MAX_SETUP_TIMEOUT_MS } = require("./child_process_timeouts.cjs");
 const { ERR_API, ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 
 /** @param {string} filePath */
@@ -32,38 +32,52 @@ function writeFileAtomic(filePath, content) {
   }
 }
 
+/** @param {string} repo @param {string} runsDir @param {number[]} ids */
+function collectOutcomeReports(repo, runsDir, ids) {
+  const reports = new Map();
+  if (ids.length === 0) return reports;
+  const timeout = Math.min(MAX_SETUP_TIMEOUT_MS, getSetupTimeoutMs("outcomeGh") * ids.length);
+  let raw;
+  try {
+    raw = execFileSync("gh", ["aw", "logs", "--stdin", "--outcomes", "--repo", repo, "--output", runsDir, "--timeout", String(Math.ceil(timeout / 60_000)), "--json"], {
+      input: ids.join("\n") + "\n",
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "inherit"],
+      timeout,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(`${ERR_API}: Failed to evaluate outcomes for selected runs`, { cause: error });
+  }
+  let logs;
+  try {
+    logs = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`${ERR_PARSE}: Invalid gh aw logs --outcomes JSON`, { cause: error });
+  }
+  if (!Array.isArray(logs?.outcomes)) throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report`);
+  for (const report of logs.outcomes) {
+    if (!Number.isSafeInteger(report?.run_id) || report.run_id <= 0 || reports.has(report.run_id)) throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report`);
+    reports.set(report.run_id, report);
+  }
+  return reports;
+}
+
 /** @param {string} dataDir @param {string} repo */
 function prepareIssueOutcomes(dataDir, repo) {
   if (!repo) throw new Error(`${ERR_CONFIG}: EXPR_GITHUB_REPOSITORY or GITHUB_REPOSITORY is required`);
   const workflowLogs = readJSON(path.join(dataDir, "workflow-logs.json"));
   if (!workflowLogs || !Array.isArray(workflowLogs.runs)) throw new Error(`${ERR_VALIDATION}: Impact report input must contain a runs array`);
-  const runsDir = path.join(dataDir, "safe-output-runs");
-  const rows = [];
-  const seen = new Set();
-
+  const runs = new Map();
   for (const run of workflowLogs.runs) {
     const id = Number(run?.run_id ?? run?.id ?? run?.databaseId);
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error(`${ERR_VALIDATION}: Impact report contains an invalid run ID`);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    let raw;
-    try {
-      raw = execFileSync("gh", ["aw", "logs", "--stdin", "--outcomes", "--repo", repo, "--output", runsDir, "--json"], {
-        input: `${id}\n`,
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "inherit"],
-        timeout: getSetupTimeoutMs("outcomeGh"),
-      });
-    } catch (error) {
-      throw new Error(`${ERR_API}: Failed to evaluate outcomes for run ${id}`, { cause: error });
-    }
-    let report;
-    try {
-      const logs = JSON.parse(raw);
-      report = logs?.outcomes?.find(entry => entry?.run_id === id);
-    } catch (error) {
-      throw new Error(`${ERR_PARSE}: Invalid gh aw logs --outcomes JSON for run ${id}`, { cause: error });
-    }
+    if (!runs.has(id)) runs.set(id, run);
+  }
+  const reports = collectOutcomeReports(repo, path.join(dataDir, "safe-output-runs"), [...runs.keys()]);
+  const rows = [];
+  for (const [id, run] of runs) {
+    const report = reports.get(id);
     if (!report || report.eval_error || report.run_id !== id || !Array.isArray(report.items) || report.items.some(item => !item || typeof item.type !== "string" || typeof item.outcome_status !== "string")) {
       throw new Error(`${ERR_VALIDATION}: Invalid gh aw logs --outcomes report for run ${id}`);
     }

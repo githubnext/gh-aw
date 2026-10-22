@@ -12,6 +12,7 @@ let exec;
 let prepareIssueOutcomes;
 
 beforeEach(() => {
+  vi.stubEnv("GH_AW_OUTCOME_GH_TIMEOUT_MS", "300000");
   root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-impact-outcomes-"));
   exec = vi.spyOn(childProcess, "execFileSync");
   delete req.cache[scriptPath];
@@ -20,6 +21,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   delete req.cache[scriptPath];
   fs.rmSync(root, { recursive: true, force: true });
 });
@@ -54,7 +56,11 @@ describe("CLI-backed impact report outcomes", () => {
       ])
     );
     prepareIssueOutcomes(root, "acme/repo");
-    expect(exec).toHaveBeenCalledExactlyOnceWith("gh", ["aw", "logs", "--stdin", "--outcomes", "--repo", "acme/repo", "--output", path.join(root, "safe-output-runs"), "--json"], expect.objectContaining({ encoding: "utf8", input: "1\n" }));
+    expect(exec).toHaveBeenCalledExactlyOnceWith(
+      "gh",
+      ["aw", "logs", "--stdin", "--outcomes", "--repo", "acme/repo", "--output", path.join(root, "safe-output-runs"), "--timeout", "5", "--json"],
+      expect.objectContaining({ encoding: "utf8", input: "1\n" })
+    );
     const rows = fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ run_id: 1, workflow_name: "producer", workflow_aic: 4, number: 42, outcome_status: "pending", signal: "open", detail: "created successfully", objective_value: 3, zero_touch: false });
@@ -64,10 +70,22 @@ describe("CLI-backed impact report outcomes", () => {
 
   it("supports GitHub API and gh run list inputs and deduplicates source run IDs", () => {
     writeRuns([{ id: 1 }, { databaseId: 2 }, { run_id: 1 }]);
-    exec.mockReturnValueOnce(report([])).mockReturnValueOnce(report([], 2));
+    exec.mockReturnValue(
+      JSON.stringify({
+        outcomes: [
+          { run_id: 2, items: [{ type: "close_issue", outcome_status: "accepted" }] },
+          { run_id: 1, items: [{ type: "create_issue", outcome_status: "pending" }] },
+        ],
+      })
+    );
     prepareIssueOutcomes(root, "acme/repo");
-    expect(exec).toHaveBeenCalledTimes(2);
-    expect(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8")).toBe("");
+    expect(exec).toHaveBeenCalledExactlyOnceWith(
+      "gh",
+      ["aw", "logs", "--stdin", "--outcomes", "--repo", "acme/repo", "--output", path.join(root, "safe-output-runs"), "--timeout", "10", "--json"],
+      expect.objectContaining({ input: "1\n2\n", timeout: 600000, maxBuffer: 64 * 1024 * 1024 })
+    );
+    const rows = fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(rows.map(row => row.run_id)).toEqual([1, 2]);
   });
 
   it("reevaluates source runs on later reports instead of caching outcome classifications", () => {
@@ -85,18 +103,51 @@ describe("CLI-backed impact report outcomes", () => {
     exec.mockImplementation(() => {
       throw new Error("unavailable");
     });
-    expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow("Failed to evaluate outcomes for run 1");
+    expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow("Failed to evaluate outcomes for selected runs");
     expect(fs.existsSync(path.join(root, "safe-output-issue-summary.json"))).toBe(false);
   });
 
-  it.each(["invalid JSON", '{"run_id":1}', '{"outcomes":[{"run_id":2,"items":[]}]}', '{"outcomes":[{"run_id":1,"items":[null]}]}', '{"outcomes":[{"run_id":1,"items":[],"eval_error":"missing manifest"}]}'])(
-    "rejects malformed CLI output: %s",
-    output => {
-      writeRuns([{ run_id: 1 }]);
-      exec.mockReturnValue(output);
-      expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow(/Invalid gh aw logs --outcomes/);
-    }
-  );
+  it.each([
+    "invalid JSON",
+    '{"run_id":1}',
+    '{"outcomes":[{"run_id":2,"items":[]}]}',
+    '{"outcomes":[{"run_id":1,"items":[null]}]}',
+    '{"outcomes":[{"run_id":1,"items":[],"eval_error":"missing manifest"}]}',
+    '{"outcomes":[null]}',
+    '{"outcomes":[{"run_id":1,"items":[]},{"run_id":1,"items":[]}]}',
+  ])("rejects malformed CLI output: %s", output => {
+    writeRuns([{ run_id: 1 }]);
+    exec.mockReturnValue(output);
+    expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow(/Invalid gh aw logs --outcomes/);
+  });
+
+  it("does not invoke the CLI for an empty source run list", () => {
+    writeRuns([]);
+    prepareIssueOutcomes(root, "acme/repo");
+    expect(exec).not.toHaveBeenCalled();
+    expect(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8")).toBe("");
+  });
+
+  it("clamps the total batch timeout to the subprocess limit", () => {
+    vi.stubEnv("GH_AW_OUTCOME_GH_TIMEOUT_MS", "2147483647");
+    writeRuns([{ run_id: 1 }, { run_id: 2 }]);
+    exec.mockReturnValue(
+      JSON.stringify({
+        outcomes: [
+          { run_id: 1, items: [] },
+          { run_id: 2, items: [] },
+        ],
+      })
+    );
+    prepareIssueOutcomes(root, "acme/repo");
+    expect(exec).toHaveBeenCalledWith("gh", expect.any(Array), expect.objectContaining({ timeout: 2147483647 }));
+  });
+
+  it("validates every source ID before issuing API requests", () => {
+    writeRuns([{ run_id: 1 }, { run_id: -2 }]);
+    expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow("invalid run ID");
+    expect(exec).not.toHaveBeenCalled();
+  });
 
   it("rejects missing or invalid inputs rather than publishing no outcomes", () => {
     expect(() => prepareIssueOutcomes(root, "")).toThrow("GITHUB_REPOSITORY is required");

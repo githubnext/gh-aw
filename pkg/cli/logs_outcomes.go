@@ -40,6 +40,7 @@ func logsOutcomeArtifactSets(sets []string, outcomes bool) []string {
 }
 
 func collectLogsOutcomes(ctx context.Context, runs []ProcessedRun, dir string, verbose bool) ([]OutcomesData, error) {
+	ctx = withOutcomeAPICache(ctx)
 	if dir == "" {
 		dir = lookupEnv("GH_AW_OUTCOMES_DIR")
 	}
