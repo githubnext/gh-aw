@@ -142,11 +142,11 @@ func appendFirewallDomainDiff(diff *FirewallDiff, domain string, stats1, stats2 
 
 func buildNewFirewallDomainEntry(domain string, stats2 DomainRequestStats) (DomainDiffEntry, int) {
 	entry := DomainDiffEntry{
-		Domain:        domain,
-		DiffEntryBase: DiffEntryBase{Status: "new"},
-		Run2Allowed:   stats2.Allowed,
-		Run2Blocked:   stats2.Blocked,
-		Run2Status:    classifyFirewallDomainStatus(stats2),
+		Domain:      domain,
+		Status:      "new",
+		Run2Allowed: stats2.Allowed,
+		Run2Blocked: stats2.Blocked,
+		Run2Status:  classifyFirewallDomainStatus(stats2),
 	}
 	if stats2.Blocked > 0 {
 		entry.IsAnomaly = true
