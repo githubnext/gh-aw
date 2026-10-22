@@ -42,6 +42,9 @@ type HealthCollection struct {
 	PotentialIssues           []HealthPotentialIssue              `json:"potential_issues,omitempty"`
 	PRLifecycleEvidence       map[int64]HealthPRLifecycleEvidence `json:"pr_lifecycle_evidence,omitempty"`
 	LifecycleRequests         int                                 `json:"lifecycle_requests"`
+	ApprovalExpiryEvidence    map[int64]HealthApprovalEvidence    `json:"approval_expiry_evidence,omitempty"`
+	ApprovalRequests          int                                 `json:"approval_requests"`
+	failureInventory          []WorkflowRun
 	lifecycleResponses        map[string]healthLifecycleResponse
 	workflows                 []GitHubWorkflow
 	revisions                 map[string]*workflow.LockMetadata
@@ -148,6 +151,13 @@ func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
 	}
 	if err := renderHealthWorkQueue(w, collection.WorkQueue); err != nil {
 		return err
+	}
+	for _, id := range slices.Sorted(maps.Keys(collection.ApprovalExpiryEvidence)) {
+		evidence := collection.ApprovalExpiryEvidence[id]
+		if _, err := fmt.Fprintf(w, "[health_approval_expiry] run=%d attempt=%d status=%s reason=%q url=%s\n",
+			id, evidence.Attempt, evidence.Status, evidence.Reason, evidence.URL); err != nil {
+			return err
+		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(collection.PRLifecycleEvidence)) {
 		evidence := collection.PRLifecycleEvidence[id]

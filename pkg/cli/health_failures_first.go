@@ -29,6 +29,7 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 	if err != nil {
 		return nil, err
 	}
+	collection.failureInventory = candidates
 	scopes := make(map[string]struct{})
 	var runs []WorkflowRun
 	for _, run := range candidates {
@@ -41,6 +42,7 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 			return runs, err
 		}
 		if !hasJobs {
+			observeHealthApprovalExpiry(run, collection)
 			markHealthPotentialIssue(run, collection, "jobless")
 			continue
 		}
