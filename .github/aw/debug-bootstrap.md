@@ -54,7 +54,10 @@ fragment; never send literal `../` segments as the API `path`:
 | Guide | Contents API `path` |
 | --- | --- |
 | Bootstrap | `.github/aw/debug-bootstrap.md` |
+| Scenario index | `.github/aw/debug-scenarios.md` |
 | Shared strategy | `.github/aw/debug-agentic-workflow.md` |
+| Compilation | `.github/aw/debug-compilation.md` |
+| Post-patch health | `.github/aw/debug-workflow-health.md` |
 | Evidence reference | `.github/aw/debug-workflow-evidence.md` |
 
 Preserve refs containing slashes, such as `feature/debugger`, from supplied
@@ -84,25 +87,12 @@ repository's overlay fetched as a default for another repository.
 
 ## Select the Next Route
 
-Preserve the requested mode first: explanation-only stays read-only; compile-only
-does not authorize execution. Then select the most specific matching intent,
-not simply the presence of a run URL:
-
-| User intent | Next action |
-| --- | --- |
-| Is the pushed fix healthy? | [Revision-aware health](analyzing-runs.md#route); an older green run cannot verify a new patch. |
-| Compile-only, including without Docker | [Development compilation](debug-agentic-workflow.md#development-compilation), not audit or dispatch. |
-| Endpoint/model errors or failed child under a green parent | [Model/engine checklist](debug-agentic-workflow.md#model-and-engine-misconfiguration) before model changes. |
-| Investigate a specific run/job/step | Compact audit in section 3, preserving the full URL. |
-| Named workflow without a run link | [Existing-run collection](analyzing-runs.md#collect), scoped to that workflow and repository. |
-| Fleet failures, timeouts, or wasted credits | [Failure clustering](analyzing-runs.md), not an arbitrary workflow or premature prompt optimization. |
-| No target or evidence | Request the browser address or workflow/repository once; use section 2's navigation help. |
-
-Sections 2 through 4 are references, not a mandatory sequence; skip unrelated setup,
-audits, and edits.
-Reuse loaded guides, known identity, cached evidence, and completed checks on
-follow-up turns. Ask only for an indispensable missing detail; never restart
-setup or repeat a completed collection. Missing tool results remain unknown.
+Use the [debugging scenario index](debug-scenarios.md) to select the next guide
+by intent and available evidence before setup. It covers compilation, post-patch
+health, model/child failures, scoped incidents, named workflows, fleet analysis,
+and missing context, with MCP-only, cached, enterprise, and source-reader paths.
+Its mode and continuity rules apply to follow-up turns. Sections 2 through 4
+are references, not a mandatory sequence; skip unrelated setup, audits, and edits.
 
 ## 2. Check the CLI and Run Identity
 
@@ -203,6 +193,9 @@ own evidence checklists, not an independent execution policy.
 | [agentic-workflows skill](../skills/agentic-workflows/SKILL.md), [embedded template](../../pkg/cli/data/agentic_workflows_skill.md) | Installed task routers; select the shared strategy or fleet analysis. |
 | [agentic-workflows agent](../agents/agentic-workflows.md), [embedded template](../../pkg/cli/data/agentic_workflows_agent.md) | Custom-agent routers with the same debugging path. |
 | [debug-agentic-workflow.md](debug-agentic-workflow.md) | Canonical diagnosis, patching, and permitted live-debug strategy. |
+| [debug-scenarios.md](debug-scenarios.md) | Intent index and capability-specific evidence routes. |
+| [debug-compilation.md](debug-compilation.md) | Compile-only diagnostics, scanners, lock effects, and result contract. |
+| [debug-workflow-health.md](debug-workflow-health.md) | Revision-aware verification of pushed fixes using existing runs. |
 | [debugging-workflows skill](../skills/debugging-workflows/SKILL.md) | Legacy skill router to the canonical evidence reference. |
 | [debug-workflow-evidence.md](debug-workflow-evidence.md) | Canonical evidence and CLI reference under the shared strategy. |
 | [debug-playbook.md](debug-playbook.md) | Finding-code lookup and targeted evidence retrieval. |

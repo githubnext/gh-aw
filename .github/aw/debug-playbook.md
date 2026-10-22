@@ -271,7 +271,7 @@ work or bypass profiles/effect scopes.
 | `EACCES`, `ENOENT`, `ETIMEDOUT`, process exit/signal | Operation/path; fatal versus caught. | Fix boundary; caught `/run/awf-config-audit` warning does not prove later inference failure. |
 | Unlisted code, compile/schema/scanner error | Exact identifier at producing revision; emitter/caller. | Trace cause; add regression/code row; report gaps, never guess. |
 
-No run: inspect file/line; follow [compile-only gates](debug-agentic-workflow.md#development-compilation).
+No run: inspect file/line; follow [compile-only gates](debug-compilation.md).
 Compilation doesn't verify inference/authorize execution.
 
 Report code, boundary, revision, evidence/uncertainty, remedy, files and execution.

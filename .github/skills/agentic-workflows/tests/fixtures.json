@@ -4,28 +4,28 @@
       "id": "patch_verification_without_runs",
       "prompt": "Is my pushed fix healthy? The last green run predates the patch.",
       "intent": "Is the pushed fix healthy?",
-      "route": "analyzing-runs.md#route",
+      "route": "debug-workflow-health.md",
       "required": "an older green run cannot verify a new patch"
     },
     {
       "id": "compile_dryrun_no_docker",
       "prompt": "Only compile my patch. Docker is unavailable; here is the previous failed run URL.",
       "intent": "Compile-only, including without Docker",
-      "route": "debug-agentic-workflow.md#development-compilation",
+      "route": "debug-compilation.md",
       "required": "not audit or dispatch"
     },
     {
       "id": "green_but_failed_subagent",
       "prompt": "The parent run is green but its Claude child failed with endpoint 400. Pin an older model?",
       "intent": "Endpoint/model errors or failed child under a green parent",
-      "route": "debug-agentic-workflow.md#model-and-engine-misconfiguration",
+      "route": "debug-model-engine-misconfiguration.md",
       "required": "before model changes"
     },
     {
       "id": "enterprise_job_step",
       "prompt": "Explain this enterprise job failure using its full step URL. Do not edit.",
       "intent": "Investigate a specific run/job/step",
-      "route": null,
+      "route": "debug-agentic-workflow.md#collect-existing-evidence",
       "required": "preserving the full URL"
     },
     {
@@ -46,11 +46,38 @@
       "id": "beginner_missing_context",
       "prompt": "Our AI bot failed. I only have the repository page and do not know a run ID.",
       "intent": "No target or evidence",
-      "route": null,
+      "route": "#missing-context",
       "required": "Request the browser address or workflow/repository once"
     }
   ],
   "source_reading": [
+    {
+      "id": "scenario_index_reader",
+      "source_path": ".github/aw/debug-bootstrap.md",
+      "guidance_ref": "feature/debugger",
+      "link": "debug-scenarios.md",
+      "api_path": ".github/aw/debug-scenarios.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
+    {
+      "id": "specialized_compilation_reader",
+      "source_path": ".github/aw/debug-scenarios.md",
+      "guidance_ref": "feature/debugger",
+      "link": "debug-compilation.md",
+      "api_path": ".github/aw/debug-compilation.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
+    {
+      "id": "specialized_health_reader",
+      "source_path": ".github/aw/debug-scenarios.md",
+      "guidance_ref": "feature/debugger",
+      "link": "debug-workflow-health.md",
+      "api_path": ".github/aw/debug-workflow-health.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
     {
       "id": "root_skill_reader",
       "source_path": "SKILL.md",

@@ -18,6 +18,8 @@ bootstrap's intent routing before generic update, upgrade, or optimization route
 even when the CLI is installed. Preserve the supplied guidance repository/ref
 for all debugging links and public raw fallbacks; URLs showing `main` below are
 defaults only when no guidance revision is supplied. Reuse already-loaded guides.
+The intent index is `.github/aw/debug-scenarios.md`; load only the selected
+specialized route, not every debugging reference.
 
 Repository overlay (optional):
 - If `.github/aw/instructions.md` exists, load it with `@.github/aw/instructions.md` after loading the matched prompt/skill.
@@ -44,10 +46,13 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 - `.github/aw/create-shared-agentic-workflow.md`
 - `.github/aw/debug-agentic-workflow.md`
 - `.github/aw/debug-bootstrap.md`
+- `.github/aw/debug-compilation.md`
 - `.github/aw/debug-model-engine-misconfiguration.md`
 - `.github/aw/debug-playbook.md`
+- `.github/aw/debug-scenarios.md`
 - `.github/aw/debug-security-review.md`
 - `.github/aw/debug-workflow-evidence.md`
+- `.github/aw/debug-workflow-health.md`
 - `.github/aw/dependabot.md`
 - `.github/aw/deployment-status.md`
 - `.github/aw/designer-mappings.md`

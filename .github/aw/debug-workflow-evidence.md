@@ -26,7 +26,7 @@ and [dry-run dangerous-feature gate](debug-security-review.md#dry-run-dangerous-
 when those stages apply. Do not substitute this reference's examples for those gates.
 
 Report separate [security-review results](debug-security-review.md#user-visible-result)
-and [dry-run results](debug-agentic-workflow.md#user-visible-dry-run-result),
+and [dry-run results](debug-compilation.md#user-visible-dry-run-result),
 and follow the [blocked-result requirements](debug-security-review.md#explain-blocked-or-unavailable-debugging)
 when evidence or authorization is unavailable. For workflows using `tools.work-queue`,
 also load the [queue protocol](work-queue.md).

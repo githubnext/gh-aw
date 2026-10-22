@@ -14,6 +14,8 @@ its intent routing, even when the CLI is installed. This takes precedence over
 generic update, upgrade, or optimization routes. Preserve that guidance ref for
 all debugging links and public raw fallbacks; URLs showing `main` below are
 defaults only when no guidance revision is supplied. Reuse already-loaded guides.
+The intent index is `.github/aw/debug-scenarios.md`; load only the selected
+specialized route, not every debugging reference.
 
 ## Repository Instructions Overlay
 

@@ -14,8 +14,15 @@ DEBUG_GUIDE = ROOT / ".github/aw/debug-agentic-workflow.md"
 GUIDES = (ROOT / ".github/aw/debug-model-engine-misconfiguration.md",)
 BOOTSTRAP = ROOT / ".github/aw/debug-bootstrap.md"
 EVIDENCE_GUIDE = ROOT / ".github/aw/debug-workflow-evidence.md"
+SCENARIOS = ROOT / ".github/aw/debug-scenarios.md"
+COMPILATION = ROOT / ".github/aw/debug-compilation.md"
+HEALTH = ROOT / ".github/aw/debug-workflow-health.md"
 FIXTURES = json.loads((SKILL / "tests/fixtures.json").read_text())
 ANCHOR = "#model-and-engine-misconfiguration"
+
+
+def heading_anchor(heading):
+    return re.sub(r"[^\w -]", "", heading.lower()).replace(" ", "-")
 
 
 def checklist(text):
@@ -27,7 +34,8 @@ def checklist(text):
 class GuidanceTests(unittest.TestCase):
     def test_persona_intents_have_explicit_routes_before_cli_setup(self):
         guide = BOOTSTRAP.read_text()
-        routes = guide.split("## Select the Next Route\n", 1)[1].split("\n## ", 1)[0]
+        index = SCENARIOS.read_text()
+        routes = index.split("## Select the Next Route\n", 1)[1].split("\n## ", 1)[0]
         rows = {}
         for line in routes.splitlines():
             if line.startswith("|"):
@@ -50,8 +58,84 @@ class GuidanceTests(unittest.TestCase):
             "repeat a completed collection",
             "Missing tool results remain unknown",
         ):
-            self.assertIn(required, routes)
+            self.assertIn(required, index)
+        self.assertIn("](debug-scenarios.md)", guide)
         self.assertLess(guide.index("## Select the Next Route"), guide.index("gh extension install"))
+
+    def test_specialized_guides_keep_links_and_legacy_anchors(self):
+        self.assertEqual(heading_anchor("3. Audit the Supplied Run"), "3-audit-the-supplied-run")
+        for source in (
+            SCENARIOS, COMPILATION, HEALTH, DEBUG_GUIDE,
+            ROOT / ".github/aw/analyzing-runs.md",
+        ):
+            for link in re.findall(r"\]\(([^)]+)\)", source.read_text()):
+                if link.startswith("https://"):
+                    continue
+                with self.subTest(source=source.name, link=link):
+                    path, _, anchor = link.partition("#")
+                    target = source.parent / path if path else source
+                    self.assertTrue(target.is_file())
+                    if anchor:
+                        headings = re.findall(r"^#+ (.+)$", target.read_text(), re.M)
+                        self.assertIn(anchor, [heading_anchor(h) for h in headings])
+        for heading, target in (
+            ("Development Compilation", "debug-compilation.md#development-compilation"),
+            ("User-Visible Dry-Run Result", "debug-compilation.md#user-visible-dry-run-result"),
+        ):
+            legacy_section = DEBUG_GUIDE.read_text().split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0]
+            self.assertIn(f"]({target})", legacy_section)
+            self.assertLessEqual(len(legacy_section.split()), 65)
+        self.assertIn("](debug-workflow-health.md)", (ROOT / ".github/aw/analyzing-runs.md").read_text())
+
+    def test_compilation_route_preserves_checks_and_result_contract(self):
+        guide = COMPILATION.read_text()
+        for required in (
+            "debug-agentic-workflow.md",
+            "debug-security-review.md#compile-only-validation",
+            "must emit locks",
+            "restore only the compiler's",
+            "native `shellcheck`",
+            "medium-or-higher or unclassified findings fail",
+            "pre_compile_lock_files",
+            "Execution/parsing failures",
+            "model-inventory failures",
+            "no unsafe dry-run override",
+            "not a sandbox for arbitrary code",
+            "User-Visible Dry-Run Result",
+            "If no lock\nwas emitted, say so",
+            "not only in logs or private artifacts",
+            "no workflow was executed",
+        ):
+            self.assertIn(required, guide)
+        self.assertIn("](debug-compilation.md)", SCENARIOS.read_text())
+        self.assertNotIn("warning_baseline", DEBUG_GUIDE.read_text())
+
+    def test_health_route_preserves_revision_and_completeness_contract(self):
+        guide = HEALTH.read_text()
+        for required in (
+            "gh aw health WORKFLOW --repo HOST/OWNER/REPO --json",
+            "failure_listing_complete",
+            "failure_pass_complete",
+            "representative_status",
+            "superseded",
+            "source_sha",
+            "gh-aw-metadata",
+            "recovery_observed",
+            "not repository commits alone",
+            "not healthy",
+            "awaiting verification",
+            "do not dispatch for evidence",
+            "actual schema",
+        ):
+            self.assertIn(required, guide)
+        self.assertIn("](debug-workflow-health.md)", SCENARIOS.read_text())
+        self.assertNotIn("failure_pass_complete", (ROOT / ".github/aw/analyzing-runs.md").read_text())
+
+    def test_initial_and_specialized_guides_fit_full_file_api_reads(self):
+        for path in (BOOTSTRAP, DEBUG_GUIDE, SCENARIOS, COMPILATION, HEALTH, EVIDENCE_GUIDE):
+            with self.subTest(path=path.name):
+                self.assertLessEqual(path.stat().st_size, 20000)
+        self.assertLessEqual(len(SCENARIOS.read_text().split()), 800)
 
     def test_installed_routers_preserve_debug_ref_and_intent_precedence(self):
         for path in (
@@ -70,6 +154,8 @@ class GuidanceTests(unittest.TestCase):
                     "all debugging links and public raw fallbacks",
                     "defaults only when no guidance revision is supplied",
                     "Reuse already-loaded guides",
+                    ".github/aw/debug-scenarios.md",
+                    "load only the selected",
                 ):
                     self.assertIn(required, text)
 
@@ -213,7 +299,7 @@ class GuidanceTests(unittest.TestCase):
                 self.assertTrue(target.is_file())
                 if anchor:
                     headings = re.findall(r"^#+ (.+)$", target.read_text(), re.M)
-                    self.assertIn(anchor, [heading.lower().replace(" ", "-") for heading in headings])
+                    self.assertIn(anchor, [heading_anchor(heading) for heading in headings])
         self.assertIn("debug-playbook.md", links)
         self.assertIn("analyzing-runs.md", links)
         self.assertIn(f"debug-agentic-workflow.md{ANCHOR}", links)
