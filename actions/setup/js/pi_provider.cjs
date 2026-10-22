@@ -358,9 +358,13 @@ function piProviderExtension(pi) {
 
   // Process isolation is the attribution boundary: the parent and every
   // sub-agent run as separate Pi processes that each load this extension.
-  const awfCaller = resolveAwfCaller();
-  if (!awfCaller) log("x-awf-caller omitted: sub-agent name is not a valid AWF caller");
-  pi.on("before_provider_headers", event => applyAwfCallerHeader(event?.headers, awfCaller));
+  // Only send the header to the AWF api-proxy, never directly to a provider
+  // (e.g. sandbox.agent: false — no api-proxy running).
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    const awfCaller = resolveAwfCaller();
+    if (!awfCaller) log("x-awf-caller omitted: sub-agent name is not a valid AWF caller");
+    pi.on("before_provider_headers", event => applyAwfCallerHeader(event?.headers, awfCaller));
+  }
 
   pi.on("before_provider_request", (_event, ctx) => {
     providerRequestCount += 1;

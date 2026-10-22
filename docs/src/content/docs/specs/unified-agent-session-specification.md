@@ -874,7 +874,7 @@ send a provider- or process-wide `main` that sub-agent requests would inherit.
 
 | Engine (pinned runtime) | `x-awf-caller` support |
 | --- | --- |
-| Pi 1.3.0 | Each Pi process sets the header in its provider extension's `before_provider_headers` hook: `main` in the parent (SDK/agent-core, RPC, and CLI paths) and `subagent/<name>` in each sub-agent process, whose declared name is passed in that process's environment. API selection and `models.json` are unchanged. |
+| Pi 1.3.0 | Each Pi process sets the header in its provider extension's `before_provider_headers` hook: `main` in the parent (SDK/agent-core, RPC, and CLI paths) and `subagent/<name>` in each sub-agent process, whose declared name is passed in that process's environment. The hook is registered only when the AWF api-proxy is present (`AWF_REFLECT_ENABLED=1`). API selection and `models.json` are unchanged. |
 | Copilot SDK 1.0.16 | None. `providers[].headers` apply to every request to a provider and `MessageOptions.requestHeaders` to a whole turn; built-in and inherited-model sub-agents share the session provider, and per-agent provider clones would change qualified model IDs. Requests remain unattributed. |
 | Copilot CLI | None. `COPILOT_PROVIDER_HEADERS` and provider-registry headers are provider- and process-wide. |
 | Claude Code | None. `ANTHROPIC_CUSTOM_HEADERS` is process-wide and shared by in-process sub-agents. |

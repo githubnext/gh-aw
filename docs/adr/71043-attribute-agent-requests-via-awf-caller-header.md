@@ -1,8 +1,8 @@
 # ADR-71043: Attribute Agent Proxy Requests via x-awf-caller Header Only at Per-Process Boundaries
 
 **Date**: 2026-10-22
-**Status**: Draft
-**Deciders**: [TODO: verify] SivaKesava1, gh-aw maintainers
+**Status**: Proposed
+**Deciders**: gh-aw maintainers
 
 ---
 
@@ -12,7 +12,7 @@ The AWF API proxy records one accounting entry per LLM request (`token-usage.jso
 
 ### Decision
 
-We will send `x-awf-caller` only from harnesses that have a real per-caller process boundary, which today means Pi only. Pi's `before_provider_headers` hook sends `main` from the parent process and `subagent/<name>` from each sub-agent process (the name is passed through `GH_AW_PI_SUBAGENT_NAME`). Invalid values are omitted, never truncated. The collector will keep AWF's caller fields (`agentName`, `callerSource`) in the unified session, bumped to spec 2.4.0 with requirement T-UAS-083. Audit and logs will treat explicit caller records as authoritative: they are credited first and reserved. Token/model/time correlation then runs only over the unlabelled records and only for sub-agents that have no explicit records. AWF-owned records (`routing_classification` or `callerSource: awf`) are never counted as agent requests. The main driver is correctness: an attribution label must never be wrong, even if that means some requests stay unattributed.
+We will send `x-awf-caller` only from harnesses that have a real per-caller process boundary, which today means Pi only. Pi's `before_provider_headers` hook sends `main` from the parent process and `subagent/<name>` from each sub-agent process (the name is passed through `GH_AW_PI_SUBAGENT_NAME`). The header is registered only when the AWF api-proxy is present (`AWF_REFLECT_ENABLED=1`), so caller names never reach a provider directly (for example with `sandbox.agent: false`). Invalid values are omitted, never truncated. The collector will keep AWF's caller fields (`agentName`, `callerSource`) in the unified session, bumped to spec 2.4.0 with requirement T-UAS-083. Audit and logs will treat explicit caller records as authoritative: they are credited first and reserved. Token/model/time correlation then runs only over the unlabelled records and only for sub-agents that have no explicit records. AWF-owned records (`routing_classification` or `callerSource: awf`) are never counted as agent requests. The main driver is correctness: an attribution label must never be wrong, even if that means some requests stay unattributed.
 
 ### Alternatives Considered
 
@@ -44,8 +44,9 @@ This needs no harness or schema changes. It was rejected as the primary mechanis
 
 #### Neutral
 - The unified session specification is bumped to 2.4.0 with a per-engine support table and a compliance-matrix row.
+- Pi runs without the AWF api-proxy send no `x-awf-caller` header.
 - Pi sub-agent names that do not match `^(?:main|subagent/[A-Za-z0-9_.:/-]+)$` lead to the header being omitted rather than to an error.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Review and finalize before changing status from Proposed to Accepted.*

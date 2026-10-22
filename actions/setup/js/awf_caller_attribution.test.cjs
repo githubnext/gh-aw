@@ -14,39 +14,129 @@ const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs"
 const { createSessionValidator } = require("./scripts/validate_session.cjs");
 
 const ACTIONS_DIR = import.meta.dirname;
-const CALLER_PATTERN = /^(?:main|subagent\/[A-Za-z0-9_.:/-]+)$/;
 
-// Selected fields of agent artifact sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
-// from Smoke Pi Routed run 39540473269 (AWF v0.28.70). The rows omit purpose,
-// agent_name and caller_source because the harness sent no x-awf-caller header.
-const realRecord = fields => ({
+// Verbatim rows of agent artifact sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
+// from Smoke Pi Routed run 39816721390 (AWF v0.28.70). AWF omits agent_name on
+// main and classifier rows.
+const PI_CLASSIFIER = {
   _schema: "token-usage/v0.28.70",
+  timestamp: "2026-10-22T16:49:26.409Z",
   event: "token_usage",
+  request_id: "d482afa2-cb18-4b20-9b1f-8682eef3a3bc",
   provider: "copilot",
+  model: "gpt-5.6-luna",
+  path: "/responses",
   status: 200,
-  streaming: true,
-  input_tokens: 1200,
-  output_tokens: 40,
+  streaming: false,
+  input_tokens: 939,
+  output_tokens: 683,
   cache_read_tokens: 0,
   cache_write_tokens: 0,
-  duration_ms: 800,
-  ...fields,
-});
-const PI_CLASSIFIER = realRecord({ timestamp: "2026-10-21T03:49:48.512Z", request_id: "classifier-1", model: "gpt-5.4-mini", path: "/chat/completions", purpose: "routing_classification", caller_source: "awf" });
-const PI_MAIN = realRecord({ timestamp: "2026-10-21T03:49:50.709Z", request_id: "e92da47e-0815-427d-bb28-db4d501bcccf", model: "gpt-5.6-luna", path: "/responses", x_initiator: "agent" });
-const PI_HAIKU = realRecord({ timestamp: "2026-10-21T03:49:51.799Z", request_id: "511ef3bb-e6e6-43a5-9b28-8a6f4082a147", model: "claude-haiku-4-5-20251001", path: "/v1/messages?beta=true", x_initiator: "agent" });
-const PI_MINI = realRecord({ timestamp: "2026-10-21T03:49:58.208Z", request_id: "4d023499-e6e6-43a5-9b28-8a6f4082a147", model: "gpt-5.3-codex", path: "/responses", x_initiator: "agent" });
+  duration_ms: 7233,
+  response_bytes: 28755,
+  purpose: "routing_classification",
+  caller_source: "awf",
+  x_initiator: "agent",
+  ai_credits_this_response: 0.10074,
+  ai_credits_total: 0.10074,
+  ai_credits_pricing_source: "provider",
+  ai_credits_pricing_tier: "default",
+  ai_credits_accounting_policy: "concrete_model",
+  ai_credits_fallback_pricing_used: false,
+  ai_credits_pricing_observed_at: "2026-10-22T16:49:19.145Z",
+  ai_credits_pricing_api_version: "2026-07-01",
+};
+const PI_MAIN = {
+  _schema: "token-usage/v0.28.70",
+  timestamp: "2026-10-22T16:49:40.800Z",
+  event: "token_usage",
+  request_id: "30ad7ece-0ee6-46d3-acc1-3f685176d0fd",
+  provider: "copilot",
+  model: "gpt-5.6-luna",
+  path: "/responses",
+  status: 200,
+  streaming: true,
+  input_tokens: 11669,
+  output_tokens: 236,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  duration_ms: 2974,
+  response_bytes: 188333,
+  purpose: "agent",
+  caller_source: "caller_header",
+  x_initiator: "agent",
+  ai_credits_this_response: 0.2617,
+  ai_credits_total: 0.36244,
+  ai_credits_pricing_source: "provider",
+  ai_credits_pricing_tier: "default",
+  ai_credits_accounting_policy: "concrete_model",
+  ai_credits_fallback_pricing_used: false,
+  ai_credits_pricing_observed_at: "2026-10-22T16:49:19.145Z",
+  ai_credits_pricing_api_version: "2026-07-01",
+};
+const PI_HAIKU = {
+  _schema: "token-usage/v0.28.70",
+  timestamp: "2026-10-22T16:49:42.214Z",
+  event: "token_usage",
+  request_id: "2d40ee31-fbc2-410f-b7aa-d3bd8a30a99b",
+  provider: "copilot",
+  model: "claude-haiku-4-5-20251001",
+  path: "/v1/messages?beta=true",
+  status: 200,
+  streaming: true,
+  input_tokens: 3,
+  output_tokens: 8,
+  cache_read_tokens: 0,
+  cache_write_tokens: 16332,
+  duration_ms: 1024,
+  response_bytes: 1859,
+  purpose: "subagent",
+  agent_name: "haiku-whoami",
+  caller_source: "caller_header",
+  x_initiator: "agent",
+  ai_credits_this_response: 2.0458,
+  ai_credits_total: 2.40824,
+  ai_credits_pricing_source: "provider",
+  ai_credits_pricing_tier: "default",
+  ai_credits_accounting_policy: "concrete_model",
+  ai_credits_fallback_pricing_used: false,
+  ai_credits_pricing_observed_at: "2026-10-22T16:49:19.145Z",
+  ai_credits_pricing_api_version: "2026-07-01",
+};
+const PI_MINI = {
+  _schema: "token-usage/v0.28.70",
+  timestamp: "2026-10-22T16:49:47.869Z",
+  event: "token_usage",
+  request_id: "bfc0ed4b-0845-4fe6-a6a5-5ed20b3eb282",
+  provider: "copilot",
+  model: "gpt-5.3-codex",
+  path: "/responses",
+  status: 200,
+  streaming: true,
+  input_tokens: 11465,
+  output_tokens: 134,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  duration_ms: 2823,
+  response_bytes: 179115,
+  purpose: "subagent",
+  agent_name: "mini-whoami",
+  caller_source: "caller_header",
+  x_initiator: "agent",
+  ai_credits_this_response: 2.193975,
+  ai_credits_total: 4.635447,
+  ai_credits_pricing_source: "provider",
+  ai_credits_pricing_tier: "default",
+  ai_credits_accounting_policy: "concrete_model",
+  ai_credits_fallback_pricing_used: false,
+  ai_credits_pricing_observed_at: "2026-10-22T16:49:19.145Z",
+  ai_credits_pricing_api_version: "2026-07-01",
+};
 
-// Mirrors AWF callerRecordFields/parseCallerHeader (gh-aw-firewall#10222,
-// containers/api-proxy/caller-header.js): the trusted AWF purpose wins, a
-// valid caller adds purpose/agent_name/caller_source, anything else adds nothing.
-function awfRecord(record, header, awfPurpose) {
-  const { purpose: _purpose, caller_source: _source, agent_name: _name, ...base } = record;
-  if (awfPurpose) return { ...base, purpose: awfPurpose, caller_source: "awf" };
-  if (typeof header !== "string" || header.length > 128 || !CALLER_PATTERN.test(header)) return base;
-  if (header === "main") return { ...base, purpose: "agent", caller_source: "caller_header" };
-  return { ...base, purpose: "subagent", agent_name: header.slice("subagent/".length), caller_source: "caller_header" };
-}
+// AWF writes no caller fields for a request without a valid x-awf-caller header
+// (older AWF, headerless engines, or a rejected value), as in Smoke Pi Routed
+// run 39540473269 before the harness sent the header.
+const withoutCallerFields = ({ purpose: _purpose, agent_name: _name, caller_source: _source, ...record }) => record;
 
 /** Collector path: raw api-proxy record -> runtime event -> unified projection. */
 function project(record) {
@@ -68,7 +158,7 @@ function captureProviderHeaders(initial = {}) {
   const handlers = {};
   piProvider({ registerProvider: () => {}, on: (name, handler) => (handlers[name] = handler) });
   const headers = { authorization: "******", ...initial };
-  handlers.before_provider_headers({ type: "before_provider_headers", headers });
+  handlers.before_provider_headers?.({ type: "before_provider_headers", headers });
   return headers;
 }
 
@@ -84,6 +174,7 @@ describe("AWF x-awf-caller attribution", () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     vi.stubEnv("GH_AW_PI_SUBAGENT_CHILD", "");
     vi.stubEnv("GH_AW_PI_SUBAGENT_NAME", "");
+    vi.stubEnv("AWF_REFLECT_ENABLED", "1");
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -125,9 +216,9 @@ process.stdin.on("end", () => {
     write.mockRestore();
 
     // AWF records of those requests keep their caller fields through the collector.
-    expect(callerFields(project(awfRecord(PI_MAIN, parentHeaders["x-awf-caller"])))).toEqual({ purpose: "agent", callerSource: "caller_header" });
-    expect(callerFields(project(awfRecord(PI_HAIKU, "subagent/haiku-whoami")))).toEqual({ purpose: "subagent", agentName: "haiku-whoami", callerSource: "caller_header" });
-    expect(callerFields(project(awfRecord(PI_MINI, "subagent/mini-whoami")))).toEqual({ purpose: "subagent", agentName: "mini-whoami", callerSource: "caller_header" });
+    expect(callerFields(project(PI_MAIN))).toEqual({ purpose: "agent", callerSource: "caller_header" });
+    expect(callerFields(project(PI_HAIKU))).toEqual({ purpose: "subagent", agentName: "haiku-whoami", callerSource: "caller_header" });
+    expect(callerFields(project(PI_MINI))).toEqual({ purpose: "subagent", agentName: "mini-whoami", callerSource: "caller_header" });
     // Canonical camelCase input is preserved too.
     expect(callerFields(normalizeUnifiedSessionEvent({ type: "firewall.token_usage", data: { purpose: "subagent", agentName: "haiku-whoami", callerSource: "caller_header" } }).data)).toEqual({
       purpose: "subagent",
@@ -204,31 +295,34 @@ process.stdin.on("end", () => {
     // Boundary-length names are sent unchanged.
     vi.stubEnv("GH_AW_PI_SUBAGENT_NAME", "a".repeat(119));
     expect(captureProviderHeaders()["x-awf-caller"]).toBe(`subagent/${"a".repeat(119)}`);
-    // Headerless child requests (SDK, CLI, Claude Code, Codex) stay unattributed.
-    const child = project(awfRecord(PI_HAIKU, undefined));
-    expect(callerFields(child)).toEqual({});
+    expect(captureProviderHeaders({ "x-awf-caller": "main" })["x-awf-caller"]).toBe(`subagent/${"a".repeat(119)}`);
+    vi.stubEnv("GH_AW_PI_SUBAGENT_NAME", "a_b.c:d/e-f");
+    expect(captureProviderHeaders()["x-awf-caller"]).toBe("subagent/a_b.c:d/e-f");
   });
 
-  it("invalid_or_missing_caller_is_absent_and_backward_compatible", () => {
-    // AWF rejects these values (caller-header.test.js) and writes no caller fields.
-    for (const header of [undefined, `subagent/${"a".repeat(120)}`, "subagent/file summarizer", "subagent/", "admin", "main, main", "", "main\n", ["main"]]) {
-      const data = project(awfRecord(PI_MAIN, header));
+  it("no_caller_header_without_awf_proxy", () => {
+    // sandbox.agent: false has no api-proxy, so caller names must not reach the provider.
+    vi.stubEnv("AWF_REFLECT_ENABLED", "");
+    expect(captureProviderHeaders()).toEqual({ authorization: "******" });
+    vi.stubEnv("GH_AW_PI_SUBAGENT_CHILD", "1");
+    vi.stubEnv("GH_AW_PI_SUBAGENT_NAME", "haiku-whoami");
+    expect(captureProviderHeaders()).toEqual({ authorization: "******" });
+  });
+
+  it("missing_caller_fields_are_absent_and_backward_compatible", () => {
+    // Records without caller fields project without crashing and gain none.
+    for (const record of [PI_MAIN, PI_HAIKU, PI_MINI, PI_CLASSIFIER]) {
+      const data = project(withoutCallerFields(record));
       expect(callerFields(data)).toEqual({});
-      expect(data).toMatchObject({ model: "gpt-5.6-luna", requestId: PI_MAIN.request_id, path: "/responses", xInitiator: "agent", status: 200 });
+      expect(data).toMatchObject({ model: record.model, requestId: record.request_id, path: record.path, xInitiator: "agent", status: 200 });
     }
-    // Older v0.28.70 records without the fields project without crashing.
-    for (const record of [PI_MAIN, PI_HAIKU, PI_MINI]) expect(callerFields(project(record))).toEqual({});
-    // Valid boundary-length values survive unchanged.
-    const boundary = `subagent/${"a".repeat(119)}`;
-    expect(boundary).toHaveLength(128);
-    expect(project(awfRecord(PI_MINI, boundary))).toMatchObject({ purpose: "subagent", agentName: "a".repeat(119), callerSource: "caller_header" });
-    expect(project(awfRecord(PI_MINI, "subagent/a_b.c:d/e-f")).agentName).toBe("a_b.c:d/e-f");
   });
 
   it("awf_owned_purpose_wins_over_caller", () => {
-    // The real classifier record (raw L1) keeps purpose and caller source.
+    // The real classifier record keeps AWF's purpose and caller source, and
+    // AWF omits agent_name, so no child name is fabricated.
+    expect(PI_CLASSIFIER).toMatchObject({ model: "gpt-5.6-luna", path: "/responses" });
+    expect(Object.hasOwn(PI_CLASSIFIER, "agent_name")).toBe(false);
     expect(callerFields(project(PI_CLASSIFIER))).toEqual({ purpose: "routing_classification", callerSource: "awf" });
-    // A conflicting caller is ignored by AWF; no child name is fabricated.
-    expect(callerFields(project(awfRecord(PI_CLASSIFIER, "subagent/x", "routing_classification")))).toEqual({ purpose: "routing_classification", callerSource: "awf" });
   });
 });
