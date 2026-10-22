@@ -871,6 +871,42 @@ describe("sendOTLPSpan", () => {
     appendSpy.mockRestore();
   });
 
+  it.each([401, 403])("does not retry permanent HTTP %i authorization failures", async status => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status, statusText: status === 401 ? "Unauthorized" : "Forbidden" });
+    vi.stubGlobal("fetch", mockFetch);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://collector.example.com", { resourceSpans: [] }, { baseDelayMs: 1 })).resolves.toBeUndefined();
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0][0]).toContain("authorization header and write permissions");
+    expect(warnSpy.mock.calls[0][0]).toContain("unchanged credentials will not be retried");
+    expect(appendSpy).toHaveBeenCalledWith(OTEL_JSONL_PATH, expect.stringContaining('"resourceSpans":[]'));
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", expect.stringContaining(`"status":${status}`));
+
+    writeSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it.each([401, 403])("does not retry proxy transport HTTP %i authorization failures", async status => {
+    process.env.HTTPS_PROXY = "http://proxy.internal:3128";
+    spawnSyncSpy.mockReturnValue({ error: undefined, status: 0, stdout: String(status), stderr: "" });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+
+    await expect(sendOTLPSpan("https://collector.example.com", {}, { baseDelayMs: 1, skipJSONL: true })).resolves.toBeUndefined();
+
+    expect(spawnSyncSpy).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(appendSpy).toHaveBeenCalledWith("/tmp/gh-aw/otlp-export-errors.jsonl", expect.stringContaining(`"status":${status}`));
+
+    writeSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   it("falls back to HTTP status when curl reports non-2xx with statusText OK", async () => {
     process.env.HTTPS_PROXY = "http://proxy.internal:3128";
     spawnSyncSpy.mockReturnValue({ error: undefined, status: 0, stdout: "401", stderr: "" });
