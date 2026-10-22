@@ -44,6 +44,7 @@ const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
 const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
 const { PROXY_ENV_NAMES } = require("./constants.cjs");
 const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
+const { prepareMCPServerCAs } = require("./mcp_server_ca.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -986,6 +987,7 @@ async function main() {
   }
   applyAgenticWorkflowsRunnerIdentity(configObj);
   applyGatewayRuntimeTimeouts(configObj, process.env);
+  const caMountArgs = prepareMCPServerCAs(configObj);
   mcpConfig = JSON.stringify(configObj);
   if (!("port" in gw) || gw.port == null) {
     core.setFailed("ERROR: Gateway configuration is missing required 'port' field");
@@ -1052,6 +1054,8 @@ async function main() {
     return;
   }
   const gatewayEnv = { ...process.env };
+  // Insert before all existing flags and the image, never into the command string.
+  args.splice(1, 0, ...caMountArgs);
   args = injectCustomGatewayEnvArgs(args, gatewayEnv);
   args = injectProxyEnvArgs(args, gatewayEnv);
 
