@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,9 @@ import (
 
 func installOutcomeAPIFixture(t *testing.T, script string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("shell script fake gh is not supported on Windows")
+	}
 	dir := t.TempDir()
 	calls := filepath.Join(dir, "calls")
 	t.Setenv("GH_AW_TEST_OUTCOME_CALLS", calls)
