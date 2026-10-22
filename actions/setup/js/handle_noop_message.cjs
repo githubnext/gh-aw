@@ -12,7 +12,7 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 const { loadAgentOutput, shouldIgnoreTaskCompleteRegistrationReports } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
-const { formatAIC } = require("./model_costs.cjs");
+const { formatEstimatedAIC } = require("./model_costs.cjs");
 const { buildNoopConclusionSummary } = require("./conclusion_summary.cjs");
 
 /**
@@ -128,7 +128,7 @@ function parsePositiveAIC(raw) {
  * @returns {string}
  */
 function buildAICEntry(label, value, modelAlias) {
-  const formatted = typeof value === "number" ? formatAIC(value) : "";
+  const formatted = typeof value === "number" ? formatEstimatedAIC(value) : "";
   if (!formatted) {
     return "";
   }

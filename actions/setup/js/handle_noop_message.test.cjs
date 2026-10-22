@@ -805,11 +805,19 @@ safe-outputs:
     expect(commentCall.body).not.toContain("<script>");
   });
 
-  it("should include AIC suffix in comment footer when GH_AW_AIC is set", async () => {
+  it.each([
+    ["0.025", "~1"],
+    ["0.000000000001", "~1"],
+    ["1", "~1"],
+    ["1.000000000001", "~2"],
+    ["12.4", "~13"],
+    ["1000.1", "~1001"],
+    ["1000000.1", "~1000001"],
+  ])("should include estimated %s AIC in the no-op footer", async (value, formatted) => {
     process.env.GH_AW_WORKFLOW_NAME = "AIC Test Workflow";
     process.env.GH_AW_RUN_URL = "https://github.com/test/test/actions/runs/123";
     process.env.GH_AW_AGENT_CONCLUSION = "success";
-    process.env.GH_AW_AIC = "0.025";
+    process.env.GH_AW_AIC = value;
 
     const outputFile = path.join(tempDir, "agent_output.json");
     fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "noop", message: "No action needed" }] }));
@@ -824,7 +832,7 @@ safe-outputs:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("AIC");
+    expect(commentCall.body).toContain(` · ${formatted} AIC`);
   });
 
   it("should include detection AIC in the footer total when GH_AW_THREAT_DETECTION_AIC is set", async () => {
@@ -848,7 +856,7 @@ safe-outputs:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("sonnet46 · 0.1 AIC · ⌖ 0.025 AIC");
+    expect(commentCall.body).toContain("sonnet46 · ~1 AIC · ⌖ ~1 AIC");
   });
 
   it("should include evals AIC in the footer breakdown when GH_AW_EVALS_AIC is set", async () => {
@@ -872,7 +880,7 @@ safe-outputs:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("sonnet46 · 0.1 AIC · ◇ 0.025 AIC");
+    expect(commentCall.body).toContain("sonnet46 · ~1 AIC · ◇ ~1 AIC");
   });
 
   it("should place evals AIC after detection AIC in the footer breakdown", async () => {
@@ -897,7 +905,7 @@ safe-outputs:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("sonnet46 · 0.1 AIC · ⌖ 0.025 AIC · ◇ 0.01 AIC");
+    expect(commentCall.body).toContain("sonnet46 · ~1 AIC · ⌖ ~1 AIC · ◇ ~1 AIC");
   });
 
   it("should not include AIC suffix in comment footer when GH_AW_AIC is not set", async () => {
