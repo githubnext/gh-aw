@@ -285,7 +285,7 @@ func TestValidArtifactSetNames(t *testing.T) {
 	names := ValidArtifactSetNames()
 	require.NotEmpty(t, names, "ValidArtifactSetNames should return non-empty slice")
 
-	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "graders", "info", "mcp", "usage", "work-queue"}
+	expected := []string{"all", "activation", "agent", "detection", "evals", "experiment", "firewall", "github-api", "graders", "info", "mcp", "outcomes", "usage", "work-queue"}
 	assert.ElementsMatch(t, expected, names, "ValidArtifactSetNames should contain all known sets")
 }
 
@@ -456,6 +456,7 @@ func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
 		{name: "usage only", filter: []string{"usage"}, expected: false},
 		{name: "info only", filter: []string{"info"}, expected: false},
 		{name: "activation and usage", filter: []string{"activation", "usage"}, expected: false},
+		{name: "outcome evidence only", filter: []string{"usage", "safe-outputs-items", "agent-output-fallback"}, expected: false},
 		{name: "agent", filter: []string{"agent"}, expected: true},
 		{name: "agent and usage", filter: []string{"agent", "usage"}, expected: true},
 	}

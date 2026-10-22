@@ -2,7 +2,11 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,42 +16,22 @@ import (
 
 var outcomeEvalEnrichLog = logger.New("cli:outcome_eval_enrich")
 
+type rawOutcomeEntry struct {
+	Type        string `json:"type"`
+	IssueNumber int    `json:"issue_number"`
+	ItemNumber  int    `json:"item_number"`
+	PullNumber  int    `json:"pull_number"`
+}
+
 // enrichItemsFromAgentOutput reads the raw agent output (safeoutputs.jsonl) and fills in
 // missing fields like issue_number and item_number that the executed manifest may omit.
 func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaultRepo string) []CreatedItemReport {
 	outcomeEvalEnrichLog.Printf("Enriching items from agent output: items=%d, runDir=%s", len(items), runDir)
-	rawPath := filepath.Join(runDir, "safeoutputs.jsonl")
-	f, err := os.Open(rawPath)
+	rawByType, err := readRawOutcomeEntries(runDir)
 	if err != nil {
-		outcomeEvalEnrichLog.Printf("No safeoutputs.jsonl available at %s: %v", rawPath, err)
+		outcomeEvalEnrichLog.Printf("Cannot read safeoutputs.jsonl: %v", err)
 		return items
 	}
-	defer f.Close()
-
-	// Parse raw entries to extract issue/item numbers by type and order
-	type rawEntry struct {
-		Type        string `json:"type"`
-		IssueNumber int    `json:"issue_number"`
-		ItemNumber  int    `json:"item_number"`
-		PullNumber  int    `json:"pull_number"`
-		Branch      string `json:"branch"`
-		Title       string `json:"title"`
-	}
-
-	var rawByType = make(map[string][]rawEntry)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var entry rawEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue
-		}
-		rawByType[entry.Type] = append(rawByType[entry.Type], entry)
-	}
-	outcomeEvalEnrichLog.Printf("Parsed safeoutputs.jsonl: %d distinct types", len(rawByType))
 
 	// Match items to raw entries by type and order to fill in missing numbers
 	typeCounters := make(map[string]int)
@@ -61,7 +45,7 @@ func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaul
 		}
 
 		entries := rawByType[t]
-		if idx >= len(entries) {
+		if idx < 0 || idx >= len(entries) {
 			continue
 		}
 		raw := entries[idx]
@@ -82,4 +66,53 @@ func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaul
 	}
 
 	return items
+}
+
+func readRawOutcomeEntries(runDir string) (map[string][]rawOutcomeEntry, error) {
+	rawByType := make(map[string][]rawOutcomeEntry)
+	seen := make(map[[sha256.Size]byte]struct{})
+	err := filepath.WalkDir(runDir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if errors.Is(walkErr, fs.ErrNotExist) {
+				return nil
+			}
+			return walkErr
+		}
+		if entry.IsDir() && path != runDir && artifactMatchesFilter(entry.Name(), []string{"agent-output-fallback", "agent", "safe-outputs-items"}) {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() || entry.Name() != "safeoutputs.jsonl" {
+			return nil
+		}
+		return appendRawOutcomeEntries(path, rawByType, seen)
+	})
+	return rawByType, err
+}
+
+func appendRawOutcomeEntries(path string, entries map[string][]rawOutcomeEntry, seen map[[sha256.Size]byte]struct{}) error {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	digest := sha256.Sum256(data)
+	if _, mirrored := seen[digest]; mirrored {
+		return nil
+	}
+	seen[digest] = struct{}{}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var entry rawOutcomeEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		entries[entry.Type] = append(entries[entry.Type], entry)
+	}
+	return scanner.Err()
 }

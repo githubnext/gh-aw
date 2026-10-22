@@ -56,6 +56,7 @@ cfg := types.BaseMCPServerConfig{
 | `Version` | `string` | Optional version or tag |
 | `URL` | `string` | HTTP endpoint URL (HTTP mode) |
 | `Headers` | `map[string]string` | Additional HTTP headers (HTTP mode) |
+| `CACertFile` | `string` | Author-facing `ca-cert-file` path for per-server HTTPS CA trust |
 | `Auth` | `*MCPAuthConfig` | Upstream authentication (HTTP mode only) |
 | `Container` | `string` | Container image (container mode) |
 | `Entrypoint` | `string` | Optional entrypoint override for the container |

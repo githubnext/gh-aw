@@ -160,29 +160,10 @@ func TestEpisodeRetrievalOutputAndOutcomeUsagePath(t *testing.T) {
 	var value any
 	require.NoError(t, json.Unmarshal(encoded, &value))
 	require.NoError(t, resolved.Validate(value))
-	dir, err := episodeOutcomeRunDirectory(data.Runs, opts.OutputDir, 2)
-	require.NoError(t, err)
-	require.Equal(t, data.Runs[0].LogsPath, dir)
-	usage, err := analyzeTokenUsageAICOnly(dir, false)
+	usage, err := analyzeTokenUsageAICOnly(data.Runs[0].LogsPath, false)
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	require.InDelta(t, 0.25, usage.TotalAIC, 0.00001)
-	_, err = episodeOutcomeRunDirectory(data.Runs, filepath.Join(opts.OutputDir, "another-root"), 2)
-	require.ErrorContains(t, err, "outside --output")
-	conflicting := append(data.Runs, RunData{RunID: 2, LogsPath: filepath.Join(opts.OutputDir, "conflicting")})
-	_, err = episodeOutcomeRunDirectory(conflicting, opts.OutputDir, 2)
-	require.ErrorContains(t, err, "conflicting recorded logs paths")
-}
-
-func TestEpisodeOutcomeFallbackRejectsEscapingSymlink(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
-	fallback := filepath.Join(root, "run-2")
-	if err := os.Symlink(outside, fallback); err != nil {
-		t.Skipf("cannot create test symlink: %v", err)
-	}
-	_, err := episodeOutcomeRunDirectory([]RunData{{RunID: 2, LogsPath: "/old/cache/run-2"}}, root, 2)
-	require.ErrorContains(t, err, "outside --output")
 }
 
 func TestEpisodeRetrievalConflictingCompactContextsAndIdentities(t *testing.T) {
