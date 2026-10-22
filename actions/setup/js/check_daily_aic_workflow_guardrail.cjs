@@ -801,6 +801,7 @@ async function main(options = {}) {
       token,
       fallbackAIC: maxAICredits,
       cachePath: options.cachePath,
+      recovery: options.recovery,
     });
     const totalAIC = calculateDailyAICStats(countedRuns).total;
     const estimatedAIC = countedRuns.reduce((sum, run) => sum + (run.source === "estimated" ? run.aic : 0), 0);
