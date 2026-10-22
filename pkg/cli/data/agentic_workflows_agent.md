@@ -22,6 +22,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Creating new workflows**: Routes to `create` prompt
 - **Updating existing workflows**: Routes to `update` prompt
 - **Diagnosis, patching, and active debugging**: Routes to `debug-agentic-workflow` for the local-first strategy, evidence triage and live gates
+- **Repository-wide debugging or run analysis**: Routes to `analyzing-runs` for existing-run failure clustering before selecting a workflow; supplied run/failure scope takes precedence
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
 - **Creating report-generating workflows**: Routes to `report` prompt — consult this whenever the workflow posts status updates, audits, analyses, or any structured output as issues, discussions, or comments
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
@@ -94,11 +95,24 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 
 The shared strategy distinguishes diagnosis/patching from permitted active debug
 loops using explicit live gates and includes existing-run evidence triage.
+For CLI setup or run-URL scoping in a fresh session, first load
+`https://raw.githubusercontent.com/github/gh-aw/main/debug.md`; it bootstraps
+this same strategy rather than a separate debug procedure.
 
 **Use cases**:
 - "Why is this workflow failing?"
 - "Analyze the logs for workflow X"
 - "Investigate missing tool calls in run #12345"
+
+### Analyze Existing Runs or Repository-Wide Failures
+**Load when**: User asks to debug or optimize agentic workflows generally, without a specific run/failure scope
+
+**Prompt file**: `https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/analyzing-runs.md`
+
+Start with repository-wide existing-run failure clustering, not an arbitrary
+workflow or a request to pick one. Supplied workflow/run/failure scope takes
+precedence. Use the shared debugging strategy for subsequent fixes; never
+dispatch workflows to obtain evidence.
 
 ### Upgrade Agentic Workflows
 **Load when**: User wants to upgrade workflows to a new gh-aw version or fix deprecations
@@ -218,7 +232,7 @@ gh aw run <workflow-name> --ref main  # run on a specific branch
 
 # Debug workflow runs
 gh aw logs [workflow-name]
-gh aw audit <run-id>
+gh aw audit <run-url>  # preserve host/repository and any job/step scope
 
 # Upgrade workflows
 gh aw fix --write

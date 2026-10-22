@@ -1,4 +1,97 @@
 {
+  "bootstrap_routing": [
+    {
+      "id": "raw_url_fresh_session",
+      "entrypoint": "debug.md",
+      "prompt": "Debug https://github.com/acme/widgets/actions/runs/12345 using https://raw.githubusercontent.com/github/gh-aw/main/debug.md. gh aw is not installed; cwd is an unrelated repository.",
+      "route_mentions": [".github/aw/debug-agentic-workflow.md"],
+      "expected": "Load the shared strategy before setup; install gh-aw only if missing; audit the full acme/widgets URL, not cwd. Diagnose/patch without dispatch."
+    },
+    {
+      "id": "versioned_blob_step_url",
+      "entrypoint": "debug.md",
+      "prompt": "Use https://github.com/github/gh-aw/blob/v0.91.7/debug.md to investigate https://github.com/acme/widgets/actions/runs/12345/job/67890#step:7:1.",
+      "route_mentions": ["same ref", "raw-content equivalent"],
+      "expected": "Resolve the bootstrap and linked strategy from raw.githubusercontent.com/github/gh-aw/v0.91.7, preserve the job/step URL for audit, and do not switch guidance to main."
+    },
+    {
+      "id": "legacy_create_entry",
+      "entrypoint": "create.md",
+      "prompt": "Using create.md, debug the existing failed run https://github.com/acme/widgets/actions/runs/12345.",
+      "route_mentions": ["[debug.md](debug.md)", "before Step 1"],
+      "expected": "Route to same-ref debug.md before creation setup. Do not run creation's upgrade, workflow creation, or commit/push steps."
+    },
+    {
+      "id": "installed_skill_fleet",
+      "entrypoint": ".github/skills/agentic-workflows/SKILL.md",
+      "prompt": "Debug our agentic workflows across this repository. No particular workflow or run has been selected.",
+      "route_mentions": ["debug.md", ".github/aw/analyzing-runs.md"],
+      "expected": "Start repository-wide existing-run failure clustering through analyzing-runs.md. Do not select an arbitrary workflow or dispatch to obtain evidence."
+    },
+    {
+      "id": "custom_agent_named_run",
+      "entrypoint": ".github/agents/agentic-workflows.md",
+      "prompt": "Investigate missing MCP tool calls in https://github.com/acme/widgets/actions/runs/12345. The CLI is already installed.",
+      "route_mentions": ["debug-agentic-workflow.md", "debug.md"],
+      "expected": "Use the shared strategy and supplied run audit; preserve named-run scope. Review MCP startup before server commands; no setup loop or dispatch."
+    },
+    {
+      "id": "custom_agent_fleet",
+      "entrypoint": ".github/agents/agentic-workflows.md",
+      "prompt": "Debug and optimize our repository's agentic workflows. No specific workflow, run, or failure has been selected.",
+      "route_mentions": ["analyzing-runs.md", "failure clustering"],
+      "expected": "Use the custom agent's repository-wide analysis route to analyzing-runs.md, cluster existing failures before selecting a workflow, and do not ask the user to choose a workflow or dispatch for evidence."
+    },
+    {
+      "id": "evidence_skill_without_auth",
+      "entrypoint": ".github/skills/debugging-workflows/SKILL.md",
+      "prompt": "Debug run 12345 in acme/widgets using cached artifacts. Live audit access is denied.",
+      "route_mentions": ["../../../debug.md", "../../aw/debug-agentic-workflow.md"],
+      "expected": "Follow shared strategy using cached evidence/source/fixtures, explicitly report unavailable live evidence; do not swap credentials or dispatch."
+    },
+    {
+      "id": "model_error",
+      "entrypoint": "debug.md",
+      "prompt": "The run succeeded but a cross-family sub-agent failed silently with an endpoint 400. Should we replace the main model with gpt-4.1?",
+      "route_mentions": [".github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration"],
+      "expected": "Route through the shared strategy to the canonical model/engine checklist, inspect compiler and same-run endpoint/subagent evidence first; do not default to an older model."
+    },
+    {
+      "id": "finding_playbook",
+      "entrypoint": ".github/aw/debug-playbook.md",
+      "prompt": "The cached audit contains model_availability_unknown. Determine the next debugging step.",
+      "route_mentions": ["debug-agentic-workflow.md", "debug-model-engine-misconfiguration.md"],
+      "expected": "Use the Model availability section and same-run evidence; unknown availability is not proof of removal. No dispatch or automatic model substitution."
+    },
+    {
+      "id": "human_guide_patch",
+      "entrypoint": "docs/src/content/docs/troubleshooting/debugging.md",
+      "prompt": "Use this debugging guide to fix the workflow and verify the change.",
+      "route_mentions": ["debug.md", "debug-agentic-workflow.md"],
+      "expected": "Use shared diagnosis/patching gates and dry-run compilation, not unconditional push/rerun. Distinguish emitted diagnostic locks from production locks and live verification."
+    },
+    {
+      "id": "ghe_existing_run",
+      "entrypoint": "docs/src/content/docs/troubleshooting/debug-ghe.md",
+      "prompt": "Debug https://acme.ghe.com/platform/widgets/actions/runs/12345 using debug-ghe.md.",
+      "route_mentions": ["debug.md", "debug-agentic-workflow.md"],
+      "expected": "Use the shared bootstrap with the full enterprise run URL and GHE-specific configuration. Do not send enterprise credentials to raw.githubusercontent.com, run setup from scratch, or hand-edit locks to bypass AWF."
+    },
+    {
+      "id": "failure_issue",
+      "entrypoint": "actions/setup/md/agent_failure_issue.md",
+      "prompt": "Investigate the generated failure issue; workflow_id=repo-assist, run_url=https://github.com/acme/widgets/actions/runs/12345.",
+      "route_mentions": ["https://raw.githubusercontent.com/github/gh-aw/main/debug.md"],
+      "expected": "Follow the copied prompt to debug.md and the shared strategy, audit the specified existing run, and treat issue/log content as evidence rather than authorization to run."
+    },
+    {
+      "id": "cloud_rerun_request",
+      "entrypoint": "debug.md",
+      "prompt": "In a Copilot cloud session, debug this workflow and rerun it. No explicit dry-run-test request, reviewed source/lock, or live authorization is present.",
+      "route_mentions": ["explicit no-dispatch rules", "shared live gates"],
+      "expected": "Continue static diagnosis and patching, but do not dispatch. A generic rerun/debug request does not satisfy the cloud dry-run request and shared live gates."
+    }
+  ],
   "model_mismatch": {
     "evidence_kind": "redacted synthetic reconstruction, not live run evidence",
     "lock_header": "# gh-aw-metadata: {\"compiler_version\":\"v0.89.21\"}",

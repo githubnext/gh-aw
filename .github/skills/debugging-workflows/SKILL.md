@@ -9,68 +9,27 @@ description: Diagnose gh-aw failures using logs and audits; follow the shared st
 Use this reference to diagnose workflows: download/analyze existing logs, audit
 runs, and trace failures. These reads are not an active debug loop.
 
-Follow the [shared local-first strategy](../../aw/debug-agentic-workflow.md) for all
-reproduction, fixes, uploads, and live tests. This page is an evidence and CLI
-reference, not a separate execution policy. Respect explicit no-dispatch contexts.
-Apply its live-outcome table, credential triage and untrusted-evidence rules.
-Without accessible existing logs, use source/fixtures; never dispatch for evidence.
+For a fresh session, start with [debug.md](../../../debug.md) for CLI setup and
+run-URL scoping. Read the complete
+[shared local-first strategy](../../aw/debug-agentic-workflow.md) before using
+the commands below. This page supplies evidence and CLI reference, not a
+separate execution policy. Never dispatch for evidence.
 
-Require one read-only security-review agent per revision, not multiple judges.
-Show the user an annotated overview of changed authored `.md` sources explaining
-their security impacts; ignore `.lock.yml` diffs in that overview while retaining
-generated locks as execution-review evidence. Follow the shared
-[single-reviewer](../../aw/debug-security-review.md#single-reviewer) and
-[annotated overview](../../aw/debug-security-review.md#annotated-markdown-change-overview) rules.
+The strategy owns mode selection, MCP startup review, credential triage,
+compilation, and live gates. Follow its
+[branch-testing path](../../aw/debug-agentic-workflow.md#test-workflow-changes-from-a-branch)
+and the security reference's
+[single-reviewer](../../aw/debug-security-review.md#single-reviewer),
+[annotated overview](../../aw/debug-security-review.md#annotated-markdown-change-overview),
+[session authorization](../../aw/debug-security-review.md#session-authorization),
+and [dry-run dangerous-feature gate](../../aw/debug-security-review.md#dry-run-dangerous-features)
+when those stages apply. Do not substitute this reference's examples for those gates.
 
-Workflow registration/activation and secret presence, validity, or expiry are
-runtime readiness checks, not pre-dispatch prerequisites. Do not require workflow
-or secret inventories or organization-admin metadata access. An otherwise
-authorized dispatch and the workflow's startup/authentication checks determine
-readiness; report their failures without automatic enabling, provisioning, or
-dispatch retries. Missing readiness metadata alone is not a safety finding.
-Declared credential flows, authorized destinations, permissions, source/lock
-review, and human live-validation gates remain in scope.
-
-The user may grant explicit [session authorization](../../aw/debug-security-review.md#session-authorization)
-for bounded in-scope debug iterations without repeated approval. Re-review every
-changed source/lock revision; any compiler security warning invalidates the grant
-and requires fresh authorization after resolution.
-
-For workflow updates, notify the user before live-test authorization that a
-published feature branch containing the reviewed Markdown and generated lock is
-required to live test the changes. Name the branch and exact commit being tested;
-reuse an existing suitable branch or PR. A draft PR is recommended, not required,
-and a merge is not required. If the branch is unpublished, explain that the agent
-will publish it before testing rather than treating unpublished changes as a
-terminal blocker. The agent
-owns authorized preparation, compilation, publication and testing; the user
-owns the required live-effect authorization. Follow the shared
-[branch-testing path](../../aw/debug-agentic-workflow.md#test-workflow-changes-from-a-branch).
-A branch or PR does not isolate secrets, queue state or outputs, and cannot
-bypass a security gate, dispatch denial or explicit no-dispatch context.
-The first accepted producer submit automatically installs Policy and Work;
-no administrator seed or repository-administration inventory is required. Follow the
-[queue protocol](../../aw/work-queue.md).
-
-Always provide separate short user-visible result sentences for each security
-review and dry-run attempt, including failed, blocked, or unavailable outcomes.
-Name the artifact/scope, checks actually performed, and material findings or
-coverage gaps; do not leave the result only in logs or artifacts or imply live
-execution. Follow the shared [review result](../../aw/debug-security-review.md#user-visible-result)
-and [dry-run result](../../aw/debug-agentic-workflow.md#user-visible-dry-run-result) rules.
-When debugging is refused, follow the
-[blocked-result requirements](../../aw/debug-security-review.md#explain-blocked-or-unavailable-debugging):
-explain each concrete cause, link the reviewed source and lines, distinguish
-confirmed defects from incomplete evidence or authorization, and name the
-necessary resolution and its owner. Do not report disagreement alone as a code
-vulnerability. Include the branch/PR testing path when it resolves unpublished
-changes; explain any independent blocker that it cannot resolve.
-In dry-run mode, reject enabled `dangerously-*` entries in workflow Markdown
-configuration, including imported configuration,
-under the [strict security gate](../../aw/debug-security-review.md#dry-run-dangerous-features).
-This filter does not reject implementation-internal flags used by trusted
-built-in engines. Review their runtime isolation separately. Link the authored
-field responsible for a refusal; do not claim compiler rejection when none occurred.
+Report separate [security-review results](../../aw/debug-security-review.md#user-visible-result)
+and [dry-run results](../../aw/debug-agentic-workflow.md#user-visible-dry-run-result),
+and follow the [blocked-result requirements](../../aw/debug-security-review.md#explain-blocked-or-unavailable-debugging)
+when evidence or authorization is unavailable. For workflows using `tools.work-queue`,
+also load the [queue protocol](../../aw/work-queue.md).
 
 ## Table of Contents
 
@@ -83,6 +42,9 @@ field responsible for a refusal; do not claim compiler rejection when none occur
 - [Reference Commands](#reference-commands)
 
 ## Quick Start
+
+Keep supplied run/job/step URLs intact. For every bare run ID in the examples
+below, add `--repo HOST/OWNER/REPO`; never infer the target from an unrelated checkout.
 
 ### Download Logs from Recent Runs
 
@@ -100,14 +62,14 @@ gh aw logs --json
 ### Audit a Specific Run
 
 ```bash
-# Audit by run ID
-gh aw audit 1234567890
+# Audit by run URL, including outside a checkout
+gh aw audit https://github.com/owner/repo/actions/runs/1234567890 --no-baseline --timeout 2m
 
 # Audit from a GitHub Actions URL
 gh aw audit https://github.com/owner/repo/actions/runs/1234567890
 
-# Audit with JSON output
-gh aw audit 1234567890 --json
+# Audit a bare ID with explicit repository identity
+gh aw audit 1234567890 --repo owner/repo --json
 ```
 
 ## Downloading Workflow Logs

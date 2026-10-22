@@ -9,7 +9,8 @@ import unittest
 SKILL = Path(__file__).resolve().parents[1]
 ROOT = SKILL.parents[2]
 DEBUG_GUIDE = ROOT / ".github/aw/debug-agentic-workflow.md"
-GUIDES = (ROOT / ".github/aw/debug-model-engine-misconfiguration.md", ROOT / "debug.md")
+GUIDES = (ROOT / ".github/aw/debug-model-engine-misconfiguration.md",)
+BOOTSTRAP = ROOT / "debug.md"
 FIXTURES = json.loads((SKILL / "tests/fixtures.json").read_text())
 ANCHOR = "#model-and-engine-misconfiguration"
 
@@ -21,6 +22,139 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_debug_bootstrap_loads_shared_strategy_before_setup(self):
+        guide = BOOTSTRAP.read_text()
+        load = guide.index("## 1. Load the Debugging Strategy First")
+        setup = guide.index("## 2. Check the CLI and Run Identity")
+        audit = guide.index("## 3. Audit the Supplied Run")
+        self.assertLess(load, setup)
+        self.assertLess(setup, audit)
+        for required in (
+            "ROOT/.github/aw/debug-agentic-workflow.md",
+            "same ref",
+            "against the file containing the link",
+            "raw-content equivalent",
+            "HTTP 403",
+            "without an Authorization header or token",
+            "report the error and stop",
+            "target repository's `AGENTS.md`",
+            "apply its repository overlay",
+        ):
+            with self.subTest(bootstrap=required):
+                self.assertIn(required, guide[load:setup])
+
+    def test_debug_bootstrap_scopes_audit_and_defers_execution_policy(self):
+        guide = BOOTSTRAP.read_text()
+        self.assertIn(
+            "gh aw audit 'https://github.com/OWNER/REPO/actions/runs/RUN_ID'"
+            " --no-baseline --timeout 2m --output AUDIT_DIR --json",
+            guide,
+        )
+        for required in (
+            "--repo HOST/OWNER/REPO",
+            "key_findings[].code",
+            "playbook_url",
+            "report is incomplete",
+            "untrusted evidence",
+            "never dispatch a run to obtain evidence",
+            "gh aw compile WORKFLOW --dry-run",
+            "does not execute the workflow",
+            "explicit authorization",
+            "exact",
+            "reviewed published source/lock revision",
+            "explicit no-dispatch rules",
+        ):
+            with self.subTest(contract=required):
+                self.assertIn(required, guide)
+        for obsolete in ("curl -sL", "| bash", "git push", "## Step 3: Apply Fixes"):
+            self.assertNotIn(obsolete, guide)
+        # Detailed model guidance belongs to the linked canonical guide.
+        self.assertNotIn("## Model and engine misconfiguration\n", guide)
+        self.assertLessEqual(len(guide.split()), 1600)
+
+    def test_canonical_audits_preserve_bootstrap_run_identity(self):
+        guide = DEBUG_GUIDE.read_text()
+        evidence = guide.split("## Collect Existing Evidence\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("do not reduce it to a bare ID", evidence)
+        self.assertIn("including", evidence)
+        self.assertIn("step fragment", evidence)
+        audit_commands = re.findall(r"gh aw audit ([^\n`]+)", evidence)
+        self.assertGreaterEqual(len(audit_commands), 4)
+        for command in audit_commands:
+            with self.subTest(command=command):
+                self.assertTrue('"$RUN_URL"' in command or "--repo HOST/OWNER/REPO" in command)
+        self.assertIn("gh run view RUN_ID --repo HOST/OWNER/REPO", evidence)
+
+    def test_debug_bootstrap_links_resolve(self):
+        guide = BOOTSTRAP.read_text()
+        links = re.findall(r"\]\(([^)]+)\)", guide)
+        self.assertTrue(links)
+        for link in links:
+            with self.subTest(link=link):
+                path, _, anchor = link.partition("#")
+                target = BOOTSTRAP.parent / path
+                self.assertTrue(target.is_file())
+                if anchor:
+                    headings = re.findall(r"^#+ (.+)$", target.read_text(), re.M)
+                    self.assertIn(anchor, [heading.lower().replace(" ", "-") for heading in headings])
+        self.assertIn(".github/aw/debug-playbook.md", links)
+        self.assertIn(".github/aw/analyzing-runs.md", links)
+        self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", links)
+
+    def test_debug_inventory_preserves_all_debug_named_markdown(self):
+        inventory = BOOTSTRAP.read_text().split("## Debugging Entry Point Inventory\n", 1)[1]
+        links = re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", inventory)
+        documented = {(ROOT / link).resolve() for link in links}
+        candidates = [ROOT / "debug.md"]
+        for directory in (".github/aw", ".github/workflows/shared", "docs", "scratchpad", ".changeset"):
+            candidates.extend((ROOT / directory).rglob("*debug*.md"))
+        for path in candidates:
+            with self.subTest(path=path.relative_to(ROOT)):
+                self.assertIn(path.resolve(), documented)
+        self.assertIn("not a session bootstrap", inventory)
+        self.assertIn("Historical design/release records", inventory)
+
+    def test_debug_entrypoints_delegate_without_dropping_existing_paths(self):
+        for case in FIXTURES["bootstrap_routing"]:
+            with self.subTest(case=case["id"]):
+                entry = ROOT / case["entrypoint"]
+                self.assertTrue(entry.is_file())
+                text = entry.read_text()
+                for route in case["route_mentions"]:
+                    self.assertIn(route, text)
+        for path in (
+            SKILL / "SKILL.md",
+            ROOT / "pkg/cli/data/agentic_workflows_skill.md",
+            ROOT / ".github/agents/agentic-workflows.md",
+            ROOT / "pkg/cli/data/agentic_workflows_agent.md",
+        ):
+            with self.subTest(router=path):
+                self.assertIn("https://raw.githubusercontent.com/github/gh-aw/main/debug.md", path.read_text())
+        self.assertEqual(
+            (ROOT / ".github/agents/agentic-workflows.md").read_text(),
+            (ROOT / "pkg/cli/data/agentic_workflows_agent.md").read_text(),
+        )
+        template = (ROOT / "pkg/cli/data/agentic_workflows_skill.md").read_text()
+        installed = (SKILL / "SKILL.md").read_text()
+        before, after = template.split("{{AW_FILE_LIST}}")
+        self.assertTrue(installed.startswith(before))
+        self.assertTrue(installed.endswith(after))
+
+    def test_debugging_skill_delegates_execution_policy(self):
+        guide = (ROOT / ".github/skills/debugging-workflows/SKILL.md").read_text()
+        preamble = guide.split("## Table of Contents", 1)[0]
+        for route in (
+            "../../../debug.md",
+            "../../aw/debug-agentic-workflow.md",
+            "#test-workflow-changes-from-a-branch",
+            "#session-authorization",
+            "#dry-run-dangerous-features",
+            "#explain-blocked-or-unavailable-debugging",
+        ):
+            with self.subTest(route=route):
+                self.assertIn(route, preamble)
+        self.assertLessEqual(len(preamble.split()), 250)
+
     def test_audit_search_distinguishes_evidence_and_failure_clusters(self):
         guide = (ROOT / ".github/aw/analyzing-runs.md").read_text()
         search = guide.split("### Retrieve and cluster session evidence\n", 1)[1].split("\n## ", 1)[0]
@@ -187,7 +321,6 @@ class GuidanceTests(unittest.TestCase):
         for path in (
             DEBUG_GUIDE,
             ROOT / ".github/aw/debug-security-review.md",
-            ROOT / ".github/skills/debugging-workflows/SKILL.md",
         ):
             with self.subTest(path=path):
                 text = path.read_text()
@@ -204,11 +337,16 @@ class GuidanceTests(unittest.TestCase):
         self.assertLessEqual(len(guide.split()), 2800)
         self.assertLessEqual(len(guide.encode()), 26000)
         self.assertIn("Read only the linked", guide)
-        for variable in ("REPO", "RUN_ID", "MODEL", "PROVIDER", "BASE_RUN_ID"):
+        for variable in ("RUN_URL", "REPO", "RUN_ID", "MODEL", "PROVIDER", "BASE_RUN_ID"):
             with self.subTest(variable=variable):
                 self.assertIn(f"${{{variable}:?", guide)
         self.assertNotRegex(guide, r"\b(?:RUN_ID|BASE_RUN_ID)=\d+")
         self.assertNotRegex(guide, r"(?m)^MODEL=[a-z0-9]")
+        start = guide.split("## Start here\n", 1)[1].split("\n## ", 1)[0]
+        self.assertIn('gh aw audit "$RUN_URL" --no-baseline --timeout 2m', start)
+        self.assertIn("HOST/OWNER/REPO", start)
+        self.assertIn("including its fragment", start)
+        self.assertNotIn('gh aw audit "$RUN_ID"', start)
 
     def test_diagnostic_routing_mini_eval_contract(self):
         guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
@@ -298,7 +436,7 @@ class GuidanceTests(unittest.TestCase):
         routing = DEBUG_GUIDE.read_text()
         for required in (
             "key_findings[].code", "playbook_url",
-            "gh aw audit RUN_ID --no-baseline --timeout 2m --output AUDIT_DIR --json",
+            'gh aw audit "$RUN_URL" --no-baseline --timeout 2m --output AUDIT_DIR --json',
             "model_unavailable", "model_availability_unknown",
             "cached `gh aw models`", "consolidated", "partial JSON",
         ):
@@ -332,7 +470,9 @@ class GuidanceTests(unittest.TestCase):
         guide = (ROOT / ".github/aw/analyzing-runs.md").read_text()
         router = (SKILL / "SKILL.md").read_text()
         overlay = (ROOT / ".github/aw/instructions.md").read_text()
-        for text in (router, overlay):
+        agent = (ROOT / ".github/agents/agentic-workflows.md").read_text()
+        embedded_agent = (ROOT / "pkg/cli/data/agentic_workflows_agent.md").read_text()
+        for text in (router, overlay, agent, embedded_agent):
             self.assertIn("analyzing-runs.md", text)
             self.assertIn("failure clustering", text)
         for required in (
@@ -473,7 +613,7 @@ class GuidanceTests(unittest.TestCase):
                 text = checklist(path.read_text())
                 for failure in case["failures"]:
                     field_start = text.index(f"`{failure['field']}`")
-                    boundary = text.find("\n", field_start) if path == GUIDES[0] else text.index("point", field_start)
+                    boundary = text.find("\n", field_start)
                     self.assertIn(failure["step"], text[field_start:boundary])
                 self.assertIn("1.0.x", text)
                 self.assertIn("vX.Y.Z", text)
@@ -512,7 +652,7 @@ class GuidanceTests(unittest.TestCase):
         for section in ("Collect Existing Evidence", "Identify the First Failing Boundary"):
             content = full.split(f"## {section}\n", 1)[1].split("\n## ", 1)[0]
             self.assertIn(ANCHOR, content)
-        self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", GUIDES[1].read_text())
+        self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", BOOTSTRAP.read_text())
 
     def test_docs_merged_example_labels_search_best_effort(self):
         guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()

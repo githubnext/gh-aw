@@ -9,6 +9,13 @@ Use this checklist for AWF 400s mentioning models or endpoints, silent cross-fam
 sub-agent failures, `model: auto` failures, install-step 404s after a version pin,
 or questions about version fields. Referenced from [debug-agentic-workflow.md](debug-agentic-workflow.md#identify-the-first-failing-boundary).
 
+Read the [shared debugging strategy](debug-agentic-workflow.md) before running
+these commands or applying fixes. For CLI setup and run-URL scoping, use
+[debug.md](../../debug.md). This checklist supplies model-specific evidence;
+it does not authorize execution, publication, or live testing.
+Preserve full run/job/step URLs; add `--repo HOST/OWNER/REPO` to bare-ID audit
+examples below rather than inferring the target from the current checkout.
+
 `not advertised`/model-not-found: [verify same-run availability](debug-playbook.md#model-availability)
 before changing model pins or runtimes.
 
@@ -24,7 +31,7 @@ Compare with the newest published gh-aw release, **including prereleases**:
 gh release list --repo github/gh-aw --limit 20
 gh extension install github/gh-aw --force --pin v0.91.7
 gh aw version
-gh aw compile WORKFLOW
+gh aw compile WORKFLOW --dry-run
 ```
 
 The tag above is an example from the October 2026 customer case, not a permanent

@@ -8,6 +8,12 @@ disable-model-invocation: true
 Default to diagnose/patch; active debugging requires the live gates below.
 Do not emulate Actions.
 
+For a fresh session without CLI setup or run identity, first use
+[debug.md](../../debug.md), the public bootstrap and entry-point inventory.
+If it already loaded this strategy, continue here; do not repeat setup.
+Other debugging pages are routers or specialized references, not alternative
+execution policies.
+
 ## Choose the Mode
 
 | Mode | Scope |
@@ -43,7 +49,7 @@ dispatch.
 
 ## Strategy
 
-1. **Anchor intent and failure.** First [capture developer intent from the current session](debug-security-review.md#capture-session-intent-first). Clarification is optional when the user is available; otherwise record unknown intent, continue static diagnosis/clearly authorized work and block uncertain execution/upload/effects. Record revisions, versions, trigger/inputs. [Collect existing evidence](#collect-existing-evidence) from supplied accessible runs or cached logs; otherwise start from source/fixtures, never dispatch for evidence. Compare existing runs with `gh aw audit RUN_ID RUN_ID_2 --group` for recurrence. Label observed/local/fixture/inferred/unavailable evidence.
+1. **Anchor intent and failure.** First [capture developer intent from the current session](debug-security-review.md#capture-session-intent-first). Clarification is optional when the user is available; otherwise record unknown intent, continue static diagnosis/clearly authorized work and block uncertain execution/upload/effects. Record revisions, versions, trigger/inputs. [Collect existing evidence](#collect-existing-evidence) from supplied accessible runs or cached logs; otherwise start from source/fixtures, never dispatch for evidence. Compare existing runs with `gh aw audit RUN_ID RUN_ID_2 --repo HOST/OWNER/REPO --group` for recurrence. Label observed/local/fixture/inferred/unavailable evidence.
 
 2. **Preflight MCP startup.** Read declarations/imports, credential references, startup commands/destinations without resolving secrets. Follow the [agentic security-review instructions](debug-security-review.md) before executing changed code or starting servers, including local reproductions. Trusted compile-only dry runs may produce evidence before final review, under that reference's snapshot/restore rules; they do not authorize workflow or MCP execution. Before `gh aw mcp list WORKFLOW`, `gh aw mcp list-tools WORKFLOW --server NAME` or `gh aw mcp inspect WORKFLOW --server NAME`, account for startup/connections. Require isolated scoped test bindings, reviewed startup effects and metadata-only calls; otherwise use cached schemas. Do not mutate ambient credentials.
 
@@ -254,13 +260,18 @@ pins, collect the artifacts in [Model and engine misconfiguration](#model-and-en
 
 Use cached evidence or the workflow name/run URL already supplied. Without
 accessible existing evidence, start from source and fixtures, not a new run.
-For a run URL, extract its ID and begin with a compact audit:
+For a supplied run/job/step URL, preserve the complete URL, including its host,
+repository, job path and step fragment; do not reduce it to a bare ID.
+Set `RUN_URL` to that supplied URL and begin with a compact audit:
 
 ```bash
-gh aw audit RUN_ID --no-baseline --timeout 2m --output AUDIT_DIR --json
-gh aw logs WORKFLOW --json
-gh aw status
+gh aw audit "$RUN_URL" --no-baseline --timeout 2m --output AUDIT_DIR --json
 ```
+
+For genuinely bare IDs, pass `--repo HOST/OWNER/REPO` explicitly, including
+follow-up audits and run-status commands. Do not infer the target from the
+current checkout, which may be unrelated. Workflow-name collection also needs
+the target repository: `gh aw logs WORKFLOW --repo HOST/OWNER/REPO --json`.
 
 Reuse `AUDIT_DIR` for follow-up collection. Check report completeness; a timeout
 can return partial JSON. Inspect findings before downloading additional evidence.
@@ -268,7 +279,7 @@ can return partial JSON. Inspect findings before downloading additional evidence
 Check recurrence across existing runs:
 
 ```bash
-gh aw audit RUN_ID RUN_ID_2 RUN_ID_3 --group --json
+gh aw audit RUN_ID RUN_ID_2 RUN_ID_3 --repo HOST/OWNER/REPO --group --json
 ```
 
 Grouped output contains per-run finding codes and occurrence counts; plain
@@ -281,7 +292,7 @@ report matching/inspectable comparable runs and their IDs. Account for workflow,
 revision, trigger/input and configuration differences; missing evidence remains unknown.
 
 To locate a signature within a run, use
-`gh aw audit RUN_ID --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
+`gh aw audit "$RUN_URL" --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
 Read `evidence_search` source references and neighboring events, not relevance
 scores alone. Search ranks actual unified-session events with BM25. Drain3
 grouping activates automatically when repetitive top matches crowd the limit
@@ -297,7 +308,7 @@ for limits and interpretation; do not combine search with grouped/multi-run audi
 Start with the compact audit. Fetch targeted evidence only when needed:
 
 ```bash
-gh aw audit RUN_ID --artifacts usage,github-api,mcp,agent
+gh aw audit "$RUN_URL" --output AUDIT_DIR --artifacts usage,github-api,mcp,agent
 ```
 
 Read the actual downloaded artifact names rather than assuming a fixed layout.
@@ -306,7 +317,7 @@ separately from workflow outcomes: a nonzero audit exit does not prove run failu
 For a pending run, inspect the same run's status within the approved deadline:
 
 ```bash
-gh run view RUN_ID --json status,headSha,conclusion
+gh run view RUN_ID --repo HOST/OWNER/REPO --json status,headSha,conclusion
 ```
 
 Audit/log collection denial blocks further live iteration; use cached evidence

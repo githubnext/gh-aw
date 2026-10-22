@@ -7,6 +7,13 @@ sidebar:
 
 This guide shows you how to debug agentic workflow failures on **github.com** using the Copilot CLI, the `gh aw` debugging commands, and manual investigation techniques.
 
+All agent entry points use the same [debug.md bootstrap and inventory](https://github.com/github/gh-aw/blob/main/debug.md)
+and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
+Start with existing evidence; diagnosis does not authorize dispatch. The shared
+strategy owns local execution, MCP startup review, compilation, and live-test
+authorization. For enterprise host configuration, retain the
+[GHE-specific guide](/gh-aw/troubleshooting/debug-ghe/).
+
 > [!TIP]
 > The fastest path to a fix is to let an AI agent debug it for you. Launch the Copilot CLI, invoke the `agentic-workflows` skill, and paste the failing run URL.
 
@@ -40,11 +47,11 @@ Copilot downloads the logs, identifies the root cause (missing tools, permission
 `gh aw audit` breaks down a single run — failure analysis and root cause, behavior fingerprint (network/tool/cost profile), tool usage, MCP server status, firewall analysis, token/cost metrics, and safe-outputs. Accepts a run ID, run URL, job URL (extracts first failing step), or step URL.
 
 ```bash
-gh aw audit 12345678
+gh aw audit https://github.com/OWNER/REPO/actions/runs/12345678 --no-baseline --timeout 2m
 gh aw audit https://github.com/OWNER/REPO/actions/runs/123/job/456#step:7:1
-gh aw audit 12345678 --parse                          # parse to markdown
-gh aw audit 12345678 12345679                         # compare two runs
-gh aw audit 12345678 12345679 --format markdown
+gh aw audit 12345678 --repo OWNER/REPO --parse         # parse to markdown
+gh aw audit 12345678 12345679 --repo OWNER/REPO        # compare two runs
+gh aw audit 12345678 12345679 --repo OWNER/REPO --group --json  # recurrence findings
 ```
 
 For security and performance trends across multiple runs, use `gh aw logs --format`:
@@ -91,7 +98,10 @@ Health checks the target host's core API quota, reuses immutable revision lookup
 
 ### Inspecting MCP Configuration
 
-If you suspect MCP server issues, inspect the compiled configuration:
+If you suspect MCP server issues, first review declarations, startup commands,
+destinations, and credential references under the shared strategy. Commands that
+start or connect to a server require its MCP startup gate; use cached schemas
+when isolated test bindings are unavailable. Then inspect the configuration:
 
 ```bash
 gh aw mcp list                              # list workflows with MCP servers
@@ -174,7 +184,7 @@ gh aw compile --validate
 
 ```bash
 DEBUG=* gh aw compile my-workflow              # all logs
-DEBUG=cli:* gh aw audit 12345678               # CLI-specific
+DEBUG=cli:* gh aw audit 12345678 --repo OWNER/REPO  # CLI-specific
 DEBUG=workflow:*,cli:* gh aw compile           # multiple packages
 ```
 
@@ -188,7 +198,9 @@ GH_DEBUG=api gh aw compile my-workflow
 
 ### Enable GitHub Actions Debug Logging
 
-Add an `ACTIONS_STEP_DEBUG` repository secret set to `true` (**Settings → Secrets and variables → Actions**), then re-run the workflow for verbose step-level logging in the Actions UI.
+`ACTIONS_STEP_DEBUG=true` enables verbose step-level logging in the Actions UI.
+Changing repository secrets or rerunning a workflow is not part of read-only
+diagnosis; use the shared strategy's authorization and live gates before either.
 
 ### Inspecting Firewall Logs
 
@@ -216,11 +228,14 @@ Download from the Actions run page or `gh run download <run-id> --repo OWNER/REP
 
 ### Recompiling for a Quick Fix
 
-After editing the `.md` file, recompile, commit both files, and push:
+After editing the `.md` source, use the shared strategy's review and development
+compilation gates:
 
 ```bash
-gh aw compile my-workflow
-git add .github/workflows/my-workflow.md .github/workflows/my-workflow.lock.yml
-git commit -m "fix: update workflow configuration"
-git push
+gh aw compile my-workflow --dry-run
 ```
+
+This emits a diagnostic lock, not a live run or a normal production replacement.
+Preserve evidence and user changes using the strategy's snapshot/restore rules.
+Publication and live testing follow its feature-branch and exact-revision gates;
+do not infer permission to push or rerun from a successful compile.

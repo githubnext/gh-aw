@@ -1,5 +1,11 @@
 # Workflow Health Monitoring Runbook
 
+For a fresh debugging session, start with [debug.md](../../../debug.md).
+Follow the [shared debugging strategy](../debug-agentic-workflow.md) before
+using this operational reference: it owns MCP startup review, compilation,
+credential triage, and live-execution gates. Use existing evidence; this
+runbook does not authorize dispatch or credential changes.
+
 ## Common Workflow Failure Patterns
 
 ### Missing Tool Configurations
@@ -24,11 +30,11 @@ MCP Scripts action fails; env var unavailable; template expression errors. Cause
 # Download logs from last 24 hours
 gh aw logs --start-date -1d -o /tmp/workflow-logs
 
-# Download logs for a specific workflow run
-gh aw logs --run-id <run-id> -o /tmp/workflow-logs
+# Audit a specific run with its host/repository identity
+gh aw audit https://github.com/OWNER/REPO/actions/runs/RUN_ID --no-baseline --timeout 2m -o /tmp/workflow-logs
 
 # Analyze logs for a specific workflow
-gh aw logs --workflow <workflow-name> --start-date -7d
+gh aw logs <workflow-name> --start-date -7d
 ```
 
 Check the "Run AI Agent" step for missing-tool errors, HTTP codes (401/403/404/500), and stack traces.
@@ -201,4 +207,3 @@ tools:
     toolsets: [default]
 ---
 ```
-

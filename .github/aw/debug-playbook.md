@@ -7,26 +7,28 @@ disable-model-invocation: true
 
 Fix first failing boundary.
 Follow [debugging gates](debug-agentic-workflow.md). Do not dispatch workflows.
-Never execute untrusted artifacts. Keep secrets, prompts, config/environment
-values and opaque reasoning private.
+Never execute artifacts. Keep secrets, prompts, configuration and opaque reasoning private.
 
 ## Start here
 
+Keep full supplied URL in `RUN_URL`, including its fragment.
+Derive `REPO` (`HOST/OWNER/REPO`) and `RUN_ID` from it; qualify bare IDs first.
+
 ```bash
-: "${REPO:?Set owner/repo}" "${RUN_ID:?Set failing run ID}"
+: "${RUN_URL:?Set URL}"
+: "${REPO:?Set HOST/owner/repo}" "${RUN_ID:?Set ID}"
 EVIDENCE="${TMPDIR:-/tmp}/gh-aw-debug-evidence"
-gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
+gh aw audit "$RUN_URL" --no-baseline --timeout 2m \
   --output "$EVIDENCE" --json
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout: incomplete JSON report possible. Fetch missing evidence.
-Read only the linked `key_findings[].playbook_url` or exact-code row.
-Trace causes; compare one success.
-Fleet: [cluster first](analyzing-runs.md).
+Timeout: incomplete JSON report; fetch evidence.
+Read only the linked `playbook_url`/code row.
+Compare success; [fleet clustering](analyzing-runs.md).
 
-Preserve code case/punctuation/namespace; emitter determines severity.
-Success/advisory/pending/skipped/policy-denied outcomes aren't necessarily bugs.
+Keep codes/emitter severity.
+Success/advisory/pending/skipped/policy-denied needn't indicate bugs.
 Unknown codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
@@ -91,7 +93,7 @@ confirmed absence → `model_unavailable`; missing/incomplete/malformed/ambiguou
 contradictory evidence → `model_availability_unknown`.
 Candidates/endpoints never authorize auto-substitution.
 Audit quoted job/step URLs and referenced lines.
-Missing context: `gh run view --log`.
+Missing context: `gh run view "$RUN_ID" --repo "$REPO" --log`.
 
 ### Inspect cached models
 
@@ -110,7 +112,7 @@ Read `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported
 Never substitute another run/baseline.
 
 ```bash
-: "${MODEL:?Set exact rejected model ID}" "${PROVIDER:?Set reflected provider}"
+: "${MODEL:?Set exact model}" "${PROVIDER:?Set provider}"
 jq --arg model "$MODEL" --arg provider "$PROVIDER" '
   {models_fetch_complete, endpoints: [
     .endpoints[]?
@@ -138,7 +140,7 @@ Use targeted `gh run download` for `agent`/`info` only if audit cannot retrieve 
 ### Compare one success
 
 ```bash
-: "${BASE_RUN_ID:?Set relevant successful run ID}"
+: "${BASE_RUN_ID:?Set successful ID}"
 gh aw audit "$BASE_RUN_ID" "$RUN_ID" --repo "$REPO" \
   --output "$EVIDENCE" --json
 ```

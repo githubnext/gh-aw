@@ -7,6 +7,13 @@ sidebar:
 
 This guide walks you through setting up and running agentic workflows on **GitHub Enterprise Cloud with data residency** (`*.ghe.com`). It reflects the configuration needed as of `gh aw` **v0.61.1+** for enterprises using data residency in the EU or other regions.
 
+For an existing failed run, start with the [debug.md bootstrap](https://github.com/github/gh-aw/blob/main/debug.md)
+and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md),
+using the full `https://yourorg.ghe.com/OWNER/REPO/actions/runs/RUN_ID` URL.
+Those instructions own setup, evidence collection, review, and live-execution
+gates; this page adds enterprise-specific configuration, not a separate debug loop.
+The historical minimum version below is not a recommended current version.
+
 > [!TIP]
 > The one thing you must do differently from github.com is set `api-target` in your workflow frontmatter to `copilot-api.<yourorg>.ghe.com`. Everything else flows from that.
 
@@ -60,16 +67,19 @@ GH_HOST=yourorg.ghe.com gh aw compile repo-assist
 
 The compiler (v0.61.1+) automatically adds your GHE domains (`api.yourorg.ghe.com`, `copilot-api.yourorg.ghe.com`) to the firewall allow-list, sets `--copilot-api-target` for the AWF api-proxy, and configures `GH_HOST` so the `gh` CLI targets the correct host.
 
-### Step 5: Commit, Push, and Run
+### Step 5: Publish and Test Within the Shared Gates
+
+Publish source and generated lock together to an authorized feature branch.
+For a debugging test, follow the shared strategy's security review,
+`gh aw compile repo-assist --dry-run`, and explicit live-authorization gates
+before dispatching the exact reviewed branch:
 
 ```bash
-git add .github/workflows/repo-assist.md .github/workflows/repo-assist.lock.yml
-git commit -m "Add repo-assist agentic workflow"
-git push
-
-# Dispatch the workflow
-GH_HOST=yourorg.ghe.com gh workflow run repo-assist.lock.yml --ref main
+GH_HOST=yourorg.ghe.com gh aw run repo-assist --ref REVIEWED_BRANCH
 ```
+
+Compilation alone does not authorize execution. A general debugging request does
+not authorize this command, and explicit no-dispatch rules take precedence.
 
 ## Troubleshooting
 
@@ -85,14 +95,17 @@ Then launch Copilot:
 GH_HOST=yourorg.ghe.com copilot
 ```
 
-Invoke the `agentic-workflows` skill and ask it to run and debug the workflow, for example:
+Invoke the `agentic-workflows` skill and provide the existing failed run, for example:
 
-```
-Run the repo-assist workflow and check if it succeeds.
-If it fails, help me debug the failure.
+```text
+Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
+
+Run URL: https://yourorg.ghe.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-Copilot can inspect your workflow files, run logs, and `gh aw audit` output to help narrow down the failure.
+Copilot can inspect your workflow files, existing run logs, and `gh aw audit`
+output without dispatching another run. Never send enterprise credentials to
+the public raw-content host used for gh-aw guidance.
 
 ### Common Errors
 
@@ -135,25 +148,18 @@ See also [Copilot GHES: Common Error Messages](/gh-aw/troubleshooting/common-iss
 
 ### Advanced: Testing Copilot on the Runner Directly
 
-If you need to verify that Copilot auth works on the Actions runner itself (outside the AWF sandbox), add a temporary diagnostic step to the lock file before the Execute step:
-
-```yaml
-- name: Test Copilot CLI directly
-  env:
-    GH_HOST: yourorg.ghe.com
-    GH_TOKEN: ${{ github.token }}
-  run: |
-    echo "GH_HOST=$GH_HOST"
-    echo "GITHUB_SERVER_URL=$GITHUB_SERVER_URL"
-    /usr/local/bin/copilot --version
-    /usr/local/bin/copilot --prompt "Say hello" --log-level all 2>&1 | head -50
-```
-
-If this step succeeds but the Execute step fails, the problem is in the firewall or api-proxy configuration, not in Copilot auth.
+First compare existing installation, authentication, firewall, and api-proxy
+logs to identify the failing boundary. Do not hand-edit generated locks or run
+Copilot outside AWF to bypass isolation. If component reproduction is necessary,
+use the shared strategy's reviewed, isolated test bindings and fixtures; leave
+hosted credentials and runner behavior unverified until an authorized live test.
 
 ### Advanced: Capturing HTTP Traffic
 
-To see exactly which hosts the Copilot CLI contacts, add these environment variables to the Execute step:
+Prefer existing firewall and api-proxy artifacts. If additional HTTP diagnostics
+are necessary, review a separate diagnostic source change under the shared
+strategy before executing or publishing it. Do not hand-edit the Execute step.
+Copilot's Node.js runtime supports these diagnostic environment variables:
 
 ```yaml
 env:
@@ -164,7 +170,9 @@ env:
 > [!IMPORTANT]
 > The Copilot CLI uses Node.js `fetch()`/`undici` internally, not the built-in `http`/`https` modules. Setting `NODE_DEBUG=http,https` will capture nothing. You must use `UNDICI_DEBUG=full`.
 
-The traffic capture reveals the four domains the CLI uses on data residency:
+Treat captured headers, bodies, and authorization URLs as sensitive; keep raw
+captures private and redact before reuse. Traffic may include these domains on
+data residency:
 
 | Domain | Purpose |
 |--------|---------|
