@@ -7,8 +7,8 @@
  * This script handles checkout for different GitHub event types:
  *
  * 1. pull_request: Runs in merge commit context (PR head + base merged)
- *    - Can use direct git commands since we're already in PR context
- *    - Branch exists in current checkout
+ *    - Uses refs/pull/N/head even for same-repository PRs
+ *    - The retained PR ref survives head branch deletion after merge
  *
  * 2. pull_request_target: Runs in BASE repository context (not PR head)
  *    - CRITICAL: For fork PRs, the head branch doesn't exist in base repo
@@ -467,24 +467,22 @@ async function main() {
     const { isFork } = logPRContext(eventName, pullRequest);
 
     if (eventName === "pull_request" && isFork === false && !isClosed) {
-      // For non-fork pull_request events, we run in the merge commit context.
-      // The PR branch is in the same repo as origin, so we can use direct git commands.
-      // Fork PRs cannot use git fetch because their head branch only exists in the fork
-      // (not in origin/base repo), so they must use gh pr checkout in the else branch below.
+      // Use the retained PR head ref, not the branch name: the PR may have
+      // merged and its branch disappeared since the webhook was captured.
       const branchName = pullRequest.head.ref;
       // commits is in the payload for pull_request events; +1 to include the merge base
       const commitCount = pullRequest.commits || 1;
       const fetchDepth = commitCount + 1;
 
-      logCheckoutStrategy(eventName, "git fetch + checkout", "pull_request event runs in merge commit context with PR branch available");
+      logCheckoutStrategy(eventName, "git fetch refs/pull + checkout", "same-repository pull_request event; retained PR head ref survives branch deletion");
 
-      core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
+      core.info(`Fetching PR #${pullRequest.number} head via refs/pull/${pullRequest.number}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const fetchArgs = await depthArgs(fetchDepth);
       core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await fetchPRHead([branchName, ...fetchArgs]);
+      await fetchPRHead([`+refs/pull/${pullRequest.number}/head:${PR_HEAD_BASE_REF}`, ...fetchArgs]);
 
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", branchName]);
+      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
 
       await exportPRHeadBaseline({
         branchName,

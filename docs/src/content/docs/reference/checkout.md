@@ -176,6 +176,12 @@ This is equivalent to omitting the checkout step from the agent job. Custom dev-
 
 ## Disabling the PR Branch Checkout
 
+PR head checkout fetches the repository's retained `refs/pull/<number>/head`
+ref, including for same-repository PRs. A queued review can therefore check out
+the PR head even if the PR merges and its source branch is deleted before the
+agent starts. The local branch keeps the PR's source branch name; checkout does
+not recreate the remote branch or fall back to the base branch.
+
 A failed PR checkout stops the agent job; it never continues on the previous
 base checkout. If an originally open PR closes and its remote ref disappears
 during checkout, the run records lifecycle invalidation separately from ordinary

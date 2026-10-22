@@ -1,4 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 const { ERR_API } = require("./error_codes.cjs");
 describe("checkout_pr_branch.cjs", () => {
   let mockCore;
@@ -246,15 +251,15 @@ If the pull request is still open, verify that:
 
       // Verify strategy logging
       expect(mockCore.startGroup).toHaveBeenCalledWith("🔄 Checkout Strategy");
-      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch + checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch refs/pull + checkout");
 
       // Verify actual checkout commands
       // commits is undefined in mock payload, so defaults to 1; depth = 1+1 = 2
-      expect(mockCore.info).toHaveBeenCalledWith("Fetching branch: feature-branch from origin (depth: 2 for 1 PR commit(s))");
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockCore.info).toHaveBeenCalledWith("Fetching PR #123 head via refs/pull/123/head (depth: 2 for 1 PR commit(s))");
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
 
       expect(mockCore.info).toHaveBeenCalledWith("Checking out branch: feature-branch");
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
 
       expect(mockCore.info).toHaveBeenCalledWith("✅ Successfully checked out branch: feature-branch");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -266,8 +271,8 @@ If the pull request is still open, verify that:
       const script = require("./checkout_pr_branch.cjs");
       await script.main();
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch"], { silent: true, ignoreReturnCode: true });
-      expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], expect.anything());
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], expect.anything());
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -288,8 +293,8 @@ If the pull request is still open, verify that:
 
         await runScript();
 
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], { silent: true, ignoreReturnCode: true });
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
@@ -303,8 +308,8 @@ If the pull request is still open, verify that:
 
         await runScript();
 
-        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], expect.anything());
-        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], expect.anything());
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("requires write or higher"));
       });
@@ -318,8 +323,8 @@ If the pull request is still open, verify that:
         expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith(expect.objectContaining({ username: "Copilot" }));
         expect(mockCore.info).toHaveBeenCalledWith("Runtime safety check passed for actor 'Copilot' with 'write' permission");
         expect(mockCore.setFailed).not.toHaveBeenCalled();
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], { silent: true, ignoreReturnCode: true });
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
       });
 
       it.each([null, undefined])("should preserve collaborator fallback when the bot event repository is %s", async repository => {
@@ -420,8 +425,8 @@ If the pull request is still open, verify that:
 
         expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
         expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "Copilot" });
-        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], expect.anything());
-        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], expect.anything());
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("bot/app actor 'Copilot' repository permission could not be verified"));
       });
@@ -440,8 +445,8 @@ If the pull request is still open, verify that:
 
         expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalled();
         expect(mockGithub.rest.users.getByUsername).toHaveBeenCalledWith({ username: "real-user" });
-        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], expect.anything());
-        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+        expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], expect.anything());
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "false");
         expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is not a collaborator"));
       });
@@ -992,9 +997,9 @@ If the pull request is still open, verify that:
       // Verify NOT detected as fork (same full_name)
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
 
-      // Verify git fetch + checkout is used (fast path)
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], { silent: true, ignoreReturnCode: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      // The same-repository fast path also uses the retained PR ref.
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
       expect(mockExec.exec).not.toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -1008,9 +1013,9 @@ If the pull request is still open, verify that:
       // Verify non-fork detection
       expect(mockCore.info).toHaveBeenCalledWith("Is fork PR: false (same repository)");
 
-      // Verify git fetch + checkout is used for non-fork
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"], { silent: true, ignoreReturnCode: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      // Verify the retained PR ref is used for non-fork PRs too.
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
       expect(mockExec.exec).not.toHaveBeenCalledWith("gh", ["pr", "checkout", "123"]);
     });
   });
@@ -1442,8 +1447,8 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "feature/new-feature", "--depth=2"], { silent: true, ignoreReturnCode: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature/new-feature"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature/new-feature", "origin/pr-head"]);
     });
 
     it("should handle branches with special characters", async () => {
@@ -1451,8 +1456,8 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "fix-issue-#123", "--depth=2"], { silent: true, ignoreReturnCode: true });
-      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "fix-issue-#123"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "fix-issue-#123", "origin/pr-head"]);
     });
 
     it("should handle very long branch names", async () => {
@@ -1461,7 +1466,7 @@ If the pull request is still open, verify that:
 
       await runScript();
 
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", longBranchName, "--depth=2"], { silent: true, ignoreReturnCode: true });
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"], { silent: true, ignoreReturnCode: true });
     });
   });
 
@@ -1591,8 +1596,8 @@ If the pull request is still open, verify that:
       await runScript();
 
       expect(mockCore.startGroup).toHaveBeenCalledWith("🔄 Checkout Strategy");
-      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch + checkout");
-      expect(mockCore.info).toHaveBeenCalledWith("Reason: pull_request event runs in merge commit context with PR branch available");
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: git fetch refs/pull + checkout");
+      expect(mockCore.info).toHaveBeenCalledWith("Reason: same-repository pull_request event; retained PR head ref survives branch deletion");
     });
 
     it("should log checkout strategy for pull_request_target events", async () => {
@@ -1729,6 +1734,73 @@ If the pull request is still open, verify that:
 
   describe("race condition - PR merged after workflow trigger", () => {
     it.each([
+      ["open", true],
+      ["open", false],
+      ["closed", true],
+      ["closed", false],
+    ])("checks out the retained PR head after branch deletion (payload state %s, shallow %s)", async (state, shallow) => {
+      const actionsExec = await import("@actions/exec");
+      const root = mkdtempSync(join(tmpdir(), "checkout-pr-race-"));
+      const upstream = join(root, "upstream");
+      const workspace = join(root, "workspace");
+      const env = {
+        PATH: process.env.PATH,
+        HOME: root,
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_AUTHOR_NAME: "Checkout Test",
+        GIT_AUTHOR_EMAIL: "checkout-test@example.com",
+        GIT_COMMITTER_NAME: "Checkout Test",
+        GIT_COMMITTER_EMAIL: "checkout-test@example.com",
+      };
+      const git = (cwd, args) => execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+      try {
+        git(root, ["init", "--initial-branch=main", upstream]);
+        writeFileSync(join(upstream, "content.txt"), "base\n");
+        git(upstream, ["add", "content.txt"]);
+        git(upstream, ["commit", "-m", "base"]);
+        const baseSha = git(upstream, ["rev-parse", "HEAD"]);
+        git(upstream, ["checkout", "-b", "feature-branch"]);
+        writeFileSync(join(upstream, "content.txt"), "PR head\n");
+        git(upstream, ["commit", "-am", "PR head"]);
+        const headSha = git(upstream, ["rev-parse", "HEAD"]);
+        git(upstream, ["update-ref", "refs/pull/123/head", headSha]);
+        git(upstream, ["checkout", "main"]);
+        git(upstream, ["update-ref", "-d", "refs/heads/feature-branch"]);
+        git(root, ["clone", "--branch", "main", ...(shallow ? ["--depth=1"] : []), pathToFileURL(upstream).href, workspace]);
+        git(workspace, ["branch", "feature-branch"]);
+        git(workspace, ["update-ref", "refs/remotes/origin/pr-head", baseSha]);
+
+        const deletedBranchFetch = spawnSync("git", ["fetch", "origin", "feature-branch"], { cwd: workspace, env, encoding: "utf8" });
+        expect(deletedBranchFetch.status).toBe(128);
+        expect(deletedBranchFetch.stderr).toContain("couldn't find remote ref feature-branch");
+        mockContext.payload.pull_request.state = state;
+        mockContext.payload.pull_request.head.sha = baseSha;
+        const fullPR = (await mockGithub.rest.pulls.get()).data;
+        mockGithub.rest.pulls.get.mockResolvedValue({ data: { ...fullPR, state: "closed", merged: true } });
+        mockExec.getExecOutput.mockImplementation((cmd, args, options) => actionsExec.getExecOutput(cmd, args, { ...options, cwd: workspace, env }));
+        mockExec.exec.mockImplementation((cmd, args) => actionsExec.exec(cmd, args, { cwd: workspace, env, silent: true }));
+
+        await runScript();
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
+        expect(mockCore.setOutput).not.toHaveBeenCalledWith("checkout_pr_invalidated", "true");
+        expect(git(workspace, ["rev-parse", "HEAD"])).toBe(headSha);
+        expect(git(workspace, ["branch", "--show-current"])).toBe("feature-branch");
+        expect(git(workspace, ["rev-parse", "refs/remotes/origin/pr-head"])).toBe(headSha);
+        expect(git(workspace, ["rev-parse", "--is-shallow-repository"])).toBe(String(shallow));
+        expect(readFileSync(join(workspace, "content.txt"), "utf8")).toBe("PR head\n");
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_SHA", headSha);
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PR_HEAD_BASE_BRANCH", "feature-branch");
+        expect(git(upstream, ["for-each-ref", "--format=%(refname)", "refs/heads/feature-branch"])).toBe("");
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it.each([
       ["pull_request", "Authentication failed"],
       ["pull_request", "Permission denied"],
       ["pull_request", "network error"],
@@ -1752,9 +1824,9 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).not.toHaveBeenCalledWith("git", expect.arrayContaining(["checkout"]));
     });
     it("marks confirmed lifecycle invalidation but fails the step to stop the agent", async () => {
-      // PR was "open" in webhook payload, but branch was deleted after merge
+      // Even the retained PR head ref is unavailable after closure.
       mockContext.payload.pull_request.state = "open";
-      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/pull/123/head" });
       // Non-fork pull_request uses fast path (no fetchPRDetails call).
       // Only the error handler re-check calls pulls.get → returns closed.
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
@@ -1781,7 +1853,7 @@ If the pull request is still open, verify that:
     it("uses real @actions/exec output to detect missing-ref evidence", async () => {
       const actionsExec = await import("@actions/exec");
       mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
-      mockFetch.mockImplementation((_cmd, _args, options) => actionsExec.getExecOutput(process.execPath, ["-e", `process.stderr.write("fatal: couldn't find remote ref feature-branch\\n"); process.exit(128);`], options));
+      mockFetch.mockImplementation((_cmd, _args, options) => actionsExec.getExecOutput(process.execPath, ["-e", `process.stderr.write("fatal: couldn't find remote ref refs/pull/123/head\\n"); process.exit(128);`], options));
       await runScript();
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_invalidated", "true");
       expect(mockCore.setFailed).toHaveBeenCalled();
@@ -1789,14 +1861,14 @@ If the pull request is still open, verify that:
 
     it("does not classify a non-fetch error containing missing-ref text as invalidation", async () => {
       mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
-      mockExec.exec.mockRejectedValueOnce(new Error("fatal: couldn't find remote ref feature-branch"));
+      mockExec.exec.mockRejectedValueOnce(new Error("fatal: couldn't find remote ref refs/pull/123/head"));
       await runScript();
       expect(mockCore.setOutput).not.toHaveBeenCalledWith("checkout_pr_invalidated", "true");
       expect(mockCore.setFailed).toHaveBeenCalled();
     });
 
     it("does not classify a missing head ref as invalidation while the PR remains open", async () => {
-      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref feature-branch" });
+      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/pull/123/head" });
       await runScript();
       expect(mockCore.setOutput).not.toHaveBeenCalledWith("checkout_pr_invalidated", "true");
       expect(mockCore.setFailed).toHaveBeenCalled();
@@ -1804,7 +1876,7 @@ If the pull request is still open, verify that:
 
     it("does not classify missing-ref text on stdout as fetch failure evidence", async () => {
       mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
-      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "fatal: couldn't find remote ref feature-branch", stderr: "unknown git error" });
+      mockFetch.mockResolvedValueOnce({ exitCode: 128, stdout: "fatal: couldn't find remote ref refs/pull/123/head", stderr: "unknown git error" });
       await runScript();
       expect(mockCore.setOutput).not.toHaveBeenCalledWith("checkout_pr_invalidated", "true");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("unknown git error"));
