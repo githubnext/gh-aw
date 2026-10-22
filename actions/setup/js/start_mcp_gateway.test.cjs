@@ -2,6 +2,8 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import http from "http";
+import { createRequire } from "node:module";
+import vm from "node:vm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyAgenticWorkflowsRunnerIdentity,
@@ -125,6 +127,91 @@ describe("MCP gateway runner proxy environment", () => {
   it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("redacts %s values in gateway diagnostics", name => {
     const value = "synthetic-proxy-value";
     expect(redactGatewayDiagnostics(`proxy connection failed: ${value}`, { [name]: value })).not.toContain(value);
+  });
+});
+
+describe("MCP gateway CA launcher arguments", () => {
+  it.each([false, true])("keeps CA mounts before existing Docker flags and the image (inherited proxy: %s)", async inheritedProxy => {
+    const directory = fs.mkdtempSync(path.join(process.cwd(), ".mcp-ca-launcher-"));
+    const caPath = path.join(directory, "private ca.pem");
+    const require = createRequire(import.meta.url);
+    const spawn = vi.fn(() => ({
+      on: vi.fn(),
+      stdin: { write: vi.fn(), end: vi.fn() },
+      unref: vi.fn(),
+      // Stop before health polling; this test covers the launch boundary.
+      pid: undefined,
+    }));
+    const core = { info: vi.fn(), warning: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+    const env = {
+      RUNNER_TEMP: directory,
+      MCP_GATEWAY_DOCKER_COMMAND: "docker run --rm -i --network host __GH_AW_MCP_GATEWAY_CUSTOM_ENV__ gateway:latest --config-stdin",
+      ...(inheritedProxy ? { HTTP_PROXY: "http://inherited-proxy.example:8080" } : {}),
+      [customGatewayEnvNamesVar]: '["HTTP_PROXY"]',
+      [`${customGatewayEnvTransportPrefix}0`]: "http://custom-proxy.example:8080",
+    };
+    const config = {
+      gateway: { port: 8080, domain: "localhost", agentId: "test-agent" },
+      mcpServers: {
+        private: { type: "http", url: "https://private.example/mcp", caCertFile: caPath },
+        public: { type: "http", url: "https://public.example/mcp" },
+      },
+    };
+    const mocks = {
+      fs: {
+        readFileSync: vi.fn(() => Buffer.from(JSON.stringify(config))),
+        mkdirSync: vi.fn(),
+        chmodSync: vi.fn(),
+        rmSync: vi.fn(),
+        openSync: vi.fn(() => 42),
+        mkdtempSync: vi.fn(() => directory),
+      },
+      os: { tmpdir: () => directory },
+      child_process: { spawn, execSync: vi.fn() },
+      "./shim.cjs": {},
+      "./symlink_guard.cjs": { lstatGuard: vi.fn(() => ({})) },
+      "./mcp_configuration.cjs": { writeMcpConfiguration: vi.fn() },
+      "./mcp_server_ca.cjs": {
+        prepareMCPServerCAs: config => require("./mcp_server_ca.cjs").prepareMCPServerCAs(config, env),
+      },
+    };
+
+    try {
+      fs.writeFileSync(caPath, "certificate validated by gateway", { mode: 0o600 });
+      const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+      await vm.runInNewContext(`${source}\nmain();`, {
+        require: id => mocks[id] || require(id),
+        module: { exports: {} },
+        process: { env, umask: vi.fn(), on: vi.fn() },
+        core,
+      });
+
+      expect(spawn).toHaveBeenCalledOnce();
+      const [command, args, options] = spawn.mock.calls[0];
+      const launchedConfig = JSON.parse(spawn.mock.results[0].value.stdin.write.mock.calls[0][0]);
+      const target = launchedConfig.mcpServers.private.caCertFile;
+      expect(target).toMatch(/^\/etc\/gh-aw\/mcp-ca\/[a-f0-9]{64}\.pem$/);
+      expect(command).toBe("docker");
+      expect(args).toEqual([
+        "run",
+        ...(inheritedProxy ? ["-e", "HTTP_PROXY", "-e", "NO_PROXY"] : []),
+        "--mount",
+        `type=bind,source=${fs.realpathSync(caPath)},target=${target},readonly`,
+        "--rm",
+        "-i",
+        "--network",
+        "host",
+        "-e",
+        "HTTP_PROXY=http://custom-proxy.example:8080",
+        "gateway:latest",
+        "--config-stdin",
+      ]);
+      expect(options.env.NO_PROXY).toBe(inheritedProxy ? "host.docker.internal,awf-enclave-mcp" : undefined);
+      expect(launchedConfig.mcpServers.public).not.toHaveProperty("caCertFile");
+      expect(core.setFailed).toHaveBeenCalledExactlyOnceWith("ERROR: Failed to start gateway container");
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 

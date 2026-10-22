@@ -12,6 +12,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var agentRxHashedRequirement = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*==[0-9][a-zA-Z0-9.]* \\\n    --hash=sha256:[0-9a-f]{64}( \\\n    --hash=sha256:[0-9a-f]{64})*$`)
+
 func TestAgentRxSetupUsesHashedDependencyLock(t *testing.T) {
 	source, err := os.ReadFile("../../.github/workflows/daily-agentrx-trace-optimizer.md")
 	require.NoError(t, err)
@@ -55,7 +57,6 @@ func TestAgentRxSetupUsesHashedDependencyLock(t *testing.T) {
 	require.Len(t, revision, 2, "AgentRx source must remain pinned to an immutable commit")
 	require.Contains(t, string(lock), "# AgentRx "+revision[1]+" runtime dependencies.")
 
-	entry := regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*==[0-9][a-zA-Z0-9.]* \\\n    --hash=sha256:[0-9a-f]{64}$`)
 	var requirement strings.Builder
 	count := 0
 	for line := range strings.SplitSeq(string(lock), "\n") {
@@ -69,10 +70,34 @@ func TestAgentRxSetupUsesHashedDependencyLock(t *testing.T) {
 		if strings.HasSuffix(line, `\`) {
 			continue
 		}
-		require.Regexp(t, entry, requirement.String(), "every dependency must have an exact version and a SHA-256 wheel hash")
+		require.Regexp(t, agentRxHashedRequirement, requirement.String(), "every dependency must have an exact version and one or more SHA-256 wheel hashes")
 		requirement.Reset()
 		count++
 	}
 	require.Zero(t, requirement.Len(), "dependency entries must not be truncated")
 	require.Positive(t, count)
+}
+
+func TestAgentRxHashedDependencyEntry(t *testing.T) {
+	hash := "    --hash=sha256:" + strings.Repeat("a", 64)
+	for _, tt := range []struct {
+		name  string
+		entry string
+		valid bool
+	}{
+		{"single hash", "pillow==13.0.0 \\\n" + hash, true},
+		{"multiple hashes", "pillow==13.0.0 \\\n" + hash + " \\\n" + hash, true},
+		{"missing hash", "pillow==13.0.0", false},
+		{"unpinned version", "pillow>=13.0.0 \\\n" + hash, false},
+		{"wildcard version", "pillow==13.* \\\n" + hash, false},
+		{"invalid first hash", "pillow==13.0.0 \\\n" + hash[:len(hash)-1], false},
+		{"invalid subsequent hash", "pillow==13.0.0 \\\n" + hash + " \\\n" + hash[:len(hash)-1], false},
+		{"nonhex hash", "pillow==13.0.0 \\\n    --hash=sha256:" + strings.Repeat("z", 64), false},
+		{"unhashed subsequent entry", "pillow==13.0.0 \\\n" + hash + " \\\nnumpy==2.5.4", false},
+		{"truncated continuation", "pillow==13.0.0 \\\n" + hash + " \\", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.valid, agentRxHashedRequirement.MatchString(tt.entry))
+		})
+	}
 }

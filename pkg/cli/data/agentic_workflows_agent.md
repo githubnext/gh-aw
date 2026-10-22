@@ -8,10 +8,20 @@ disable-model-invocation: true
 
 This agent helps you work with **GitHub Agentic Workflows (gh-aw)**, a CLI extension for creating AI-powered workflows in natural language using markdown files.
 
+For debugging, incident, health, and failure-related optimization requests, first
+load `.github/aw/debug-bootstrap.md` from the guidance repository/ref and follow
+its intent routing, even when the CLI is installed. This takes precedence over
+generic update, upgrade, or optimization routes. Preserve that guidance ref for
+all debugging links and public raw fallbacks; URLs showing `main` below are
+defaults only when no guidance revision is supplied. Reuse already-loaded guides.
+The intent index is `.github/aw/debug-scenarios.md`; load only the selected
+specialized route, not every debugging reference.
+
 ## Repository Instructions Overlay
 
-If `.github/aw/instructions.md` exists, load it with:
-@.github/aw/instructions.md
+Load the target repository's `.github/aw/instructions.md`, if present.
+Use `@.github/aw/instructions.md` only in a matching checkout; do not substitute
+a guidance-repository overlay.
 
 Precedence: repository overlay instructions override defaults in this agent when they conflict.
 
@@ -22,6 +32,7 @@ This is a **dispatcher agent** that routes your request to the appropriate speci
 - **Creating new workflows**: Routes to `create` prompt
 - **Updating existing workflows**: Routes to `update` prompt
 - **Diagnosis, patching, and active debugging**: Routes to `debug-agentic-workflow` for the local-first strategy, evidence triage and live gates
+- **Repository-wide debugging or run analysis**: Routes to `analyzing-runs` for existing-run failure clustering before selecting a workflow; supplied run/failure scope takes precedence
 - **Upgrading workflows**: Routes to `upgrade-agentic-workflows` prompt
 - **Creating report-generating workflows**: Routes to `report` prompt — consult this whenever the workflow posts status updates, audits, analyses, or any structured output as issues, discussions, or comments
 - **Creating shared components**: Routes to `create-shared-agentic-workflow` prompt
@@ -63,7 +74,7 @@ When you interact with this agent, it will:
 
 ## Available Prompts
 
-> **Note**: The prompt and reference files listed below are located in the [`github/gh-aw`](https://github.com/github/gh-aw) repository and are **not available locally** in this repository. Load them from their public URLs.
+> **Note**: The prompt and reference files below are from [`github/gh-aw`](https://github.com/github/gh-aw). Use a local guidance checkout only when its repository/ref matches the requested guidance; otherwise load their public URLs at the resolved guidance ref.
 
 If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a token SAML-authorized for a different organization), do not retry with the same token. Fetch the public file without authentication from `https://raw.githubusercontent.com/github/gh-aw/main/<path>` instead, preserving its repository-relative path (including `.github/`). For example: `curl --fail --silent --show-error --location 'https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/create-agentic-workflow.md'`. Use the same fallback for referenced instructions and `SKILL.md` files; never send an Authorization header or token to the raw URL. If the public download fails, report that error rather than proceeding without the required instructions. This fallback is for public `github/gh-aw` content only, not private or enterprise repositories.
 
@@ -94,11 +105,24 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 
 The shared strategy distinguishes diagnosis/patching from permitted active debug
 loops using explicit live gates and includes existing-run evidence triage.
+For CLI setup or run-URL scoping in a fresh session, first load
+`https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`; it bootstraps
+this same strategy rather than a separate debug procedure.
 
 **Use cases**:
 - "Why is this workflow failing?"
 - "Analyze the logs for workflow X"
 - "Investigate missing tool calls in run #12345"
+
+### Analyze Existing Runs or Repository-Wide Failures
+**Load when**: User asks to debug or optimize agentic workflows generally, without a specific run/failure scope
+
+**Prompt file**: `https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/analyzing-runs.md`
+
+Start with repository-wide existing-run failure clustering, not an arbitrary
+workflow or a request to pick one. Supplied workflow/run/failure scope takes
+precedence. Use the shared debugging strategy for subsequent fixes; never
+dispatch workflows to obtain evidence.
 
 ### Upgrade Agentic Workflows
 **Load when**: User wants to upgrade workflows to a new gh-aw version or fix deprecations
@@ -213,12 +237,12 @@ gh aw init
 gh aw compile [workflow-name]
 
 # Only where permitted and human-validated under debug-agentic-workflow.md:
-gh aw run <workflow-name>             # interactive input collection
-gh aw run <workflow-name> --ref main  # run on a specific branch
+gh aw run <workflow-name> --ref REVIEWED_REF
 
 # Debug workflow runs
-gh aw logs [workflow-name]
-gh aw audit <run-id>
+gh aw logs [workflow-name] --repo HOST/OWNER/REPO
+gh aw audit <run-url>  # preserve host/repository and any job/step scope
+gh aw compile <workflow-name> --dry-run  # first test of workflow changes
 
 # Upgrade workflows
 gh aw fix --write
@@ -238,8 +262,8 @@ gh aw compile --validate
 
 ## Important Notes
 
-- Always reference the instructions file at `https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/github-agentic-workflows.md` for complete documentation
-- Use the MCP tool `agentic-workflows` when running in GitHub Copilot Cloud
+- For complete documentation, load `.github/aw/github-agentic-workflows.md` from the resolved guidance repository/ref.
+- Use gh-aw MCP tools only when exposed and authorized; otherwise use available CLI, cached evidence or static source through the CLI/MCP reference.
 - Workflows must be compiled to `.lock.yml` files before running in GitHub Actions
 - **Bash tools are enabled by default** - Don't restrict bash commands unnecessarily since workflows are sandboxed by the AWF
 - Follow security best practices: minimal permissions, explicit network access, no template injection
