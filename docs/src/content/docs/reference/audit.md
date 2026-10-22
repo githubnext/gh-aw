@@ -11,14 +11,7 @@ The `gh aw audit` commands download workflow run artifacts and logs, analyze MCP
 
 Audit one or more workflow runs. When a single run is provided, a detailed Markdown report is generated. When two or more runs are provided, the first is used as the base (reference) run and the remaining runs are compared against it, producing a diff report. Add `--group` to aggregate findings instead of diffing runs.
 
-**Arguments:**
-
-| Argument | Description |
-|----------|-------------|
-| `<run-id-or-url>` | A numeric run ID, run URL, job URL, or job URL with step anchor |
-| `[<run-id-or-url>...]` | Additional runs to compare against the first (diff mode) |
-
-Each argument accepts a numeric run ID, a standard or short run URL, a job URL, or a job URL with a step anchor. GitHub Enterprise URLs follow the same patterns.
+**Arguments:** each `<run-id-or-url>` accepts a numeric run ID, a standard or short run URL, a job URL, or a job URL with a step anchor (GitHub Enterprise URLs included). Additional arguments are compared against the first (diff mode).
 
 In single-run mode, a job URL without a step anchor extracts the first failing step's output; a step-anchored URL extracts that specific step. In diff mode, any job or step-specific URL is normalized to its parent run ID, so comparisons always happen at run scope. Self-comparisons and duplicate run IDs are rejected.
 
@@ -38,26 +31,21 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 
 Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`.
 
-By default a single-run audit looks up an earlier run of the same workflow and renders a Comparison section against it. Use `--no-baseline` to audit a run on its own — for example when the baseline run is unrepresentative, or to avoid the extra downloads the lookup performs. A `--no-baseline` result is never written to the audit cache, so it cannot suppress the Comparison section of a later default audit of the same run.
-
-```bash
-gh aw audit 1234567890 --no-baseline
-```
+By default a single-run audit renders a Comparison section against an earlier run of the same workflow. Use `--no-baseline` when that baseline is unrepresentative or to avoid the extra downloads. A `--no-baseline` result is never written to the audit cache, so it cannot suppress the Comparison section of a later default audit.
 
 **Single-run examples:**
 
 ```bash
 gh aw audit 1234567890
 gh aw audit https://github.com/owner/repo/actions/runs/1234567890
-gh aw audit 1234567890 --parse
-gh aw audit 1234567890 --json
-gh aw audit 1234567890 -o ./audit-reports
-gh aw audit 1234567890 --repo owner/repo
+gh aw audit 1234567890 --parse --json
+gh aw audit 1234567890 --no-baseline
+gh aw audit 1234567890 -o ./audit-reports --repo owner/repo
 ```
 
 **Stdin mode:**
 
-Use `--stdin` to pass run IDs or URLs from a file or pipeline. This is mutually exclusive with positional arguments. Blank lines and lines starting with `#` are ignored. When passing bare numeric IDs (without embedded repo context), `--repo owner/repo` is required.
+Use `--stdin` to pass run IDs or URLs from a file or pipeline (mutually exclusive with positional arguments). Blank lines and `#` lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 
 ```bash
 echo "1234567890" | gh aw audit --stdin
@@ -73,9 +61,7 @@ gh aw audit 12345 12346                        # Compare two runs
 gh aw audit 12345 12346 12347 12348            # Compare base against 3 runs
 gh aw audit 12345 12346 --format markdown      # Markdown output for PR comments
 gh aw audit 12345 12346 --json                 # JSON for CI integration
-gh aw audit 12345 12346 --repo owner/repo      # Specify repository
-gh aw audit 12345 12346 --group                # Group findings by run and code
-gh aw audit 12345 12346 --group --json         # JSON grouped findings
+gh aw audit 12345 12346 --group --json         # Grouped findings as JSON
 ```
 
 **Single-run report sections**: Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Model Routing, Friction, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Gateway Steering Events, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items, Graders.
@@ -96,10 +82,7 @@ An activation snapshot cannot prove the audited run's eventual outcome. Later fi
 
 Operations are accepted only from the compiler-owned snapshot, finish-intent-copy, and claim-reconciliation step logs, not from agent stdout or whole-job log copies. Incomplete workflow-log downloads are retried before their operations are reported. Text reports escape control characters in stored identifiers.
 
-Historical runs using the previous queue artifact filenames and compiler-owned
-step/message names remain readable. New artifact filenames take precedence when
-both are present; invalid new artifacts are reported as errors, not hidden by
-fallback to an older copy.
+Runs using the previous queue artifact filenames and step/message names remain readable. New filenames take precedence; invalid new artifacts are reported as errors rather than falling back to an older copy.
 
 `audit` downloads this evidence by default. For `logs`, which defaults to compact usage downloads, select `work-queue` (activation and agent artifacts plus workflow logs) or `all`. Both commands include `work_queue` in their JSON reports, per run for `logs`, and preserve it in cached summaries. Usage-only logs omit the section even when a previous request cached work-queue evidence:
 
@@ -108,7 +91,7 @@ gh aw logs 1234567890 --artifacts work-queue --json
 gh aw audit 1234567890 --artifacts work-queue --json
 ```
 
-The Observability Insights section includes `skill_activations` when skill-invocation evidence is found. Each entry reports the skill name, `status` (`invoked`), the detection `source` (`agent_output` or `log_parse`), and provenance fields in JSON output. This makes it possible to distinguish skills that were merely restored or installed from skills that were actually invoked during the run.
+The Observability Insights section includes `skill_activations` when skill-invocation evidence is found. Each entry reports the skill name, `status` (`invoked`), the detection `source` (`agent_output` or `log_parse`), and provenance fields in JSON output. This distinguishes skills that were merely installed from those actually invoked.
 
 The Graders section is present when the run recorded deterministic grader results.
 Ten fast built-ins run by default in conclusion, using the redacted in-memory
@@ -176,7 +159,7 @@ output. Model and sub-agent findings link to specialized guidance; other finding
 link to the diagnostic code playbook. Actions runtime error detection and
 safe-output diagnostics also print the relevant playbook URL.
 
-The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run. It is absent when token-usage data is unavailable for the run — for example, when neither `token-usage.jsonl` nor the fallback `agent_usage.json` can be found in the downloaded artifacts, which is common for older runs and runs without firewall/usage artifacts:
+The Metrics section includes an `ambient_context` object capturing the first LLM inference footprint. It is absent when neither `token-usage.jsonl` nor the fallback `agent_usage.json` is in the downloaded artifacts (common for older runs and runs without firewall/usage artifacts):
 - `ambient_context.input_tokens` — input tokens for the first invocation
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
 
@@ -188,11 +171,11 @@ Working-Set Rebuild Factor measures cumulative context reconstruction relative t
 
 With multiple comparisons, `--json` emits a single object for one comparison or an array for many, while `--format pretty` and `--format markdown` separate each diff with dividers. With `--group`, audit emits `runs_analyzed`, `entries`, and (when applicable) `skipped_runs`; each entry contains `run_id`, `code`, `occurrences`, and `representative_entry`. Only actionable findings (severity of low or above) are grouped. Runs excluded by `--experiment`, `--runtime`, or `--evals`, or whose audit data could not be loaded, are listed in `skipped_runs` and excluded from `runs_analyzed`.
 
-When artifacts are present, audit processing also persists extracted skill-activation data into `run_summary.json`, which downstream automation can consume alongside the rendered report.
+Audit also persists extracted skill-activation data into `run_summary.json` for downstream automation.
 
 ## JSON output schemas
 
-Use `gh aw json-schema` to generate a JSON Schema for structured audit or logs output. The `audit` schema describes `gh aw audit --json`, the `logs` schema describes `gh aw logs --json`, and `logs-jsonl` describes each item written by `gh aw logs --cached-jsonl`. The schema is written to stdout and can be redirected to a file:
+`gh aw json-schema` writes a JSON Schema to stdout: `audit` for `gh aw audit --json`, `logs` for `gh aw logs --json`, and `logs-jsonl` for each item of `gh aw logs --cached-jsonl`.
 
 ```bash
 gh aw json-schema audit > audit.schema.json
@@ -200,14 +183,13 @@ gh aw json-schema logs > logs.schema.json
 gh aw json-schema logs-jsonl > logs-jsonl.schema.json
 ```
 
-`make recompile` regenerates the checked-in schemas, including `schemas/logs-jsonl.schema.json`. These schemas derive directly from the corresponding Go output types.
+`make recompile` regenerates the checked-in schemas (including `schemas/logs-jsonl.schema.json`) from the Go output types.
 
 When routing records are available, single-run `audit --json` includes `model_routing` with status, objective, labels, classifier and selected model details, ranked choices, router metadata, effective and selected endpoints, request outcome/deviation counts, failure details, and classifier/selected/deviated cost buckets. Logs JSON includes `model_routing.routes` entries keyed by labels, mode, model, effort, router version, and endpoint attribution, with `run_count`, `total_aic`, and `average_aic`, plus classifier AIC and deviation totals.
 
 ## `gh aw logs --format <fmt>`
 
-Generate a cross-run security and performance audit report across multiple recent workflow runs.
-This feature is built into the `gh aw logs` command via the `--format` flag.
+Generates a cross-run security and performance audit report across recent runs, built into `gh aw logs`.
 When routed runs are present, the report's Model Routing section groups labels and mode by selected model, effort, router version, and endpoint attribution, with run counts and total/average AIC. It also reports classifier AIC and the share of requests marked deviated. The same aggregate is available as `model_routing` in `--json` output.
 
 **Flags:**
@@ -223,8 +205,6 @@ When routed runs are present, the report's Model Routing section groups labels a
 | `-o, --output <dir>` | `./logs` | Directory for downloaded artifacts |
 | `--stdin` | off | Read run IDs or URLs from stdin (one per line) instead of run-discovery; content filters still apply |
 | `--verbose` | off | Print detailed progress |
-
-Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation.
 
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
@@ -263,16 +243,14 @@ Clusters from dimensions with only one observed value are omitted to avoid noise
 
 Use these as triage signals: high-severity patterns are good candidates for immediate investigation; low-severity patterns are often workload-shape hints.
 
-For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens` and `cached_tokens`). It is absent when the downloaded artifacts do not contain usable `token-usage.jsonl` or fallback `agent_usage.json` data for that run.
+Detailed logs JSON includes a per-run `ambient_context` (first LLM invocation only) under the same availability conditions.
 
 Detailed logs JSON output includes the same `working_set` object when the usage activity summary is available. The default `gh aw logs` runs table (both the compact agent-optimized format and the verbose `-v` format) also surfaces a single `WSRF` column with the rebuild factor rounded to two decimal places, showing `-` when the metric was not measured for that run.
 
 **`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 
 ```bash
-cat run-ids.txt | gh aw logs --stdin
-echo "1234567890" | gh aw logs --stdin --engine claude
-cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare numeric IDs
+cat run-ids.txt | gh aw logs --stdin --repo owner/repo
 ```
 
 **Examples:**
@@ -281,8 +259,6 @@ cat run-ids.txt | gh aw logs --stdin --repo owner/repo   # required for bare num
 gh aw logs --format markdown
 gh aw logs daily-repo-status --format markdown --count 10
 gh aw logs agent-task --format markdown --last 5 --json
-gh aw logs --format pretty
-gh aw logs --format markdown --repo owner/repo --count 10
 ```
 
 ## Learn More
