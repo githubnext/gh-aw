@@ -129,7 +129,7 @@ func enforceDevelopmentDiagnostics(config CompileConfig, compiler *workflow.Comp
 	if len(diagnostics) == 0 {
 		return nil
 	}
-	return errors.New("development testing checks failed; resolve added medium-or-higher warnings, unclassified diagnostics, and validation/scanner failures before uploading or dispatching a live test:\n" + strings.Join(diagnostics, "\n"))
+	return errors.New("development testing checks failed; resolve medium-or-higher warnings, unclassified diagnostics, and validation/scanner failures before uploading or dispatching a live test:\n" + strings.Join(diagnostics, "\n"))
 }
 
 func appendDevelopmentCompilerDiagnostics(compiler *workflow.Compiler, stats *CompilationStats, results *[]ValidationResult, ignoredCompilerWarnings, ignoredWorkflowWarnings int) {

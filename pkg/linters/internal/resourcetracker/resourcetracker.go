@@ -6,6 +6,11 @@
 // acquired and how its cleanup call is recognised) while this package owns the
 // common bookkeeping: AST traversal, closure boundaries, reassignment handling,
 // suppression-directive filtering and diagnostic reporting.
+//
+// Cleanup through helper calls or aliases is outside this syntactic analysis.
+// Passing a resource to an opaque helper does not prove that it is cleaned up;
+// only directly matched cleanup calls affect state. Acquisitions with no matched
+// cleanup are not reported, since ownership may be transferred to a caller.
 package resourcetracker
 
 import (

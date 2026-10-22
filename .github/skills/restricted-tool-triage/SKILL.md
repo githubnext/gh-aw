@@ -28,7 +28,7 @@ gh-aw enforces a **hard, non-renewable denial budget** per session (commonly 3 d
 
 3. **Budget awareness.** Assume a low, fixed denial ceiling (verify from harness messages such as "N/M" if shown, e.g. "tool denial 2/3"). Once you're at 1 remaining denial, do not attempt anything speculative — only proceed with actions you are confident are allowed.
 
-4. **Don't misreport scope-as-bug.** A restricted toolset is very often an intentional, security-motivated author choice (least-privilege workflow design), not a misconfiguration. Before calling `missing_tool` / `missing_data` / equivalent "report a gap" safe-output:
+4. **Don't misreport scope-as-bug.** A restricted toolset is very often an intentional, security-motivated author choice (least-privilege workflow design), not a misconfiguration. Before calling `report_missing_tool` / `report_missing_data` / equivalent "report a gap" safe-output:
    - Confirm the missing capability is genuinely required to complete the task and has no in-allowlist substitute.
    - Do NOT claim "verify token scopes / repository permissions / credentials" when the actual evidence is a `tools:` allowlist denial — that phrasing wrongly suggests an infra/auth bug and can prompt maintainers to loosen permissions unnecessarily, which is a security regression.
    - If you do report a gap, name the specific missing tool/capability and cite the exact denied command(s), not a generic "permissions" narrative.

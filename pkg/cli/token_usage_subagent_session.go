@@ -883,8 +883,8 @@ func (models *subagentSessionModels) addAgentMetricModelUsage(agentID string, me
 			return errors.New("negative agent request count")
 		}
 		counts[model] = requestCount
-		actual := SubagentModelActual{Model: model, Requests: requestCount}
-		actual.TokenCoreMetrics = TokenCoreMetrics{
+		actual := SubagentModelActual{
+			Model: model, Requests: requestCount,
 			InputTokens: usage.Usage.InputTokens, OutputTokens: usage.Usage.OutputTokens,
 			CacheReadTokens: usage.Usage.CacheReadTokens, CacheWriteTokens: usage.Usage.CacheWriteTokens,
 			ReasoningTokens: usage.Usage.ReasoningTokens,

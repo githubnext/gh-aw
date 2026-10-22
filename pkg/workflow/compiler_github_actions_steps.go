@@ -2,10 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var compilerGitHubActionsStepsLog = logger.New("workflow:compiler_github_actions_steps")
@@ -42,6 +44,10 @@ func generateGitHubScriptWithCredentialSource(scriptPath string, withCredentialS
 // safe placeholder substitution using the substitute_placeholders script.
 // This replaces the multiple sed commands with a single JavaScript step.
 func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string, data *WorkflowData) {
+	generatePlaceholderSubstitutionStepForFile(yaml, expressionMappings, indent, data, "Substitute placeholders", constants.AwPromptsFileExpr)
+}
+
+func generatePlaceholderSubstitutionStepForFile(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string, data *WorkflowData, name, promptFile string) {
 	if len(expressionMappings) == 0 {
 		return
 	}
@@ -49,11 +55,41 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	compilerGitHubActionsStepsLog.Printf("Generating placeholder substitution step with %d mappings", len(expressionMappings))
 
 	// Use actions/github-script to perform the substitutions
-	yaml.WriteString(indent + "- name: Substitute placeholders\n")
-	fmt.Fprintf(yaml, indent+"  uses: %s\n", getCachedActionPin("actions/github-script", data))
+	yaml.WriteString(indent + "- name: " + name + "\n")
+	fmt.Fprintf(yaml, indent+"  uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	yaml.WriteString(indent + "  env:\n")
-	fmt.Fprintf(yaml, indent+"    GH_AW_PROMPT: %s\n", constants.AwPromptsFileExpr)
+	fmt.Fprintf(yaml, indent+"    GH_AW_PROMPT: %s\n", promptFile) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	generatePlaceholderEnvironment(yaml, expressionMappings, indent)
+	generatePlaceholderSubstitutionScript(yaml, expressionMappings, indent)
+}
 
+type inlineArtifactSubstitutionTarget struct {
+	Directory string
+	Extension string
+}
+
+func (c *Compiler) generateDeferredPromptSubstitutionStep(yaml *strings.Builder, data *WorkflowData) {
+	if len(data.DeferredPromptExpressions) == 0 {
+		return
+	}
+	yaml.WriteString("      - name: " + constants.DeferredPromptStepName + "\n")
+	yaml.WriteString("        id: " + constants.DeferredPromptStepID.String() + "\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFile) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	generatePlaceholderEnvironment(yaml, data.DeferredPromptExpressions, "      ")
+	engineID := ""
+	if data.EngineConfig != nil {
+		engineID = data.EngineConfig.ID
+	}
+	baseDir := engineConfigBaseDirForRegistry(c.engineRegistry, engineID)
+	generatePlaceholderSubstitutionScript(yaml, data.DeferredPromptExpressions, "      ",
+		inlineArtifactSubstitutionTarget{Directory: path.Join(baseDir, "agents"), Extension: parser.GetEngineSubAgentExt(engineID)},
+		inlineArtifactSubstitutionTarget{Directory: path.Join(baseDir, "skills"), Extension: engineInlineSkillExt(engineID)},
+	)
+}
+
+func generatePlaceholderEnvironment(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
 	// Add all environment variables
 	// For static values (wrapped in quotes), output them directly without ${{ }}
 	// For GitHub expressions, wrap them in ${{ }}
@@ -70,16 +106,18 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 				escaped := strings.ReplaceAll(innerValue, `\`, `\\`)
 				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
 				escaped = strings.ReplaceAll(escaped, "\n", `\n`)
-				fmt.Fprintf(yaml, indent+"    %s: \"%s\"\n", mapping.EnvVar, escaped)
+				fmt.Fprintf(yaml, indent+"    %s: \"%s\"\n", mapping.EnvVar, escaped) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 			} else {
-				fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content)
+				fmt.Fprintf(yaml, indent+"    %s: %s\n", mapping.EnvVar, content) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 			}
 		} else {
 			// GitHub expression - wrap in ${{ }}
-			fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, content)
+			fmt.Fprintf(yaml, indent+"    %s: ${{ %s }}\n", mapping.EnvVar, content) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 		}
 	}
+}
 
+func generatePlaceholderSubstitutionScript(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string, inlineArtifacts ...inlineArtifactSubstitutionTarget) {
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
@@ -93,6 +131,13 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
 	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
+	if len(inlineArtifacts) > 0 {
+		targets := make([]string, 0, len(inlineArtifacts))
+		for _, target := range inlineArtifacts {
+			targets = append(targets, fmt.Sprintf(`{"directory":%q,"extension":%q}`, target.Directory, target.Extension))
+		}
+		fmt.Fprintf(yaml, indent+"        inlineArtifacts: [%s],\n", strings.Join(targets, ",")) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	}
 	yaml.WriteString(indent + "        substitutions: {\n")
 
 	for i, mapping := range expressionMappings {
@@ -100,7 +145,7 @@ func generatePlaceholderSubstitutionStep(yaml *strings.Builder, expressionMappin
 		if i == len(expressionMappings)-1 {
 			comma = ""
 		}
-		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma)
+		fmt.Fprintf(yaml, indent+"          %s: process.env.%s%s\n", mapping.EnvVar, mapping.EnvVar, comma) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	}
 
 	yaml.WriteString(indent + "        }\n")

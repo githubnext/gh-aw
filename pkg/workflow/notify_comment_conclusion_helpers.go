@@ -177,9 +177,14 @@ func (c *Compiler) buildConclusionDetectionRunsStep(data *WorkflowData, mainJobN
 	envVars = append(envVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_DETECTION_CONCLUSION: ${{ needs.%s.outputs.detection_conclusion }}\n", constants.DetectionJobName))
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_DETECTION_REASON: ${{ needs.%s.outputs.detection_reason }}\n", constants.DetectionJobName))
+	stepCondition := ""
+	if isWorkQueueParticipant(data) {
+		stepCondition = "always()"
+	}
 	steps := c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
 		StepName:      "Log detection run",
 		StepID:        "detection_runs",
+		StepCondition: stepCondition,
 		MainJobName:   mainJobName,
 		CustomEnvVars: envVars,
 		ScriptFile:    "handle_detection_runs.cjs",
@@ -653,6 +658,11 @@ func buildConclusionJobNeeds(data *WorkflowData, mainJobName string, safeOutputJ
 func buildConclusionJobOutputs(data *WorkflowData) map[string]string {
 	// Create outputs for the job (include noop and missing_tool outputs if configured)
 	outputs := map[string]string{}
+	if data.AdmissionEnabled {
+		outputs["admission_compact_session"] = "${{ steps.admission-conclusion-metadata.outputs.compact_session }}"
+		outputs["usage_artifact_id"] = "${{ steps.upload-usage-artifact.outputs.artifact-id }}"
+		outputs["usage_artifact_retry_id"] = "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}"
+	}
 	if data.SafeOutputs.NoOp != nil {
 		outputs["noop_message"] = "${{ steps.noop.outputs.noop_message }}"
 		if !isWorkQueueParticipant(data) {

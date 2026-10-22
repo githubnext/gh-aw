@@ -70,7 +70,7 @@ func workReplayArtifact(cmd *cobra.Command, runID int64, file string) error {
 		data, err = readBoundedWorkQueueArtifact(file, workQueueReplayArtifactBytes)
 	} else {
 		if repository == "" {
-			repository, err = GetCurrentRepoSlug()
+			repository, err = getWorkQueueRepoSlug()
 			if err != nil {
 				return err
 			}

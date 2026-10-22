@@ -77,6 +77,7 @@ func TestSpec_Constants_JobAndServerIdentifiers(t *testing.T) {
 		{name: "upload code scanning", got: constants.UploadCodeScanningJobName, want: "upload_code_scanning_sarif"},
 		{name: "upload coverage", got: constants.UploadCodeCoverageJobName, want: "upload_code_coverage"},
 		{name: "conclusion", got: constants.ConclusionJobName, want: "conclusion"},
+		{name: "conclusion admission", got: constants.ConclusionAdmissionJobName, want: "conclusion_admission"},
 		{name: "unlock", got: constants.UnlockJobName, want: "unlock"},
 	}
 	for _, tt := range jobs {
@@ -118,7 +119,7 @@ func TestSpec_Constants_VersionsAndURLs(t *testing.T) {
 		{name: "network docs", got: constants.DocsNetworkURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/network.md"},
 		{name: "sandbox docs", got: constants.DocsSandboxURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/sandbox.md"},
 		{name: "membership step", got: constants.CheckMembershipStepID.String(), want: "check_membership"},
-		{name: "default Copilot version", got: constants.DefaultCopilotVersion.String(), want: "1.0.98"},
+		{name: "default Copilot version", got: constants.DefaultCopilotVersion.String(), want: "1.0.101"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

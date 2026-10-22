@@ -96,6 +96,11 @@ func newMCPSubprocessContext(ctx context.Context, timeout time.Duration, toolNam
 
 // logsArgs holds the input parameters for the logs tool.
 type logsArgs struct {
+	EpisodeRun            string   `json:"episode_run,omitempty" jsonschema:"Retrieve a canonical episode from this seed run ID or URL instead of workflow discovery; count caps all examined candidates"`
+	EpisodeRepository     string   `json:"episode_repository,omitempty" jsonschema:"Seed [HOST/]owner/repo for episode_run IDs; otherwise uses the run URL or GITHUB_REPOSITORY"`
+	AllowRepositories     []string `json:"allow_repositories,omitempty" jsonschema:"Additional owner/repo explicitly allowed for episode retrieval on the seed host"`
+	MaxAPIRequests        int      `json:"max_api_requests,omitempty" jsonschema:"Hard REST request budget for episode_run retrieval, including artifact discovery and downloads (default: 500)"`
+	Refresh               bool     `json:"refresh,omitempty" jsonschema:"Refresh the cached episode_run snapshot instead of reusing it"`
 	WorkflowName          string   `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
 	Count                 int      `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
 	StartDate             string   `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
@@ -223,8 +228,11 @@ const logsToolDescription = `Download workflow logs. Returns JSON file_path; err
 
 Read the returned file_path first; it contains the complete report JSON. Use jq
 against that file to project summary, failure_investigation and continuation before runs.
-For partial results ("partial": true), follow every continuation parameter, including
-updated end_date and before_run_id. State incomplete coverage until collection finishes.
+For partial results ("partial": true), follow continuation or every per-target entry
+in continuations, preserving repository, updated end_date and before_run_id.
+Partial episode evidence may have no cursor. coverage_status is partial or unknown,
+never proof of complete episode membership. Read coverage_reasons and the report.
+State incomplete coverage until collection finishes.
 
 Start with failure_investigation.selected_runs: a deduplicated initial audit plan.
 Prioritize failure_boundary over generic aftermath. Read failure_clusters for selected
@@ -241,7 +249,20 @@ Report cluster IDs, unique affected runs, inspected URLs and remaining uncertain
 
 token_usage (input+output) and aic are always present per run. The usage artifact is
 downloaded by default and added to explicit selections. Compact metadata is not complete
-logs; missing evidence does not prove absence of failure.`
+logs; missing evidence does not prove absence of failure.
+
+Set episode_run to a seed run ID or URL for bounded canonical episode retrieval.
+count then caps all candidate runs examined, not only matching members.
+allow_repositories explicitly permits additional repositories on the seed host;
+max_api_requests caps the entire operation, including compact artifact downloads.
+Read episode_retrieval for fixed time/repository bounds, counters, stop reasons
+and evidence gaps. It never establishes complete episode membership.
+Identical episode retrievals reuse a cached snapshot; set refresh to collect
+again. collected_at and cached identify snapshot provenance; REST counters
+describe its original collection, not requests made while reading the cache.
+episodes[].explanation shows recorded hops (including reusable invocations sharing
+a run), hop/run edges, and missing evidence. Run costs are separate in run_costs;
+never multiply or allocate a run's cost across its hops.`
 
 // newLogsToolHandler builds the handler for the logs tool.
 func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.
@@ -258,6 +279,9 @@ func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) f
 
 		if args.Firewall && args.NoFirewall {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "conflicting parameters: cannot specify both 'firewall' and 'no_firewall'", nil)
+		}
+		if err := validateMCPEpisodeLogsArgs(args); err != nil {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, err.Error(), nil)
 		}
 
 		// Validate workflow name before executing command
@@ -329,6 +353,9 @@ func buildLogsEmptyResult(cause error) (*mcp.CallToolResult, any, error) {
 // tool, returning the arguments along with the effective run count and the
 // effective timeout (in minutes) applied to the subprocess.
 func buildLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, int, int) {
+	if args.EpisodeRun != "" {
+		return buildEpisodeLogsCommandArgs(ctx, args)
+	}
 	// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
 	cmdArgs := []string{"logs", "-o", constants.TmpAwMcpLogsDir}
 	effectiveCount := effectiveMCPLogsToolCount(args.Count)

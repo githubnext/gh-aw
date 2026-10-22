@@ -197,7 +197,7 @@ Before analyzing files, read `/tmp/gh-aw/agent/go-logger/preflight.json` and `/t
 - `manifest.json` is deliberately capped to a bounded pool of candidate files (with their call sites) — it never contains the full repository backlog, so it should always be small enough to read in one shot. `files_needing_logger_total` reports the full uncapped backlog count for context.
 - If a file read ever reports the content is too large or exceeds a token limit (including for `manifest.json` itself), do **not** retry with other tools (`jq`, `cd`, `cp`, `wc`, etc.) — those are not permitted outside the working directory and will not succeed. Immediately retry the same read with an `offset`/`limit` (or equivalent chunked read) as the error message suggests, or fall back to the `cat` bash command already allow-listed for this file.
 - If cache files are missing (cold cache / first run), treat that as expected and continue.
-- Only report `missing_data` when cache files exist but are unreadable/corrupted.
+- Only report `report_missing_data` when cache files exist but are unreadable/corrupted.
 - Update cache after processing:
   - Save list of processed files to `processed-files.txt`
   - Save current commit SHA to `last-run.json`

@@ -123,7 +123,7 @@ safeoutputs add_comment '{"item_number":42,"body":"### Result\n\nIt\u0027s ready
 
 Stdin is also supported: `safeoutputs <tool_name> .` reads a complete JSON object from stdin. Prefer inline JSON without auxiliary tools, pipelines, temporary files, or shell expansion. Stdin support does not grant permission for additional commands or redirections, and quoting cannot guarantee acceptance by the engine's independent shell guard. Do not repeat a denied command or bypass the denial with an unapproved workaround.
 
-Report unavailable functionality with [`missing_tool`](/gh-aw/reference/safe-outputs/) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
+Report unavailable functionality with [`report_missing_tool`](/gh-aw/reference/safe-outputs/) when configured and reachable; reserve `report_incomplete` for failed write attempts. If no supported safe-output transport is available, the agent must report the missing command in its final response without claiming that a diagnostic or write was emitted.
 
 Collect diagnostics with the repository's [debug.md guidance](https://github.com/github/gh-aw/blob/main/debug.md). Redact secrets from logs and configuration; do not dump the full environment or make a real safe-output call merely to test availability.
 
@@ -152,7 +152,7 @@ The safe-outputs job failed, the agent didn't produce the expected output, or pe
 
 ### Silent Long-running Commands After a Result
 
-If the harness log says `post-result watchdog terminating idle process`, the agent already emitted a terminal safe output and then the child process went quiet. The watchdog is dormant until a terminal safe output such as `noop`, a comment, label, push, or pull request creation is observed; diagnostic outputs such as `missing_tool`, `missing_data`, and `report_incomplete` do not arm it. After arming, stdout or stderr activity resets the clock, so quiet builds, tests, or monorepo scans can be terminated even while they are still doing useful CPU or I/O work.
+If the harness log says `post-result watchdog terminating idle process`, the agent already emitted a terminal safe output and then the child process went quiet. The watchdog is dormant until a terminal safe output such as `noop`, a comment, label, push, or pull request creation is observed; diagnostic outputs such as `report_missing_tool`, `report_missing_data`, and `report_incomplete` do not arm it. After arming, stdout or stderr activity resets the clock, so quiet builds, tests, or monorepo scans can be terminated even while they are still doing useful CPU or I/O work.
 
 Increase `engine.harness.watchdog-timeout` for literal frontmatter values, or set `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` when you need a millisecond environment-variable override. See [Harness Settings and Runtime Tuning Variables](/gh-aw/reference/environment-variables/#harness-settings-and-runtime-tuning-variables).
 

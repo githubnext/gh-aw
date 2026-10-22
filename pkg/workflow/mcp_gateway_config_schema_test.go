@@ -7,8 +7,91 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
+
+func TestMCPGatewayConfigSchemaContainerImages(t *testing.T) {
+	digest := strings.Repeat("aB012345", 8)
+	tests := []struct {
+		name      string
+		container string
+		wantErr   bool
+	}{
+		{name: "untagged", container: "ghcr.io/github/github-mcp-server"},
+		{name: "tagged", container: "ghcr.io/github/github-mcp-server:v1.0.0"},
+		{name: "tagged digest", container: "ghcr.io/github/github-mcp-server:v1.0.0@sha256:" + digest},
+		{name: "digest only", container: "ghcr.io/github/github-mcp-server@sha256:" + digest},
+		{name: "short digest", container: "ghcr.io/github/github-mcp-server@sha256:abc123", wantErr: true},
+		{name: "tagged short digest", container: "ghcr.io/github/github-mcp-server:v1.0.0@sha256:abc123", wantErr: true},
+		{name: "long digest", container: "ghcr.io/github/github-mcp-server@sha256:" + digest + "a", wantErr: true},
+		{name: "non-hex digest", container: "ghcr.io/github/github-mcp-server@sha256:" + strings.Repeat("g", 64), wantErr: true},
+		{name: "unsupported algorithm", container: "ghcr.io/github/github-mcp-server@sha512:" + digest, wantErr: true},
+		{name: "trailing characters", container: "ghcr.io/github/github-mcp-server@sha256:" + digest + ";echo", wantErr: true},
+		{name: "missing image", container: "@sha256:" + digest, wantErr: true},
+		{name: "empty image", container: "", wantErr: true},
+	}
+
+	for _, schemaPath := range []string{
+		"schemas/mcp-gateway-config.schema.json",
+		"../../docs/public/schemas/mcp-gateway-config.schema.json",
+	} {
+		t.Run(schemaPath, func(t *testing.T) {
+			schemaJSON, err := os.ReadFile(schemaPath)
+			if err != nil {
+				t.Fatalf("failed to read schema: %v", err)
+			}
+			var document map[string]any
+			if err := json.Unmarshal(schemaJSON, &document); err != nil {
+				t.Fatalf("failed to parse schema: %v", err)
+			}
+			definitions := requireObject(t, document, "definitions")
+			stdio := requireObject(t, definitions, "stdioServerConfig")
+			properties := requireObject(t, stdio, "properties")
+			containerJSON, err := json.Marshal(requireObject(t, properties, "container"))
+			if err != nil {
+				t.Fatalf("failed to marshal container schema: %v", err)
+			}
+			containerSchema, err := compileSchema(string(containerJSON), "container.json")
+			if err != nil {
+				t.Fatalf("failed to compile container schema: %v", err)
+			}
+
+			for _, tc := range tests {
+				t.Run(tc.name, func(t *testing.T) {
+					if err := containerSchema.Validate(tc.container); (err != nil) != tc.wantErr {
+						t.Fatalf("container validation error = %v, wantErr %v", err, tc.wantErr)
+					}
+				})
+			}
+
+			// The public schema contains an unrelated negative-lookahead pattern
+			// unsupported by the Go schema compiler; validate full configs with the package copy.
+			if schemaPath != "schemas/mcp-gateway-config.schema.json" {
+				return
+			}
+			schema, err := compileSchema(string(schemaJSON), "https://docs.github.com/gh-aw/schemas/mcp-gateway-config.schema.json")
+			if err != nil {
+				t.Fatalf("failed to compile gateway schema: %v", err)
+			}
+			for _, tc := range tests {
+				t.Run("config/"+tc.name, func(t *testing.T) {
+					config := map[string]any{
+						"mcpServers": map[string]any{
+							"test": map[string]any{"container": tc.container},
+						},
+						"gateway": map[string]any{
+							"port": 8080, "domain": "localhost", "agentId": "test-agent",
+						},
+					}
+					if err := schema.Validate(config); (err != nil) != tc.wantErr {
+						t.Fatalf("config validation error = %v, wantErr %v", err, tc.wantErr)
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestMCPGatewayConfigSchemaAcceptsHTTPOTLPEndpoint(t *testing.T) {
 	schemaPaths := []string{

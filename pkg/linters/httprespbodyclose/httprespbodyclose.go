@@ -1,5 +1,8 @@
 // Package httprespbodyclose implements a Go analysis linter that flags
 // HTTP response Body.Close() calls that are made directly instead of deferred.
+// Cleanup through helper calls or aliases is outside this syntactic analysis:
+// passing a response to a helper does not prove that its body is closed. Only
+// directly matched Body.Close() calls affect cleanup state.
 package httprespbodyclose
 
 import (

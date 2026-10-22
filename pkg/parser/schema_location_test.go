@@ -575,7 +575,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsDailyAICred
 }
 
 func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AcceptsTerminalSafeOutputCategories(t *testing.T) {
-	for _, category := range []string{"engine_driver_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"} {
+	for _, category := range []string{"engine_driver_failure", "secret_redaction_failure", "safeoutputs_cli_error", "invalid_safe_outputs", "missing_terminal_safe_output"} {
 		for _, prefix := range []string{"", "!"} {
 			t.Run(prefix+category, func(t *testing.T) {
 				frontmatter := map[string]any{

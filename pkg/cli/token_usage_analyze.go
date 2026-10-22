@@ -15,6 +15,13 @@ import (
 func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
 
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return analyzeEpisodeUsage(dirs, verbose, true)
+	}
+
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" {
 		fileInfo, _ := os.Stat(filePath)
@@ -61,6 +68,13 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
 
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return analyzeEpisodeUsage(dirs, verbose, false)
+	}
+
 	usageJSONLFiles, warnings := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
@@ -92,6 +106,42 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		return nil, err
 	}
 	return combineTokenUsageAICPhases(phases, warnings), nil
+}
+
+func analyzeEpisodeUsage(dirs []string, verbose, details bool) (*TokenUsageSummary, error) {
+	summary := &TokenUsageSummary{ByModel: make(map[string]*ModelTokenUsage), agentModels: make(map[string]*ModelTokenUsage)}
+	seen := make(map[string]struct{})
+	for _, dir := range dirs {
+		files, warnings := findUsageJSONLFilesInDirs([]string{dir})
+		usage, hadAWFRecords, err := summarizeUsageJSONLFilesWithSeen(files, seen)
+		if err != nil {
+			return nil, err
+		}
+		usage.Warnings = append(warnings, usage.Warnings...)
+		if !hadAWFRecords && !usage.AICFound {
+			path := findAgentUsageFile(dir)
+			if path != "" {
+				fallback, err := parseAgentUsageFile(path)
+				if err != nil {
+					return nil, err
+				}
+				if fallback != nil {
+					mergeTokenUsageSummary(usage, fallback)
+				}
+			}
+		}
+		if details {
+			applyGatewaySteeringSummary(usage, dir)
+			applySteeringNotices(usage, dir)
+			augmentSubagentModelAttribution(dir, usage)
+		}
+		mergeTokenUsageSummary(summary, usage)
+		console.LogVerbose(verbose, fmt.Sprintf("  Analyzed %d compact usage streams", len(files)))
+	}
+	if summary.TotalRequests == 0 && !summary.AICFound && len(summary.Warnings) == 0 && summary.TotalSteeringEvents == 0 {
+		return nil, nil
+	}
+	return summary, nil
 }
 
 func applyTokenUsageAICFallbacks(runDir string, verbose bool, usageJSONLFiles []string, seenRequestIDs map[string]struct{}, phases map[string]*TokenUsageSummary) error {

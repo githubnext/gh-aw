@@ -152,7 +152,7 @@
       {
         "id": "BP-EP-104",
         "source": "model-based",
-        "input": "safeoutputs --help || safeoutputs missing_data",
+        "input": "safeoutputs --help || safeoutputs report_missing_data",
         "expected": ["safeoutputs"]
       },
       {

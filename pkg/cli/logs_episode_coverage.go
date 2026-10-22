@@ -153,6 +153,9 @@ type logsCollectionCoverageOptions struct {
 	continuations     []WorkflowContinuation
 	countLimitReached bool
 	countLimitTargets []logsWorkflowTarget
+	// Bounded retrieval must not resolve the local repository through an
+	// unbudgeted gh repo view request, or classify remote runs using local YAML.
+	disableLocalClassification bool
 }
 
 func resolveLogsCollectionTargetRepositories(results []logsTargetResult, localRepository string) {

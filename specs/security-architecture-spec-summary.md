@@ -298,7 +298,8 @@ Six key best practices with "Don't" and "Do" examples.
 - MCP Security Best Practices
 - OWASP Top 10
 - CWE (Common Weakness Enumeration)
-- actionlint, zizmor (security tools)
+- [actionlint](https://github.com/rhysd/actionlint) (workflow checker)
+- [zizmor](https://github.com/zizmorcore/zizmor) and its maintainers and contributors ([audit definitions](https://docs.zizmor.sh/audits/), [MIT License](https://github.com/zizmorcore/zizmor/blob/main/LICENSE)); upstream security research and remediation guidance informing selected independent gh-aw AST checks, not a claim of parity or endorsement
 - GitHub Agentic Workflows documentation
 
 ## Implementation Status

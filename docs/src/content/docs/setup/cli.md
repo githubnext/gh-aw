@@ -394,7 +394,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 ```
 
-For `--zizmor` and `--poutine`, compilation automatically uses a binary on `PATH` when its version is at least 1.30.1 or 1.1.6, respectively. The version is checked with `zizmor --version` or `poutine version --disable-version-check`. If the binary is missing, too old, or its version cannot be determined, the scanner uses the pinned Docker image instead. Other Docker-based checks still require Docker.
+For `--zizmor` and `--poutine`, compilation automatically uses a binary on `PATH` when its version is at least 1.31.1 or 1.1.6, respectively. The version is checked with `zizmor --version` or `poutine version --disable-version-check`. If the binary is missing, too old, or its version cannot be determined, the scanner uses the pinned Docker image instead. Other Docker-based checks still require Docker.
 
 If the repository root contains an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/), `gh aw compile` validates it before compiling workflows.
 
@@ -404,7 +404,7 @@ Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `-
 
 **`--no-logo` flag:** Omit the ASCII logo from generated workflow headers without removing metadata or regeneration instructions. To persist this setting for all compiles, including upgrades, set [`"lock_file_logo": false` in `.github/workflows/aw.json`](/gh-aw/reference/compilation-process/#repository-configuration-awjson). Either opt-out disables the logo; `--banner` only controls terminal output.
 
-**`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, and model checks. Scanner findings are compared against the existing on-disk locks before compilation: only added medium-or-higher or unclassified findings fail. Low-severity findings and zizmor's `secrets-outside-env` rule do not fail the dry-run gate. Docker-based image validation and scanners are opt-in. Without Docker, required run-step linting uses native shellcheck. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations are disabled, including push jobs, memory/cache persistence, work-queue operations, reusable safe-output calls, reactions, comments/issues, label removal, and issue locking. Emitted locks remove `OTEL_*` and `GH_AW_OTLP_*` variables from workflow, job, step, container, and service environment mappings and disable automatic OTLP configuration and authentication. The runtime records `dry_run` in `aw_info.json` and warns that custom scripts/jobs, agent shell commands, external MCP servers, and custom credentials remain unverified. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
+**`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, and model checks. Existing and added medium-or-higher or unclassified scanner findings fail; baseline counts remain available for comparison. Low-severity findings and zizmor's `secrets-outside-env` rule do not fail the gate. Docker-based image validation and scanners are opt-in; native shellcheck provides required run-step linting without Docker. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations and authored custom jobs are disabled. Custom jobs and custom safe-output jobs become credential-free placeholders, including reusable calls with inherited secrets. Authored host steps, custom MCP servers, `mcp-scripts`, custom safe-output scripts, enabled Bash graders, and authored OIDC permissions are rejected, including imported declarations. Remove unsupported declarations in a separate diagnostic workflow. Emitted locks remove telemetry environment variables and automatic OTLP authentication. Agent shell commands, custom engine execution, custom credentials, and hosted identities still require review; dry-run is not a hosted sandbox. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
 
 Dry-run locks also omit daily credit accounting, retain existing per-run caps or promote configured/imported daily limits, and add manual dispatch restricted to maintainer/admin actors without bot exemptions. `DEBUG=workflow:compiler_development,cli:compile_development` reports mutations without configuration values.
 
@@ -473,7 +473,7 @@ gh aw lint --rules secret-leak --debug --json       # Include incomplete-analysi
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
-`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
+`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules` and has no `-j` shorthand; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
 Secret-leak coverage warnings are hidden by default in text and JSON output, unless JavaScript analysis is explicitly enabled. Use `--debug` to include them otherwise. Error findings, analysis failures, and other linters' warnings remain visible. This is a presentation setting: the AST runner retains all coverage diagnostics, and an empty CLI result is not proof of complete analysis.
 
@@ -673,6 +673,84 @@ with workflow-call-prefixed and historical agent artifacts supported.
 Each safe-output entity recorded for a run (the same provider-neutral records surfaced in `usage/activity/summary.json`) is also appended as its own `safe_output_item` line immediately after the `run` record, carrying a `run_id` correlating it back to the run plus the entity's type, provider, durable ID, human-readable identifier, URL, and target/state metadata. These per-entity lines are informational projections of the `run` record's `safe_outputs` array and are ignored by the in-memory run cache used to skip already-downloaded runs.
 
 Pass a trailing wildcard prefix such as `--cached-jsonl 'logs-*'` to load all matching `logs-*.jsonl` files as the starting cache and write newly downloaded data to a unique `logs-<unix-time>-<random>.jsonl` file. With `--start-date` or `--end-date`, wildcard cache files containing exclusively dated run records outside the requested range are deleted.
+
+##### `logs episode <run-id-or-url>`
+
+Retrieve a canonical episode starting from a recorded run. The command visits
+recorded parents and roots, then scans the allowed repositories for runs sharing
+the seed's `context.episode_id`. It does not infer membership from workflow names,
+revisions, or event types.
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo \
+  --allow-repo owner/downstream --start-date -2d \
+  --max-runs 100 --max-api-requests 500 --timeout 5m --json > episode.json
+```
+
+| Option | Default | Bound |
+|--------|---------|-------|
+| `--repo/-r` | Repository in the seed URL | Required for numeric run IDs; accepts `[HOST/]owner/repo`. |
+| `--allow-repo` | None | Additional `owner/repo` repositories on the seed host; repeatable. Recorded metadata cannot expand this allowlist. |
+| `--start-date`, `--end-date` | Seven days ago, now | Candidate creation-time window, including explicitly recorded parents and roots. Accepts dates, RFC3339 timestamps, and relative dates. |
+| `--max-runs` | `100` | Distinct candidates examined, including the seed, nonmembers, and failed lookups. |
+| `--max-api-requests` | `500` | REST requests initiated by the collector, including metadata, discovery pages, artifact inventories, and archive downloads. Artifact-storage redirect transfers are excluded. |
+| `--timeout` | `5m` | Collection deadline, expressed as a duration. |
+| `--output/-o` | `.github/aw/logs` | Compact artifacts, isolated by host, repository, run, attempt, and immutable artifact ID. |
+| `--json` | Disabled | Standard logs JSON plus `episode_retrieval` bounds, counters, stop reasons, and evidence gaps. |
+| `--view` | `summary` | Display `summary` or recorded `hops`; JSON includes both views' data. |
+| `--refresh` | Disabled | Recollect instead of reading the cached episode snapshot; immutable artifact downloads are still reused. |
+
+Run, request, and timeout bounds must be positive. This subcommand downloads only
+compact `info` and `usage` artifacts, with a 64 MiB limit on each archive and its
+total extracted contents. Missing seed identity is an error; unavailable
+related runs, conflicting identity, excluded repositories, expired artifacts, and
+truncated discovery qualify the returned episode coverage. Coverage remains
+`selected_runs` with status `unknown` or `partial`, never complete, even after all
+pages in the bounded window are exhausted.
+
+The command automatically caches a snapshot for the seed, host, repository
+allowlist, dates, and collection bounds beneath `--output`. Repeating the same
+query or switching `--view` reads that snapshot without GitHub requests, even
+offline. Snapshots remain unchanged until `--refresh`; relative dates such as
+`-7d` retain the original snapshot window until refreshed. Changing bounds
+collects a separate snapshot. `episode_retrieval.collected_at` records collection
+time and `cached` marks reuse; REST counters describe the original collection.
+
+Use `--refresh` to rescan with the same bounds. A larger-bound query also reuses
+downloaded immutable artifacts; discovery rescans rather than resuming an
+unstable page cursor. GitHub's 1,000-result
+limit on filtered run discovery is reported as a gap; narrow the time window
+when reached. Unlike `logs --max-github-api-rate-limit`, the request cap applies
+to this retrieval, not the account's previously consumed quota.
+
+Each collection records its own artifact inventory and `logs_path`. Later
+collections do not delete cached evidence referenced by earlier reports, and
+completed local downloads remain usable after remote expiration.
+
+The MCP `logs` tool exposes the same operation through `episode_run`,
+`episode_repository`, `allow_repositories`, `max_api_requests`, and `refresh`; `count`
+becomes the candidate cap. Workflow-discovery filters cannot be combined with
+episode retrieval.
+
+To retrieve an ordinary workflow named `episode`, use `gh aw logs -- episode`.
+
+Use `--view hops` on the same episode command to inspect recorded invocations:
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo --view hops
+```
+
+No separate explanation command or JSON input file is needed. The first query
+collects and caches the episode; subsequent queries with the same collection
+options reuse it. `--json` always returns the standard logs report, described by
+`gh aw json-schema logs`, regardless of the selected display view.
+
+The view shows recorded hop IDs, parent-hop and run edges, reusable-workflow
+hops sharing one run ID, and missing or conflicting evidence. Costs appear
+once per selected run in `run_costs`, not on hops. Missing hop IDs remain
+missing; the view does not reconstruct them or claim complete membership.
+Logs JSON includes the same data under `episodes[].explanation`, including in
+compact and MCP reports.
 
 #### `audit`
 
@@ -878,15 +956,35 @@ The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an err
 
 For release-scoped evidence, pass the release's publication timestamp as `--start-date`; this filters by time, not compiler version. Text output and JSON `collection.start_date` / `collection.end_date` show the resolved UTC window. Health still samples current workflow revisions toward five completed first-attempt runs per scope, subject to API limits; it does not enumerate every run or reconstruct historical branch heads. A narrow window can leave insufficient evidence.
 
-Runs with `skipped` or `action_required` conclusions are excluded from health metrics, revision evidence, and failure clusters. Waiting and failed runs are excluded only when the Jobs API confirms their run attempt has no jobs, including runs whose approval expired. Job-backed waiting runs remain pending revision evidence. Successful job-presence lookups are reused per run ID and attempt within the collection, including across overlapping search windows. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
+Runs with `skipped` or `action_required` conclusions are excluded from health metrics, revision evidence, and failure clusters. Waiting and failed runs without jobs are also excluded when the Jobs API confirms their run attempt has no jobs, including runs whose approval expired. Job-backed waiting runs remain pending revision evidence. Successful job-presence lookups are reused per run ID and attempt within the collection, including across overlapping search windows. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
+
+PR-review cancellations are also excluded when an unambiguous PR associated with the run's exact head commit and branch was merged, closed, or had its head deleted during that attempt. Complete Jobs API evidence must show no genuine failed jobs or steps. A closed PR today or a missing branch today does not explain an earlier cancellation. Open PRs, unrelated cancellations, and genuine job failures remain failure evidence.
+
+For runs marked `failure`, health requires the failed agent step to be `Checkout PR branch`, the exact `PR #... closed before its head could be fetched. Stopping rather than running on the previous checkout.` job-log diagnostic for that PR, and a matching closure/merge timestamp no later than the failed checkout. Only a subsequent conclusion job's `Handle agent failure` step is accepted as downstream aftermath; other failures are retained.
+
+Ignored runs do not count as successes or consume the minimum sample. They are excluded from rates, durations, token averages, revision/recovery evidence, failure candidates, clusters, and investigation targets. JSON `collection.pr_lifecycle_evidence` and text `[health_pr_lifecycle]` entries report `ignored`, `retained`, or `unknown` classifications and reasons. Missing, ambiguous, incomplete, or unavailable evidence leaves a run unfiltered by this check. Lifecycle API responses (including errors and targeted checkout-job logs) are cached within the collection, use the configured repository and host, and share its API budget. `collection.lifecycle_requests` is capped at 40 additional requests; branch-event listings are limited to two pages. Health downloads no artifacts.
 
 Filtered runs do not consume the minimum sample. Health searches backward for five completed first-attempt runs per current-revision scope, stopping at the requested time boundary or API budget rather than a fixed page count. It narrows the search window to continue beyond GitHub's 1,000-run search limit, overlapping boundary timestamps and deduplicating runs. If timestamp ties prevent further progress, the report explicitly marks collection as partial.
 
+Collection prioritizes early detection over exhaustive verification. It inventories registered AW `failure` conclusions using run-list payloads alone, then checks jobs and revisions for one job-backed representative per branch/event. The inventory retains at most five candidates per workflow and stops when all registered workflows reach that count or after ten pages. Hitting the page limit marks collection partial with `failure_listing_limit`; chronological sampling continues. A named-workflow check scopes that inventory to the selected workflow rather than scanning unrelated repository runs. The normal chronological sample adds successful, pending, and other failed conclusions, visiting recently failing workflows first and deduplicating runs across passes. `collection.failure_listing_complete` covers the bounded inventory; `failure_pass_complete` covers representative verification.
+
+`collection.failure_candidates`, `failure_candidate_workflows`, and `potential_issues` retain approximate signals even when verification exhausts the budget. Potential issues include a representative run URL and `run_list_only` evidence; these counts may include jobless, historical, or superseded failures. `representative_status` distinguishes unverified, jobless, superseded, revision-unknown, and revision-checked representatives. These signals do not establish a current issue, recovery, or a fleet failure rate. Confirmed current-revision clusters remain separate.
+
+Job-presence checks inspect only the jobs array, without decoding job/step fields. Current failure-first representatives separately fetch typed jobs in at most three 100-job pages per run attempt, without downloading artifacts. Only complete live inventories contribute job/step failure signals; incomplete runs remain metadata-only unless compatible cached evidence is available. Shared failed steps cluster across workflow names; conclusion-job aftermath remains separate from the original failure boundary. `collection.job_evidence` reports each representative's source, fetched job count, attempt, update time, and completeness. Failed or capped optional enrichment marks collection partial with a warning and preserves collected runs while sampling continues; primary inventory and presence errors remain errors, and quota or request-budget limits still stop collection. `job_requests` counts actual Jobs API requests within `api_requests`.
+
+JSON `collection.producer_version`, `report_schema_version`, `capabilities`, and `observed_at` identify the producer and supported evidence. The creation-time bounds do not make the API responses an atomic snapshot. Investigation representatives include branch, event, head SHA, attempt, and update time when known. `status_counts` partitions all workflow entries, including intentional-failure workflows. `healthy_workflows` counts non-intentional workflows with `healthy` or `recovery_observed` status that meet the threshold and have no observed sub-agent failures; an above-threshold rate alone does not establish health. `observed_failure_workflows` counts non-intentional workflows with sampled current-revision Actions failures, including insufficient samples. `degraded_workflows` remains the sub-agent-only count, not a count of all failing workflows.
+
+For events whose head SHA identifies the executing workflow, health also compares the workflow's Markdown source at that SHA with the pushed source on the run's branch. Source blob SHAs are included as `revisions[].current.source_sha` and `previous.source_sha`. A source change stops older evidence collection for that branch/event and excludes superseded failures from current failure clusters and investigation targets, even if the lock file is unchanged. A pushed source with no matching runs has `no_current_revision_runs`, not a healthy or fixed status. Unrelated repository commits do not stop collection. Unavailable source revisions produce a warning and unknown revision evidence rather than proof of recovery.
+
+Revision reads prefer committed Git objects in the current checkout when its origin matches the target repository and host. Dirty files, local-only branch tips, and stale remote-tracking refs are not source evidence. The pushed branch head is resolved once, then local objects are reused; missing history or blobs fall back to GitHub without fetching or deepening the checkout. Fleet fallback shares workflow-directory snapshots across workflows at each ref and lock metadata across identical blob SHAs. `collection.local_revision_reads` reports successful local reads; `revision_lookups` counts remote file and directory requests. Workflow-registry timestamps are not used as source-change evidence. Actions run discovery remains REST-based because the GraphQL repository schema does not expose a workflow-run connection.
+
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
+
+When a selected workflow's published default-branch lock file enables work-queue, health also reads and validates the repository's current `work-queue` ledger once. This includes workflows without recent runs. Text `[health_work_queue]` and JSON `collection.work_queue` report backlog, eligible and blocked work by pool, oldest available work, pauses, native reservations, and pending, verified, or failed delivery. Pauses and failed deliveries produce `attention_required`; an otherwise readable snapshot is `observed`, not proof of live worker health. Detection warnings do not change the status of a successfully read ledger. Missing or invalid definitions, policy, ledger, or credentials remain explicit, privacy-safe warnings rather than healthy results. Queue diagnostics are current ledger evidence independent of `--days` or date bounds, do not download artifacts, and do not mutate the queue or launch workers. Optional workflow detection runs after primary Actions collection, uses its remaining API budget, and reuses downloaded lock content. The ledger uses the authenticated, isolated Git transport without fetching into the checkout, and validates resource references against the selected GitHub host. Actions rates and fleet workflow counts remain unchanged.
 
 Health also reads matching `run_summary.json` files from `--logs-dir` (default: `.github/aw/logs`) for failed sub-agent invocations, including workflows whose Actions conclusion is `success`. An affected current revision has status `subagent_failures_observed` and is excluded from `healthy_workflows`; its Actions success/failure counts and success rate remain unchanged. JSON reports include `subagent_failure_count` (invocations), `subagent_failure_runs` (distinct runs), and per-workflow `subagent_failures` with run URLs, agent names, and requested models. Fleet JSON also includes `degraded_workflows`.
 
-This check does not download artifacts. Populate the cache with `gh aw logs --artifacts usage` or `gh aw audit <run-id>` before checking health. Missing, stale, or version-incompatible summaries do not establish failure-free delegation; health only reports observed cached failures. Summaries from another repository, run attempt, revision, or update time are ignored. Historical-revision failures do not degrade the current revision.
+This check does not download artifacts. Populate the cache with `gh aw logs --artifacts usage` or `gh aw audit <run-id>` before checking health. `collection.cache_evidence` reports per-run `compatible`, `missing`, `unreadable`, `invalid`, `stale`, or `version_mismatch_raw_jobs_only` status, with the cached producer version when readable. A producer-version mismatch permits reuse of raw Jobs API observations only, after checking run identity, repository URL, attempt, head SHA, workflow, status, conclusion, and update time. Derived usage, classification, and sub-agent metrics still require the current CLI version; cached producer metadata is never rewritten. Missing or rejected derived evidence does not establish failure-free delegation. Historical-revision failures do not degrade the current revision.
 
 Runs that never dispatched a job are excluded from these metrics: `skipped` runs (the activation condition evaluated to false, for example a comment that does not contain the workflow's command) and `action_required` runs (created by GitHub but held for manual approval, for example comment events authored by a bot actor). Including them would report command workflows as near-0% success even when every dispatched run succeeded.
 
@@ -1176,9 +1274,20 @@ gh aw work-queue explain --repo owner/repo --work-id my-work
 gh aw work-queue stats --repo owner/repo
 ```
 
-**Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (`owner/repo`), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
+**Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (explicit `owner/repo` for repository operations; no host prefix or current-repository default), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
 
-**Subcommands:** `cancel-claim`, `cancel-work`, `compact`, `control`, `deploy`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for subcommand-specific options.
+**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
+
+| Subcommand | Options and behavior |
+| --- | --- |
+| `submit-work` | `--graph-id` sets a nonempty graph namespace (default: canonical payload SHA-256); `--node-key` sets a nonempty node identity within the graph (default: `root`). `--fairness-key` selects an entitled accounting key (default: one shared bucket). |
+| `dispatch-next` | `--max-bytes` limits assignment bytes (default: 49,152), subject to policy and host limits. Grants and reserves assignments without launching workflows. |
+| `dispatch <dispatcher>` | Starts a verified dispatcher at the repository's default-branch snapshot revision. `--dry-run` previews the route without granting Claims or launching workflows; `--wait` waits for the dispatcher, not verification of worker Results. |
+| `control` | `--name credential_generation` requires `--generation`, an opaque identifier for an equivalent-scope credential generation, never a secret. Pause controls (`admission_paused`, `grants_paused`) require explicit `--paused=true` or `--paused=false`. All controls require `--reason`. |
+| `reconcile` | `--cancel-reserved` requires `--dispatch-id` and cancels only when compare-and-set proves no launch-start marker exists. It cannot force-release a possible native run and cannot be combined with `--work-id`. |
+| `clear` | Requires maintain or admin permission and `--reason CODE`. `--dry-run` validates and previews without publishing; `--hard` resets a paused, fully settled ledger. All modes, including previews, refuse CI. Mutations require interactive confirmation. |
+
+Normal `clear` cancels unfinished snapshot Work without pending deliveries and preserves completed Work, history, fairness debt, and native reservations. It neither stops native runs nor pauses admission or grants. `--hard` requires admission and grants already paused, all reservations released, and all effects settled; it forgets active identities and fairness debt while retaining Git ancestry, so old identities can be submitted again and repeat effects. See [clearing unfinished Work](/gh-aw/reference/work-queue/#clear-unfinished-work) for limits and operator procedures.
 
 #### `version`
 

@@ -16,6 +16,9 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	}
 
 	for jobName, jobConfig := range data.Jobs {
+		if jobName == string(constants.AdmissionJobName) || jobName == string(constants.ConclusionAdmissionJobName) {
+			return fmt.Errorf("jobs.%s is compiler-owned and cannot be customized; configure admission with managed Actions variables", jobName)
+		}
 		configMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			return fmt.Errorf("jobs.%s must be an object, got %T. Example: jobs:\n  job-name:\n    setup-steps: []", jobName, jobConfig)
@@ -56,12 +59,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		}
 
 		if rawSetupSteps, ok := configMap["setup-steps"].([]any); ok && setupStepsRequireContentsRead(rawSetupSteps) {
-			permissions := NewPermissionsParser(job.Permissions).ToPermissions()
-			if _, exists := permissions.Get(PermissionContents); !exists {
-				permissions.Set(PermissionContents, PermissionRead)
-				job.Permissions = permissions.RenderToYAML()
-				compilerJobsLog.Printf("Granted contents: read to built-in job '%s' for checkout setup-step", targetJobName)
-			}
+			ensureBuiltinSetupContentsRead(job)
 		}
 
 		job.Steps = insertActivationStepsBeforeArtifactStaging(targetJobName, job.Steps, regularSteps)
@@ -71,6 +69,15 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 	}
 
 	return nil
+}
+
+func ensureBuiltinSetupContentsRead(job *Job) {
+	permissions := NewPermissionsParser(job.Permissions).ToPermissions()
+	if _, exists := permissions.Get(PermissionContents); !exists {
+		permissions.Set(PermissionContents, PermissionRead)
+		job.Permissions = permissions.RenderToYAML()
+		compilerJobsLog.Printf("Granted contents: read to built-in job '%s' for checkout setup-step", job.Name)
+	}
 }
 
 func setupStepsRequireContentsRead(steps []any) bool {
@@ -250,6 +257,9 @@ func parseBuiltinJobAugmentation(jobName, targetJobName string, rawConfig any) (
 }
 
 func (c *Compiler) applyBuiltinJobAugmentation(jobName string, rawConfig any, data *WorkflowData, allJobs map[string]*Job) error {
+	if jobName == string(constants.AdmissionJobName) || jobName == string(constants.ConclusionAdmissionJobName) {
+		return fmt.Errorf("jobs.%s is compiler-owned and cannot be customized; configure admission with managed Actions variables", jobName)
+	}
 	if jobName == string(constants.GradersJobName) {
 		return errors.New("jobs.graders is compiler-owned and cannot be customized; configure custom JavaScript under graders instead")
 	}
@@ -310,6 +320,16 @@ func (c *Compiler) applyBuiltinJobNeedsAndIf(jobName, targetJobName string, targ
 	}
 	compilerOwnedNeeds := selectCompilerOwnedNeeds(targetJob.Needs, customJobs)
 	targetJob.Needs = mergeJobNeeds(targetJob.Needs, normalizedNeeds)
+	// Admission's skip-safe status check replaces activation's implicit success gate.
+	if targetJobName == string(constants.ActivationJobName) && !ifExpressionContainsStatusFunc(augmentation.ifCondition) {
+		for _, need := range normalizedNeeds {
+			guard := fmt.Sprintf("needs.%s.result == 'success'", need)
+			if need == string(constants.AdmissionJobName) {
+				guard = admissionJobResultCondition
+			}
+			targetJob.If = c.combineJobIfConditions(targetJob.If, guard)
+		}
+	}
 	if augmentation.ifCondition != "" {
 		targetJob.If = c.combineJobIfConditions(targetJob.If, c.guardIfAgainstStatusFuncBypass(augmentation.ifCondition, compilerOwnedNeeds))
 		compilerJobsLog.Printf("Applied jobs.%s.if augmentation to %q", jobName, targetJobName)
@@ -393,14 +413,15 @@ func selectCompilerOwnedNeeds(needs []string, customJobs map[string]any) []strin
 }
 
 // guardIfAgainstStatusFuncBypass returns userCondition augmented with explicit
-// needs.<need>.result == 'success' guards for each compiler-owned prerequisite, but only
+// result guards for each compiler-owned prerequisite, but only
 // when userCondition contains a GitHub Actions status function (always, failure, cancelled,
 // success).
 //
 // GitHub Actions removes the implicit success() check for ALL needs entries the moment any
 // status function appears in a job's if expression. Compiler-owned prerequisites such as
 // activation perform security and permission checks; they must always succeed before the
-// target job runs. This function makes those guards explicit so user-supplied status functions
+// target job runs. An unconfigured admission job may be skipped. This function makes
+// those guards explicit so user-supplied status functions
 // cannot inadvertently (or intentionally) bypass them. User-supplied needs are intentionally
 // excluded: authors choose their own result semantics for setup jobs they own.
 func (c *Compiler) guardIfAgainstStatusFuncBypass(userCondition string, compilerNeeds []string) string {
@@ -421,7 +442,11 @@ func (c *Compiler) guardIfAgainstStatusFuncBypass(userCondition string, compiler
 	compilerJobsLog.Printf("Status function detected in user if condition; adding explicit success guards for compiler needs: %v", compilerNeeds)
 	combined := ConditionNode(&ExpressionNode{Expression: bare})
 	for _, need := range compilerNeeds {
-		guard := &ExpressionNode{Expression: fmt.Sprintf("needs.%s.result == 'success'", need)}
+		expression := fmt.Sprintf("needs.%s.result == 'success'", need)
+		if need == string(constants.AdmissionJobName) {
+			expression = admissionJobResultCondition
+		}
+		guard := &ExpressionNode{Expression: expression}
 		combined = BuildAnd(combined, guard)
 	}
 	return RenderCondition(combined)

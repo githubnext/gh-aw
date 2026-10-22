@@ -2,6 +2,8 @@
 set +o histexpand
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Runs an AWF command and retries startup/configuration failures that occur
 # before the engine harness writes its first marker line.
 #
@@ -45,6 +47,15 @@ fi
 if [ -z "${GH_AW_AWF_LOG_FILE:-}" ]; then
   echo "GH_AW_AWF_LOG_FILE is required" >&2
   exit 2
+fi
+
+gh_aw_preflight_script="${SCRIPT_DIR}/harness_retry_runner.cjs"
+if [ ! -f "$gh_aw_preflight_script" ]; then
+  gh_aw_preflight_script="${SCRIPT_DIR}/../js/harness_retry_runner.cjs"
+fi
+if [ -n "${GH_AW_SAFE_OUTPUTS:-}" ] && node "$gh_aw_preflight_script" --preflight-noop; then
+  echo "[${GH_AW_AWF_ENGINE_NAME}-awf-preflight] skipped execution for a pre-existing noop"
+  exit 0
 fi
 
 gh_aw_awf_startup_retries="${GH_AW_HARNESS_STARTUP_RETRIES:-${GH_AW_CLAUDE_STARTUP_RETRIES:-1}}"

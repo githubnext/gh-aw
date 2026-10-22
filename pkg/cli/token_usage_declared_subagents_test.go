@@ -458,3 +458,50 @@ func TestDeclaredSubagentModelsExcludeDetectionUsage(t *testing.T) {
 	require.Len(t, summary.DeclaredSubagentModels, 1)
 	require.Equal(t, modelMismatchReasonModelNotObserved, summary.DeclaredSubagentModels[0].ReasonCode)
 }
+
+func TestDeclaredInheritedSubagentModelMatchesParentModel(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		declared  string
+		mainModel string
+		mainUsage []AgentUsageBreakdown
+		effective string
+		reason    string
+	}{
+		{"inherit matches the aw_info main model", "inherit", "claude-sonnet-4.5", nil, "claude-sonnet-4-5-20250929", ""},
+		{"inherited matches the aw_info main alias", "inherited", "sonnet", nil, "claude-sonnet-4.5", ""},
+		{"inherit matches the main agent's served model", "inherit", "", []AgentUsageBreakdown{{AgentName: "main", AgentType: "main", Models: []AgentModelUsage{{Model: "claude-opus-4.5", Requests: 3}}}}, "claude-opus-4.5", ""},
+		{"inherit on another model is not observed", "inherit", "claude-sonnet-4.5", nil, "claude-haiku-4.5", modelMismatchReasonModelNotObserved},
+		{"inherit without a parent model is not observed", "inherit", "", nil, "claude-sonnet-4.5", modelMismatchReasonModelNotObserved},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			info := fmt.Sprintf(`{"model":%q,"sub_agent_models":[{"name":"persona-evaluator","model":%q,"patterns":[]}]}`, test.mainModel, test.declared)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "aw_info.json"), []byte(info), 0600))
+			summary := &TokenUsageSummary{
+				ByModel:    map[string]*ModelTokenUsage{test.effective: {Provider: "anthropic", Requests: 2}},
+				AgentUsage: test.mainUsage,
+				SubagentModelRequests: []SubagentModelRequest{{
+					AgentName: "persona-evaluator", RequestedModel: test.declared, EffectiveModel: test.effective,
+					InvocationCount: 1, CompletedCount: 1,
+				}},
+			}
+
+			augmentDeclaredSubagentModels(dir, summary)
+
+			require.Len(t, summary.DeclaredSubagentModels, 1)
+			row := summary.DeclaredSubagentModels[0]
+			require.Equal(t, test.reason, row.ReasonCode)
+			require.Equal(t, 1, row.CompletedCount)
+			findings := generateSubagentModelFindings(summary)
+			if test.reason == "" {
+				require.Equal(t, test.effective, row.EffectiveModel)
+				require.Empty(t, findings, "a successful inherited invocation is not a missing declared model")
+			} else {
+				require.Empty(t, row.EffectiveModel)
+				require.Len(t, findings, 1)
+				require.Equal(t, AuditFindingSubagentModelNotObserved, findings[0].Code)
+			}
+		})
+	}
+}

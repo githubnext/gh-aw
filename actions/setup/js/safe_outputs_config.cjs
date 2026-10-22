@@ -3,6 +3,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { normalizeSafeOutputConfig } = require("./safe_output_names.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -91,7 +92,7 @@ function loadConfig(server) {
     safeOutputsConfigRaw = {};
   }
 
-  const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
+  const safeOutputsConfig = normalizeSafeOutputConfig(safeOutputsConfigRaw);
   server.debug(`Final processed config: ${JSON.stringify(redactSensitiveConfig(safeOutputsConfig))}`);
 
   // Handle GH_AW_SAFE_OUTPUTS with default fallback

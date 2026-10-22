@@ -32,6 +32,8 @@ function runHarness(rootDir, wireAPI) {
   const preloadPath = path.join(rootDir, "reflect-preload.cjs");
   const stubPath = path.join(rootDir, "copilot-stub.cjs");
   const callsPath = path.join(rootDir, "copilot-stub-calls.jsonl");
+  const configPath = path.join(rootDir, "awf-config.json");
+  fs.writeFileSync(configPath, JSON.stringify({ network: { allowDomains: [] } }));
   fs.writeFileSync(
     preloadPath,
     `const fs = require("fs");
@@ -46,6 +48,7 @@ reflect.fetchAWFReflect = async () => ({ ok: true, reflectData: JSON.parse(fs.re
       GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
       GH_AW_HARNESS_MAX_DELAY_MS: "1",
       GH_AW_TMP_DIR: rootDir,
+      GH_AW_AWF_CONFIG_PATH: configPath,
       GH_AW_SAFE_OUTPUTS: path.join(rootDir, "safe-outputs.jsonl"),
       GITHUB_OUTPUT: path.join(rootDir, "harness-github-output"),
       GITHUB_STEP_SUMMARY: path.join(rootDir, "harness-step-summary"),

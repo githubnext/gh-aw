@@ -44,6 +44,7 @@
         { "$ref": "#/$defs/MarkPullRequestAsReadyForReviewOutput" },
         { "$ref": "#/$defs/ApproveWorkflowRunOutput" },
         { "$ref": "#/$defs/MissingToolOutput" },
+        { "$ref": "#/$defs/MissingDataOutput" },
         { "$ref": "#/$defs/CreateCodeScanningAlertOutput" },
         { "$ref": "#/$defs/UpdateProjectOutput" },
         { "$ref": "#/$defs/UpdateReleaseOutput" },
@@ -624,7 +625,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "missing_tool"
+          "enum": ["report_missing_tool", "missing_tool"]
         },
         "tool": {
           "type": "string",
@@ -642,6 +643,30 @@
         }
       },
       "required": ["type", "reason"],
+      "additionalProperties": false
+    },
+    "MissingDataOutput": {
+      "title": "Missing Data Output",
+      "description": "Output for reporting missing required data",
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["report_missing_data", "missing_data"]
+        },
+        "data_type": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "context": {
+          "type": "string"
+        },
+        "alternatives": {
+          "type": "string"
+        }
+      },
+      "required": ["type"],
       "additionalProperties": false
     },
     "CreateCodeScanningAlertOutput": {

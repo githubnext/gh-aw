@@ -127,12 +127,14 @@ func NewLogsCommand() *cobra.Command {
 		Short:   "Download and analyze agentic workflow logs and artifacts",
 		Long:    buildLogsCommandLongDescription(validArtifactSets),
 		Example: buildLogsCommandExample(),
+		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLogsCommand(cmd, args)
 		},
 	}
 	addLogsCommandFlags(logsCmd, validArtifactSets)
 	registerLogsCommandCompletions(logsCmd)
+	logsCmd.AddCommand(newLogsEpisodeCommand())
 	return logsCmd
 }
 

@@ -14,7 +14,13 @@ tools:
   bash:
     - "*"
 safe-outputs:
-  staged: true
+  activation-comments: false
+  report-failure-as-issue: false
+  report-failed-jobs: false
+  missing-tool:
+    create-issue: false
+  noop:
+    report-as-issue: false
   threat-detection: false
 pre-agent-steps:
   - name: Prepare engine conformance fixtures
@@ -242,6 +248,9 @@ exactly one noop with message `"Conformance probes completed"`. Unless an import
 suite specifies a native MCP completion call, use
 `safeoutputs noop --message "Conformance probes completed"`.
 Use only the specified transport; do not emit a second noop through another tool.
-Safe outputs are staged; do not create an issue or comment. Your final reply
-should be one short line. The JavaScript post-step, not your reply, decides
-whether the suite passed.
+The noop is a probe-only output and does not create an issue or comment.
+Queue Claim settlement, backing Issue status projection and reservation release
+remain live; do not enable
+workflow-wide staged mode for these workers. Your final reply should be one
+short line. The JavaScript post-step, not your reply, decides whether the suite
+passed.

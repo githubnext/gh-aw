@@ -12,18 +12,21 @@ import (
 )
 
 type ruleContract struct {
-	targets      ASTTargets
-	threatRuleID string
-	unsafe       string
-	safe         string
-	path         string
-	severity     Severity
-	strictPolicy bool
-	javaScript   bool
-	unsafePrompt string
-	safePrompt   string
-	unsafeShell  string
-	safeShell    string
+	targets       ASTTargets
+	threatRuleID  string
+	unsafe        string
+	safe          string
+	path          string
+	severity      Severity
+	strictPolicy  bool
+	javaScript    bool
+	unsafePrompt  string
+	safePrompt    string
+	unsafeShell   string
+	safeShell     string
+	actionsUnsafe string
+	actionsSafe   string
+	actionsPath   string
 }
 
 const contractJob = "jobs:\n  check:\n    runs-on: ubuntu-latest\n"
@@ -31,6 +34,42 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"needs-consistency": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n",
+			safe:   "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    needs: build\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n",
+			path:   "jobs.check.if",
+		},
+		"gateway-dispatch-literals": {
+			targets: AWAST,
+			unsafe:  "on: {gateway-dispatch: {issue: {filters: {labels: ['${{ vars.PRIVATE_VALUE }}']}}}}\n",
+			safe:    "on: {gateway-dispatch: {issue: {filters: {labels: [triage]}}}}\n",
+			path:    "on.gateway-dispatch.issue.filters.labels[0]",
+		},
+		"artipacked": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: contractJob + "    steps:\n      - uses: actions/checkout@v6\n",
+			safe:   contractJob + "    steps:\n      - uses: actions/checkout@v6\n        with:\n          persist-credentials: false\n",
+			path:   "jobs.check.steps[0].uses",
+		},
+		"cache-poisoning": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: "on: release\n" + contractJob + "    steps:\n      - uses: actions/setup-go@v6\n",
+			safe:   "on: release\n" + contractJob + "    steps:\n      - uses: actions/setup-go@v6\n        with:\n          cache: false\n",
+			path:   "jobs.check.steps[0].uses",
+		},
+		"excessive-permissions": {
+			targets: ActionsAST, severity: Warning, threatRuleID: "CTR-001",
+			unsafe: "permissions: {contents: read, issues: write}\n" + contractJob + contractSafeSteps,
+			safe:   "permissions: {contents: read}\n" + contractJob + "    permissions: {issues: write}\n" + contractSafeSteps,
+			path:   "permissions.issues",
+		},
+		"obfuscation": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: contractJob + "    outputs: {comment_id: \"${{ '' }}\"}\n" + contractSafeSteps,
+			safe:   contractJob + "    outputs: {comment_id: ''}\n" + contractSafeSteps,
+			path:   "jobs.check.outputs.comment_id",
+		},
 		"grader-shell-file-write": {
 			targets:     AWAST,
 			unsafe:      "graders:\n  operational-value:\n    run: ./check.sh\n",
@@ -46,10 +85,13 @@ func builtInRuleContracts() map[string]ruleContract {
 			path:   "graders.custom.script",
 		},
 		"custom-job-detection": {
-			targets: AWAST,
-			unsafe:  contractJob + "    needs: agent\n" + contractSafeSteps,
-			safe:    contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
-			path:    "jobs.check.needs",
+			threatRuleID:  "CTR-005",
+			targets:       ActionsAST | AWAST,
+			unsafe:        contractJob + "    needs: agent\n" + contractSafeSteps,
+			safe:          contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
+			path:          "jobs.check.needs",
+			actionsUnsafe: "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps: [{run: echo agent}]\n  detection:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo detection}]\n  check:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo check}]\n",
+			actionsSafe:   "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps: [{run: echo agent}]\n  detection:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo detection}]\n  check:\n    needs: [agent, detection]\n    runs-on: ubuntu-latest\n    steps: [{run: echo check}]\n",
 		},
 		"secret-leak": {
 			threatRuleID: "CTR-017",
@@ -57,6 +99,18 @@ func builtInRuleContracts() map[string]ruleContract {
 			unsafe:       contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: echo \"$TOKEN\"\n",
 			safe:         contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: test -n \"$TOKEN\"\n",
 			path:         "jobs.check.steps[0].run",
+		},
+		"otlp-secret-leak": {
+			threatRuleID: "CTR-017",
+			targets:      ActionsAST | AWAST,
+			unsafe:       "observability:\n  otlp:\n    attributes: {account: '${{ secrets.CONTRACT_SECRET }}'}\n",
+			safe:         "observability:\n  otlp:\n    attributes: {account: '${{ github.repository }}'}\n",
+			path:         "observability.otlp.attributes.account",
+			actionsUnsafe: "env:\n  GH_AW_OTLP_ATTRIBUTES: '{\"account\":\"${{ secrets.CONTRACT_SECRET }}\"}'\n" +
+				contractJob + contractSafeSteps,
+			actionsSafe: "env:\n  GH_AW_OTLP_ATTRIBUTES: '{\"note\":\"${{ ''secrets.CONTRACT_SECRET'' }}\"}'\n" +
+				contractJob + contractSafeSteps,
+			actionsPath: "env.GH_AW_OTLP_ATTRIBUTES",
 		},
 		"action-pin": {
 			threatRuleID: "CTR-002",
@@ -250,8 +304,8 @@ func runRuleContractPair(t *testing.T, id string, contract ruleContract, target 
 		name, source, prompt string
 		finding              bool
 	}{
-		{"positive", contract.unsafe, contract.unsafePrompt, true},
-		{"negative", contract.safe, contract.safePrompt, false},
+		{"positive", contractSource(contract, target, true), contract.unsafePrompt, true},
+		{"negative", contractSource(contract, target, false), contract.safePrompt, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := ruleContractInput(t, test.source, target, nonstrict)
@@ -316,8 +370,13 @@ func assertRuleContractDiagnostics(t *testing.T, id string, contract ruleContrac
 		if contract.strictPolicy && (nonstrict || target == ActionsAST) {
 			severity = Warning
 		}
-		want[contract.path] = severity
+		path := contract.path
+		if target == ActionsAST && contract.actionsPath != "" {
+			path = contract.actionsPath
+		}
+		want[path] = severity
 	}
+
 	require.Len(t, diagnostics, len(want), "positive cases must detect the violation; negative cases must reject false positives")
 	for _, diagnostic := range diagnostics {
 		severity, expected := want[diagnostic.Path]
@@ -332,4 +391,17 @@ func assertRuleContractDiagnostics(t *testing.T, id string, contract ruleContrac
 		delete(want, diagnostic.Path)
 	}
 	assert.Empty(t, want, "every expected diagnostic must be emitted")
+}
+
+func contractSource(contract ruleContract, target ASTTargets, positive bool) string {
+	if target == ActionsAST && contract.actionsUnsafe != "" {
+		if positive {
+			return contract.actionsUnsafe
+		}
+		return contract.actionsSafe
+	}
+	if positive {
+		return contract.unsafe
+	}
+	return contract.safe
 }

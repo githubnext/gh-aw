@@ -699,7 +699,7 @@ For each selected issue (which has already been pre-filtered to ensure no open/c
 #### Handling Integrity-Blocked Issues
 
 Some issues may be blocked by an integrity policy when you try to read them with `issue_read`. If `issue_read` returns an error mentioning "integrity", "policy", "forbidden", or returns HTTP 403/451:
-- **Do NOT call `missing_data`** - this would fail the entire run
+- **Do NOT call `report_missing_data`** - this would fail the entire run
 - **Skip that issue silently** and remove it from your working list
 - **Track it** in your internal notes as "integrity-blocked"
 - **Continue** with the next candidate from the pre-filtered list
@@ -802,8 +802,8 @@ If anything goes wrong or no work can be assigned:
 - **No issues found**: Use the `noop` tool with message: "🍽️ No suitable candidate issues - the plate is empty!"
 - **All issues assigned**: Use the `noop` tool with message: "🍽️ All issues are already being worked on!"
 - **No suitable separate issues**: Use the `noop` tool explaining which issues were considered and why they couldn't be assigned (e.g., overlapping topics, sibling PRs, etc.)
-- **Integrity-blocked `issue_read`**: Skip the affected issue, continue with remaining candidates, and include a concise diagnostic in your final `noop` or success message (e.g., "Skipped #NNN (integrity-filtered)."). **Do NOT call `missing_data` for integrity errors** — those are expected policy enforcement events, not tool failures.
-- **Unexpected API errors** (non-integrity): Use the `missing_data` tool to report the issue
+- **Integrity-blocked `issue_read`**: Skip the affected issue, continue with remaining candidates, and include a concise diagnostic in your final `noop` or success message (e.g., "Skipped #NNN (integrity-filtered)."). **Do NOT call `report_missing_data` for integrity errors** — those are expected policy enforcement events, not tool failures.
+- **Unexpected API errors** (non-integrity): Use the `report_missing_data` tool to report the issue
 
 **CRITICAL**: You MUST call at least one safe output tool every run. If you don't assign any issues, you MUST call the `noop` tool to explain why. Never complete a run without making at least one tool call.
 

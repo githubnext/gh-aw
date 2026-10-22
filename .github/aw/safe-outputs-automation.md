@@ -271,24 +271,24 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
   ```
 
   Fallback ensuring workflows never complete silently. Agents emit human-visible messages even when no other action is required (e.g., "Analysis complete - no issues found").
-- `missing-tool:` - Report missing tools or functionality (auto-enabled)
+- `report-missing-tool:` - Report missing tools or functionality (auto-enabled; `missing-tool:` is a deprecated alias — run `gh aw fix` to migrate)
 
   ```yaml
   safe-outputs:
-    missing-tool:
-      create-issue: true              # Optional: create issues for missing tools (default: false when this block is set; auto-enabled as true only when `missing-tool` is omitted)
+    report-missing-tool:
+      create-issue: true              # Optional: create issues for missing tools (default: false when this block is set; auto-enabled as true only when `report-missing-tool` is omitted)
       report-as-failure: true         # Optional: classify the run as an agent failure (default: true)
       title-prefix: "[missing tool]"  # Optional: prefix for issue titles
       labels: [tool-request]          # Optional: labels for created issues
   ```
 
   Lets agents report tools or functionality they need but lack; tracks feature requests. When `create-issue` is true, reports create or update GitHub issues.
-- `missing-data:` - Report missing data required to complete tasks (auto-enabled)
+- `report-missing-data:` - Report missing data required to complete tasks (auto-enabled; `missing-data:` is a deprecated alias — run `gh aw fix` to migrate)
 
   ```yaml
   safe-outputs:
-    missing-data:
-      create-issue: true              # Optional: create issues for missing data (default: false when this block is set; auto-enabled as true only when `missing-data` is omitted)
+    report-missing-data:
+      create-issue: true              # Optional: create issues for missing data (default: false when this block is set; auto-enabled as true only when `report-missing-data` is omitted)
       report-as-failure: true         # Optional: classify the run as an agent failure (default: true)
       title-prefix: "[missing data]"  # Optional: prefix for issue titles
       labels: [data-request]          # Optional: labels for created issues

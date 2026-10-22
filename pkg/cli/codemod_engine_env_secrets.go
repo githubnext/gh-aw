@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var engineEnvSecretsCodemodLog = logger.New("cli:codemod_engine_env_secrets")
@@ -49,13 +50,13 @@ func getEngineEnvSecretsCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				updated, modified := removeUnsafeEngineEnvKeys(lines, unsafeKeys)
-				if !modified {
-					return lines, false
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				for _, key := range sliceutil.SortedKeys(unsafeKeys) {
+					if err := f.Remove("engine", "env", key); err != nil {
+						return err
+					}
 				}
-				cleaned := removeEmptyEngineEnvBlock(updated)
-				return cleaned, true
+				return f.PruneEmpty("engine", "env")
 			})
 			if applied {
 				engineEnvSecretsCodemodLog.Printf("Removed unsafe engine.env secret keys: %v", sliceutil.MapKeys(unsafeKeys))
@@ -148,108 +149,6 @@ func findUnsafeEngineEnvSecretKeys(envMap map[string]any, allowed map[string]str
 	}
 	engineEnvSecretsCodemodLog.Printf("Found %d unsafe engine.env secret keys out of %d total keys", len(unsafe), len(envMap))
 	return unsafe
-}
-
-func removeUnsafeEngineEnvKeys(lines []string, unsafeKeys map[string]struct {
-}) ([]string, bool) {
-	result := make([]string, 0, len(lines))
-	modified := false
-
-	inEngine := false
-	engineIndent := ""
-	inEnv := false
-	envIndent := ""
-	removingKey := false
-	removingKeyIndent := ""
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		indent := getIndentation(line)
-
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "engine:") {
-			inEngine = true
-			engineIndent = indent
-			inEnv = false
-			removingKey = false
-			result = append(result, line)
-			continue
-		}
-
-		if inEngine && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(engineIndent) {
-			inEngine = false
-			inEnv = false
-			removingKey = false
-		}
-
-		if inEngine && !inEnv && strings.HasPrefix(trimmed, "env:") && strings.TrimSpace(strings.TrimPrefix(trimmed, "env:")) == "" {
-			inEnv = true
-			envIndent = indent
-			removingKey = false
-			result = append(result, line)
-			continue
-		}
-
-		if inEnv && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) {
-			inEnv = false
-			removingKey = false
-		}
-
-		if inEnv && removingKey {
-			if trimmed == "" {
-				continue
-			}
-			if strings.HasPrefix(trimmed, "#") && len(indent) > len(removingKeyIndent) {
-				continue
-			}
-			if len(indent) > len(removingKeyIndent) {
-				continue
-			}
-			removingKey = false
-		}
-
-		if inEnv && !removingKey && trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) > len(envIndent) {
-			key := parseYAMLMapKey(trimmed)
-			if key != "" && setutil.Contains(unsafeKeys, key) {
-				modified = true
-				removingKey = true
-				removingKeyIndent = indent
-				continue
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	return result, modified
-}
-
-func removeEmptyEngineEnvBlock(lines []string) []string {
-	result := make([]string, 0, len(lines))
-	for i := range lines {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "env:" {
-			envIndent := getIndentation(line)
-			hasValues := false
-			j := i + 1
-			for ; j < len(lines); j++ {
-				t := strings.TrimSpace(lines[j])
-				if t == "" {
-					continue
-				}
-				if len(getIndentation(lines[j])) <= len(envIndent) {
-					break
-				}
-				hasValues = true
-				break
-			}
-			if !hasValues {
-				continue
-			}
-		}
-		result = append(result, line)
-	}
-	return result
 }
 
 // getTopLevelEnvSecretsGuidedErrorCodemod creates a codemod that emits a guided error

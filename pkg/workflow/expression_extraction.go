@@ -19,7 +19,8 @@ var expressionExtractionLog = logger.New("workflow:expression_extraction")
 
 // Pre-compiled regexes for performance (avoid recompilation in hot paths)
 var (
-	awContextExpressionRegex = regexp.MustCompile(`github\.aw\.context\.([a-zA-Z0-9_]+)([^a-zA-Z0-9_-]|$)`)
+	awContextExpressionRegex    = regexp.MustCompile(`github\.aw\.context\.([a-zA-Z0-9_]+)([^a-zA-Z0-9_-]|$)`)
+	gatewayExpressionTokenRegex = regexp.MustCompile(`'(?:[^']|'')*'|"[^"]*"|[a-zA-Z_][a-zA-Z0-9_.-]*`)
 )
 
 // ExpressionMapping represents a mapping between a GitHub expression and its environment variable
@@ -58,6 +59,7 @@ var defaultContentTransformers = []contentTransformer{
 	transformActivationOutputs,
 	transformExperimentsExpression,
 	transformAwContextExpression,
+	transformGatewayEventsExpression,
 }
 
 // applyContentTransformers runs content through each transformer in order,
@@ -126,9 +128,13 @@ func (e *ExpressionExtractor) processMatch(originalExpr, rawContent string) {
 		))
 	}
 
+	envVar := e.generateEnvVarName(content)
+	if name, ok := regexSubmatchAt(experimentNameRegex.FindStringSubmatch(originalContent), 1); ok {
+		envVar = ExperimentEnvVarName(name)
+	}
 	e.mappings[originalExpr] = &ExpressionMapping{
 		Original: originalExpr,
-		EnvVar:   e.generateEnvVarName(content),
+		EnvVar:   envVar,
 		Content:  content,
 	}
 
@@ -330,6 +336,15 @@ func regexSubmatchAt(matches []string, index int) (string, bool) {
 //	github.aw.context.item_number -> fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').item_number
 func transformAwContextExpression(expr string) string {
 	return awContextExpressionRegex.ReplaceAllString(expr, "fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').$1$2")
+}
+
+func transformGatewayEventsExpression(expr string) string {
+	return gatewayExpressionTokenRegex.ReplaceAllStringFunc(expr, func(token string) string {
+		if token == "gateway.events" || strings.HasPrefix(token, "gateway.events.") {
+			return "fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries" + strings.TrimPrefix(token, "gateway.events")
+		}
+		return token
+	})
 }
 
 // simpleIdentifierRegex matches simple JavaScript property access chains like

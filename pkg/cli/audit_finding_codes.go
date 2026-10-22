@@ -8,7 +8,7 @@ const auditDebugPlaybookURL = "https://github.com/github/gh-aw/blob/main/.github
 
 func auditFindingPlaybookURL(code AuditFindingCode) string {
 	switch code {
-	case AuditFindingModelUnavailable, AuditFindingModelAvailabilityUnknown:
+	case AuditFindingModelUnavailable, AuditFindingModelAvailabilityUnknown, AuditFindingModelEndpointUnsupported, AuditFindingModelResolutionFailed:
 		return auditDebugPlaybookURL + "#model-availability"
 	case AuditFindingSubagentModelNotObserved, AuditFindingSubagentModelUnavailable, AuditFindingSubagentFailed:
 		return "https://github.com/github/gh-aw/blob/main/.github/aw/debug-model-engine-misconfiguration.md"
@@ -27,6 +27,8 @@ const (
 	AuditFindingToolsNotAvailable        AuditFindingCode = "tools_not_available"
 	AuditFindingModelUnavailable         AuditFindingCode = "model_unavailable"
 	AuditFindingModelAvailabilityUnknown AuditFindingCode = "model_availability_unknown"
+	AuditFindingModelEndpointUnsupported AuditFindingCode = "model_endpoint_unsupported"
+	AuditFindingModelResolutionFailed    AuditFindingCode = "model_resolution_failed"
 	AuditFindingBlockedNetworkRequests   AuditFindingCode = "blocked_network_requests"
 	AuditFindingWorkflowSucceeded        AuditFindingCode = "workflow_succeeded"
 	AuditFindingSubagentModelNotObserved AuditFindingCode = "subagent_model_not_observed"

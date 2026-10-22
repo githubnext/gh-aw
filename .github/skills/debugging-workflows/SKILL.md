@@ -246,6 +246,25 @@ across comparable workflows, revisions, triggers/inputs and configurations. Coun
 matching run once, report matching/inspectable runs and IDs, and keep missing
 evidence unknown. Repeated HTTP 403 alone does not establish one root cause.
 
+### Search and Cluster Session Evidence
+
+```bash
+gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --search-limit 5 --json
+```
+
+Use `evidence_search` to locate relevant events in the actual redacted unified
+session, with automatic repetition grouping, occurrence counts, source references,
+and neighboring context. This single-run CLI capability does not replace the
+full audit or `--group` recurrence checks. Drain3 needs no configuration: it
+activates only when repetitive top matches crowd the limit and grouping saves
+excerpt text. It never changes BM25 ranking; groups keep structured success and
+failure outcomes separate. Ungrouped results omit cluster/template/anomaly fields.
+Its stage/cluster IDs are run-local;
+BM25 relevance and Drain3 anomaly scores are not severity, confidence, or proof
+of safety. Missing sessions remain unavailable, and zero hits do not clear findings.
+Follow [the shared retrieval guidance](../../aw/analyzing-runs.md#retrieve-and-cluster-session-evidence)
+for bounds, provenance, and the distinction from fleet failure clustering.
+
 ### Audit Report Contents
 
 The audit command provides:

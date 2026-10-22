@@ -70,13 +70,13 @@ function extractDeniedCommands(output) {
 }
 
 /**
- * Build a structured missing_tool payload for repeated permission-denied failures.
+ * Build a structured report_missing_tool payload for repeated permission-denied failures.
  * @param {string[]} [deniedCommands] - Commands that were denied (may be empty)
  * @returns {string}
  */
 function buildMissingToolPermissionIssuePayload(deniedCommands) {
   return JSON.stringify({
-    type: "missing_tool",
+    type: "report_missing_tool",
     tool: "tool/permission",
     reason: "missing tool/permission issue: numerous permission denied errors detected",
     alternatives: "Verify token scopes, repository permissions, and MCP/tool access configuration.",

@@ -31,6 +31,9 @@ func TestHealthSamplingContinuesPastNoJobFailures(t *testing.T) {
 					return []byte(`{"total_count":0,"jobs":[]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
 					assert.NotContains(t, endpoint, "unexecuted")
+					if strings.Contains(endpoint, ".md?") {
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 				default:
 					pages++
@@ -83,8 +86,11 @@ func TestHealthRunHasJobsRequiresConfirmedEvidence(t *testing.T) {
 	}{
 		{name: "no jobs", response: `{"jobs":[]}`},
 		{name: "executed failure", response: `{"jobs":[{"id":42}]}`, wantJobs: true},
+		{name: "unrecognized job fields", response: `{"total_count":"unknown","jobs":[{"id":"new-format","steps":"unknown"}]}`, wantJobs: true},
+		{name: "unrecognized step fields", response: `{"jobs":[{"steps":[{"number":"three","completed_at":{}}]}]}`, wantJobs: true},
 		{name: "API unavailable", apiError: errors.New("HTTP 502"), wantErr: "failed to check jobs"},
 		{name: "invalid JSON", response: `{`, wantErr: "failed to parse jobs"},
+		{name: "null payload", response: `null`, wantErr: "missing jobs array"},
 		{name: "missing jobs", response: `{}`, wantErr: "missing jobs array"},
 		{name: "null jobs", response: `{"jobs":null}`, wantErr: "missing jobs array"},
 		{name: "malformed jobs", response: `{"jobs":{}}`, wantErr: "failed to parse jobs"},
@@ -107,6 +113,7 @@ func TestHealthRunHasJobsRequiresConfirmedEvidence(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantJobs, hasJobs)
+				assert.Empty(t, collection.jobs, "presence observations must not become typed failure evidence")
 			}
 			assert.Equal(t, 1, collection.APIRequests)
 			if tc.wantErr != "" {
@@ -176,6 +183,9 @@ func TestHealthSamplingWaitingJobsPreservePendingRevision(t *testing.T) {
 					}
 					return []byte(`{"jobs":[]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
+					if strings.Contains(endpoint, ".md?") {
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					body := "new-prompt"
 					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
 						body = "old-prompt"
@@ -236,8 +246,16 @@ func TestHealthOnlyNoJobFailuresRemainInsufficient(t *testing.T) {
 	}
 	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		switch {
+		case args[3] == "repos/org/repo":
+			return []byte(`{"full_name":"org/repo","default_branch":"main"}`), nil
+		case strings.Contains(args[3], "/contents/.github/workflows?"):
+			return []byte(`[{"path":".github/workflows/example.lock.yml","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"file"}]`), nil
+		case strings.Contains(args[3], "/git/blobs/"):
+			return []byte("jobs: {}"), nil
 		case strings.Contains(args[3], "/actions/workflows?"):
 			return []byte(`{"workflows":[{"id":1,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
+		case strings.Contains(args[3], "/actions/runs?status=failure"):
+			return []byte(`{"workflow_runs":[{"id":42,"path":".github/workflows/example.lock.yml","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		case strings.Contains(args[3], "/actions/workflows/1/runs?"):
 			return []byte(`{"workflow_runs":[{"id":42,"name":"Example","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		default:

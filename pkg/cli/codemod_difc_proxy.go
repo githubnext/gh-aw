@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var difcProxyCodemodLog = logger.New("cli:codemod_difc_proxy")
@@ -31,20 +32,17 @@ func getDIFCProxyToIntegrityProxyCodemod() Codemod {
 			// Determine if we need to add integrity-proxy: false to tools.github
 			addDisableFlag := !flagValue && hasToolsGithubMap(frontmatter)
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				// Step 1: remove features.difc-proxy
-				result, modified := removeFieldFromBlock(lines, "difc-proxy", "features")
-				if !modified {
-					return lines, false
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := f.Remove("features", "difc-proxy"); err != nil {
+					return err
 				}
-				difcProxyCodemodLog.Print("Removed features.difc-proxy")
-
-				// Step 2: add integrity-proxy: false to tools.github if needed
-				if addDisableFlag {
-					result = addIntegrityProxyFalseToToolsGitHub(result)
+				if err := f.PruneEmpty("features"); err != nil {
+					return err
 				}
-
-				return result, true
+				if _, exists := f.Lookup("tools", "github", "integrity-proxy"); addDisableFlag && !exists {
+					return f.Set([]string{"tools", "github", "integrity-proxy"}, false)
+				}
+				return nil
 			})
 			if applied {
 				if addDisableFlag {
@@ -103,74 +101,4 @@ func hasToolsGithubMap(frontmatter map[string]any) bool {
 	}
 	_, ok = githubAny.(map[string]any)
 	return ok
-}
-
-// addIntegrityProxyFalseToToolsGitHub inserts 'integrity-proxy: false' inside the
-// tools.github block. The line is inserted immediately after the 'github:' key line.
-// The indentation is derived from the first existing sub-field inside the github block.
-func addIntegrityProxyFalseToToolsGitHub(lines []string) []string {
-	var result []string
-	var inTools bool
-	var toolsIndent string
-	var inGitHub bool
-	var githubIndent string
-	var fieldInserted bool
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Track if we're in the tools block
-		if strings.HasPrefix(trimmed, "tools:") {
-			inTools = true
-			toolsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left the tools block
-		if inTools && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, toolsIndent) {
-				inTools = false
-				inGitHub = false
-			}
-		}
-
-		// Detect 'github:' inside tools
-		if inTools && !inGitHub && strings.HasPrefix(trimmed, "github:") {
-			inGitHub = true
-			githubIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Inside github block: inject integrity-proxy: false before the first sub-field
-		if inGitHub && !fieldInserted && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, githubIndent) {
-				// Exited github block without seeing any sub-fields; use default indentation
-				fieldIndent := githubIndent + "  "
-				result = append(result, fieldIndent+"integrity-proxy: false")
-				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (before exit)")
-				fieldInserted = true
-				inGitHub = false
-			} else {
-				// Use the indentation of the first existing sub-field
-				fieldIndent := getIndentation(line)
-				result = append(result, fieldIndent+"integrity-proxy: false")
-				difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github")
-				fieldInserted = true
-				inGitHub = false
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	// Edge case: github block was the last entry in the file
-	if inGitHub && !fieldInserted {
-		fieldIndent := githubIndent + "  "
-		result = append(result, fieldIndent+"integrity-proxy: false")
-		difcProxyCodemodLog.Printf("Added integrity-proxy: false to tools.github (end of file)")
-	}
-
-	return result
 }

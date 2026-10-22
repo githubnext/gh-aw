@@ -67,7 +67,7 @@ trap cleanup EXIT
 RELEASE_URL="${RELEASE_BASE_URL%/}/${VERSION}"
 MANIFEST="$TEMP_DIR/checksums.txt"
 echo "Downloading ${RELEASE_URL}/checksums.txt"
-curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
   -o "$MANIFEST" "${RELEASE_URL}/checksums.txt"
 
 declare -A EXPECTED_DIGESTS=()
@@ -114,7 +114,7 @@ fi
 
 for asset in "${ASSETS[@]}"; do
   echo "Downloading and verifying $asset"
-  curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+  curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
     -o "$TEMP_DIR/$asset" "${RELEASE_URL}/${asset}"
   actual_digest="$(sha256_hash "$TEMP_DIR/$asset")"
   if [ "$actual_digest" != "${EXPECTED_DIGESTS[$asset]}" ]; then

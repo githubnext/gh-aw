@@ -9,6 +9,7 @@ const { runWithCopilotSDK, resolveCopilotSDKWorkingDirectory } = require("./copi
 const { normalizeCopilotSession } = require("./copilot_session.cjs");
 const { resolveMultiProviderFromReflect } = require("./awf_reflect.cjs");
 const { extractInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
+const { writeInlineSkills } = require("./extract_inline_skills.cjs");
 const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
 const { parseDocument } = require("./work_queue_yaml.cjs");
 const models = [
@@ -35,6 +36,7 @@ describe("copilot_sdk_session runtime configuration", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     fs.rmSync(base, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
@@ -139,6 +141,8 @@ describe("copilot_sdk_session runtime configuration", () => {
     const app = path.join(base, "packages/app");
     fs.mkdirSync(path.join(app, ".github/agents"), { recursive: true });
     fs.writeFileSync(path.join(app, ".github/agents/local.agent.md"), "---\nmodel: small\n---\nApp agent.");
+    // The harness resolved `small` before the driver started.
+    vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify({ local: "claude-sonnet-4.6" }));
     vi.stubEnv("GITHUB_WORKSPACE", base);
     vi.spyOn(process, "cwd").mockReturnValue(app);
     const createSession = vi.fn().mockResolvedValue({
@@ -166,6 +170,103 @@ describe("copilot_sdk_session runtime configuration", () => {
         customAgents: [{ name: "local", displayName: "local", prompt: "App agent.", model: "anthropic/claude-sonnet-4.6" }],
       })
     );
+  });
+
+  it.each([false, true])("registers all four staged Copilot Opt skills without ambient discovery (bare=%s)", async bare => {
+    const workflow = fs.readFileSync(path.resolve(import.meta.dirname, "../../../.github/workflows/copilot-opt.md"), "utf8");
+    const staging = path.join(base, "staged");
+    vi.stubGlobal("core", { info: vi.fn(), warning: vi.fn() });
+    vi.stubEnv("GH_AW_SKILL_DIR", ".github/skills");
+    vi.stubEnv("GH_AW_SKILL_EXT", "/SKILL.md");
+    const prompt = writeInlineSkills(workflow, base, staging, "copilot");
+    const createSession = vi.fn().mockResolvedValue({
+      sessionId: "staged-skills",
+      on: () => {},
+      sendAndWait: async () => ({ data: { content: "done" } }),
+      disconnect: async () => {},
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt,
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: staging,
+      bare,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const config = createSession.mock.calls[0][0];
+    expect(config).toMatchObject({ skipCustomInstructions: bare, enableConfigDiscovery: false, enableSkills: true, skillDirectories: [path.join(staging, ".github/skills")] });
+    const names = ["opt-phase-performance", "opt-phase-pr-analysis", "opt-phase-recommendations", "opt-phase-issue-creation"];
+    expect(fs.readdirSync(config.skillDirectories[0]).sort()).toEqual([...names].sort());
+    for (const name of names) {
+      expect(fs.readFileSync(path.join(config.skillDirectories[0], name, "SKILL.md"), "utf8")).toContain("description:");
+      expect(prompt).toContain(`/tmp/gh-aw/.github/skills/${name}/SKILL.md`);
+      expect(prompt).not.toContain(`Invoke skill \`${name}\``);
+    }
+    expect(prompt).toContain("Do not use `cd`, `cut`, or `sed`");
+    const document = parseDocument(extractFrontmatterAndBody(workflow).frontmatterText).toJS();
+    expect(document["max-tool-denials"]).toBe(3);
+    for (const command of ["cd *", "cut *", "sed *", "*"]) expect(document.tools.bash).not.toContain(command);
+  });
+
+  it("does not discover repository skills when no workflow skills were staged", async () => {
+    fs.mkdirSync(path.join(base, ".github/skills/ambient"), { recursive: true });
+    fs.writeFileSync(path.join(base, ".github/skills/ambient/SKILL.md"), "---\ndescription: Ambient repository skill\n---\nNot staged.");
+    const createSession = vi.fn().mockResolvedValue({
+      sessionId: "no-staged-skills",
+      on: () => {},
+      sendAndWait: async () => ({ data: { content: "done" } }),
+      disconnect: async () => {},
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: path.join(base, "staged"),
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(createSession.mock.calls[0][0]).toMatchObject({ enableConfigDiscovery: false, skillDirectories: [] });
+    expect(createSession.mock.calls[0][0].enableSkills).toBeUndefined();
+  });
+
+  it.each(["file", "symlink", "dangling symlink"])("rejects a staged skills root that is a %s", async kind => {
+    const staging = path.join(base, "staged");
+    const skills = path.join(staging, ".github/skills");
+    fs.mkdirSync(path.dirname(skills), { recursive: true });
+    if (kind === "file") fs.writeFileSync(skills, "Not a directory.");
+    else fs.symlinkSync(kind === "dangling symlink" ? path.join(base, "does-not-exist") : base, skills, "dir");
+    const createSession = vi.fn();
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const logger = vi.fn();
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger,
+      workingDirectory: base,
+      agentsBaseDir: staging,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("Staged Copilot skills must be a directory:");
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("error: Staged Copilot skills must be a directory:"));
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   it.each(["{bad json", '{"args":["--no-custom-instructions"]}'])("warns and starts a session for invalid server args %s", serverArgs => {

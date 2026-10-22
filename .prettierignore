@@ -25,3 +25,6 @@ schemas/outcomes-episodes.schema.json
 
 # Recorded byte-exact AWF reflection fixtures (SHA-256 pinned)
 actions/setup/js/test_data/awf_reflect/*.json
+
+# Verbatim routing-analytics run artifacts (github/gh-aw#70668)
+actions/setup/js/fixtures/routing-analytics/**/*.json

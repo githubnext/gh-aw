@@ -20,7 +20,9 @@ func steeringTestData() *WorkflowData {
 
 func TestBuildActivationJobCreatesSteeringIssue(t *testing.T) {
 	compiler := NewCompiler()
-	job, err := compiler.buildActivationJob(steeringTestData(), false, "", "test.lock.yml")
+	data := steeringTestData()
+	data.SafeOutputs.CreatePullRequests = &CreatePullRequestsConfig{}
+	job, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
 	require.NoError(t, err)
 
 	steps := strings.Join(job.Steps, "")
@@ -32,6 +34,8 @@ func TestBuildActivationJobCreatesSteeringIssue(t *testing.T) {
 	assert.NotContains(t, job.Permissions, "checks: write")
 	assert.Equal(t, "${{ steps.create-steering-issue.outputs.issue_number }}", job.Outputs["steering_issue_number"])
 	assert.Equal(t, "${{ steps.create-steering-issue.outputs.issue_url }}", job.Outputs["steering_issue_url"])
+	assert.Contains(t, steps, "GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}")
+	assert.NotContains(t, steps, "${{ needs.activation.outputs.steering_issue_number }}")
 }
 
 func TestBuildConclusionJobReusesAndCompletesSteeringIssue(t *testing.T) {

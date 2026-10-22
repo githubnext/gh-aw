@@ -104,6 +104,20 @@ timeout-minutes: 30
 
 imports:
   - shared/otlp.md
+mcp-scripts:
+  caveman-run-state:
+    description: "Read the current run's audit record from the read-only caveman ledger."
+    env:
+      CAVEMAN_RUN_ID: ${{ github.run_id }}
+    script: |
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync("/tmp/gh-aw/ledgers/caveman-run-history/ledger.db", { readOnly: true });
+      try {
+        const row = db.prepare("SELECT value FROM state WHERE key = ? LIMIT 1").get(process.env.CAVEMAN_RUN_ID);
+        return { current_run: row ? JSON.parse(row.value) : null };
+      } finally {
+        db.close();
+      }
 features:
   gh-aw-detection: true
 evals:
@@ -183,7 +197,7 @@ Expected format:
 }
 ```
 
-- If the file does not exist, this is the first run and the cache is intentionally empty. Do **not** call `missing_data` — proceed normally. Count the total number of files in the sorted list (`TOTAL=$(...)`) and pick a **random** starting index with `$(( RANDOM % TOTAL ))`. This avoids always processing the same files first when the cache is cold.
+- If the file does not exist, this is the first run and the cache is intentionally empty. Do **not** call `report_missing_data` — proceed normally. Count the total number of files in the sorted list (`TOTAL=$(...)`) and pick a **random** starting index with `$(( RANDOM % TOTAL ))`. This avoids always processing the same files first when the cache is cold.
 - If the queue in cache differs from the current file list (files added/removed), rebuild the queue from the current sorted list and reset the index to 0.
 - Pick the **next 5 files** starting from `last_processed_index + 1` (wrapping around if needed). This is your **batch** for this run.
 - **Keep cache-memory for the round-robin cursor.** Use the Git-backed ledger only for durable run audit records.
@@ -244,16 +258,9 @@ Use filesystem-safe format `YYYY-MM-DD` for the date (no colons, no T, no Z).
 
 ## Step 5: Record the Run
 
-Before requesting a PR or `noop`, query the replay projection at `/tmp/gh-aw/ledgers/caveman-run-history/ledger.db` for a run whose ID matches `${{ github.run_id }}`:
+Before requesting a PR or `noop`, discover and invoke `caveman-run-state` through the `mcpscripts` CLI. It queries the read-only ledger with fixed, parameterized SQL using Node's SQLite API; do not invoke `sqlite3` or install a database client.
 
-```sql
-SELECT key, value FROM state
-WHERE key = '${{ github.run_id }}'
-LIMIT 1;
-```
-
-If replay is reported unavailable, use the generic `records` history instead of querying replay tables.
-If absent, call `ledger_append` exactly once with the following shape, replacing the date, counts, and planned outcome with this run's values:
+If `current_run` is null, invoke `safeoutputs ledger_append '<json>'` exactly once with the following shape, replacing the date, counts, and planned outcome with this run's values. `ledger_append` is available through the `safeoutputs` CLI, not as a standalone shell command or native tool:
 
 ```json
 {
@@ -271,6 +278,8 @@ If absent, call `ledger_append` exactly once with the following shape, replacing
 ```
 
 Keep `value.run_id` a quoted string; it is the table primary key. Do not add a top-level `key` or fields beyond this schema. Use `pull_request_requested` when requesting a PR, otherwise `noop`. Do not include file contents or raw analysis notes. Do not edit ledger branches directly.
+
+Complete the query and, when needed, the append before Step 6. Queued records are not visible in this run's read-only projection and become durable only after `push_ledger_changes` succeeds. If the query or append fails or is unavailable, call `safeoutputs report_incomplete` with the concrete blocker; do not emit a clean `noop`, request a PR, or claim the audit record was persisted.
 
 ## Step 6: Output
 

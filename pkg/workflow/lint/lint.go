@@ -213,8 +213,10 @@ func sortDiagnostics(diagnostics []Diagnostic) {
 func Default() *Runner {
 	return &Runner{rules: []Rule{
 		SecretLeakRule(),
+		OTLPSecretLeakRule(),
 		ActionPinRule(),
 		JobTimeoutRule(),
+		NeedsConsistencyRule(),
 		TemplateInjectionRule(),
 		WorkflowRunScopeRule(),
 		PermissionScopeRule(),
@@ -238,5 +240,10 @@ func Default() *Runner {
 		GraderShellFileWriteRule(),
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
+		GatewayDispatchLiteralsRule(),
+		ArtipackedRule(),
+		CachePoisoningRule(),
+		ExcessivePermissionsRule(),
+		ObfuscationRule(),
 	}}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
@@ -74,6 +75,12 @@ func TestCustomJobDetectionAuthoredJobs(t *testing.T) {
 		{"missing detection", "jobs:\n  report:\n    needs: agent\n", "jobs.report.needs"},
 		{"missing detection with explicit guard", "jobs:\n  report:\n    needs: agent\n    if: always() && needs.detection.result == 'success'\n", "jobs.report.needs"},
 		{"always override", "jobs:\n  report:\n    needs: [agent, detection]\n    if: always()\n", "jobs.report.if"},
+		{"detection only override", "jobs:\n  report:\n    needs: detection\n    if: always()\n", "jobs.report.if"},
+		{"detection only success", "jobs:\n  report:\n    needs: detection\n", ""},
+		{"transitive agent dependency", "jobs:\n  scan:\n    needs: [agent, detection]\n  report:\n    needs: scan\n", "jobs.report.needs"},
+		{"transitive guarded dependency", "jobs:\n  scan:\n    needs: [agent, detection]\n  report:\n    needs: [scan, detection]\n    if: always() && needs.detection.result == 'success'\n", ""},
+		{"after builtin output job", "jobs:\n  report:\n    needs: safe_outputs\n", "jobs.report.needs"},
+		{"before detection after agent", "jobs:\n  scan:\n    needs: agent\n  detection:\n    needs: scan\n", "jobs.scan.needs"},
 		{"implicit success", "jobs:\n  report:\n    needs: [agent, detection]\n", ""},
 		{"explicit success", "jobs:\n  report:\n    needs: [agent, detection]\n    if: always() && needs.detection.result == 'success'\n", ""},
 		{"unrelated job", "jobs:\n  prepare:\n    needs: activation\n", ""},
@@ -98,6 +105,38 @@ func TestCustomJobDetectionAuthoredJobs(t *testing.T) {
 				require.Len(t, diagnostics, 1)
 				assert.Equal(t, tt.path, diagnostics[0].Path)
 				assert.Equal(t, Error, diagnostics[0].Severity)
+			}
+		})
+	}
+}
+
+func TestCustomJobDetectionActions(t *testing.T) {
+	for _, tt := range []struct {
+		name, jobs, path string
+	}{
+		{"direct bypass", "  report:\n    needs: agent\n", "jobs.report.needs"},
+		{"detection bypass", "  report:\n    needs: detection\n    if: always()\n", "jobs.report.if"},
+		{"detection success", "  report:\n    needs: detection\n", ""},
+		{"transitive bypass", "  scan:\n    needs: [agent, detection]\n  report:\n    needs: scan\n    if: always()\n", "jobs.report.needs"},
+		{"parallel job", "  report:\n", "jobs.report.needs"},
+		{"guarded branch", "  report:\n    needs: [agent, detection]\n    if: always() && needs.detection.result == 'success'\n", ""},
+		{"unguarded branch", "  report:\n    needs: [agent, detection]\n    if: always() || needs.detection.result == 'success'\n", "jobs.report.if"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "jobs:\n  agent:\n    runs-on: ubuntu-latest\n    steps: [{run: echo agent}]\n  detection:\n    needs: agent\n    runs-on: ubuntu-latest\n    steps: [{run: echo detection}]\n" + tt.jobs
+			source = strings.ReplaceAll(source, "  report:\n", "  report:\n    uses: ./.github/workflows/report.yml\n")
+			source = strings.ReplaceAll(source, "  scan:\n", "  scan:\n    uses: ./.github/workflows/scan.yml\n")
+			workflow, err := actions.Parse([]byte(source))
+			require.NoError(t, err)
+			runner, err := Default().Select("custom-job-detection")
+			require.NoError(t, err)
+			diagnostics, err := runner.Run(context.Background(), Input{Workflow: workflow})
+			require.NoError(t, err)
+			if tt.path == "" {
+				assert.Empty(t, diagnostics)
+			} else {
+				require.Len(t, diagnostics, 1)
+				assert.Equal(t, tt.path, diagnostics[0].Path)
 			}
 		})
 	}

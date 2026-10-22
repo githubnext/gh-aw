@@ -9,7 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 )
 
-const dryRunScopeMessage = "Dry-run is compile-only: compiler-managed GitHub mutations, daily credit accounting, and OTLP telemetry configuration are disabled; OTEL_* and GH_AW_OTLP_* environment variables are removed. Per-run credit limits are retained or derived from configured daily limits. Manual dispatch is enabled with maintainer/admin authorization. Custom scripts/jobs, agent shell commands, external MCP servers, and custom credentials remain unverified. Compilation does not authorize execution or approve emitted files."
+const dryRunScopeMessage = "Dry-run is compile-only: compiler-managed GitHub mutations, authored custom jobs, daily credit accounting, and OTLP telemetry configuration are disabled; OTEL_* and GH_AW_OTLP_* environment variables are removed. Host scripts, custom MCP servers, custom safe-output scripts, Bash graders, and authored OIDC permissions are rejected. Per-run credit limits are retained or derived from configured daily limits. Manual dispatch is enabled with maintainer/admin authorization. Agent shell commands and custom credentials remain unverified. Compilation does not authorize execution or approve emitted files."
 
 // DryRunCompileReport describes the compilation gate, not execution authorization.
 type DryRunCompileReport struct {
@@ -43,7 +43,7 @@ func newDryRunCompileReport(config CompileConfig) *DryRunCompileReport {
 		Scanners:               make(map[string]DryRunScannerCheck),
 		ValidateImagesRequired: config.ValidateImages,
 		UnverifiedEffects: []string{
-			"custom scripts/jobs", "agent shell commands", "external MCP servers", "custom credentials",
+			"agent shell commands", "custom engine execution", "custom credentials", "compiler-managed OIDC integrations",
 			"hosted approvals/OIDC/runners", "live model availability", "diagnostic artifacts/summaries",
 		},
 	}
@@ -119,6 +119,6 @@ func displayDryRunCompileReport(report *DryRunCompileReport) {
 	if report.AcceptedExperimentalWarnings > 0 {
 		message += fmt.Sprintf(" Accepted %d experimental-feature notice(s) via --allow-experimental.", report.AcceptedExperimentalWarnings)
 	}
-	message += " Only added medium-or-higher or unclassified scanner findings fail; low-severity findings and zizmor secrets-outside-env are excluded from the gate."
+	message += " Existing and added medium-or-higher or unclassified scanner findings fail; low-severity findings and zizmor secrets-outside-env are excluded from the gate."
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(message))
 }

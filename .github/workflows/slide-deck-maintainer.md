@@ -205,7 +205,7 @@ fi
 - `documentation` → next is `source-code`
 - Any other/missing value → use `documentation`
 
-If the file exists but is malformed or unreadable, call `missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`, then default to `documentation`.
+If the file exists but is malformed or unreadable, call `report_missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`, then default to `documentation`.
 
 The schema is:
 ```json

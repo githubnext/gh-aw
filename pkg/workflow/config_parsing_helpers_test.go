@@ -847,7 +847,7 @@ func TestUnmarshalConfig(t *testing.T) {
 					t.Errorf("expected expires 7, got %d", config.Expires)
 				}
 				if templatableIntValue(config.Max) != 5 {
-					t.Errorf("expected max 5, got %d", config.Max)
+					t.Errorf("expected max 5, got %v", config.Max)
 				}
 				if config.GitHubToken != "${{ secrets.TOKEN }}" {
 					t.Errorf("expected github-token, got %q", config.GitHubToken)
@@ -886,7 +886,7 @@ func TestUnmarshalConfig(t *testing.T) {
 					t.Errorf("expected title-prefix '[auto] ', got %q", config.TitlePrefix)
 				}
 				if templatableIntValue(config.Max) != 3 {
-					t.Errorf("expected max 3, got %d", config.Max)
+					t.Errorf("expected max 3, got %v", config.Max)
 				}
 				// Other fields should be zero values
 				if len(config.Labels) != 0 {
@@ -912,7 +912,7 @@ func TestUnmarshalConfig(t *testing.T) {
 			validate: func(t *testing.T, config *CreateIssuesConfig) {
 				// All fields should be zero values
 				if templatableIntValue(config.Max) != 0 {
-					t.Errorf("expected max 0, got %d", config.Max)
+					t.Errorf("expected max 0, got %v", config.Max)
 				}
 			},
 		},

@@ -7,6 +7,7 @@ import { newState, newRequest, generateRequestOperations, replayTransactions } f
 import { validatePolicy } from "./work_queue_policy.cjs";
 import { frozenResourceScope } from "./work_queue_resource_scope.cjs";
 import { validateDeliveryContract } from "./work_queue_delivery.cjs";
+import { parseDocument } from "./work_queue_yaml.cjs";
 
 const repository = "owner/repo";
 const settings = JSON.parse(fs.readFileSync(new URL("../../../.github/workflows/aw.json", import.meta.url), "utf8")).work_queue;
@@ -165,6 +166,7 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     const routes = [...dispatcher.matchAll(/^      - ([a-z-]+)$/gm)].map(match => match[1]);
     expect(routes).toEqual(REPORT_PROFILES);
     expect(dispatcher).toContain("if: github.run_attempt == 1");
+    expect(dispatcher).toContain("schedule: daily around 12:00");
     expect(dispatcher).toContain("Date.parse(run.created_at) - 86400000");
     expect(dispatcher).toContain("stagePlanIntents(");
     expect(dispatcher).toContain("shared/work-queue-staged-plan.md");
@@ -172,8 +174,15 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(dispatcher).not.toMatch(/^\s+workflow_dispatch:/m);
     expect(dispatcher).toContain("    max: 3");
     const lock = fs.readFileSync(new URL("../../../.github/workflows/daily-report-dispatcher.lock.yml", import.meta.url), "utf8");
-    expect(lock).toContain("if: github.run_attempt == 1");
+    const document = parseDocument(lock, { version: "1.2", uniqueKeys: true });
+    expect(document.errors).toEqual([]);
+    const activation = document.toJS().jobs.activation;
+    expect(activation.if).toContain("github.run_attempt == 1");
+    expect(activation.if).toContain("needs.admission.result == 'success' || needs.admission.result == 'skipped'");
+    expect(activation.needs).toBe("admission");
     expect(lock).toContain("daily_report_portfolio.cjs");
+    expect(lock).toContain("name: Restore daily AIC scan observations");
+    expect(lock).toContain("name: Check daily workflow token guardrail");
     for (const profile of REPORT_PROFILES) {
       const worker = source(profile);
       const frontmatter = worker.split("\n---")[0];
@@ -225,7 +234,7 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(deepReport.depends_on).toEqual([]);
     expect(deepReport.payload.effect_contract.outputs).toEqual([
       { type: "create_discussion", min: 1, max: 1 },
-      ...["noop", "report_incomplete", "missing_tool", "missing_data"].map(type => ({ type, min: 0, max: 1 })),
+      ...["noop", "report_incomplete", "report_missing_tool", "report_missing_data"].map(type => ({ type, min: 0, max: 1 })),
       { type: "create_issue", min: 0, max: 7 },
       { type: "add_comment", min: 0, max: 3 },
       { type: "upload_artifact", min: 0, max: 3 },

@@ -184,7 +184,7 @@ func TestEnforceDevelopmentDiagnostics(t *testing.T) {
 	}
 }
 
-func TestDevelopmentCompileAllowsIDTokenInfo(t *testing.T) {
+func TestDevelopmentCompileRejectsAuthoredIDToken(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "oidc.md")
 	content := `---
 on: workflow_dispatch
@@ -203,13 +203,11 @@ Say Done.
 		DryRun: true, activeModels: &activeModelInventory{},
 	})
 	compiler := createAndConfigureCompiler(config)
-	require.NoError(t, compiler.CompileWorkflow(source))
+	require.ErrorContains(t, compiler.CompileWorkflow(source), "--dry-run cannot safely execute permissions.id-token")
 	require.Zero(t, compiler.GetWarningCount())
-	stats := &CompilationStats{Total: 1, Succeeded: 1}
-	results := []ValidationResult{{Workflow: "oidc.md", Valid: true}}
-	require.NoError(t, enforceDevelopmentDiagnostics(config, compiler, stats, &results))
-	assert.True(t, results[0].Valid)
-	assert.Zero(t, stats.Errors)
+	require.NoFileExists(t, strings.TrimSuffix(source, ".md")+".lock.yml")
+	compiler.SetDryRun(false)
+	require.NoError(t, compiler.CompileWorkflow(source), "ordinary authenticated workflows remain supported")
 }
 
 func TestDevelopmentCompileAllowsRestrictedBashShorthand(t *testing.T) {

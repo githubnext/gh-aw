@@ -132,16 +132,24 @@ func TestWorkQueueIssuesCompilationUsesExistingJobs(t *testing.T) {
 	require.NotEqual(t, "write", perms["issues"])
 	require.NotEqual(t, "write", perms["contents"])
 	seen := false
+	detectionSeen := false
 	for _, value := range conclusion["steps"].([]any) {
 		step := value.(map[string]any)
 		if step["id"] == "work_queue_issues" {
 			require.Equal(t, "always()", step["if"])
 			env := step["env"].(map[string]any)
 			require.JSONEq(t, `{"label":"cookie","title_prefix":"[cookie queue]"}`, env["GH_AW_WORK_QUEUE_ISSUES"].(string))
+			require.Contains(t, step["with"].(map[string]any)["script"], "core.setFailed(")
 			seen = true
+		}
+		if step["id"] == "detection_runs" {
+			require.True(t, seen, "the detection tracker follows the potentially failed Issue projection")
+			require.Equal(t, "always()", step["if"], "pending mirrors must not skip required detection reporting")
+			detectionSeen = true
 		}
 	}
 	require.True(t, seen)
+	require.True(t, detectionSeen)
 	trial := compile("true", true)
 	for _, name := range []string{"activation", "conclusion"} {
 		for _, value := range trial["jobs"].(map[string]any)[name].(map[string]any)["steps"].([]any) {

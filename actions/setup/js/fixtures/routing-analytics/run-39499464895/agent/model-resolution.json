@@ -1,0 +1,11 @@
+[
+  {
+    "engine": "copilot",
+    "role": "mini-whoami",
+    "configured_model": "gpt-5.4-mini",
+    "resolved_model": null,
+    "provider": "copilot",
+    "status": "failed",
+    "cause": "model_unavailable"
+  }
+]

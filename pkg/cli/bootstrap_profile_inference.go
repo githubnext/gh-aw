@@ -46,6 +46,9 @@ func inferBootstrapGitHubAppRequirements(ctx context.Context, sources []string) 
 		for resource, level := range workflow.ComputeGitHubAppManifestPermissions(frontmatter.Frontmatter["permissions"], safeOutputs) {
 			permissions[resource] = mergeBootstrapPermissionLevel(permissions[resource], level)
 		}
+		for resource, level := range workflow.ComputeGitHubAppManifestWebhookPermissions(frontmatter.Frontmatter["on"]) {
+			permissions[resource] = mergeBootstrapPermissionLevel(permissions[resource], level)
+		}
 		for _, event := range bootstrapEventNamesFromOn(frontmatter.Frontmatter["on"]) {
 			eventSet[event] = struct{}{}
 		}

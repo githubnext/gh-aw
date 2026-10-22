@@ -45,7 +45,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"close_discussion",
 		"close_issue",
 		"close_pull_request",
-		"missing_tool",
+		"report_missing_tool",
 		"update_release",
 		"upload_asset",
 		"noop",
@@ -56,7 +56,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 		"replace_label",
 		"unassign_from_user",
 		"hide_comment",
-		"missing_data",
+		"report_missing_data",
 		"autofix_code_scanning_alert",
 		"mark_pull_request_as_ready_for_review",
 		"report_incomplete",
@@ -665,6 +665,33 @@ func TestValidationConfigCoversInjectedToolProperties(t *testing.T) {
 						t.Errorf("%s injected property %q is missing from ValidationConfig", toolName, propertyName)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestCreateDiscussionValidationPreservesTemporaryID(t *testing.T) {
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"create_discussion"}, nil, false, nil)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	for name, config := range map[string]TypeValidationConfig{
+		"source":    ValidationConfig["create_discussion"],
+		"generated": parsed["create_discussion"],
+	} {
+		t.Run(name, func(t *testing.T) {
+			temporaryID, ok := config.Fields["temporary_id"]
+			if !ok {
+				t.Fatal("temporary_id field not found in create_discussion validation config")
+			}
+			if temporaryID.Required || temporaryID.Type != "string" || temporaryID.Pattern != "^#?aw_[A-Za-z0-9_]{3,12}$" {
+				t.Errorf("create_discussion temporary_id = %+v, want optional string accepting canonical and bare temporary IDs", temporaryID)
 			}
 		})
 	}

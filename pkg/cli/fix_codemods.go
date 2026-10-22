@@ -104,10 +104,12 @@ func getEarlyCodemods() []Codemod {
 // getLaterCodemods returns the second half of the codemod registry, in application order.
 func getLaterCodemods() []Codemod {
 	return []Codemod{
-		getSafeOutputRequireTitlePrefixCodemod(),          // Rename deprecated safe-outputs title-prefix constraint fields
-		getSafeOutputMergePRConstraintsCodemod(),          // Rename deprecated merge-pull-request allowed-labels/allowed-branches
-		getSafeOutputAddReviewerAllowlistsCodemod(),       // Rename deprecated add-reviewer reviewers/team-reviewers
-		getSafeOutputDispatchRepositoryKeyCodemod(),       // Rename deprecated safe-outputs.dispatch_repository key
+		getSafeOutputRequireTitlePrefixCodemod(),    // Rename deprecated safe-outputs title-prefix constraint fields
+		getSafeOutputMergePRConstraintsCodemod(),    // Rename deprecated merge-pull-request allowed-labels/allowed-branches
+		getSafeOutputAddReviewerAllowlistsCodemod(), // Rename deprecated add-reviewer reviewers/team-reviewers
+		getSafeOutputDispatchRepositoryKeyCodemod(), // Rename deprecated safe-outputs.dispatch_repository key
+		getSafeOutputMissingToolCodemod(),
+		getSafeOutputMissingDataCodemod(),
 		getSafeJobRunnerCodemod(),                         // Rename deprecated safe-outputs.jobs runner fields
 		getSafeInputsToMCPScriptsCodemod(),                // Rename safe-inputs to mcp-scripts
 		getRateLimitToUserRateLimitCodemod(),              // Rename rate-limit to user-rate-limit with max key migration

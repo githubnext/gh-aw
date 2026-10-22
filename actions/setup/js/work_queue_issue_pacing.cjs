@@ -3,6 +3,8 @@
 
 const { queueError } = require("./work_queue_codec.cjs");
 const { inheritQueueLedgerClient } = require("./work_queue_git_transport.cjs");
+const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
+const log = require("./work_queue_logging.cjs").createWorkQueueLogger("issues");
 
 function wrapGithubClient(githubClient, { sleep = delay => new Promise(resolve => setTimeout(resolve, delay)), now = Date.now } = {}) {
   const metrics = { requests: 0, reads: 0, mutations: 0, paced_ms: 0 };
@@ -33,7 +35,8 @@ function wrapGithubClient(githubClient, { sleep = delay => new Promise(resolve =
         return async (query, variables) => {
           const mutation = /^\s*mutation/.test(query);
           const cost = Math.max(1, [...query.matchAll(/:\s*(?:createIssue|addComment|updateIssueComment|setIssueFieldValue|addLabelsToLabelable|removeLabelsFromLabelable|closeIssue|createRef|deleteRef)\(/g)].length);
-          return invoke(mutation, cost, () => target.graphql(query, { ...variables, request: { ...variables?.request, retries: 0 } }));
+          const send = () => invoke(mutation, cost, () => target.graphql(query, { ...variables, request: { ...variables?.request, retries: 0 } }));
+          return mutation ? send() : readQueueMetadata(send, log, "projection.read", sleep);
         };
       if (key === "rest")
         return new Proxy(target.rest, {

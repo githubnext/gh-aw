@@ -27,7 +27,7 @@ engine:
   model-routing:
     goal: cost
     mode: economy
-    allowed-models: [gpt-5.4-mini, gpt-5.6-luna, claude-haiku-4.5]
+    allowed-models: [gpt-5.6-luna, claude-haiku-4.5]
 imports:
   - shared/smoke-test-brevity.md
   - shared/reporting.md
@@ -57,7 +57,7 @@ safe-outputs:
               core,
               executionOutcome: process.env.SMOKE_DETECTION_EXECUTION,
               detectionModel: "claude-haiku-5.5",
-              allowedModels: ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"],
+              allowedModels: ["gpt-5.6-luna", "claude-haiku-4.5"],
             });
 timeout-minutes: 10
 sandbox:
@@ -77,7 +77,10 @@ post-steps:
           core,
           engine: "copilot",
           executionOutcome: process.env.SMOKE_EXECUTION,
-          allowedModels: ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"],
+          allowedModels: ["gpt-5.6-luna", "claude-haiku-4.5"],
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 

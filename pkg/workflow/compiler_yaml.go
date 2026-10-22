@@ -21,6 +21,9 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	c.jobManager = NewJobManager()
 
 	// Build all jobs
+	if err := c.validateDryRunEffects(data); err != nil {
+		return err
+	}
 	data, err := c.prepareDryRunWorkflowData(data)
 	if err != nil {
 		return err
@@ -33,6 +36,7 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	c.disableDryRunPushJobs()
+	c.disableDryRunCustomJobs(data)
 
 	if err := c.applyEnvironmentOverride(); err != nil {
 		return err
@@ -45,6 +49,14 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 
 	if err := c.jobManager.resolveActions(); err != nil {
 		return fmt.Errorf("resolving GitHub Actions workflow: %w", err)
+	}
+	if err := c.guardCustomJobDetection(data); err != nil {
+		return err
+	}
+	c.ensureAdmissionSkipSafeConditions()
+
+	if err := c.guardGatewayProvenanceJobs(data); err != nil {
+		return err
 	}
 
 	// Validate no duplicate steps within jobs (compiler bug detection)
@@ -85,6 +97,10 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 	// Agent permissions are applied only to the agent job
 	yaml.WriteString("# Jobs receive only their explicitly declared permissions.\n")
 	yaml.WriteString("permissions: {}\n\n")
+
+	if data.DryRun && !data.GHES {
+		yaml.WriteString("cache-mode: read\n\n")
+	}
 
 	yaml.WriteString(data.Concurrency)
 	yaml.WriteString("\n\n")
@@ -207,7 +223,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		return "", nil, nil, err
 	}
 	if c.dryRun {
-		bodyContent, err = removeDryRunTelemetryEnv(bodyContent)
+		bodyContent, err = disableDryRunTelemetryEnv(bodyContent)
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -235,7 +251,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 				return "", nil, nil, err
 			}
 			if c.dryRun {
-				bodyContent, err = removeDryRunTelemetryEnv(bodyContent)
+				bodyContent, err = disableDryRunTelemetryEnv(bodyContent)
 				if err != nil {
 					return "", nil, nil, err
 				}

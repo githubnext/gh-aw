@@ -19,30 +19,31 @@ var jobLog = logger.New("workflow:jobs")
 const runtimeFeaturesEnvVarName = "GH_AW_RUNTIME_FEATURES"
 const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
 
-const pushExperimentsStateJobName = "push_experiments_state"
-const pushEvalsStateJobName = "push_evals_state"
-const pushRepoMemoryJobName = "push_repo_memory"
-const pushLedgerChangesJobName = "push_ledger_changes"
-const updateCacheMemoryJobName = "update_cache_memory"
+const pushExperimentsStateJobName = string(constants.PushExperimentsStateJobName)
+const pushEvalsStateJobName = string(constants.PushEvalsStateJobName)
+const pushRepoMemoryJobName = string(constants.PushRepoMemoryJobName)
+const pushLedgerChangesJobName = string(constants.PushLedgerChangesJobName)
+const updateCacheMemoryJobName = string(constants.UpdateCacheMemoryJobName)
 
 var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
-	string(constants.AgentJobName):              {},
-	string(constants.ActivationJobName):         {},
-	string(constants.PreActivationJobName):      {},
-	string(constants.DetectionJobName):          {},
-	string(constants.EvalsJobName):              {},
-	string(constants.SafeOutputsJobName):        {},
-	string(constants.UploadAssetsJobName):       {},
-	string(constants.UploadCodeScanningJobName): {},
-	string(constants.ConclusionJobName):         {},
-	string(constants.GradersJobName):            {},
-	string(constants.UnlockJobName):             {},
-	pushExperimentsStateJobName:                 {},
-	pushEvalsStateJobName:                       {},
-	pushRepoMemoryJobName:                       {},
-	pushLedgerChangesJobName:                    {},
-	updateCacheMemoryJobName:                    {},
-	updateDriveMemoryJobName:                    {},
+	string(constants.AgentJobName):               {},
+	string(constants.ActivationJobName):          {},
+	string(constants.PreActivationJobName):       {},
+	string(constants.DetectionJobName):           {},
+	string(constants.EvalsJobName):               {},
+	string(constants.SafeOutputsJobName):         {},
+	string(constants.UploadAssetsJobName):        {},
+	string(constants.UploadCodeScanningJobName):  {},
+	string(constants.ConclusionJobName):          {},
+	string(constants.ConclusionAdmissionJobName): {},
+	string(constants.GradersJobName):             {},
+	string(constants.UnlockJobName):              {},
+	pushExperimentsStateJobName:                  {},
+	pushEvalsStateJobName:                        {},
+	pushRepoMemoryJobName:                        {},
+	pushLedgerChangesJobName:                     {},
+	updateCacheMemoryJobName:                     {},
+	updateDriveMemoryJobName:                     {},
 }
 
 // Job represents a GitHub Actions job with all its properties

@@ -60,8 +60,10 @@ Legacy Git memory is not automatically migrated; missing cache history is
 reported as a limitation, and actual open issues remain the deduplication source.
 
 The artifact and tree workers retain weekly admission, but share the dispatcher's
-10:00 UTC schedule rather than their former 06:00/15:00 times. Their weekly slots
-replace daily slots instead of increasing the three-node admission or launch
+12:00 UTC fuzzy schedule rather than their former 06:00/15:00 times. Moving the
+dispatcher away from the observed 10:00 UTC API quota exhaustion reduces
+contention; it does not bypass daily credit accounting or guarantee API capacity.
+Their weekly slots replace daily slots instead of increasing the three-node admission or launch
 budget. Publication can be delayed by queue capacity. The tree report describes
 the installed immutable worker revision's checkout, not a historical checkout
 at `report_date`; that date identifies its reporting opportunity.
@@ -166,7 +168,7 @@ immutable revisions and scheduling, and AW binds actual native runs to Claims.
 ```aw wrap title=".github/workflows/daily-report-dispatcher.md (excerpt)"
 ---
 on:
-  schedule: daily around 10:00
+  schedule: daily around 12:00
 if: github.run_attempt == 1
 tools:
   work-queue: true
@@ -494,10 +496,11 @@ Claim directories and files use modes `0700` and `0600`. Writers redact availabl
 configured secrets, gateway tokens and built-in credential patterns from decoded
 JSON keys and values before serialization. After delivery verification, the
 existing redactor applies the worker job's configured secrets and any recoverable
-agent-log runtime masks. Upload requires successful redaction and defaults to
-one-day retention; `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` can override that
-repository-wide default. Ordinary workflows and queue observers gain no Claim
-paths or extra redaction step.
+agent-log runtime masks. Upload requires successful redaction. Successful worker
+jobs default to one-day retention; failed worker jobs retain `safe-outputs-items`
+for seven days. The repository artifact-retention policy or
+`GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` overrides these defaults. Ordinary
+workflows and queue observers gain no Claim paths or extra redaction step.
 
 Redaction does not anonymize repository names, resource IDs or URLs, and cannot
 identify arbitrary personal data or unknown secrets. Opaque runtime masks

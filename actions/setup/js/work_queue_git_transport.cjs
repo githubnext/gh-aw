@@ -87,6 +87,7 @@ function createGitLedgerClient({ githubClient, owner, repo, branch, remote }) {
   let cachedBytes = 0;
   const commitParents = new Map();
   let fetched = false;
+  let verifiedHead = "";
   let advertised = new Map();
   let defaultBranch = "";
 
@@ -130,9 +131,16 @@ function createGitLedgerClient({ githubClient, owner, repo, branch, remote }) {
 
   async function fetchObjects() {
     if (fetched) return;
+    if (fs.existsSync(path.join(directory, "shallow"))) throw queueError("checkpoint_invalid", "queue history must not be shallow");
+    // Recheck access through advertisement, then reuse the validated local history.
+    if (verifiedHead && advertised.get(`refs/heads/${branch}`) === verifiedHead) {
+      fetched = true;
+      return;
+    }
     await network(["fetch", "--quiet", "--no-tags", "--no-recurse-submodules", remote, `+refs/heads/${branch}:refs/heads/queue`]);
     if (fs.existsSync(path.join(directory, "shallow"))) throw queueError("checkpoint_invalid", "queue history must not be shallow");
     git(["fsck", "--connectivity-only", "--no-dangling", "--no-reflogs", "refs/heads/queue"]);
+    verifiedHead = git(["rev-parse", "--verify", "refs/heads/queue^{commit}"]).toString("utf8").trim();
     fetched = true;
   }
 

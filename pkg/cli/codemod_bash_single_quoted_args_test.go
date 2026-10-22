@@ -145,6 +145,13 @@ func TestRewriteSingleQuotedBashArgs(t *testing.T) {
 			wantApply: true,
 		},
 		{
+			name:      "multibyte quoted arguments preserve every byte",
+			input:     "echo 'café 世界'",
+			want:      `echo "café 世界"`,
+			wantSafe:  true,
+			wantApply: true,
+		},
+		{
 			name:      "escaped dollars stay literal",
 			input:     "echo '$HOME'",
 			want:      `echo "\$HOME"`,

@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -15,6 +15,24 @@ func healthRevisionLookupKey(run WorkflowRun) string {
 }
 
 func resolveHealthRevision(run WorkflowRun, collection *HealthCollection) {
+	if !healthRunHasWorkflowRevision(run) {
+		if collection.revisions == nil {
+			collection.revisions = make(map[string]*workflow.LockMetadata)
+		}
+		if _, known := collection.revisions[healthRevisionLookupKey(run)]; known {
+			return
+		}
+		collection.revisions[healthRevisionLookupKey(run)] = nil
+		healthLog.Printf("Workflow revision unavailable for run %d: event=%s, path=%s", run.DatabaseID, run.Event, run.WorkflowPath)
+		return
+	}
+	enableHealthLocalGit(run, collection)
+	// Remote fallback may read the run source, current branch source, and lock metadata; local Git and per-ref caches amortize these reads under the shared API budget.
+	resolveHealthSourceRevision(run, run.HeadSha, collection)
+	resolveHealthHeadRevision(run, collection)
+	if healthSourceChanged(run, collection) {
+		return
+	}
 	if collection.revisions == nil {
 		collection.revisions = make(map[string]*workflow.LockMetadata)
 	}
@@ -23,27 +41,13 @@ func resolveHealthRevision(run WorkflowRun, collection *HealthCollection) {
 		return
 	}
 	collection.revisions[key] = nil
-	if !healthRunHasWorkflowRevision(run) {
-		healthLog.Printf("Workflow revision unavailable for run %d: event=%s, path=%s", run.DatabaseID, run.Event, run.WorkflowPath)
-		return
-	}
-	endpoint := path.Join(healthRepositoryEndpoint(collection.repoOverride), "contents", run.WorkflowPath) +
-		"?ref=" + url.QueryEscape(run.HeadSha)
-	out, err := healthAPI(collection, endpoint, "--jq", `.content | @base64d | split("\n") | .[0]`)
-	collection.RevisionLookups++
+	metadata, err := readHealthLockMetadata(run, run.HeadSha, collection)
 	if err != nil {
 		healthLog.Printf("Workflow revision unavailable for run %d: %v", run.DatabaseID, err)
 		collection.Warning = fmt.Sprintf("Workflow revision unavailable for run %d: %v", run.DatabaseID, err)
 		return
 	}
-	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(out))
-	if err != nil || metadata == nil || metadata.FrontmatterHash == "" || metadata.BodyHash == "" {
-		healthLog.Printf("Incomplete gh-aw-metadata for run %d: %v", run.DatabaseID, err)
-		collection.Warning = fmt.Sprintf("Workflow revision hashes unavailable for run %d; recompile workflows to include gh-aw-metadata body_hash", run.DatabaseID)
-		return
-	}
 	collection.revisions[key] = metadata
-	resolveHealthHeadRevision(run, collection)
 }
 
 func healthHeadRevisionKey(run WorkflowRun) string {
@@ -62,22 +66,72 @@ func resolveHealthHeadRevision(run WorkflowRun, collection *HealthCollection) {
 		return
 	}
 	collection.headRevisions[key] = nil
-	endpoint := path.Join(healthRepositoryEndpoint(collection.repoOverride), "contents", run.WorkflowPath) +
-		"?ref=" + url.QueryEscape(run.HeadBranch)
-	out, err := healthAPI(collection, endpoint, "--jq", `.content | @base64d | split("\n") | .[0]`)
-	collection.RevisionLookups++
+	resolveHealthSourceRevision(run, run.HeadBranch, collection)
+	metadata, err := readHealthLockMetadata(run, run.HeadBranch, collection)
 	if err != nil {
 		healthLog.Printf("Current workflow definition unavailable: %v", err)
 		collection.Warning = "Current workflow definition unavailable: " + err.Error()
 		return
 	}
-	metadata, _, err := workflow.ExtractMetadataFromLockFile(string(out))
-	if err != nil || metadata == nil || metadata.FrontmatterHash == "" || metadata.BodyHash == "" {
-		healthLog.Printf("Current workflow metadata incomplete for %s: %v", run.WorkflowPath, err)
-		collection.Warning = "Current workflow revision hashes unavailable for " + run.WorkflowPath
+	collection.headRevisions[key] = metadata
+}
+
+func healthSourceRevisionKey(run WorkflowRun, ref string) string {
+	return failureClusterKey(run.Repository, run.WorkflowPath, ref)
+}
+
+func resolveHealthSourceRevision(run WorkflowRun, ref string, collection *HealthCollection) {
+	if ref == "" || collection.stopped {
 		return
 	}
-	collection.headRevisions[key] = metadata
+	if collection.sourceRevisions == nil {
+		collection.sourceRevisions = make(map[string]string)
+	}
+	key := healthSourceRevisionKey(run, ref)
+	if _, checked := collection.sourceRevisions[key]; checked {
+		return
+	}
+	collection.sourceRevisions[key] = ""
+	sourcePath := strings.TrimSuffix(run.WorkflowPath, ".lock.yml") + ".md"
+	endpoint := path.Join(healthRepositoryEndpoint(collection.repoOverride), "contents", sourcePath) +
+		"?ref=" + url.QueryEscape(ref)
+	var sha string
+	var err error
+	if useHealthFileSnapshots(collection) {
+		sha, err = healthWorkflowFileSHA(sourcePath, ref, collection)
+	} else {
+		var out []byte
+		out, err = healthAPI(collection, endpoint, "--jq", ".sha")
+		collection.RevisionLookups++
+		sha = strings.TrimSpace(string(out))
+	}
+	if err == nil {
+		if !validHealthBlobSHA(sha) {
+			err = errors.New("missing or invalid source blob SHA")
+		}
+	}
+	if err != nil {
+		collection.Warning = fmt.Sprintf("Workflow source revision unavailable for %s at %s: %v", sourcePath, ref, err)
+		healthLog.Print(collection.Warning)
+		return
+	}
+	collection.sourceRevisions[key] = sha
+}
+
+func healthSourceChanged(run WorkflowRun, collection *HealthCollection) bool {
+	if collection == nil || !healthRunHasWorkflowRevision(run) {
+		return false
+	}
+	source := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
+	head := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)]
+	return source != "" && head != "" && source != head
+}
+
+func healthContentRevisionKey(metadata *workflow.LockMetadata, source string) string {
+	if metadata == nil && source != "" {
+		return failureClusterKey("source-only", source)
+	}
+	return failureClusterKey(metadata.FrontmatterHash, metadata.BodyHash, metadata.CompilerVersion, source)
 }
 
 func healthRunHasWorkflowRevision(run WorkflowRun) bool {
@@ -91,6 +145,5 @@ func healthRunHasWorkflowRevision(run WorkflowRun) bool {
 		!strings.HasSuffix(run.WorkflowPath, ".lock.yml") || (len(run.HeadSha) != 40 && len(run.HeadSha) != 64) {
 		return false
 	}
-	_, err := hex.DecodeString(run.HeadSha)
-	return err == nil
+	return validHealthBlobSHA(run.HeadSha)
 }

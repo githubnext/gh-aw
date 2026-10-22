@@ -17,6 +17,21 @@ the selected queue credential through ephemeral authentication; it does not
 reuse persisted checkout credentials. Agents and snapshot MCP servers remain
 credential-free.
 
+Queue commands infer the repository from the local `origin` remote when `--repo`
+is omitted, falling back to `gh repo view` when local information is unavailable.
+`--repo` takes precedence over `GH_REPO`, which takes precedence over local
+inference. An unresolved explicit environment selection fails rather than
+silently selecting the checkout. This local-first rule is queue-specific:
+workflow runs, secret uploads and other commands retain `gh`'s selected default.
+For fork checkouts, queues infer the fork even if `gh repo set-default` selects
+its parent. Use an explicit canonical repository after a repository rename;
+local discovery does not resolve renamed origins or relax queue identity checks.
+Offline `replay --file` does not infer a repository.
+
+Repeated runtime reads recheck
+remote access and the queue head, but reuse validated local Git history when the
+head is unchanged. Missing or invalid ancestry fails closed without an API fallback.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal
@@ -305,8 +320,8 @@ requires a verified non-PR Result and current target authority. Later policy
 expansion cannot retroactively authorize closure. Agent payload fields,
 including `issue_completion_policy`, never control closure. PR delivery alone
 never authorizes closure.
-Likewise, `keep_open: true` on a successful Claim finish prevents closure even
-under `close-on-result`; only a later terminal Work completion can authorize it.
+`keep_open: true` on a successful Claim finish prevents closure even under
+`close-on-result`; only a later terminal Work completion can authorize it.
 
 ### Synchronization and recovery
 
@@ -331,13 +346,52 @@ Issue projection maintenance does not change Claims, fairness, reservations, or
 recovery reserve. Scheduled queue reconciliation separately recovers stranded
 reservations before compaction, using independently verified native evidence.
 
-Only a later authorized hook for the same Work/Claims can retry pending
-synchronization. There are no Issue intake scans, global dirty-Work sweeps,
-schedules, or independent repair workflows. Transferred/deleted Issues,
+Original admission/Claim hooks retry transient metadata reads up to three times,
+never blindly retrying native writes. A pending conclusion projection fails its
+step explicitly after the queue commit; it does not roll back Work or authorize
+rerunning a worker. Required detection reporting still runs after a projection
+failure. Maintenance completes authoritative compaction before reporting
+projection-only failure; unresolved native reconciliation remains blocking.
+
+Terminal transitions have a separate, bounded existing-mirror path. Maintenance
+may project only exact committed `WorkCancellation`, `Result`, or
+`DeliveryFailure` requests authored by its authenticated current native
+run/attempt. Operator cancellation commands synchronize their exact committed
+request. Neither path inherits another run's admission or Claim authority.
+Only same-repository AW-created `IssueLink` and canonical summary receipts are
+eligible; pre-existing `backing_issue` targets still require their original
+explicit grants. Terminal synchronization never creates Issues/comments,
+rebinds receipts, closes or reopens Issues, or changes queue state.
+Missing receipts remain pending per Work without blocking eligible mirrors in
+the same request. Terminal summaries preserve checked Claim/run history and
+verified outcome links, including after ledger compaction.
+
+For a failed original hook or an older administrator/maintenance transition,
+a repository maintainer or administrator can explicitly recover **one**
+committed terminal request:
+
+```bash
+gh aw work-queue sync-issues --repo OWNER/REPO --request-id REQUEST_ID
+```
+
+The command authenticates repository permission, reads configuration from the
+verified default revision, acquires the same per-Work/per-Issue coordination as
+the hooks, refreshes checked state, and updates only current terminal Work
+bound to that exact request. Use `trace` to identify the terminal request first.
+It does not create a Result, repeat effects, or expand authority from an Issue
+label or marker. There are no Issue intake scans or global dirty-Work sweeps.
+Transferred/deleted Issues,
 deleted immutable comments, exhausted pagination, and uncertain creation remain
 explicitly pending. Marker text or bot identity is not proof of creation.
 Ambiguous native writes retain coordination: locks never expire or get stolen,
-and absent verified receipts never authorize blind recreation.
+and absent verified receipts never authorize blind recreation. Confirmed
+no-write rejections release acknowledged locks; cleanup has a bounded context
+independent of caller cancellation.
+
+These paths add no ledger operation or wire field: existing V3 closed-schema
+readers remain compatible. Deploy the updated CLI/runtime and regenerate
+maintenance and participant workflows before relying on automatic terminal
+projection. Publishing a branch does not authorize live Issue repair.
 
 Creation intent is durable before sending either an Issue or comment mutation.
 An interruption before sending and a crash after GitHub accepted the write but
@@ -405,10 +459,9 @@ namespaces. `DEBUG=work-queue:store,work-queue:dispatch` selects components;
 patterns support `*`, with comma or whitespace separators.
 `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` enables all queue events,
 including when a GitHub Actions run is re-run with debug logging.
-Each emitted event ends with `+Nms`, the monotonic elapsed time since the previous
-emitted event in the same namespace within that process. The first event uses
-`+0ms`; suppressed events do not reset the interval. Always-visible queue
-diagnostics and failures use the same timing.
+Each event ends with `+Nms`, the elapsed time since the previous emitted event in
+the same namespace within that process (`+0ms` for the first). Suppressed events
+do not reset the interval. Always-visible diagnostics use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`, `provisioning`,
 `reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
@@ -418,6 +471,17 @@ native launch and binding, independent verification, and durable settlement.
 staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+For delivery failures, use
+`DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery`.
+Events distinguish output cardinality, missing or untrusted receipts, independent
+content and Git ancestry mismatches, uncovered effects, control-inventory changes,
+and retry/deadline exhaustion. Exhausted delivery verification always emits a
+budget summary, even without debug logging. Expected and observed content,
+resource identities, receipt bodies, and credentials are never logged.
+Native operator recovery uses
+`DEBUG=workqueue:delivery,workqueue:native_delivery` for verifier availability,
+closed effect inventory, approved readback and credential checks, attempt budgets,
+and durable Result or DeliveryFailure publication.
 HTTP failure explanations also include a validated GitHub request ID, or
 `unknown` when unavailable. Deployment metadata diagnostics distinguish
 repository reads from default-reference reads.
@@ -436,8 +500,8 @@ A failure after a grant retains the durable request and commit IDs in the contro
 receipt, together with each original reservation's blocked launch status.
 Unknown launch or release outcomes remain unknown; failure alone does not prove
 that no worker launched.
-Payloads, identifiers, repository names, paths, URLs, tokens, raw API responses,
-raw error messages, and stack traces are not logged. Debug events do not grant
+Debug events never include payloads, identifiers, repository names, paths, URLs,
+tokens, raw API responses, raw errors, or stack traces, and they do not grant
 authority or replace durable queue receipts.
 
 ## Workflow roles and intent tools
@@ -574,7 +638,10 @@ evidence variant; historical records and terminal-run recovery remain valid.
 Audit exports for each Claim contain executed operations, temporary-ID
 references, and structured errors. They do not contain raw handler output and
 are not proof of Result. Exports use private directories and files, redact
-secrets from decoded fields, and default to one-day retention. Final uploads
+secrets from decoded fields, and default to one-day retention. Failed worker
+jobs retain `safe-outputs-items` for seven days so delivery diagnostics remain
+available for investigation. The repository artifact-retention policy or
+`GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` overrides these defaults. Final uploads
 fail closed: if redaction fails, the upload does not proceed. Protected
 in-memory verification evidence remains separate, and the unused on-disk
 delivery receipt is removed.
@@ -604,12 +671,11 @@ Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
 100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
 commits. Real-Git assertions require zero ledger API calls for nested
 checkpoints, detached reads, stable-request recovery, journal publication and
-CAS conflicts. Damaged checkpoints and unavailable ancestry fail closed.
-Injected object-transport fixtures also retain historical API/cache budgets;
-their simulated network costs are not production Git measurements.
-The local stress simulator explicitly registers its Git-backed adapter for both
-parent and worker RPC clients, keeping ledger operations on disposable local
-repositories rather than the production GitHub transport.
+CAS conflicts; damaged checkpoints and unavailable ancestry fail closed.
+Injected object-transport fixtures retain historical API/cache budgets, but
+their simulated network costs are not production Git measurements. The local
+stress simulator registers its Git-backed adapter for both parent and worker RPC
+clients, so ledger operations stay on disposable local repositories.
 
 Compiled controls keep the protected queue publisher credential separate from
 the worker-dispatch credential. Git reads recheck remote access even when local
@@ -627,8 +693,8 @@ npm --prefix actions/setup/js run test:work-queue-performance
 
 These tests verify native checkpoint ancestry, compare reconstructed state with
 the captured ledger, and measure cold and repeated reads with and without static
-authentication caching. They make no network requests, publish no queue records,
-and launch no workers. Missing live-data settings skip the optional cases.
+authentication caching. They make no network requests, publish no records, and
+launch no workers; missing settings skip them.
 
 ## Operator commands
 
@@ -945,13 +1011,12 @@ or run `policy` before the first submission are unsupported. Authorized first
 submission replaces those steps; `policy` remains available only for later
 quiescent updates. Existing queues do not need a reset or history rewrite.
 
-Worker finish is a Claim-scoped MCP intent, not an operator command that can
-impersonate a worker. Direct `claim --work-id`, legacy scalar assignments
-(including agent-selected winners), Issues storage, old records, automatic
-upgrades, and arbitrary run-ID adoption are unsupported by the native protocol.
-Before deploying the current protocol, quiesce old writers and workflows and
-preserve their evidence. Permissions to change the queue and trusted run
-evidence must be established independently. An operator actor string does not
+Worker finish is a Claim-scoped MCP intent, not an operator command. Direct
+`claim --work-id`, legacy scalar assignments (including agent-selected winners),
+Issues storage, old records, automatic upgrades, and arbitrary run-ID adoption
+are unsupported. Before deploying the current protocol, quiesce old writers and
+workflows and preserve their evidence. Queue-change permissions and trusted run
+evidence must be established independently; an operator actor string does not
 authorize a worker.
 
 ### Keyboard browser and checked actions

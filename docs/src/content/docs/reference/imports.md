@@ -106,6 +106,8 @@ imports:
 
 `shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/otlp.md` for telemetry-enabled reporting workflows.
 
+Shared OTLP configuration can use whole-value `${{ github.aw.metadata.<key> }}` references in `observability.otlp.attributes` and `observability.otlp.resource-attributes`. These resolve at compile time against each importing root workflow's `metadata` map, so callers do not need to pass the values through import inputs. Only simple, existing metadata keys can be referenced, and only explicitly selected values are exported.
+
 ## Import Schema (`import-schema`)
 
 Use `import-schema` to declare a typed parameter contract. Callers pass values via `with`; the compiler validates them and substitutes them into the shared file's frontmatter and body before processing.

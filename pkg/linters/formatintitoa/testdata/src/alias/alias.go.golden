@@ -1,0 +1,7 @@
+package alias
+
+import conv "strconv"
+
+func bad(x int) string {
+	return conv.Itoa(x) // want `use strconv.Itoa`
+}

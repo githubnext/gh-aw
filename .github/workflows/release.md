@@ -1059,7 +1059,7 @@ sandbox:
 
 Generate an engaging release highlights summary for **$GITHUB_REPOSITORY** release `${RELEASE_TAG}`.
 
-**Release ID**: ${{ needs.release.outputs.release_id }}
+Read the **release ID** from the `id` field in `/tmp/gh-aw/agent/release-data/current_release.json`.
 
 ## Data Available
 

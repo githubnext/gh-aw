@@ -65,6 +65,29 @@ describe("is_truthy.cjs", () => {
     });
 
     describe('GitHub Actions script style equality (v == "b")', () => {
+      it.each(["'", '"'])("compares literals delimited by %s for every supported operator", quote => {
+        for (const operator of ["==", "==="]) {
+          expect(isTruthy(`  inline_strict ${operator} ${quote}inline_strict${quote}  `)).toBe(true);
+          expect(isTruthy(`inline_strict ${operator} ${quote}single_agent_control${quote}`)).toBe(false);
+          expect(isTruthy(`${operator} ${quote}inline_strict${quote}`)).toBe(false);
+          expect(isTruthy(`${operator} ${quote}${quote}`)).toBe(true);
+          expect(isTruthy(`inline_strict ${operator} ${quote}${quote}`)).toBe(false);
+        }
+        for (const operator of ["!=", "!=="]) {
+          expect(isTruthy(`inline_strict ${operator} ${quote}inline_strict${quote}`)).toBe(false);
+          expect(isTruthy(`inline_strict ${operator} ${quote}single_agent_control${quote}`)).toBe(true);
+          expect(isTruthy(`${operator} ${quote}${quote}`)).toBe(false);
+          expect(isTruthy(`${operator} ${quote}inline_strict${quote}`)).toBe(true);
+        }
+      });
+
+      it("preserves the other quote style inside a literal", () => {
+        expect(isTruthy(`it's == "it's"`)).toBe(true);
+        expect(isTruthy(`say "yes" == 'say "yes"'`)).toBe(true);
+        expect(isTruthy(`other == "it's"`)).toBe(false);
+        expect(isTruthy(`other == 'say "yes"'`)).toBe(false);
+      });
+
       it("should return true when value matches literal with ==", () => {
         expect(isTruthy('concise == "concise"')).toBe(true);
         expect(isTruthy('verbose == "verbose"')).toBe(true);

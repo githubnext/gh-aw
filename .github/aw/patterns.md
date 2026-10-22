@@ -19,6 +19,10 @@ Use this router when a user asks for a workflow architecture, strategy, operatin
 
 Pattern docs base path: `https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/`
 
+### Documentation Workflows
+- **Load when:** The user needs documentation agents, required docs checks, or post-merge page/index upkeep.
+- **Instructions:** [documentation-workflows.md](documentation-workflows.md)
+
 ### MonitorOps
 - **Load when:** The user needs repository-wide workflow observability, trend reporting, and escalation for recurring failures or token waste.
 - **Pattern doc:** https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/monitor-ops.md

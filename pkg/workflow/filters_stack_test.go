@@ -43,9 +43,9 @@ func TestApplyPullRequestStackFilter_ConfiguredMaxStack(t *testing.T) {
 
 	// For max-stack: N > 1, the arithmetic check must be in a PreStep, not in job-level if:
 	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
-	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 3)")
-	assert.Contains(t, workflowData.PreSteps, "max_stack=3")
-	assert.Contains(t, workflowData.PreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "Stack position gate (max-stack: 3)")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "max_stack=3")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
 	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
 }
 
@@ -66,7 +66,7 @@ func TestApplyPullRequestStackFilter_ConfiguredMaxStackInArrayTriggerForm(t *tes
 	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
 
 	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
-	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "Stack position gate (max-stack: 2)")
 }
 
 func TestApplyPullRequestStackFilter_Disabled(t *testing.T) {
@@ -130,11 +130,11 @@ func TestApplyPullRequestStackFilter_PullRequestReviewConfiguredMaxStack(t *test
 	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
 
 	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
-	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
-	assert.Contains(t, workflowData.PreSteps, "max_stack=2")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "Stack position gate (max-stack: 2)")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "max_stack=2")
 	// Intermediate positions are gated via inequality: skip when position + N <= size
-	assert.Contains(t, workflowData.PreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
-	assert.Contains(t, workflowData.PreSteps, "github.event_name == 'pull_request_review'")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "github.event_name == 'pull_request_review'")
 	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
 }
 
@@ -172,9 +172,12 @@ func TestApplyPullRequestStackFilter_ExistingPreStepsAppended(t *testing.T) {
 	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
 
 	assert.Contains(t, workflowData.PreSteps, "existing-step")
-	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
+	assert.NotContains(t, workflowData.PreSteps, "Stack position gate")
+	assert.Contains(t, workflowData.GeneratedPreSteps, "Stack position gate (max-stack: 2)")
+	var generated strings.Builder
+	compiler.generatePreSteps(&generated, workflowData)
 	// Both steps should be present
-	idx1 := strings.Index(workflowData.PreSteps, "existing-step")
-	idx2 := strings.Index(workflowData.PreSteps, "Stack position gate")
+	idx1 := strings.Index(generated.String(), "existing-step")
+	idx2 := strings.Index(generated.String(), "Stack position gate")
 	assert.Greater(t, idx2, idx1, "stack gate step should appear after existing pre-steps")
 }

@@ -623,6 +623,77 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("No additional engine error was captured.");
     });
 
+    it("reports the redaction step's own error instead of a generic driver exit", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        {
+          id: 456,
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Run agent", conclusion: "failure" },
+            { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            { name: "Post Run agent", conclusion: "failure" },
+          ],
+        },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockResolvedValue({
+        data: [
+          "2026-10-10T10:00:01.500Z ##[error]Secret redaction failed (stage=read, code=EIO)",
+          "2026-10-10T10:00:02.500Z ##[warning]Secret redaction failed (stage=unlink, code=EACCES)",
+          "2026-10-10T10:00:03.000Z ##[error]ERR_VALIDATION: Secret redaction failed: ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)",
+          "2026-10-10T10:00:03.100Z ##[error]private-exception-message",
+          "2026-10-10T10:00:03.200Z ##[error]Secret redaction failed (stage=read, code=private-code)",
+          "2026-10-10T10:00:05.000Z ##[error]Secret redaction failed (stage=write, code=ENOSPC)",
+        ].join("\n"),
+      });
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics).toMatchObject({ failingStep: "Redact secrets in logs", agentConclusion: "failure", secretRedactionFailed: true });
+      expect(buildFailureIssueTitle({ workflowName: "Test", terminalOutputFailureCause: "secret_redaction_failure" })).toBe("[aw] Test: failed to redact secrets in logs");
+      expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({ owner: "owner", repo: "repo", job_id: 456 });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["engine_driver_failure"], engineFailureContext: "generic driver exit" });
+      expect(rendered).toContain("Secret redaction failed (stage=unlink, code=EACCES)");
+      expect(rendered).toContain("ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)");
+      expect(rendered).not.toContain("generic driver exit");
+      expect(rendered).not.toContain("private-");
+      expect(rendered).not.toContain("code=EIO");
+      expect(rendered).not.toContain("code=ENOSPC");
+    });
+
+    it.each([
+      ["ERR_VALIDATION: Secret redaction failed: Secret redaction failed (stage=unlink, code=EACCES)", "Secret redaction failed (stage=unlink, code=EACCES)"],
+      ["ERR_VALIDATION: Secret redaction failed: ERR_VALIDATION: Removed artifact sources after runtime mask collection failed", "ERR_VALIDATION: Removed artifact sources after runtime mask collection failed"],
+      ["ERR_VALIDATION: Removed artifact sources after runtime mask collection failed", "ERR_VALIDATION: Removed artifact sources after runtime mask collection failed"],
+    ])("accepts only the fixed emitted redactor diagnostic %s", async (message, expected) => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        { id: 456, name: "agent", conclusion: "failure", steps: [{ name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" }] },
+      ]);
+      const download = vi.fn();
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = download;
+      for (const [candidate, accepted] of [
+        [message, true],
+        [`${message} private-payload`, false],
+        [`private-payload ${message}`, false],
+        [`${message}\rprivate-payload`, false],
+      ]) {
+        download.mockResolvedValue({ data: `2026-10-10T10:00:03.000Z ##[error]${candidate}` });
+        const diagnostics = await getFailedAgentDiagnostics();
+        expect(diagnostics.stepError).toBe(accepted ? expected : "Secret redaction failed; error details are unavailable. Inspect the Redact secrets in logs step in the linked run.");
+      }
+    });
+
+    it("keeps a redaction-specific explanation when its job log is unavailable", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        { id: 456, name: "agent", conclusion: "failure", steps: [{ name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" }] },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockRejectedValue(new Error("private-api-error"));
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics.stepError).toContain("Secret redaction failed; error details are unavailable.");
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("private-api-error");
+    });
+
     it("includes the first failing startup step for a recorded not_started agent", async () => {
       mockFailedStepLog("private startup error");
       global.github.paginate.mockResolvedValue([
@@ -632,11 +703,13 @@ describe("handle_agent_failure", () => {
           steps: [
             { name: "Start MCP gateway", conclusion: "failure" },
             { name: "Run agent", conclusion: "skipped" },
+            { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
             { name: "Post Run agent", conclusion: "failure" },
           ],
         },
       ]);
       const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      expect(diagnostics).toEqual({ failingStep: "Start MCP gateway", agentConclusion: "failure" });
       const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure", "report_incomplete"], engineFailureContext: "" });
       expect(rendered).toContain("Failing step:** `Start MCP gateway`");
       expect(rendered).not.toContain("private startup error");
@@ -903,6 +976,8 @@ describe("handle_agent_failure", () => {
 
     it.each([
       ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["driver_crash", "[aw] Test Workflow: engine driver crashed"],
+      ["secret_redaction_failure", "[aw] Test Workflow: failed to redact secrets in logs"],
       ["engine_outage", "[aw] Test Workflow: experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow: had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow: reported incomplete result"],
@@ -912,10 +987,18 @@ describe("handle_agent_failure", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
     });
 
+    it.each(
+      ["agent_startup_failure", "driver_crash", "secret_redaction_failure"].flatMap(terminalOutputFailureCause =>
+        ["hasModelEndpointMismatch", "modelNotSupportedError", "http400ResponseError", "isTimedOut", "hasEngineRateLimit429", "unknownModelAICredits"].map(flag => ({ terminalOutputFailureCause, flag }))
+      )
+    )("keeps fatal $terminalOutputFailureCause above historical $flag in the issue title", ({ terminalOutputFailureCause, flag }) => {
+      expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause, [flag]: true })).toBe(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause }));
+    });
+
     it.each([
-      [1, [], [], "[aw] Test Workflow: failed (cause unknown)"],
-      [137, [], [], "[aw] Test Workflow: failed (cause unknown)"],
-      [139, [], [], "[aw] Test Workflow: failed (cause unknown)"],
+      [1, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [137, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [139, [], [], "[aw] Test Workflow: engine driver crashed"],
       [1, ["capi_server_error"], [502], "[aw] Test Workflow: experienced an engine outage"],
     ])("uses runtime evidence rather than a bare driver exit %s to choose an outage title", (exitCode, categories, errorCodes, title) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
@@ -1006,7 +1089,7 @@ describe("handle_agent_failure", () => {
       );
       fs.writeFileSync(
         path.join(promptsDir, "threat_detection_engine_error.md"),
-        "> [!WARNING]\n> **Threat Detection Engine Failure** — The analysis engine could not complete. This is a tooling failure, not a security finding.\n> {threat_detected_marker}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>"
+        "> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> {threat_detected_marker}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>"
       );
 
       process.env.RUNNER_TEMP = tmpDir;
@@ -1345,6 +1428,136 @@ describe("handle_agent_failure", () => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    it.each(["success", "failure", "not_started"])("publishes the selected failure through its include filter after driver %s, despite historical model errors", async driverConclusion => {
+      syncRuntimePromptTemplates(import.meta.url);
+      const startup = driverConclusion === "not_started";
+      const crashed = driverConclusion === "failure";
+      const cause = startup ? "agent_startup_failure" : "secret_redaction_failure";
+      const output = path.join(tmpDir, "output.json");
+      fs.writeFileSync(
+        output,
+        JSON.stringify(
+          startup
+            ? { items: [{ type: "report_incomplete", reason: cause, failureCause: cause }], collectorEmptyOutputCause: cause, collectorFailureCause: cause }
+            : crashed
+              ? {
+                  items: [{ type: "report_incomplete", reason: "engine_driver_failure", failureCause: "driver_crash", driverExitCode: 139 }],
+                  collectorEmptyOutputCause: "engine_driver_failure",
+                  collectorFailureCause: "driver_crash",
+                  collectorDriverExitCode: 139,
+                }
+              : { items: [{ type: "noop", message: "Done" }] }
+        )
+      );
+      if (crashed) fs.writeFileSync(path.join(tmpDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 139 } }));
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+      vi.stubEnv("GH_AW_AGENT_CONCLUSION", "failure");
+      vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+      vi.stubEnv("GH_AW_FAILURE_CATEGORIES_FILTER", JSON.stringify([cause]));
+      vi.stubEnv("GH_AW_MODEL_NOT_SUPPORTED_ERROR", "true");
+      vi.stubEnv("GH_AW_HTTP_400_RESPONSE_ERROR", "true");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+      const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create, createComment: vi.fn() },
+          pulls: { get: vi.fn() },
+          actions: {
+            listJobsForWorkflowRun: vi.fn(),
+            downloadJobLogsForWorkflowRun: vi.fn().mockResolvedValue({
+              data: "2026-10-10T10:00:04.500Z ##[error]ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)",
+            }),
+          },
+        },
+        paginate: vi.fn(async () => [
+          {
+            id: 456,
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              ...(startup ? [{ name: "Start MCP gateway", conclusion: "failure" }] : []),
+              { name: "Run agent", conclusion: startup ? "skipped" : driverConclusion },
+              { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            ],
+          },
+        ]),
+        graphql: vi.fn(),
+      };
+      const write = vi.spyOn(fs, "writeFileSync");
+      try {
+        await main();
+        expect(global.core.setFailed.mock.calls).toEqual(startup || crashed ? [["Agent reported that it could not complete the task"]] : []);
+        expect(create).toHaveBeenCalledOnce();
+        const issue = create.mock.calls[0][0];
+        expect(issue.title).toBe(startup ? "[aw] Test Workflow: failed before agent execution started" : "[aw] Test Workflow: failed to redact secrets in logs");
+        expect(issue.body).toContain(`failure_cause: ${cause}`);
+        expect(issue.body).toMatch(new RegExp(`failure_categories: [^>]*${cause}`));
+        expect(issue.body).toContain(`Failing step:** \`${startup ? "Start MCP gateway" : "Redact secrets in logs"}\``);
+        if (startup) {
+          expect(issue.body).not.toContain("secret_redaction_failure");
+          expect(issue.body).not.toContain("input_bytes=12");
+          expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
+        } else {
+          expect(issue.body).toContain("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)");
+          expect(issue.body).not.toContain("No additional engine error was captured");
+          if (crashed) expect(issue.body).toContain("Failure classification: driver_crash");
+        }
+        expect(write).toHaveBeenCalledWith(require("./handle_agent_failure.cjs").FAILURE_CATEGORIES_PATH, expect.stringContaining(`"${cause}"`));
+        if (!startup && !crashed) expect(global.core.setFailed).not.toHaveBeenCalled();
+      } finally {
+        write.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it.each(["GH_AW_MODEL_ENDPOINT_MISMATCH_ERROR", "GH_AW_MODEL_NOT_SUPPORTED_ERROR", "GH_AW_HTTP_400_RESPONSE_ERROR", "GH_AW_AGENTIC_ENGINE_TIMEOUT"])(
+      "keeps final driver crash title, cause and details despite historical %s",
+      async historicalSignal => {
+        syncRuntimePromptTemplates(import.meta.url);
+        const output = path.join(tmpDir, "output.json");
+        fs.writeFileSync(
+          output,
+          JSON.stringify({
+            items: [{ type: "report_incomplete", reason: "engine_driver_failure", failureCause: "driver_crash", driverExitCode: 139 }],
+            collectorEmptyOutputCause: "engine_driver_failure",
+            collectorFailureCause: "driver_crash",
+            collectorDriverExitCode: 139,
+          })
+        );
+        fs.writeFileSync(path.join(tmpDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 139 } }));
+        vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+        vi.stubEnv("GH_AW_AGENT_CONCLUSION", "failure");
+        vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+        vi.stubEnv(historicalSignal, "true");
+        fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+        const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+        global.github = {
+          rest: {
+            search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+            issues: { create, createComment: vi.fn() },
+            pulls: { get: vi.fn() },
+            actions: { listJobsForWorkflowRun: vi.fn() },
+          },
+          paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [{ name: "Run agent", conclusion: "failure" }] }]),
+          graphql: vi.fn(),
+        };
+        try {
+          await main();
+          expect(global.core.setFailed.mock.calls).toEqual([["Agent reported that it could not complete the task"]]);
+          expect(create).toHaveBeenCalledOnce();
+          const { title, body } = create.mock.calls[0][0];
+          expect(title).toBe("[aw] Test Workflow: engine driver crashed");
+          expect(body).toContain("failure_cause: driver_crash");
+          expect(body).toContain("Failure classification: driver_crash");
+          expect(body).toContain("Driver exit code: 139");
+          expect(body).toContain("Task Could Not Be Completed");
+        } finally {
+          vi.unstubAllEnvs();
+        }
+      }
+    );
 
     it.each(
       ["failure", "success"].flatMap(conclusion =>
@@ -5759,9 +5972,9 @@ describe("handle_agent_failure", () => {
 
   describe("buildReportIncompleteContext", () => {
     it.each([
-      [1, [], [], "unknown"],
-      [137, [], [], "unknown"],
-      [139, [], [], "unknown"],
+      [1, [], [], "driver_crash"],
+      [137, [], [], "driver_crash"],
+      [139, [], [], "driver_crash"],
       [1, ["capi_server_error"], [502], "engine_outage"],
     ])("renders a driver failure classification supported by runtime evidence for exit %s", (exitCode, categories, errorCodes, failureCause) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
@@ -7834,6 +8047,10 @@ describe("handle_agent_failure", () => {
 
     it("classifies an MCP watchdog failure without a generic agent failure", () => {
       expect(buildFailureMatchCategories({ agentConclusion: "failure", transportWedge: true })).toEqual(["transport_wedge"]);
+    });
+
+    it("classifies a selected redaction failure without a generic agent failure", () => {
+      expect(buildFailureMatchCategories({ agentConclusion: "failure", secretRedactionFailed: true })).toEqual(["secret_redaction_failure"]);
     });
 
     it("classifies MCP watchdog failures from structured unified-session events", () => {

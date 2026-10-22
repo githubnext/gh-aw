@@ -322,6 +322,9 @@ func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext)
 		ctx.workflowData.ConcurrencyJobDiscriminator = ctx.engineSetup.importsResult.MergedJobDiscriminator
 	}
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
+	if err := resolveOTLPMetadataReferences(ctx.workflowData); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
 	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
 	}
@@ -790,6 +793,12 @@ func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing or
 	cleanPath string,
 ) error {
 	orchestratorWorkflowLog.Print("Processing on section and filters")
+
+	var err error
+	frontmatter, err = c.processWebhookTriggers(frontmatter, workflowData)
+	if err != nil {
+		return err
+	}
 
 	// Process stop-after configuration from the on: section
 	if err := c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath); err != nil {

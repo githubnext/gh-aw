@@ -169,6 +169,37 @@ describe("Safe Outputs MCP Error Message Validation", () => {
       };
     });
 
+    it.each(["aw_discuss", "#aw_Discuss", "aw_disc_123"])("accepts a discussion temporary ID %s through MCP validation", async temporaryId => {
+      const tool = tools.find(tool => tool.name === "create_discussion");
+      const handler = vi.fn(() => ({ content: [{ type: "text", text: "accepted" }] }));
+      registerTool(server, { ...tool, handler });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "create_discussion", arguments: { title: "Discussion", body: "Report", temporary_id: temporaryId } },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error).toBeUndefined();
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ temporary_id: temporaryId }));
+    });
+
+    it("keeps unknown discussion parameters rejected", async () => {
+      const tool = tools.find(tool => tool.name === "create_discussion");
+      const handler = vi.fn();
+      registerTool(server, { ...tool, handler });
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "create_discussion", arguments: { title: "Discussion", body: "Report", unknown: "aw_discuss" } },
+      });
+      expect(results[0].error.code).toBe(-32602);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     it("should include parameter name in error message for single missing field", async () => {
       registerTool(server, {
         name: "test_tool",

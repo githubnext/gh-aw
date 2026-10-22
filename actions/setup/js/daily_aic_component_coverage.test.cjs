@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 const { getRunAIC } = require("./check_daily_aic_workflow_guardrail.cjs");
 const { sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { createAPIBudget } = require("./daily_aic_api_budget.cjs");
+const { captureExecutionEvidenceConfiguration, shouldSkipForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
 const time = "2025-01-01T12:00:00Z";
 const later = "2025-01-01T12:30:00Z";
 const job = (name, overrides = {}) => ({
@@ -401,6 +402,29 @@ it("counts a legacy successful sample replay with empty accounting as zero", asy
 it("still requires accounting when an agent job succeeds", async () => {
   const f = evaluate({ "agent/token_usage.jsonl": "" }, [job("agent")]);
   await expect(f.result).rejects.toThrow("Missing accounting for executed agent component");
+});
+
+it("counts a successful pre-flight noop with harness evidence and empty accounting as zero AIC", async () => {
+  const evidenceFile = path.join(directory, "agent_execution.json");
+  shouldSkipForNoopSafeOutputs({
+    safeOutputsPath: "/tmp/safe-outputs.jsonl",
+    hasNoopInSafeOutputs: () => true,
+    log: () => {},
+    executionEvidence: captureExecutionEvidenceConfiguration({
+      GH_AW_AWF_EXECUTION_EVIDENCE_FILE: evidenceFile,
+      GH_AW_AWF_EXECUTION_COMPONENT: "agent",
+      GITHUB_RUN_ID: "1",
+      GITHUB_RUN_ATTEMPT: "1",
+    }),
+  });
+  const f = evaluate({ "agent/token_usage.jsonl": "", "agent/execution.json": fs.readFileSync(evidenceFile, "utf8") }, [job("agent")]);
+  await expect(f.result).resolves.toBe(0);
+  expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining('"aic":0,"reason":"execution_not_started"'));
+});
+
+it.each(["success", "failure"])("still requires accounting after model execution starts with job conclusion %s", async conclusion => {
+  const f = evaluate({ "agent/execution.json": JSON.stringify({ version: 1, component: "agent", run_id: 1, run_attempt: 1, state: "started" }) }, [job("agent", { conclusion })]);
+  await expect(f.result).rejects.toThrow("Missing accounting for executed agent");
 });
 
 it("accepts a completed run with no jobs as zero usage", async () => {

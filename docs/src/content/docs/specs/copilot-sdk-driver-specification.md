@@ -143,6 +143,19 @@ The SDK driver MUST treat `COPILOT_CONNECTION_TOKEN` as a required input and MUS
 
 The harness MUST NOT propagate platform authentication secrets such as `GITHUB_TOKEN`, `COPILOT_GITHUB_TOKEN`, or `GH_TOKEN` into the SDK driver subprocess environment. Driver processes run in a secret-isolated environment and MUST NOT rely on or attempt to read platform authentication tokens.
 
+### 3.5 Workflow Skill Registration
+
+The built-in driver explicitly supplies the staged workflow skill root
+`/tmp/gh-aw/.github/skills` through the SDK's `skillDirectories` configuration
+when that directory exists, enabling skills without ambient configuration
+discovery. This includes inline skills and installed frontmatter skills.
+Repository and home-directory skill roots are not added automatically.
+Missing staging directories produce an empty explicit list; a staged root that
+is a file or symbolic link fails session creation. This is a hard failure with
+`exitCode: 1` and a `session.error` event, not a warning or silent skip.
+Skill registration does not grant additional shell permissions or change the
+tool-denial limit.
+
 ---
 
 ## 4. Configuration and Environment Variables

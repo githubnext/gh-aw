@@ -46,6 +46,7 @@ func buildDailyAICRepoMemoryHydrationSteps(entry RepoMemoryEntry, ledgerDir, hyd
 		"          CREATE_ORPHAN: false\n",
 		fmt.Sprintf("        run: bash \"%s/clone_repo_memory_branch.sh\"\n", SetupActionDestinationShell),
 		"      - name: Reset untrusted daily AIC repo-memory ledger artifact\n",
+		"        id: daily-aic-repo-memory-reset\n",
 		"        if: always()\n",
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_DAILY_AIC_REPO_MEMORY_DIR: %s\n", ledgerDir),
@@ -69,13 +70,13 @@ func buildDailyAICRepoMemoryAppendStep(data *WorkflowData, ledgerDir string) str
 	builder.WriteString("      - name: Append daily AIC repo-memory ledger\n")
 	builder.WriteString("        if: always()\n")
 	builder.WriteString("        continue-on-error: true\n")
-	fmt.Fprintf(&builder, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(&builder, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	builder.WriteString("        env:\n")
 	for _, line := range buildTemplatableIntEnvVar(maxDailyAICreditsEnvVar, data.MaxDailyAICredits) {
 		builder.WriteString(line)
 	}
-	fmt.Fprintf(&builder, "          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID)
-	fmt.Fprintf(&builder, "          GH_AW_DAILY_AIC_REPO_MEMORY_DIR: %s\n", ledgerDir)
+	fmt.Fprintf(&builder, "          GH_AW_WORKFLOW_ID: %q\n", data.WorkflowID)         //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	fmt.Fprintf(&builder, "          GH_AW_DAILY_AIC_REPO_MEMORY_DIR: %s\n", ledgerDir) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	builder.WriteString("          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	builder.WriteString("        with:\n")
 	builder.WriteString("          script: |\n")

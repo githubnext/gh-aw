@@ -1,4 +1,5 @@
 // @ts-check
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 const fs = require("fs");
 const nodePath = require("path");
@@ -86,15 +87,15 @@ const CREATE_ITEM_TYPES = new Set([
  * Safe output types that should NEVER be logged to the manifest.
  * These types represent metadata signals rather than GitHub state changes:
  * - noop: no-op message, produces no GitHub side effects
- * - missing_tool: records a missing tool capability (metadata only)
- * - missing_data: records missing required data (metadata only)
+ * - report_missing_tool: records a missing tool capability (metadata only)
+ * - report_missing_data: records missing required data (metadata only)
  * - report_incomplete: signals that the task could not be completed (metadata only)
  *
  * All other types — built-in handler types, custom safe job types, and
  * any future types — are logged automatically without needing to update this list.
  * @type {Set<string>}
  */
-const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NOT_LOGGED_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "report_incomplete"]);
 
 /**
  * @typedef {Object} ManifestEntry
@@ -250,7 +251,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  * @returns {{type: string, url?: string, number?: number, repo?: string, provider?: string, id?: string|number, identifier?: string, target?: Object, labels?: Array<{name: string, database_id?: number, node_id?: string}>, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsSuggested?: string[], labelsBefore?: string[]}|null}
  */
 function extractCreatedItemFromResult(type, result) {
-  if (!result || NOT_LOGGED_TYPES.has(type)) return null;
+  if (!result || NOT_LOGGED_TYPES.has(normalizeSafeOutputName(type))) return null;
 
   // PR reviews are buffered first and only gain durable identity fields after the
   // final submitReview() call, so skip logging placeholder buffer results here.

@@ -1,0 +1,195 @@
+{
+  "common_filters": {
+    "sender": { "path": ["sender", "login"], "type": "string", "description": "Source actor login." },
+    "organization": { "path": ["organization", "login"], "type": "string", "description": "Source organization login, when delivered." },
+    "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Source repository owner/name." }
+  },
+  "events": {
+    "issues": {
+      "native_event": "issues",
+      "actions": [
+        "opened",
+        "edited",
+        "deleted",
+        "transferred",
+        "pinned",
+        "unpinned",
+        "closed",
+        "reopened",
+        "assigned",
+        "unassigned",
+        "labeled",
+        "unlabeled",
+        "locked",
+        "unlocked",
+        "milestoned",
+        "demilestoned",
+        "typed",
+        "untyped",
+        "field_added",
+        "field_removed"
+      ],
+      "description": "Issue lifecycle and metadata notifications, excluding pull requests.",
+      "path": "issues",
+      "anchor": "",
+      "url_path": ["issue", "html_url"],
+      "issue_kind": "issue",
+      "filters": {
+        "number": { "path": ["issue", "number"], "type": "integer", "description": "Issue number." },
+        "state": { "path": ["issue", "state"], "type": "string", "enum": ["open", "closed"], "description": "Current issue state." },
+        "labels": { "path": ["issue", "labels", "*", "name"], "type": "string", "description": "A currently applied label." },
+        "label": { "path": ["label", "name"], "type": "string", "actions": ["labeled", "unlabeled"], "description": "The label added or removed." },
+        "author": { "path": ["issue", "user", "login"], "type": "string", "description": "Issue author login." },
+        "assignee": { "path": ["issue", "assignees", "*", "login"], "type": "string", "description": "A currently assigned user." }
+      }
+    },
+    "pull_request": {
+      "native_event": "pull_request",
+      "actions": [
+        "assigned",
+        "unassigned",
+        "labeled",
+        "unlabeled",
+        "opened",
+        "edited",
+        "closed",
+        "reopened",
+        "synchronize",
+        "converted_to_draft",
+        "locked",
+        "unlocked",
+        "enqueued",
+        "dequeued",
+        "milestoned",
+        "demilestoned",
+        "ready_for_review",
+        "review_requested",
+        "review_request_removed",
+        "auto_merge_enabled",
+        "auto_merge_disabled"
+      ],
+      "description": "Pull request lifecycle and metadata notifications without command activation.",
+      "path": "pull",
+      "anchor": "",
+      "url_path": ["pull_request", "html_url"],
+      "filters": {
+        "number": { "path": ["pull_request", "number"], "type": "integer", "description": "Pull request number." },
+        "state": { "path": ["pull_request", "state"], "type": "string", "enum": ["open", "closed"], "description": "Current pull request state." },
+        "labels": { "path": ["pull_request", "labels", "*", "name"], "type": "string", "description": "A currently applied label." },
+        "label": { "path": ["label", "name"], "type": "string", "actions": ["labeled", "unlabeled"], "description": "The label added or removed." },
+        "author": { "path": ["pull_request", "user", "login"], "type": "string", "description": "Pull request author login." },
+        "draft": { "path": ["pull_request", "draft"], "type": "boolean", "description": "Whether the pull request is a draft." },
+        "merged": { "path": ["pull_request", "merged"], "type": "boolean", "description": "Whether the pull request was merged, when delivered." },
+        "base": { "path": ["pull_request", "base", "ref"], "type": "string", "description": "Exact base branch name." },
+        "head": { "path": ["pull_request", "head", "ref"], "type": "string", "description": "Exact head branch name." }
+      }
+    },
+    "discussion": {
+      "native_event": "discussion",
+      "actions": ["created", "edited", "deleted", "transferred", "pinned", "unpinned", "labeled", "unlabeled", "locked", "unlocked", "category_changed", "answered", "unanswered"],
+      "description": "Discussion lifecycle and metadata notifications.",
+      "path": "discussions",
+      "anchor": "",
+      "url_path": ["discussion", "html_url"],
+      "filters": {
+        "number": { "path": ["discussion", "number"], "type": "integer", "description": "Discussion number." },
+        "category": { "path": ["discussion", "category", "slug"], "type": "string", "description": "Discussion category slug." },
+        "labels": { "path": ["discussion", "labels", "*", "name"], "type": "string", "description": "A currently applied label." },
+        "label": { "path": ["label", "name"], "type": "string", "actions": ["labeled", "unlabeled"], "description": "The label added or removed." },
+        "author": { "path": ["discussion", "user", "login"], "type": "string", "description": "Discussion author login." }
+      }
+    },
+    "issue_comment": {
+      "native_event": "issue_comment",
+      "actions": ["created", "edited", "deleted"],
+      "description": "Issue conversation comments only; pull request comments use pull_request_comment.",
+      "path": "issues",
+      "anchor": "issuecomment-",
+      "url_path": ["comment", "html_url"],
+      "issue_kind": "issue",
+      "filters": {
+        "number": { "path": ["issue", "number"], "type": "integer", "description": "Parent issue number." },
+        "labels": { "path": ["issue", "labels", "*", "name"], "type": "string", "description": "A label on the parent issue." },
+        "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author login." }
+      }
+    },
+    "pull_request_comment": {
+      "native_event": "issue_comment",
+      "actions": ["created", "edited", "deleted"],
+      "description": "Pull request conversation comments, distinguished from issues by issue.pull_request.",
+      "path": "pull",
+      "anchor": "issuecomment-",
+      "url_path": ["comment", "html_url"],
+      "issue_kind": "pull_request",
+      "filters": {
+        "number": { "path": ["issue", "number"], "type": "integer", "description": "Parent pull request number." },
+        "labels": { "path": ["issue", "labels", "*", "name"], "type": "string", "description": "A label on the parent pull request." },
+        "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author login." }
+      }
+    },
+    "pull_request_review": {
+      "native_event": "pull_request_review",
+      "actions": ["submitted", "edited", "dismissed"],
+      "description": "Pull request review notifications, including bodyless submitted reviews.",
+      "path": "pull",
+      "anchor": "pullrequestreview-",
+      "url_path": ["review", "html_url"],
+      "filters": {
+        "number": { "path": ["pull_request", "number"], "type": "integer", "description": "Parent pull request number." },
+        "state": { "path": ["review", "state"], "type": "string", "enum": ["approved", "changes_requested", "commented", "dismissed", "pending"], "description": "Review state." },
+        "author": { "path": ["review", "user", "login"], "type": "string", "description": "Reviewer login." }
+      }
+    },
+    "pull_request_review_comment": {
+      "native_event": "pull_request_review_comment",
+      "actions": ["created", "edited", "deleted"],
+      "description": "Pull request inline review comments and replies.",
+      "path": "pull",
+      "anchor": "discussion_r",
+      "url_path": ["comment", "html_url"],
+      "filters": {
+        "number": { "path": ["pull_request", "number"], "type": "integer", "description": "Parent pull request number." },
+        "path": { "path": ["comment", "path"], "type": "string", "description": "Exact reviewed file path." },
+        "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author login." }
+      }
+    },
+    "pull_request_review_thread": {
+      "native_event": "pull_request_review_thread",
+      "actions": ["resolved", "unresolved"],
+      "description": "Pull request review thread resolution notifications.",
+      "path": "pull",
+      "anchor": "discussion_r",
+      "url_path": ["thread", "comments", "0", "html_url"],
+      "filters": {
+        "number": { "path": ["pull_request", "number"], "type": "integer", "description": "Parent pull request number." },
+        "path": { "path": ["thread", "comments", "*", "path"], "type": "string", "description": "Exact reviewed file path." }
+      }
+    },
+    "discussion_comment": {
+      "native_event": "discussion_comment",
+      "actions": ["created", "edited", "deleted"],
+      "description": "Discussion comments and replies.",
+      "path": "discussions",
+      "anchor": "discussioncomment-",
+      "url_path": ["comment", "html_url"],
+      "filters": {
+        "number": { "path": ["discussion", "number"], "type": "integer", "description": "Parent discussion number." },
+        "category": { "path": ["discussion", "category", "slug"], "type": "string", "description": "Parent discussion category slug." },
+        "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author login." }
+      }
+    },
+    "commit_comment": {
+      "native_event": "commit_comment",
+      "actions": ["created"],
+      "description": "Commit comments, including file-specific commit comments.",
+      "path": "commit",
+      "anchor": "commitcomment-",
+      "url_path": ["comment", "html_url"],
+      "filters": {
+        "commit": { "path": ["comment", "commit_id"], "type": "string", "description": "Exact commented commit SHA." },
+        "path": { "path": ["comment", "path"], "type": "string", "description": "Exact commented file path, when delivered." },
+        "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author login." }
+      }
+    }
+  }
+}

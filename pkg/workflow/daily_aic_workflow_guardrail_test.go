@@ -5,12 +5,14 @@ package workflow
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/goccy/go-yaml"
 )
 
 func TestDailyAICWorkflowGuardrailInCompiledWorkflow(t *testing.T) {
@@ -56,7 +58,7 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "id: daily-ai-credits-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily AI Credits guardrail step")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
+	if !strings.Contains(lockStr, "if: "+admissionDailyAICFallbackIfExpr) {
 		t.Fatal("expected frontmatter-configured guardrail step to use env-based runtime gating")
 	}
 	if !strings.Contains(lockStr, "check_daily_aic_workflow_guardrail.cjs") {
@@ -87,7 +89,7 @@ Guardrail test workflow`
 	if strings.Contains(lockStr, "daily_ai_credits_issue_url") {
 		t.Fatal("expected activation job to avoid surfacing a separate daily AI Credits issue URL")
 	}
-	if !strings.Contains(lockStr, "if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'") {
+	if !strings.Contains(lockStr, "needs.activation.outputs.daily_ai_credits_exceeded != 'true'") {
 		t.Fatal("expected the agent job to be skipped when the daily AI Credits guardrail is exceeded")
 	}
 	if !strings.Contains(lockStr, "GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}") {
@@ -134,7 +136,7 @@ Guardrail test workflow`
 	if strings.Contains(activationSection, "id: detect-daily-aic-cache-miss") {
 		t.Fatal("expected activation job to not include a separate bash cache-miss detection step (check is now in JS)")
 	}
-	wantFallbackIf := "if: " + maxDailyAICreditsConfiguredIfExpr
+	wantFallbackIf := "if: " + admissionDailyAICFallbackIfExpr
 	if !strings.Contains(activationSection, wantFallbackIf) {
 		t.Fatalf("expected artifact fallback step to use the standard AIC guard if: condition, want %q", wantFallbackIf)
 	}
@@ -233,7 +235,7 @@ No daily guardrail`
 	if !strings.Contains(lockStr, "id: daily-ai-credits-workflow-guardrail") {
 		t.Fatal("expected activation job to emit the daily AI Credits guardrail step even when threshold is unset")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
+	if !strings.Contains(lockStr, "if: "+admissionDailyAICFallbackIfExpr) {
 		t.Fatal("expected emitted daily AI Credits guardrail step to be dynamically skipped when threshold is unset")
 	}
 	if !strings.Contains(lockStr, "daily_ai_credits_exceeded") {
@@ -280,7 +282,7 @@ Daily guardrail via env var`
 	if !strings.Contains(lockStr, "id: daily-ai-credits-workflow-guardrail") {
 		t.Fatal("expected activation job to include the daily AI Credits guardrail step when env var is configured")
 	}
-	if !strings.Contains(lockStr, "if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
+	if !strings.Contains(lockStr, "if: "+admissionDailyAICFallbackIfExpr) {
 		t.Fatal("expected daily AI Credits guardrail step to gate execution on GH_AW_MAX_DAILY_AI_CREDITS")
 	}
 	if !strings.Contains(lockStr, "safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}") {
@@ -562,6 +564,9 @@ Daily AIC guardrail with repo-memory ledger`
 	if !strings.Contains(lockStr, "GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: ${{ steps.daily-aic-repo-memory-clone.outputs.cloned == 'true' }}") {
 		t.Fatal("expected activation guardrail to trust the ledger only after a successful clone")
 	}
+	if !strings.Contains(lockStr, "GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING: ${{ steps.daily-aic-repo-memory-clone.outcome == 'success' && steps.daily-aic-repo-memory-clone.outputs.cloned == 'false' }}") {
+		t.Fatal("expected artifact-backed bootstrap only after a successful clone step confirms the branch is absent")
+	}
 	preGuardrailCloneIdx := strings.Index(lockStr, "Clone daily AIC repo-memory ledger (default)")
 	guardrailCheckIdx := strings.Index(lockStr, "name: Check daily workflow token guardrail")
 	if preGuardrailCloneIdx < 0 || guardrailCheckIdx < 0 || preGuardrailCloneIdx >= guardrailCheckIdx {
@@ -584,6 +589,10 @@ Daily AIC guardrail with repo-memory ledger`
 	if !strings.Contains(lockStr, "Reset untrusted daily AIC repo-memory ledger artifact") {
 		t.Fatal("expected untrusted agent-supplied repo-memory ledger files to be removed before append")
 	}
+	if !strings.Contains(lockStr, "id: daily-aic-repo-memory-reset") ||
+		!strings.Contains(lockStr, "GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: ${{ steps.daily-aic-repo-memory-reset.outcome == 'success' }}") {
+		t.Fatal("expected the persistence-filter exception to require successful removal of agent-supplied ledger files")
+	}
 	cloneIdx := strings.Index(lockStr, "Clone daily AIC repo-memory ledger for hydration")
 	resetIdx := strings.Index(lockStr, "Reset untrusted daily AIC repo-memory ledger artifact")
 	hydrateIdx := strings.Index(lockStr, "Hydrate daily AIC repo-memory ledger from trusted branch")
@@ -592,6 +601,69 @@ Daily AIC guardrail with repo-memory ledger`
 	}
 	if !strings.Contains(lockStr, "cp -a \"$GH_AW_DAILY_AIC_LEDGER_SOURCE_DIR/daily-aic-ledger/.\" \"$GH_AW_DAILY_AIC_REPO_MEMORY_DIR/daily-aic-ledger/\"") {
 		t.Fatal("expected the hydration step to copy the trusted branch snapshot's ledger into the reset artifact directory")
+	}
+}
+
+func TestDailyAICRepoMemoryHydrationReplacesAgentFiles(t *testing.T) {
+	var generated struct {
+		Steps []struct {
+			Name string `yaml:"name"`
+			ID   string `yaml:"id"`
+			Run  string `yaml:"run"`
+		} `yaml:"steps"`
+	}
+	steps := buildDailyAICRepoMemoryHydrationSteps(RepoMemoryEntry{ID: "default"}, "unused-artifact-dir", "unused-source-dir")
+	if err := yaml.Unmarshal([]byte("steps:\n"+strings.Join(steps, "")), &generated); err != nil {
+		t.Fatal(err)
+	}
+	for _, hasTrustedBranch := range []bool{false, true} {
+		t.Run(fmt.Sprintf("trusted-branch=%t", hasTrustedBranch), func(t *testing.T) {
+			root := testutil.TempDir(t, "daily-aic-sanitization-*")
+			artifactDir := filepath.Join(root, "artifact")
+			sourceDir := filepath.Join(root, "source")
+			ledgerDir := filepath.Join(artifactDir, "daily-aic-ledger")
+			if err := os.MkdirAll(ledgerDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"2026-09-23.jsonl", "coverage-" + strings.Repeat("a", 64) + ".json", "agent-only.json"} {
+				if err := os.WriteFile(filepath.Join(ledgerDir, name), []byte("untrusted"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if hasTrustedBranch {
+				trustedDir := filepath.Join(sourceDir, "daily-aic-ledger")
+				if err := os.MkdirAll(trustedDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(trustedDir, "2026-09-23.jsonl"), []byte("trusted"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, step := range generated.Steps {
+				if step.ID != "daily-aic-repo-memory-reset" && step.Name != "Hydrate daily AIC repo-memory ledger from trusted branch" {
+					continue
+				}
+				cmd := exec.Command("bash", "-e", "-c", step.Run)
+				cmd.Env = append(os.Environ(), "GH_AW_DAILY_AIC_REPO_MEMORY_DIR="+artifactDir, "GH_AW_DAILY_AIC_LEDGER_SOURCE_DIR="+sourceDir)
+				if output, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("%s: %v\n%s", step.Name, err, output)
+				}
+			}
+			entries, err := os.ReadDir(ledgerDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !hasTrustedBranch {
+				if len(entries) != 0 {
+					t.Fatal("agent ledger files survived sanitization without a trusted branch")
+				}
+			} else {
+				content, err := os.ReadFile(filepath.Join(ledgerDir, "2026-09-23.jsonl"))
+				if err != nil || string(content) != "trusted" || len(entries) != 1 {
+					t.Fatalf("expected only the trusted branch shard after sanitization, got %v, %q, %v", entries, content, err)
+				}
+			}
+		})
 	}
 }
 
@@ -706,8 +778,8 @@ Daily AIC guardrail with dedicated GitHub App`
 	}
 	// The mint step must be gated on the guardrail env var so it is skipped in workflows
 	// where the guardrail is not active at runtime.
-	if !strings.Contains(lockStr, "if: "+maxDailyAICreditsConfiguredIfExpr) {
-		t.Fatalf("expected mint step to be gated on guardrail env var %s", maxDailyAICreditsConfiguredIfExpr)
+	if !strings.Contains(lockStr, "if: "+admissionDailyAICFallbackIfExpr) {
+		t.Fatalf("expected mint step to be gated on admission fallback %s", admissionDailyAICFallbackIfExpr)
 	}
 	if !strings.Contains(lockStr, "${{ vars.AIC_APP_CLIENT_ID }}") {
 		t.Fatal("expected daily AIC token step to include the configured client-id")

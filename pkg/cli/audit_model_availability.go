@@ -31,6 +31,24 @@ type auditModelEndpoint struct {
 }
 
 func generateModelAvailabilityFindings(run WorkflowRun) []AuditFinding {
+	if run.LogsPath == "" {
+		return nil
+	}
+	evidence, err := readSessionModelResolutionEvidence(run.LogsPath)
+	if err != nil {
+		auditReportLog.Printf("Could not read model resolution evidence from unified session: %v", err)
+	}
+	if evidence != nil && len(evidence.Failures) > 0 {
+		// Recorded resolution failures are authoritative; the legacy Pi log match must
+		// neither duplicate them nor override their recorded cause.
+		return generateSessionModelResolutionFindings(run, evidence)
+	}
+	return generateLegacyPiModelAvailabilityFindings(run)
+}
+
+// generateLegacyPiModelAvailabilityFindings matches Pi's startup log line. It is a
+// compatibility fallback for runs whose unified session has no failed model.resolution.
+func generateLegacyPiModelAvailabilityFindings(run WorkflowRun) []AuditFinding {
 	if run.LogsPath == "" || run.Conclusion != "failure" {
 		return nil
 	}
@@ -50,42 +68,57 @@ func generateModelAvailabilityFindings(run WorkflowRun) []AuditFinding {
 		return nil
 	}
 	description := fmt.Sprintf("Pi startup rejected model %q on provider %q before inference. ", model, provider)
-	unknown := func(reason string) []AuditFinding {
+	reflection, reflectionErr := readModelAvailabilityReflection(run.LogsPath)
+	confirmed, detail := checkModelAvailability(reflection, reflectionErr, provider, model)
+	if !confirmed {
 		return []AuditFinding{{
 			Code:        AuditFindingModelAvailabilityUnknown,
 			Category:    "configuration",
 			Severity:    "high",
 			Title:       "Model Availability Unverified",
-			Description: description + reason + "; model absence cannot be confirmed from this run's inventory.",
+			Description: description + detail + "; model absence cannot be confirmed from this run's inventory.",
 			Impact:      "Inspect model discovery and authentication evidence before changing the model or runtime.",
 		}}
-	}
-	data, err := readModelAvailabilityArtifact(run.LogsPath, "sandbox/firewall/awf-reflect.json", 8<<20)
-	if err != nil {
-		auditReportLog.Printf("Could not read same-run model reflection: %v", err)
-		return unknown("Same-run awf-reflect.json is unavailable or unsafe")
-	}
-	endpoint, models, reason := parseModelAvailabilityInventory(data, provider)
-	if reason != "" {
-		return unknown(reason)
-	}
-	requested := modelNameWithoutProvider(strings.ToLower(model))
-	requested, _, _ = strings.Cut(requested, "?")
-	if slices.Contains(models, requested) {
-		return unknown("The exact model is advertised in saved reflection, contradicting the startup rejection")
-	}
-	description += fmt.Sprintf("Same-run awf-reflect.json confirms models_fetch_complete=true; the configured %s endpoint advertises %d model(s), but not %q.", provider, len(models), requested)
-	if candidates := modelAvailabilityCandidates(requested, models, endpoint); len(candidates) > 0 {
-		description += " Advertised same-family candidates (verify compatibility): " + strings.Join(candidates, "; ") + "."
 	}
 	return []AuditFinding{{
 		Code:        AuditFindingModelUnavailable,
 		Category:    "configuration",
 		Severity:    "high",
 		Title:       "Model Unavailable",
-		Description: description,
+		Description: description + detail,
 		Impact:      "The agent could not start inference. This evidence does not establish global model retirement or why provider availability changed.",
 	}}
+}
+
+func readModelAvailabilityReflection(runDir string) ([]byte, error) {
+	data, err := readModelAvailabilityArtifact(runDir, "sandbox/firewall/awf-reflect.json", 8<<20)
+	if err != nil {
+		auditReportLog.Printf("Could not read same-run model reflection: %v", err)
+	}
+	return data, err
+}
+
+// checkModelAvailability checks one exact model against the same run's provider inventory.
+// It returns confirmed=true with a confirmation detail only when the complete, unambiguous
+// inventory excludes the model; otherwise it returns the reason absence is unverified.
+func checkModelAvailability(reflection []byte, reflectionErr error, provider, model string) (bool, string) {
+	if reflectionErr != nil {
+		return false, "Same-run awf-reflect.json is unavailable or unsafe"
+	}
+	endpoint, models, reason := parseModelAvailabilityInventory(reflection, provider)
+	if reason != "" {
+		return false, reason
+	}
+	requested := modelNameWithoutProvider(strings.ToLower(model))
+	requested, _, _ = strings.Cut(requested, "?")
+	if slices.Contains(models, requested) {
+		return false, "The exact model is advertised in saved reflection, contradicting the startup rejection"
+	}
+	detail := fmt.Sprintf("Same-run awf-reflect.json confirms models_fetch_complete=true; the configured %s endpoint advertises %d model(s), but not %q.", provider, len(models), requested)
+	if candidates := modelAvailabilityCandidates(requested, models, endpoint); len(candidates) > 0 {
+		detail += " Advertised same-family candidates (verify compatibility): " + strings.Join(candidates, "; ") + "."
+	}
+	return true, detail
 }
 
 func parseModelAvailabilityInventory(data []byte, provider string) (*auditModelEndpoint, []string, string) {
@@ -237,6 +270,13 @@ func appendModelAvailabilityRecommendations(recommendations []Recommendation, fi
 			recommendations = append(recommendations, Recommendation{
 				Priority: "high",
 				Action:   "Replace the unavailable model pin with a model advertised by the same provider, verify endpoint compatibility, and recompile the workflow",
+				Reason:   finding.Description,
+				Example:  "gh aw models --refresh-observed=false --logs-dir <audit-output-dir>",
+			})
+		case AuditFindingModelEndpointUnsupported:
+			recommendations = append(recommendations, Recommendation{
+				Priority: "high",
+				Action:   "Choose a model that supports the endpoint the engine calls, and recompile the workflow",
 				Reason:   finding.Description,
 				Example:  "gh aw models --refresh-observed=false --logs-dir <audit-output-dir>",
 			})

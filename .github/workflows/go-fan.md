@@ -115,9 +115,9 @@ The state is stored in a single JSON file at **`/tmp/gh-aw/cache-memory/state.js
 
 To load the state:
 1. Check whether `/tmp/gh-aw/cache-memory/state.json` exists:
-   - If the file **does not exist**, this is the first run — start fresh (no `missing_data` call needed)
+   - If the file **does not exist**, this is the first run — start fresh (no `report_missing_data` call needed)
    - If the file **exists**, read it and extract `last_reviewed_module` and `reviewed_modules`
-   - If the file **exists but is malformed**, call `missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`
+   - If the file **exists but is malformed**, call `report_missing_data` with `data_type: "cache_memory"` and `reason: "cache_memory_miss"`
 
 ## Step 2: Select Today's Module with Priority
 
@@ -137,7 +137,7 @@ For each direct dependency that is hosted on GitHub:
 1. Extract the repository owner and name from the module path (e.g., `github.com/spf13/cobra` → owner: `spf13`, repo: `cobra`)
 2. Use the configured GitHub MCP tools to fetch repository information, specifically the `pushed_at` timestamp
 3. Do **not** use `gh api`, `curl`, `WebFetch`, or `WebSearch` for this metadata step
-4. Skip non-GitHub dependencies, and treat missing metadata as normal (continue without calling `missing_tool`)
+4. Skip non-GitHub dependencies, and treat missing metadata as normal (continue without calling `report_missing_tool`)
 
 ### 2.3 Sort by Recent Updates
 Sort all direct dependencies with this deterministic order:

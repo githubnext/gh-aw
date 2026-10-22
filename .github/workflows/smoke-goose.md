@@ -20,7 +20,7 @@ permissions:
   pull-requests: read
   copilot-requests: write
 name: Smoke Goose
-model: copilot/gpt-5.4
+model: copilot/claude-haiku-5.5
 engine:
   id: goose
 max-turns: 30
@@ -39,7 +39,7 @@ network:
     - go
 runtimes:
   go:
-    version: "1.26.8"
+    version: "1.27.3"
 tools:
   cache-memory: true
   github:

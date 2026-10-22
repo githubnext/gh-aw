@@ -32,8 +32,7 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	// This must be created before custom steps so they can use the temp directory
-	yaml.WriteString("      - name: Create gh-aw temp directory\n")
-	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\"\n")
+	yaml.WriteString("      - name: Create gh-aw temp directory\n        run: bash \"${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh\"\n" + buildWebhookEventStagingStep(data))
 
 	// Configure gh CLI for GitHub Enterprise hosts (*.ghe.com / GHES).
 	// This step runs configure_gh_for_ghe.sh which:
@@ -302,6 +301,9 @@ func (c *Compiler) generateActivationArtifactAndCommentMemorySteps(yaml *strings
 	fmt.Fprintf(yaml, "          name: %s\n", activationArtifactName) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	yaml.WriteString("          path: /tmp/gh-aw\n")
 	generateRestoreAmbientFoldersStep(yaml, data)
+	// Resolve staged instructions before their later workspace restore, and split prompts
+	// before comment-memory appends guidance only to the combined prompt.
+	c.generateDeferredPromptSubstitutionStep(yaml, data)
 
 	// Materialize tools.comment-memory state as editable markdown files BEFORE user steps.
 	// This prepares /tmp/gh-aw/comment-memory/*.md from prior comment history and injects

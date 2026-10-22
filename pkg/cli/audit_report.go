@@ -76,6 +76,7 @@ type AuditData struct {
 	Ledger                     *LedgerActivity          `json:"ledger,omitempty"`
 	WorkQueue                  *WorkQueueReport         `json:"work_queue,omitempty"`
 	Friction                   *FrictionCostSummary     `json:"friction,omitempty"`
+	EvidenceSearch             *AuditEvidenceSearch     `json:"evidence_search,omitempty"`
 }
 
 // AuditFinding represents a key insight discovered during audit

@@ -33,6 +33,7 @@ type unifiedDetectionEvent struct {
 	Provenance struct {
 		Component string `json:"component"`
 		Phase     string `json:"phase"`
+		Path      string `json:"path"`
 	} `json:"provenance"`
 }
 

@@ -1033,7 +1033,8 @@ describe("awf_reflect.cjs", () => {
 
     it("qualifies a fallback and preserves valid endpoint-qualified selections", () => {
       const reflectData = { endpoints: [splitEndpoint, { ...splitEndpoint, port: 10003 }] };
-      expect(resolveMultiProviderFromReflect({ reflectData, model: "unknown" }).model).toBe("copilot-completions/claude-haiku-4.5");
+      expect(resolveMultiProviderFromReflect({ reflectData }).model).toBe("copilot-completions/claude-haiku-4.5");
+      expect(resolveMultiProviderFromReflect({ reflectData, model: "unknown" }).model).toBe("");
       expect(resolveMultiProviderFromReflect({ reflectData, model: "copilot-responses-1/gpt-5-mini" }).model).toBe("copilot-responses-1/gpt-5-mini");
     });
 
@@ -1125,7 +1126,9 @@ describe("awf_reflect.cjs", () => {
       expect(result.model).toBe("anthropic/claude-sonnet-4.6");
     });
 
-    it("falls back to first model when configured model is not found in list", () => {
+    // Previously asserted a silent fallback to the first model (gh-aw#70317): a configured
+    // model that is not found must never be replaced by a different model.
+    it("does not fall back to another model when the configured model is not found in list", () => {
       const reflectData = {
         endpoints: [
           { provider: "openai", port: 10001, configured: true, models: ["gpt-5.4"] },
@@ -1133,7 +1136,58 @@ describe("awf_reflect.cjs", () => {
         ],
       };
       const result = resolveMultiProviderFromReflect({ reflectData, model: "nonexistent-model" });
-      expect(result.model).toBe("openai/gpt-5.4");
+      expect(result.model).toBe("");
+      expect(result.configuredModelNotFound).toBe(true);
+    });
+
+    describe("recorded /reflect from run 39191157830 (claude-opus-4.8 retired)", () => {
+      // Agent artifact sandbox/firewall/awf-reflect.json of
+      // https://github.com/github/gh-aw/actions/runs/39191157830: models_fetch_complete true,
+      // 40 Copilot models (claude-haiku-4.5 first), no claude-opus-4.8.
+      const recordedReflect = () => JSON.parse(JSON.stringify(require("./fixtures/awf-reflect-sdk-39191157830.json")));
+      const resolve = (model, reflectData = recordedReflect()) => resolveMultiProviderFromReflect({ reflectData, model, logger: () => {} });
+
+      it("case 1: configured claude-opus-4.8 chooses no primary model", () => {
+        const result = resolve("claude-opus-4.8");
+        expect(result.model).toBe("");
+        expect(result.configuredModelNotFound).toBe(true);
+      });
+
+      it("case 2: configured copilot/claude-opus-4.8 chooses no primary model", () => {
+        const result = resolve("copilot/claude-opus-4.8");
+        expect(result.model).toBe("");
+        expect(result.configuredModelNotFound).toBe(true);
+      });
+
+      it("case 3: no configured model chooses the first model", () => {
+        const result = resolve("");
+        expect(result.model).toBe("copilot-completions/claude-haiku-4.5");
+        expect(result.configuredModelNotFound).toBeUndefined();
+      });
+
+      it("case 4: configured live copilot/gpt-5.4 is unchanged", () => {
+        expect(resolve("copilot/gpt-5.4").model).toBe("copilot-responses/gpt-5.4");
+      });
+
+      it("case 5: configured qualified live copilot-completions/gpt-5.4 keeps its wire API", () => {
+        const result = resolve("copilot-completions/gpt-5.4");
+        expect(result.model).toBe("copilot-completions/gpt-5.4");
+        expect(result.models).toContainEqual({ id: "gpt-5.4", provider: "copilot-completions" });
+        expect(result.providers.find(provider => provider.name === "copilot-completions")).toMatchObject({ wireApi: "completions" });
+      });
+
+      // Derived: the recording's unconfigured openai endpoint is configured with a model list
+      // (no recorded run with this shape exists).
+      it("case 8: a model live only on a non-Copilot configured endpoint is unchanged", () => {
+        const reflectData = recordedReflect();
+        Object.assign(
+          reflectData.endpoints.find(endpoint => endpoint.provider === "openai"),
+          { configured: true, models: ["gpt-6.1-pro"] }
+        );
+        const result = resolve("gpt-6.1-pro", reflectData);
+        expect(result.model).toBe("openai/gpt-6.1-pro");
+        expect(result.configuredModelNotFound).toBeUndefined();
+      });
     });
 
     it("derives provider baseUrl from models_url origin when available", () => {
@@ -1228,18 +1282,14 @@ describe("awf_reflect.cjs", () => {
       expect(result.providers[0].wireApi).toBe("responses");
     });
 
-    it("does not apply an unmatched model's wire API override to the fallback primary model", () => {
-      const result = resolveMultiProviderFromReflect({
-        model: "nonexistent-model",
-        wireApi: "responses",
-        reflectData: { endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"] }] },
-      });
-      expect(result.model).toBe("copilot-completions/gpt-4o");
+    it("does not apply a wire API override to the fallback primary model or select it for an unmatched model", () => {
+      const reflectData = { endpoints: [{ provider: "copilot", port: 10002, configured: true, models: ["gpt-4o"] }] };
+      expect(resolveMultiProviderFromReflect({ wireApi: "responses", reflectData }).model).toBe("copilot-completions/gpt-4o");
+      expect(resolveMultiProviderFromReflect({ model: "nonexistent-model", wireApi: "responses", reflectData }).model).toBe("");
     });
 
     it("infers the fallback primary model wire API instead of inheriting an automatic GPT default", () => {
       const result = resolveMultiProviderFromReflect({
-        model: "gpt-6-luna",
         reflectData: { endpoints: [{ provider: "openai", port: 10002, configured: true, models: ["gpt-4.1"] }] },
         modelsJson: { providers: { openai: { models: { "gpt-4.1": { wire_api: "completions" } } } } },
       });

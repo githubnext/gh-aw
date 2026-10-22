@@ -15,6 +15,7 @@ import (
 
 const dailyAICAppTokenStepID = "daily-aic-app-token"
 const dailyAICDefaultRepoMemoryID = "default"
+const admissionDailyAICFallbackIfExpr = "${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
 // buildDailyAICAppTokenMintStep generates a GitHub App token mint step dedicated
 // to the daily AIC guardrail. The minted token is used only for the guardrail API
@@ -30,18 +31,19 @@ func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig) []string 
 	if app.shouldIgnoreMissingKey() {
 		guard := buildIgnoreIfMissingCondition(app)
 		steps = appendStepEnvAssignments(steps, guard.EnvAssignments)
-		if condition := combineGitHubIfExpressions(maxDailyAICreditsConfiguredIfExpr, guard.Condition); condition != "" {
+		if condition := combineGitHubIfExpressions(admissionDailyAICFallbackIfExpr, guard.Condition); condition != "" {
 			steps = append(steps, fmt.Sprintf("        if: %s\n", condition))
 		} else {
-			steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+			steps = append(steps, fmt.Sprintf("        if: %s\n", admissionDailyAICFallbackIfExpr))
 		}
 	} else {
-		steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+		steps = append(steps, fmt.Sprintf("        if: %s\n", admissionDailyAICFallbackIfExpr))
 	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getActionPin("actions/create-github-app-token")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+	steps = append(steps, "          skip-token-revoke: false\n")
 	owner := app.Owner
 	if owner == "" {
 		owner = "${{ github.repository_owner }}"
@@ -125,7 +127,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	}
 	steps = append(steps, "      - name: Check daily workflow token guardrail\n")
 	steps = append(steps, "        id: daily-ai-credits-workflow-guardrail\n")
-	steps = append(steps, fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr))
+	steps = append(steps, fmt.Sprintf("        if: %s\n", admissionDailyAICFallbackIfExpr))
 	steps = appendDailyAICContinueOnError(steps, data)
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 	steps = append(steps, "        env:\n")
@@ -141,7 +143,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 		steps = append(steps, fmt.Sprintf("          %s: %q\n", maxDailyAICBackendEnvVar, data.MaxDailyAICBackend))
 	}
 	if data.MaxDailyAICBackend == maxDailyAICBackendRepoMemory {
-		steps = append(steps, "          GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: ${{ steps.daily-aic-repo-memory-clone.outputs.cloned == 'true' }}\n          GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC: ${{ vars.GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC || 'false' }}\n")
+		steps = append(steps, "          GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: ${{ steps.daily-aic-repo-memory-clone.outputs.cloned == 'true' }}\n          GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC: ${{ vars.GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC || 'false' }}\n          GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING: ${{ steps.daily-aic-repo-memory-clone.outcome == 'success' && steps.daily-aic-repo-memory-clone.outputs.cloned == 'false' }}\n")
 	}
 	if entry, ok := dailyAICRepoMemoryEntry(data); ok {
 		steps = append(steps, fmt.Sprintf("          GH_AW_DAILY_AIC_REPO_MEMORY_DIR: %s\n", dailyAICRepoMemoryDir(entry)))
@@ -156,7 +158,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	steps = append(steps, "            await main();\n")
 	if data.WorkflowID != "" && data.MaxDailyAICBackend != maxDailyAICBackendRepoMemory {
 		steps = append(steps, "      - name: Publish daily AIC scan observations\n")
-		steps = append(steps, "        if: always() && env.GH_AW_MAX_DAILY_AI_CREDITS != ''\n")
+		steps = append(steps, "        if: always() && env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''\n")
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/upload-artifact", data)))
 		steps = append(steps, "        with:\n")
@@ -173,7 +175,7 @@ func (c *Compiler) buildDailyAICScanObservationRestoreStep(data *WorkflowData) [
 	return []string{
 		"      - name: Restore daily AIC scan observations\n",
 		"        id: restore-daily-aic-cache-fallback\n",
-		fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr),
+		fmt.Sprintf("        if: %s\n", admissionDailyAICFallbackIfExpr),
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_HAS_SLASH_COMMAND: %q\n", strconv.FormatBool(len(data.Command) > 0)),
@@ -248,7 +250,7 @@ func buildDailyAICRepoMemoryCloneStep(memory RepoMemoryEntry) []string {
 	return []string{
 		fmt.Sprintf("      - name: Clone daily AIC %s ledger (%s)\n", memoryLabel, memory.ID),
 		"        id: daily-aic-repo-memory-clone\n",
-		fmt.Sprintf("        if: %s\n", maxDailyAICreditsConfiguredIfExpr),
+		fmt.Sprintf("        if: %s\n", admissionDailyAICFallbackIfExpr),
 		"        env:\n",
 		"          GH_TOKEN: ${{ github.token }}\n",
 		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",

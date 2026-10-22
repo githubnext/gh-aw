@@ -83,6 +83,8 @@ func TestSafeOutputsPublishingJobIdentity(t *testing.T) {
 
 func TestSafeOutputsReplayPublishingJobIdentity(t *testing.T) {
 	opts := buildMaintenanceWorkflowYAMLOptions{runsOnValue: "ubuntu-latest"}
+	labelJob, err := buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup")
+	require.NoError(t, err)
 	for _, tc := range []struct {
 		name       string
 		jobKey     string
@@ -102,7 +104,7 @@ func TestSafeOutputsReplayPublishingJobIdentity(t *testing.T) {
 			jobKey:     "label_apply_safe_outputs",
 			stepName:   "Apply safe outputs from referenced run",
 			workflowID: "agentics-maintenance",
-			content:    buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
+			content:    labelJob,
 		},
 		{
 			name:       "side repository",

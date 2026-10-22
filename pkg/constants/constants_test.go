@@ -143,6 +143,7 @@ func TestConstantValues(t *testing.T) {
 		{"UploadAssetsJobName", string(UploadAssetsJobName), "upload_assets"},
 		{"UploadCodeScanningJobName", string(UploadCodeScanningJobName), "upload_code_scanning_sarif"},
 		{"ConclusionJobName", string(ConclusionJobName), "conclusion"},
+		{"ConclusionAdmissionJobName", string(ConclusionAdmissionJobName), "conclusion_admission"},
 		{"UnlockJobName", string(UnlockJobName), "unlock"},
 		{"SafeOutputArtifactName", string(SafeOutputArtifactName), "safe-output"},
 		{"AgentOutputArtifactName", string(AgentOutputArtifactName), "agent-output"},
@@ -187,6 +188,7 @@ func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
 		string(UploadAssetsJobName),
 		string(UploadCodeScanningJobName),
 		string(ConclusionJobName),
+		string(ConclusionAdmissionJobName),
 		string(UnlockJobName),
 	} {
 		require.Contains(t, KnownBuiltInJobNames, jobName)

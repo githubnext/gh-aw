@@ -5,6 +5,9 @@
 // through Uses, With, and Secrets. Steps use Run or Uses and native If and Env
 // properties. There are no platform-neutral envelopes or alternate CI targets.
 //
+// RunsOn retains native scalar, label-sequence, and group/labels mapping values.
+// Authored runner expressions remain strings and are never evaluated here.
+//
 // Resolve validates output references and derives needs and job-output bindings
 // without modifying the input. Lower builds a deterministic YAML value tree;
 // Emit serializes it once. RawStep accepts authored GitHub Actions step mappings
