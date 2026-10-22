@@ -219,8 +219,7 @@ Check producer/version, record location, completeness.
 ## Work-queue codes
 
 Follow [queue playbook](work-queue.md); inspect read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-receipts. Pending projection doesn't prove claim failure.
+Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding, receipts.
 Never rewrite history, fabricate evidence, reuse credentials/request IDs across
 work or bypass profiles/effect scopes.
 
@@ -258,7 +257,7 @@ work or bypass profiles/effect scopes.
 | `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
 | `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
 | `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `projection_unavailable`, `projection_write_ambiguous`, `projection_receipt_pending`, `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; retain uncertain locks; no duplicate writes; never mistake pending for terminal failure. |
 
 ## Unmapped codes
 
