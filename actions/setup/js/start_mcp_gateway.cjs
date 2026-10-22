@@ -42,6 +42,8 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
 const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
+const { PROXY_ENV_NAMES } = require("./constants.cjs");
+const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -392,18 +394,16 @@ const gatewayCredentialRedactions = [
   { pattern: /(Bearer\s+)\S+/gi, replacement: "$1[REDACTED]" },
   { pattern: /((?:agent[_-]?id|api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
 ];
+const gatewayInternalProxyHosts = ["host.docker.internal", "awf-enclave-mcp"];
 
 /**
  * Redacts common credential formats from gateway diagnostics output.
  * @param {string} text
+ * @param {NodeJS.ProcessEnv} env
  * @returns {string}
  */
-function redactGatewayDiagnostics(text) {
-  let redacted = text;
-  for (const { pattern, replacement } of gatewayCredentialRedactions) {
-    redacted = redacted.replace(pattern, replacement);
-  }
-  return redacted;
+function redactGatewayDiagnostics(text, env = process.env) {
+  return redactCliProxyDiagnostics(text, env, gatewayCredentialRedactions);
 }
 
 /**
@@ -493,6 +493,29 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
   // impossible even if the compiler/runtime metadata ever diverges.
   const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`${customGatewayEnvTransportPrefix}${index}`] || ""}`]);
   return [...args.slice(0, markerIndex), ...customArgs, ...args.slice(markerIndex + 1)];
+}
+
+/**
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string[]}
+ */
+function injectProxyEnvArgs(args, env = process.env) {
+  const noProxyNames = PROXY_ENV_NAMES.filter(name => name.toLowerCase() === "no_proxy" && env[name] !== undefined);
+  if (PROXY_ENV_NAMES.some(name => name.toLowerCase() !== "no_proxy" && env[name]) && noProxyNames.length === 0) {
+    noProxyNames.push("NO_PROXY");
+  }
+  for (const name of noProxyNames) {
+    const value = env[name] || "";
+    const exclusions = new Set(value.split(",").map(host => host.trim().toLowerCase()));
+    const missingHosts = gatewayInternalProxyHosts.filter(host => !exclusions.has(host));
+    if (missingHosts.length > 0) {
+      env[name] = `${value}${value && !value.endsWith(",") ? "," : ""}${missingHosts.join(",")}`;
+    }
+  }
+  const proxyArgs = PROXY_ENV_NAMES.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
+  // Insert after "run" so explicitly configured container settings still win.
+  return [...args.slice(0, 1), ...proxyArgs, ...args.slice(1)];
 }
 
 /**
@@ -1028,7 +1051,9 @@ async function main() {
     core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
     return;
   }
-  args = injectCustomGatewayEnvArgs(args);
+  const gatewayEnv = { ...process.env };
+  args = injectCustomGatewayEnvArgs(args, gatewayEnv);
+  args = injectProxyEnvArgs(args, gatewayEnv);
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
   const stderrPath = createGatewayStderrPath();
@@ -1036,7 +1061,7 @@ async function main() {
 
   const child = spawn(cmd, args, {
     stdio: ["pipe", outputFd, stderrFd],
-    env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
+    env: { ...gatewayEnv, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
   child.on("error", err => {
@@ -1558,6 +1583,7 @@ module.exports = {
   getJSONParseErrorContext,
   getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
+  injectProxyEnvArgs,
   computeHealthRetryBudgetMs,
   MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT,
   MCP_GATEWAY_HEALTH_RETRY_DEFAULTS,
