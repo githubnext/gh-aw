@@ -1,10 +1,10 @@
 // @ts-check
 const fs = require("node:fs");
+const { PROXY_ENV_NAMES } = require("./constants.cjs");
 const { redactArtifactContent } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
 const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
-const PROXY_ENV_NAMES = Object.freeze(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]);
 
 /**
  * @param {string} content
@@ -80,4 +80,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { MAX_DIAGNOSTIC_BYTES, PROXY_ENV_NAMES, readCliProxyDiagnostics, redactCliProxyDiagnostics };
+module.exports = { MAX_DIAGNOSTIC_BYTES, readCliProxyDiagnostics, redactCliProxyDiagnostics };

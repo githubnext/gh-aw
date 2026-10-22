@@ -42,7 +42,8 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
 const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
-const { PROXY_ENV_NAMES: proxyEnvNames, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
+const { PROXY_ENV_NAMES } = require("./constants.cjs");
+const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -500,8 +501,8 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
  * @returns {string[]}
  */
 function injectProxyEnvArgs(args, env = process.env) {
-  const noProxyNames = proxyEnvNames.filter(name => name.toLowerCase() === "no_proxy" && env[name] !== undefined);
-  if (proxyEnvNames.some(name => name.toLowerCase() !== "no_proxy" && env[name]) && noProxyNames.length === 0) {
+  const noProxyNames = PROXY_ENV_NAMES.filter(name => name.toLowerCase() === "no_proxy" && env[name] !== undefined);
+  if (PROXY_ENV_NAMES.some(name => name.toLowerCase() !== "no_proxy" && env[name]) && noProxyNames.length === 0) {
     noProxyNames.push("NO_PROXY");
   }
   for (const name of noProxyNames) {
@@ -512,7 +513,7 @@ function injectProxyEnvArgs(args, env = process.env) {
       env[name] = `${value}${value && !value.endsWith(",") ? "," : ""}${missingHosts.join(",")}`;
     }
   }
-  const proxyArgs = proxyEnvNames.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
+  const proxyArgs = PROXY_ENV_NAMES.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
   // Insert after "run" so explicitly configured container settings still win.
   return [...args.slice(0, 1), ...proxyArgs, ...args.slice(1)];
 }

@@ -2,7 +2,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { MAX_DIAGNOSTIC_BYTES, PROXY_ENV_NAMES, readCliProxyDiagnostics, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
+const { PROXY_ENV_NAMES } = require("./constants.cjs");
+const { MAX_DIAGNOSTIC_BYTES, readCliProxyDiagnostics, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 describe("CLI proxy console diagnostic sanitizer", () => {
   const root = path.join(__dirname, `.redact-cli-proxy-diagnostics-${process.pid}`);
