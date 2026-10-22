@@ -76,6 +76,12 @@ const UnlockJobName JobName = "unlock"
 // AgentFailureStepName is the generated conclusion step that reports agent failures.
 const AgentFailureStepName = "Handle agent failure"
 
+// DeferredPromptStepName identifies the generated agent step resolving deferred prompt bindings.
+const DeferredPromptStepName = "Resolve deferred prompt expressions"
+
+// DeferredPromptStepID anchors the compiler/linter contract for GH_AW_DEFERRED_* bindings.
+const DeferredPromptStepID StepID = "resolve_deferred_prompt"
+
 // KnownBuiltInJobNames contains all known built-in workflow job names (including aliases).
 // It is used for O(1) membership checks when validating or filtering user-defined job
 // names to avoid collisions with framework-generated jobs. For example, workflow code

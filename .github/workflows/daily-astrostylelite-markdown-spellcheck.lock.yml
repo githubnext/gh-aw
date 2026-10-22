@@ -360,6 +360,9 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_DICTIONARY_PATH: ${{ '__GH_AW_DEFERRED_B328D8C5111E544F__' }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FILES_CHECKED: ${{ '__GH_AW_DEFERRED_C47247B0C6C914C0__' }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FINDINGS_COUNT: ${{ '__GH_AW_DEFERRED_386607E053D03E85__' }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
           GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_pull_request, report_missing_tool, report_missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "<issue-steering>\nThe steering issue for this run is #__GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER__.\n\n"
@@ -383,6 +386,9 @@ jobs:
           GH_AW_SUB_AGENT_EXT: ".md"
           GH_AW_SKILL_DIR: ".claude/skills"
           GH_AW_SKILL_EXT: ".md"
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_DICTIONARY_PATH: ${{ '__GH_AW_DEFERRED_B328D8C5111E544F__' }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FILES_CHECKED: ${{ '__GH_AW_DEFERRED_C47247B0C6C914C0__' }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FINDINGS_COUNT: ${{ '__GH_AW_DEFERRED_386607E053D03E85__' }}
           GH_AW_EXPERIMENTS_PROMPT_STYLE: ${{ steps.pick-experiment.outputs.prompt_style }}
         with:
           script: |
@@ -407,6 +413,9 @@ jobs:
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_DICTIONARY_PATH: '__GH_AW_DEFERRED_B328D8C5111E544F__'
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FILES_CHECKED: '__GH_AW_DEFERRED_C47247B0C6C914C0__'
+          GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FINDINGS_COUNT: '__GH_AW_DEFERRED_386607E053D03E85__'
         with:
           script: |
             const path = require('path');
@@ -430,14 +439,17 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
                 GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER
+                GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: process.env.GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER,
+                GH_AW_NEEDS_SPELLCHECK_OUTPUTS_DICTIONARY_PATH: process.env.GH_AW_NEEDS_SPELLCHECK_OUTPUTS_DICTIONARY_PATH,
+                GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FILES_CHECKED: process.env.GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FILES_CHECKED,
+                GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FINDINGS_COUNT: process.env.GH_AW_NEEDS_SPELLCHECK_OUTPUTS_FINDINGS_COUNT
               }
             });
       - name: Validate prompt placeholders
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
-        run: |
-          bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
+          GH_AW_DEFERRED_PLACEHOLDERS: '__GH_AW_DEFERRED_386607E053D03E85__ __GH_AW_DEFERRED_B328D8C5111E544F__ __GH_AW_DEFERRED_C47247B0C6C914C0__'
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_prompt_placeholders.sh"
       - name: Print prompt
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
@@ -660,6 +672,33 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
+      - name: Resolve deferred prompt expressions
+        id: resolve_deferred_prompt
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_DEFERRED_386607E053D03E85: ${{ needs.spellcheck.outputs.findings_count }}
+          GH_AW_DEFERRED_B328D8C5111E544F: ${{ needs.spellcheck.outputs.dictionary_path }}
+          GH_AW_DEFERRED_C47247B0C6C914C0: ${{ needs.spellcheck.outputs.files_checked }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+
+            const substitutePlaceholders = require(path.join(actionsDir, 'substitute_placeholders.cjs'));
+
+            // Call the substitution function
+            return await substitutePlaceholders({
+              file: process.env.GH_AW_PROMPT,
+              inlineArtifacts: [{"directory":".claude/agents","extension":".md"},{"directory":".claude/skills","extension":".md"}],
+              substitutions: {
+                GH_AW_DEFERRED_386607E053D03E85: process.env.GH_AW_DEFERRED_386607E053D03E85,
+                GH_AW_DEFERRED_B328D8C5111E544F: process.env.GH_AW_DEFERRED_B328D8C5111E544F,
+                GH_AW_DEFERRED_C47247B0C6C914C0: process.env.GH_AW_DEFERRED_C47247B0C6C914C0
+              }
+            });
       - name: Download spellcheck artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
