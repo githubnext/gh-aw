@@ -143,6 +143,20 @@ Test the default validation path without pulling an uncached image.
 	require.NotContains(t, string(log), "pull ", "the default validation path must not pull images")
 }
 
+func TestValidateDockerImage_MissingRegistryImage(t *testing.T) {
+	logPath := setupReadOnlyFakeDocker(t)
+	t.Setenv("FAKE_DOCKER_INSPECT_RESULT", "missing")
+	t.Setenv("FAKE_DOCKER_PULL_RESULT", "missing")
+
+	err := validateDockerImage("example/mcp:nonexistent", false, false)
+	require.ErrorContains(t, err, "manifest unknown")
+	require.ErrorContains(t, err, "container image 'example/mcp:nonexistent' not found")
+
+	log, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	require.Equal(t, "info\nimage inspect example/mcp:nonexistent\npull example/mcp:nonexistent\n", string(log))
+}
+
 func setupReadOnlyFakeDocker(t *testing.T) string {
 	t.Helper()
 	// Keep the fake executable and its log inside the checkout.
