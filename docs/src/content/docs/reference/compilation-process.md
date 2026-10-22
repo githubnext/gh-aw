@@ -300,6 +300,10 @@ binaries on `PATH` when their versions meet the pinned Docker image versions
 unrecognized versions fall back to Docker. Local actionlint uses shellcheck and
 pyflakes from `PATH` when those integrations are enabled; it does not install them.
 
+Compilation and `gh aw lint` ignore actionlint's unsupported-key diagnostic for
+workflow-level `cache-mode`. Other syntax and security diagnostics, including
+misplaced `cache-mode` keys, are unaffected.
+
 ### Development Testing Mode
 
 `--dry-run` enables `--strict`, `--staged`, `--validate`, `--shellcheck`,
