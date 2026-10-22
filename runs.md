@@ -21,3 +21,4 @@
 2026-10-19: reviewed microsoft/frontier-agentic-devops-rvas (5); no blog; backlog 0.
 2026-10-20: discovery; reviewed Hack23/European-Parliament-MCP-Server (4); no blog; backlog 0.
 2026-10-21: discovery run; search returned only already-reviewed repos; no new candidates; no blog; backlog 0.
+2026-10-22: reviewed repo-concierge (7), GH-AW-Demo (3), ForgeFlow/black-triage-sandbox (0); no blog; backlog 0.
