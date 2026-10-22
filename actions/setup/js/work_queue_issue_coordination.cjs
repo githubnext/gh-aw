@@ -4,6 +4,7 @@
 const { randomUUID } = require("node:crypto");
 const { digest, queueError } = require("./work_queue_codec.cjs");
 const { queueLedgerClient } = require("./work_queue_git_transport.cjs");
+const log = require("./work_queue_logging.cjs").createWorkQueueLogger("issue_coordination");
 
 // Locks have no expiring lease: a slow or interrupted write must never overlap a
 // successor projector. An unresolved lock is pending, not permission to steal it.
@@ -27,6 +28,7 @@ async function withProjectionLocks({ githubClient, owner, repo, head, keys, repo
       try {
         await githubClient.rest.git.createRef({ owner, repo, ref: `refs/heads/${branch}`, sha: head, request: { retries: 0, timeout: 15000 } });
       } catch (error) {
+        log.failure("projection.locks.acquire.failed", error, true);
         // Even a lost acquisition response is uncertain. Do not delete a lock
         // that might have been acquired by a competing invocation.
         throw queueError("projection_coordination_pending", `projection lock is held or acquisition is uncertain (${error.status ?? "transport"})`);
@@ -65,6 +67,7 @@ async function withGraphQLProjectionLocks({ githubClient, repositoryId, head, ke
   try {
     response = await githubClient.graphql(`mutation WorkQueueProjectionLocks(${declarations.join(",")}) { ${selections.join("\n")} }`, { ...variables, request: { retries: 0, timeout: 30000 } });
   } catch (error) {
+    log.failure("projection.locks.acquire.failed", error, true);
     response = error.data;
     errors = error.errors || [];
   }
@@ -75,6 +78,12 @@ async function withGraphQLProjectionLocks({ githubClient, repositoryId, head, ke
   const ownedKeys = new Set(held.map(lock => lock.key));
   const accepted = scopes?.filter(scope => scope.keys.every(key => ownedKeys.has(key)));
   const skipped = scopes?.filter(scope => !accepted.includes(scope)).map(scope => ({ work_id: scope.work_id, reason: "queue committed; projection lock is held or acquisition is uncertain" })) || [];
+  if (held.length !== locks.length)
+    log.diagnostic(
+      "projection.locks.acquire.pending",
+      { requested: locks.length, acknowledged: held.length, pending_targets: skipped.length },
+      "Only exactly acknowledged locks authorize projection; existing locks or an uncertain acquisition remain pending."
+    );
   let retain = [];
   try {
     if (!scopes && held.length !== locks.length) throw queueError("projection_coordination_pending", "projection lock is held or acquisition is uncertain");
@@ -86,6 +95,8 @@ async function withGraphQLProjectionLocks({ githubClient, repositoryId, head, ke
     throw error;
   } finally {
     const release = held.filter(lock => !retain.includes(lock.key));
+    if (release.length !== held.length)
+      log.diagnostic("projection.locks.retained", { locks: held.length - release.length }, "Unacknowledged native writes retain coordination locks; inspect the original journals and receipts, not a worker rerun or blind lock deletion.");
     if (release.length) {
       const nonce = projectionNonce();
       const variables = Object.fromEntries(release.map((lock, index) => [`u${index}`, { refId: lock.id, clientMutationId: nonce }]));

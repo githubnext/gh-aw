@@ -9,6 +9,8 @@ const { replayTransactions } = require("./work_queue_replay.cjs");
 const { performance } = require("node:perf_hooks");
 const { resolveDispatchCredentialPrincipal } = require("./work_queue_dispatch_credential.cjs");
 const { inspectClaimDelivery, createClaimDeliveryVerifier, verifyClaimDelivery } = require("./work_queue_delivery.cjs");
+const { withProjectionLocks } = require("./work_queue_issue_coordination.cjs");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 describe("privacy-preserving work queue logging", () => {
   let stderr;
@@ -273,7 +275,7 @@ describe("privacy-preserving work queue logging", () => {
 
   it.each([
     [401, "GitHub rejected the credential", "valid, and unexpired"],
-    [403, "GitHub denied the queue API request", "contents: write and actions: write"],
+    [403, "GitHub denied the queue API request", "does not distinguish permission denial from throttling"],
     [404, "GitHub could not find or expose", "selected token's access"],
     [429, "GitHub rate-limited", "reconcile existing reservations"],
     [503, "GitHub returned a server error", "launch may already have happened"],
@@ -298,6 +300,167 @@ describe("privacy-preserving work queue logging", () => {
     logger.failure("launch.post.failed", { status: 422, response: { data: { message: "No ref found for:" + "private".repeat(2000) } } }, true);
     expect(getter).not.toHaveBeenCalled();
     expect(output()).not.toContain("ref_not_found=true");
+    expect(output()).not.toContain("private");
+  });
+
+  it.each([
+    { headers: { "x-ratelimit-remaining": "0" } },
+    { headers: { "retry-after": "60" } },
+    { message: "API rate limit exceeded for installation ID private-installation" },
+    { message: "You have exceeded a secondary rate limit. private-provider-body" },
+    { message: "You have triggered an abuse detection mechanism. private-provider-body" },
+  ])("distinguishes HTTP 403 rate-limit evidence without printing provider data: %j", ({ headers = {}, message = "private-provider-body" }) => {
+    const error = { status: 403, response: { headers, data: { message } } };
+    expect(queueControlErrorCode(error)).toBe("queue_control_github_rate_limited");
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    expect(output()).toContain("http_status=403");
+    expect(output()).toContain("queue_control_github_rate_limited=true");
+    expect(output()).not.toContain("queue_control_github_access_denied=true");
+    expect(output()).not.toContain("private-");
+  });
+
+  it("logs only validated quota counters, retry timing and fixed resource flags", () => {
+    createWorkQueueLogger("native").failure(
+      "run.read.failed",
+      {
+        status: 403,
+        response: {
+          headers: {
+            "x-ratelimit-limit": "15000",
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-used": "15000",
+            "x-ratelimit-reset": "1792675926",
+            "retry-after": "60",
+            "x-ratelimit-resource": "core",
+            authorization: "private-token",
+          },
+          data: { message: "API rate limit exceeded for installation ID private-installation" },
+        },
+      },
+      true
+    );
+    expect(output()).toContain("rate_limit_limit=15000 rate_limit_remaining=0 rate_limit_used=15000 rate_limit_reset_unix=1792675926 retry_after_seconds=60");
+    expect(output()).toContain("rate_limit_resource_core=true");
+    expect(output()).toContain("installation_rate_limit=true");
+    expect(output()).not.toContain("private-");
+  });
+
+  it("preserves uncertainty for a 403 with quota headroom and reports SSO hints without authorization URLs", () => {
+    const error = {
+      status: 403,
+      response: {
+        headers: { "x-ratelimit-remaining": "14904", "x-github-sso": "required; url=https://private.example/authorize?token=private-token" },
+        data: { message: "Resource not accessible by integration" },
+      },
+    };
+    expect(queueControlErrorCode(error)).toBe("queue_control_github_access_denied");
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    expect(output()).toContain("rate_limit_remaining=14904");
+    expect(output()).toContain("sso_required=true");
+    expect(output()).toContain("resource_not_accessible=true");
+    expect(output()).toContain("does not distinguish permission denial from throttling");
+    expect(output()).not.toContain("private");
+  });
+
+  it.each(["private-token", "-1", "1.5", "1e3", " 0", "0\n", "00", "9007199254740992", "1".repeat(256), 0, null])("withholds malformed numeric headers without coercion: %j", value => {
+    const error = {
+      status: 403,
+      response: { headers: { "x-ratelimit-remaining": value, "retry-after": value, "x-ratelimit-resource": "private-resource" } },
+    };
+    expect(queueControlErrorCode(error)).toBe("queue_control_github_access_denied");
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    expect(output()).not.toContain("rate_limit_remaining=");
+    expect(output()).not.toContain("retry_after_seconds=");
+    expect(output()).not.toContain("private");
+  });
+
+  it("never invokes metadata getters or serializes unknown GraphQL error types", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-token");
+    });
+    const headers = Object.defineProperties({}, { "x-ratelimit-remaining": { get: getter }, "retry-after": { get: getter }, "x-github-sso": { get: getter } });
+    const error = { status: 403, response: { headers }, errors: [{ type: "private-type", message: "private-message" }, Object.defineProperty({}, "type", { get: getter })] };
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    createWorkQueueLogger("native").failure("run.read.failed", Object.defineProperty({}, "errors", { get: getter }), true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output()).toContain("graphql_errors=2");
+    expect(output()).not.toContain("private");
+  });
+
+  it.each([
+    ["RATE_LIMITED", "graphql_rate_limited", "queue_control_github_rate_limited"],
+    ["FORBIDDEN", "graphql_forbidden", "queue_control_authority_or_publication_failed"],
+    ["UNPROCESSABLE", "graphql_unprocessable", "queue_control_authority_or_publication_failed"],
+    ["NOT_FOUND", "graphql_not_found", "queue_control_authority_or_publication_failed"],
+    ["GRAPHQL_VALIDATION_FAILED", "graphql_validation_failed", "queue_control_authority_or_publication_failed"],
+  ])("logs the fixed GraphQL category %s without raw errors", (type, field, code) => {
+    const error = { errors: [{ type, message: "private-message", path: ["private-alias"] }], data: { private: "private-response" } };
+    expect(queueControlErrorCode(error)).toBe(code);
+    createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", error, true);
+    expect(output()).toContain(`${field}=true`);
+    expect(output()).not.toContain("private");
+  });
+
+  it("surfaces a failed GraphQL lock acquisition without authorizing projection or removing uncertain locks", async () => {
+    const operation = vi.fn();
+    const githubClient = {
+      graphql: vi.fn().mockRejectedValue({
+        status: 403,
+        response: { headers: { "x-ratelimit-remaining": "0", "x-github-request-id": "1:2:3:4:5" }, data: { message: "private-provider-body" } },
+      }),
+    };
+    const result = await withProjectionLocks({ githubClient, repositoryId: "private-repository", head: "a".repeat(40), keys: ["work:private-work"], scopes: [{ work_id: "private-work", keys: ["work:private-work"] }] }, operation);
+    expect(result.pending).toHaveLength(1);
+    expect(operation).not.toHaveBeenCalled();
+    expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+    expect(output()).toContain("projection.locks.acquire.failed failed=true http_status=403 rate_limit_remaining=0");
+    expect(output()).toContain("GitHub request ID: 1:2:3:4:5.");
+    expect(output()).toContain("projection.locks.acquire.pending requested=1 acknowledged=0 pending_targets=1");
+    expect(output()).not.toContain("private");
+  });
+
+  it("reports partial lock acknowledgements and retains only uncertain writes", async () => {
+    const githubClient = {
+      graphql: vi.fn().mockImplementation(async (query, variables) => {
+        expect(query).toContain("WorkQueueProjectionLocks");
+        const ref = { id: "private-ref", name: variables.l0.name.slice("refs/heads/".length), prefix: "refs/heads/", target: { oid: variables.l0.oid } };
+        throw { data: { l0: { ref }, l1: null }, errors: [{ type: "UNPROCESSABLE", path: ["l1"], message: "private-provider-message" }] };
+      }),
+    };
+    const operation = vi.fn(async accepted => {
+      expect(accepted).toEqual(["private-a"]);
+      return { pending: [], ambiguous: true, retain_keys: ["work:private-a"] };
+    });
+    const result = await withProjectionLocks(
+      {
+        githubClient,
+        repositoryId: "private-repository",
+        head: "a".repeat(40),
+        keys: ["work:private-a", "work:private-b"],
+        scopes: [
+          { work_id: "private-a", keys: ["work:private-a"] },
+          { work_id: "private-b", keys: ["work:private-b"] },
+        ],
+      },
+      operation
+    );
+    expect(result.pending).toHaveLength(1);
+    expect(operation).toHaveBeenCalledTimes(1);
+    expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+    expect(output()).toContain("graphql_unprocessable=true");
+    expect(output()).toContain("projection.locks.acquire.pending requested=2 acknowledged=1 pending_targets=1");
+    expect(output()).toContain("projection.locks.retained locks=1");
+    expect(output()).not.toContain("private");
+  });
+
+  it("surfaces REST lock acquisition errors without changing pending coordination semantics", async () => {
+    const createRef = vi.fn().mockRejectedValue({ status: 422, response: { data: { message: "private-provider-body" } } });
+    const operation = vi.fn();
+    const githubClient = { rest: { git: { createRef } } };
+    registerQueueLedgerClient(githubClient, githubClient);
+    await expect(withProjectionLocks({ githubClient, owner: "private-owner", repo: "private-repo", head: "a".repeat(40), keys: ["work:private-work"] }, operation)).rejects.toMatchObject({ code: "projection_coordination_pending" });
+    expect(operation).not.toHaveBeenCalled();
+    expect(output()).toContain("projection.locks.acquire.failed failed=true http_status=422");
     expect(output()).not.toContain("private");
   });
 
