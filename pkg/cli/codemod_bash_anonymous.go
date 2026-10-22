@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
@@ -48,47 +46,4 @@ func getBashAnonymousRemovalCodemod() Codemod {
 			return newContent, applied, err
 		},
 	}
-}
-
-// replaceBashAnonymousWithTrue replaces 'bash:' with 'bash: true' in the tools block
-func replaceBashAnonymousWithTrue(lines []string) ([]string, bool) {
-	var result []string
-	var modified bool
-	var inToolsBlock bool
-	var toolsIndent string
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Track if we're in the tools block
-		if trimmed == "tools:" {
-			inToolsBlock = true
-			toolsIndent = getIndentation(line)
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we've left the tools block
-		if inToolsBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
-			if hasExitedBlock(line, toolsIndent) {
-				inToolsBlock = false
-			}
-		}
-
-		// Replace bash: with bash: true if in tools block
-		if inToolsBlock && (trimmed == "bash:" || strings.HasPrefix(trimmed, "bash: ")) {
-			// Check if it's just 'bash:' with nothing after the colon
-			if trimmed == "bash:" {
-				indent := getIndentation(line)
-				result = append(result, indent+"bash: true")
-				modified = true
-				bashAnonymousCodemodLog.Printf("Replaced 'bash:' with 'bash: true'")
-				continue
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	return result, modified
 }

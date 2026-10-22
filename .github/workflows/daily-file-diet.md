@@ -35,7 +35,7 @@ strict: true
 timeout-minutes: 20
 tools:
   bash:
-  - "find pkg -name \"*.go\" ! -name \"*_test.go\" -type f -exec wc -l {} \\; | sort -rn"
+  - cat /tmp/gh-aw/agent/file-diet-metrics.json
   cli-proxy: true
   edit: null
   github:
@@ -48,6 +48,49 @@ features:
 sandbox:
   agent:
     id: awf
+steps:
+  - name: Prepare Go file size metrics
+    uses: actions/github-script@v9.0.0
+    env:
+      FILE_DIET_METRICS_PATH: /tmp/gh-aw/agent/file-diet-metrics.json
+    with:
+      script: |
+        const fs = require("node:fs");
+        const path = require("node:path");
+        const workspace = process.env.GITHUB_WORKSPACE;
+        const outputPath = process.env.FILE_DIET_METRICS_PATH;
+        if (!workspace || !outputPath) {
+          throw new Error("GITHUB_WORKSPACE and FILE_DIET_METRICS_PATH are required");
+        }
+        const files = [];
+        const countLines = file => (fs.readFileSync(file, "utf8").match(/\n/g) || []).length;
+        function scan(directory) {
+          for (const entry of fs.readdirSync(path.join(workspace, directory), { withFileTypes: true })) {
+            const file = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+              scan(file);
+            } else if (entry.isFile() && file.endsWith(".go") && !file.endsWith("_test.go")) {
+              files.push({ path: file, line_count: countLines(path.join(workspace, file)) });
+            }
+          }
+        }
+        scan("pkg");
+        files.sort((a, b) => b.line_count - a.line_count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+        if (!files.length) {
+          throw new Error("No non-test Go source files found under pkg/");
+        }
+        const largest = files[0];
+        const testPath = largest.path.replace(/\.go$/, "_test.go");
+        const testFile = path.join(workspace, testPath);
+        const test = fs.lstatSync(testFile, { throwIfNoEntry: false })?.isFile()
+          ? { path: testPath, line_count: countLines(testFile) }
+          : null;
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+        fs.writeFileSync(outputPath, JSON.stringify({
+          healthy_threshold: 800,
+          source_file_count: files.length,
+          largest_file: { ...largest, test_file: test }
+        }) + "\n");
 evals:
   - id: large_files_analyzed
     question: Did the agent analyze the largest Go source files in the repository?
@@ -75,21 +118,30 @@ Analyze the Go codebase daily to identify the largest source file and determine 
 
 ### 1. Identify the Largest Go Source File
 
-Use the following command to find all Go source files (excluding tests) and sort by size:
+Read `/tmp/gh-aw/agent/file-diet-metrics.json` using the native file reader or this exact permitted command:
 
 ```bash
-find pkg -name '*.go' ! -name '*_test.go' -type f -exec wc -l {} \; | sort -rn | head -1
+cat /tmp/gh-aw/agent/file-diet-metrics.json
 ```
 
-Extract:
-- **File path**: Full path to the largest file
-- **Line count**: Number of lines in the file
+The trusted preparation step scans all regular, non-test `.go` files recursively under `pkg/`,
+without following symlinks. It counts newline characters, matching `wc -l`, and selects the
+largest file deterministically. Use `largest_file.path` and `largest_file.line_count`; the
+packet also includes `source_file_count`, `healthy_threshold`, and the paired `test_file`
+path and line count, or `null` when no regular paired test file exists.
+
+Do not recompute these metrics with `find -exec`, `xargs`, shell loops, or pipelines.
+Do not probe command availability with `command -v`; use the advertised CLI directly.
+If the packet is missing or invalid, report missing data through the configured safe-output
+tool and stop. Do not guess file sizes or claim the repository is healthy.
 
 ### 2. Apply Size Threshold
 
 **Healthy file size threshold: 800 lines**
 
-If the largest file is **under 800 lines**, do NOT create an issue. Instead, output a simple message indicating all files are within healthy limits.
+If the largest file is **under 800 lines**, do NOT create an issue. Call the configured
+`noop` safe-output tool with the largest file's path and line count, explaining that all
+files are within healthy limits. A final chat message alone does not complete the task.
 
 If the largest file is **800+ lines**, proceed to step 3.
 
@@ -112,17 +164,9 @@ Use the Serena MCP server to perform semantic analysis on the large file:
 
 ### 4. Check Test Coverage
 
-Examine existing test coverage for the large file:
-
-```bash
-# Find corresponding test file
-TEST_FILE=$(echo "$LARGE_FILE" | sed 's/\.go$/_test.go/')
-if [ -f "$TEST_FILE" ]; then
-  wc -l "$TEST_FILE"
-else
-  echo "No test file found"
-fi
-```
+Use `largest_file.test_file` from the prepared metrics. A non-null value records the
+paired test file's path and line count; `null` means no regular paired test file exists.
+Use Serena to inspect relevant test cases when assessing qualitative coverage.
 
 Calculate:
 - **Test-to-source ratio**: If test file exists, compute (test LOC / source LOC)
@@ -266,7 +310,7 @@ Add comprehensive tests for each new file:
 
 Your output MUST either:
 
-1. **If largest file < 800 lines**: Output a simple status message
+1. **If largest file < 800 lines**: Call `noop` with a status message such as:
    ```
    ✅ All files are healthy! Largest file: [FILE_PATH] ([LINE_COUNT] lines)
    No refactoring needed today.
@@ -296,4 +340,4 @@ Use Serena to:
 - Suggest logical module boundaries
 - Detect complexity hotspots
 
-Begin your analysis now. Find the largest Go source file, assess if it needs refactoring, and create an issue only if necessary.
+Begin your analysis now. Read the prepared metrics, assess whether the largest Go source file needs refactoring, and complete the task with `create_issue` or `noop`.
