@@ -124,6 +124,9 @@ func TestBuildAWFConfigJSON_ModelRoutingPolicyErrors(t *testing.T) {
 		{name: "claude family blocked", engine: "claude", blocked: []string{"claude-*"}},
 		{name: "codex family blocked", engine: "codex", blocked: []string{"github-copilot/gpt*"}},
 		{name: "codex family blocked by wildcard", engine: "codex", allowed: []string{"gpt-5.6-sol"}, blocked: []string{"*"}},
+		{name: "claude family blocked by copilot/ alias", engine: "claude", blocked: []string{"copilot/claude-*"}},
+		{name: "claude family blocked by github/ alias", engine: "claude", blocked: []string{"github/claude-*"}},
+		{name: "claude family blocked case-insensitively", engine: "claude", blocked: []string{"Claude-*"}},
 	} {
 		t.Run("default family "+tc.name, func(t *testing.T) {
 			data := routedPolicyWorkflowData(tc.engine, "", tc.allowed, tc.blocked, nil)

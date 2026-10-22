@@ -276,12 +276,7 @@ func modelRoutingDefaultCandidatesPolicyError(engineName string, allowed, blocke
 			continue
 		}
 		if !strings.ContainsAny(rule, "*?[\\") {
-			provider, model := splitModelPolicyRule(rule)
-			qualified := rule
-			if provider == "" {
-				qualified = "github-copilot/" + model
-			}
-			if matchesModelPolicy(model, qualified, blocked) {
+			if qualified, _ := copilotQualifiedModelPolicyRule(rule); modelPolicyRulesCover(blocked, qualified) {
 				continue
 			}
 		}
@@ -297,17 +292,13 @@ func splitModelPolicyRule(rule string) (string, string) {
 	return "", rule
 }
 
-func modelPolicyRuleProviderMatchesCopilot(provider string) bool {
-	if provider == "" {
-		return true
-	}
-	matched, _ := path.Match(provider, "github-copilot")
-	return matched
-}
-
 // modelPolicyRuleMayMatchFamily reports whether rule can match a model whose name starts with prefix.
 func modelPolicyRuleMayMatchFamily(rule, prefix string) bool {
-	_, model := splitModelPolicyRule(rule)
+	qualified, ok := copilotQualifiedModelPolicyRule(rule)
+	if !ok {
+		return false
+	}
+	_, model := splitModelPolicyRule(qualified)
 	model = strings.ToLower(model)
 	if i := strings.IndexAny(model, "*?[\\"); i >= 0 {
 		head := model[:i]
@@ -318,12 +309,7 @@ func modelPolicyRuleMayMatchFamily(rule, prefix string) bool {
 
 // modelPolicyRuleCoversFamily reports whether rule matches every model whose name starts with prefix.
 func modelPolicyRuleCoversFamily(rule, prefix string) bool {
-	provider, model := splitModelPolicyRule(rule)
-	if !modelPolicyRuleProviderMatchesCopilot(provider) {
-		return false
-	}
-	head, ok := strings.CutSuffix(model, "*")
-	return ok && !strings.ContainsAny(head, "*?[\\") && strings.HasPrefix(prefix, head)
+	return modelPolicyRulesCover([]string{rule}, "github-copilot/"+prefix+"*")
 }
 
 func modelRoutingProvider(engineName string, data *WorkflowData) LLMProvider {
