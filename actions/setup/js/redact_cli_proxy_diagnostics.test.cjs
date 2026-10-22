@@ -2,7 +2,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { MAX_DIAGNOSTIC_BYTES, readCliProxyDiagnostics, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
+const { MAX_DIAGNOSTIC_BYTES, PROXY_ENV_NAMES, readCliProxyDiagnostics, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 describe("CLI proxy console diagnostic sanitizer", () => {
   const root = path.join(__dirname, `.redact-cli-proxy-diagnostics-${process.pid}`);
@@ -67,9 +67,9 @@ describe("CLI proxy console diagnostic sanitizer", () => {
     expect(result.stdout).toContain("safe line");
   });
 
-  it("uses the shared proxy environment names for diagnostic redaction", () => {
-    const names = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
-    for (const name of names) {
+  it("redacts every supported proxy environment variable", () => {
+    expect(PROXY_ENV_NAMES).toEqual(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]);
+    for (const name of PROXY_ENV_NAMES) {
       const value = `synthetic-${name}`;
       expect(redactCliProxyDiagnostics(`proxy failure: ${value}`, { [name]: value })).not.toContain(value);
     }

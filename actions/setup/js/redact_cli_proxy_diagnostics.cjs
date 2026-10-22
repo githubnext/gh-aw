@@ -1,17 +1,10 @@
 // @ts-check
 const fs = require("node:fs");
-const path = require("node:path");
 const { redactArtifactContent } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
 const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
-/** @type {string[]} */
-let proxyEnvNames;
-try {
-  proxyEnvNames = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
-} catch (error) {
-  throw new Error("Unable to read shared proxy environment names", { cause: error });
-}
+const PROXY_ENV_NAMES = Object.freeze(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]);
 
 /**
  * @param {string} content
@@ -21,7 +14,7 @@ try {
 function redactCliProxyDiagnostics(content, env, credentialPatterns = []) {
   // Bash command substitution removes NUL bytes; normalize before matching.
   content = content.replaceAll("\0", "");
-  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...proxyEnvNames, ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
+  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...PROXY_ENV_NAMES, ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
   for (const name of (env.GH_AW_SECRET_NAMES || "")
     .split(",")
     .map(name => name.trim())
@@ -87,4 +80,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { MAX_DIAGNOSTIC_BYTES, readCliProxyDiagnostics, redactCliProxyDiagnostics };
+module.exports = { MAX_DIAGNOSTIC_BYTES, PROXY_ENV_NAMES, readCliProxyDiagnostics, redactCliProxyDiagnostics };

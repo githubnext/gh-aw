@@ -42,7 +42,7 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
 const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
-const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
+const { PROXY_ENV_NAMES: proxyEnvNames, redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -394,13 +394,6 @@ const gatewayCredentialRedactions = [
   { pattern: /((?:agent[_-]?id|api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
 ];
 const gatewayInternalProxyHosts = ["host.docker.internal", "awf-enclave-mcp"];
-/** @type {string[]} */
-let proxyEnvNames;
-try {
-  proxyEnvNames = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
-} catch (error) {
-  throw new Error("Unable to read shared proxy environment names", { cause: error });
-}
 
 /**
  * Redacts common credential formats from gateway diagnostics output.

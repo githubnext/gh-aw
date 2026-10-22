@@ -43,7 +43,6 @@ describe("CLI proxy diagnostic redaction", () => {
         .replace("for parent in /tmp", `for parent in "${systemTemp}"`)
     );
     fs.copyFileSync(path.join(__dirname, "../sh/proxy_env_lib.sh"), path.join(root, "proxy_env_lib.sh"));
-    fs.copyFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), path.join(root, "proxy_env_names.list"));
     if (!options.missingSanitizer) fs.symlinkSync(path.join(__dirname, "redact_cli_proxy_diagnostics.cjs"), path.join(root, "redact_cli_proxy_diagnostics.cjs"));
     executable(
       "docker",

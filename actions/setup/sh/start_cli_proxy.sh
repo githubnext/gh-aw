@@ -129,12 +129,11 @@ if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
 fi
 
 PROXY_ENV_ARGS=()
-# Keep this shared list in sync by reading actions/setup/sh/proxy_env_names.list.
-while IFS= read -r proxy_var; do
+for proxy_var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
   if [ "${!proxy_var+x}" = x ]; then
     PROXY_ENV_ARGS+=(-e "$proxy_var")
   fi
-done < "${SCRIPT_DIR}/proxy_env_names.list"
+done
 
 docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
