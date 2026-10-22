@@ -78,6 +78,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringsconcatloop"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
+	"github.com/github/gh-aw/pkg/linters/stringshasprefixslice"
 	"github.com/github/gh-aw/pkg/linters/stringsindexhasprefix"
 	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
@@ -121,7 +122,7 @@ type docAnalyzer struct {
 //	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, goroutineresourceleak, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, manualpathconcat, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, osisnotexist, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
 //	reflectdeepequalusage, regexpcompileinfunction, regexpdynamicpattern, seenmapbool, slicemakezerolength, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
-//	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
+//	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringshasprefixslice, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
 //	tolowerequalfold, trimleftright, typeassertionnil, typeassertionokdiscarded, unchecked_deferredclose, uncheckedflushreturn, uncheckedsliceindex, uncheckedtypeassertion, walkdirignoredeerror, walkfuncerrshadow, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
@@ -192,6 +193,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"stringsconcatloop", stringsconcatloop.Analyzer},
 		{"stringscountcontains", stringscountcontains.Analyzer},
 		{"stringsindexcontains", stringsindexcontains.Analyzer},
+		{"stringshasprefixslice", stringshasprefixslice.Analyzer},
 		{"stringsindexhasprefix", stringsindexhasprefix.Analyzer},
 		{"stringsjoinone", stringsjoinone.Analyzer},
 		{"timeafterleak", timeafterleak.Analyzer},

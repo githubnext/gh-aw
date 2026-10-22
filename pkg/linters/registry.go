@@ -70,6 +70,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringsconcatloop"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
+	"github.com/github/gh-aw/pkg/linters/stringshasprefixslice"
 	"github.com/github/gh-aw/pkg/linters/stringsindexhasprefix"
 	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
@@ -162,6 +163,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	stringreplaceminusone.Analyzer,
 	stringsconcatloop.Analyzer,
 	stringsindexcontains.Analyzer,
+	stringshasprefixslice.Analyzer,
 	stringsindexhasprefix.Analyzer,
 	stringsjoinone.Analyzer,
 	stringscountcontains.Analyzer,
