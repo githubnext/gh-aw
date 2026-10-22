@@ -258,7 +258,7 @@ export interface ModelResolutionData {
   resolved_model: string | null;
   provider: string | null;
   status: "resolved" | "exact" | "failed";
-  cause: "model_unavailable" | "catalog_unavailable" | null;
+  cause: "model_unavailable" | "catalog_unavailable" | "unsupported_endpoint" | null;
 }
 
 export interface UnifiedModelRoutingData {

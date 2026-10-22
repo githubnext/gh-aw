@@ -34,7 +34,7 @@ function isModelEndpointMismatchData(data) {
 }
 
 const MODEL_RESOLUTION_STATUSES = ["resolved", "exact", "failed"];
-const MODEL_RESOLUTION_CAUSES = ["model_unavailable", "catalog_unavailable"];
+const MODEL_RESOLUTION_CAUSES = ["model_unavailable", "catalog_unavailable", "unsupported_endpoint"];
 
 /**
  * Validate one entry of agent/model-resolution.json, written by the shared

@@ -39,9 +39,9 @@ Use same-run artifacts, not baselines.
 | `workflow_timeout` | Timed-out step, budget, terminal result. | Remove blocking work/narrow scope; justify timeout changes. |
 | `multiple_errors` | First distinct error versus cascades. | Fix first cause, not repeats. |
 | `mcp_server_failures`, `tools_not_available` | MCP startup, registration, failed calls. | Fix tool/server/config/auth; no blind permission expansion. |
-| `model_unavailable` | Complete same-run provider inventory excludes exact model. | [Model availability](#model-availability); verify candidate/API, edit pin, recompile. |
+| `model_unavailable`, `model_endpoint_unsupported` | Complete same-run inventory excludes exact model; endpoint-incompatible live model. | [Model availability](#model-availability); verify candidate/API, edit pin, recompile. |
 | `model_availability_unknown` | Missing/incomplete/malformed/ambiguous/contradictory reflection. | Inspect discovery/auth; do not declare removal/switch models without evidence. |
-| `model_resolution_failed` | Failed `model.resolution` lacking same-role startup-stop evidence. | Advisory: verify listed pins; not a proven failure cause. |
+| `model_resolution_failed` | Failed `model.resolution` lacking same-role startup-stop evidence. | Advisory: verify listed pins; unproven failure cause. |
 | `subagent_model_not_observed` | Spawn, child usage, evidence coverage. | Missing observations don't prove nonexecution. |
 | `subagent_model_unavailable` | Child model, request, provider policy/catalog. | Verify child separately; follow [model/engine guide](debug-model-engine-misconfiguration.md). |
 | `subagent_failed` | Child native error; parent dispatch. | Fix child cause; parent success doesn't prove child success. |

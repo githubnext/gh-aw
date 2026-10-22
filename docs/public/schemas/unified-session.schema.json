@@ -914,7 +914,7 @@
         "resolved_model": { "type": ["string", "null"] },
         "provider": { "type": ["string", "null"] },
         "status": { "type": "string", "enum": ["resolved", "exact", "failed"] },
-        "cause": { "type": ["string", "null"], "enum": ["model_unavailable", "catalog_unavailable", null] }
+        "cause": { "type": ["string", "null"], "enum": ["model_unavailable", "catalog_unavailable", "unsupported_endpoint", null] }
       },
       "required": ["engine", "role", "configured_model", "resolved_model", "provider", "status", "cause"],
       "additionalProperties": false
