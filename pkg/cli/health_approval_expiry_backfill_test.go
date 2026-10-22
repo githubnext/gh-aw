@@ -120,8 +120,13 @@ func TestHealthApprovalExpiryBackfillsExecutedFailureBeforeNewerSuccesses(t *tes
 
 func TestHealthApprovalExpiryBackfillPreservesRequestAndCandidateLimits(t *testing.T) {
 	stubHealthFailureCandidates(t)
-	original := healthRunGH
-	t.Cleanup(func() { healthRunGH = original })
+	original, originalRate := healthRunGH, fetchRateLimitForHostFunc
+	t.Cleanup(func() { healthRunGH, fetchRateLimitForHostFunc = original, originalRate })
+	rateChecks := 0
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		rateChecks++
+		return rateLimitResource{Remaining: 4000}, nil
+	}
 	path := ".github/workflows/example.lock.yml"
 	collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo",
 		APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000}, workflows: []GitHubWorkflow{{Path: path}}}
@@ -147,6 +152,7 @@ func TestHealthApprovalExpiryBackfillPreservesRequestAndCandidateLimits(t *testi
 	assert.Empty(t, runs)
 	assert.Equal(t, 1, listingRequests)
 	assert.Equal(t, healthMaximumApprovalRequests, collection.ApprovalRequests)
+	assert.Positive(t, rateChecks, "backfill must recheck quota without using live GitHub credentials")
 	assert.Equal(t, healthMinimumRuns, collection.FailureCandidates, "unverified overflow stays visible after annotation cap")
 	require.Len(t, collection.PotentialIssues, 1)
 	assert.Equal(t, healthMinimumRuns, collection.PotentialIssues[0].FailedRuns)
