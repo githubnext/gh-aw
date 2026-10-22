@@ -462,6 +462,22 @@ describe("messages.cjs", () => {
       expect(getFooterMessage({ workflowName: "Test Workflow", runUrl: "https://github.com/test/repo/actions/runs/123" })).toBe("1.55|~2|1.25|~2|0.25|~1|0.05|~1");
     });
 
+    it.each([
+      [0.33, 0.56, 0.11, "~1"],
+      [0.66, 1.12, 0.22, "~2"],
+      [0.33, 0.56, 0.110000000001, "~2"],
+    ])("should normalize only display noise in the total of %s + %s + %s", async (agent, detection, evals, formatted) => {
+      process.env.GH_AW_AGENT_AIC = String(agent);
+      process.env.GH_AW_THREAT_DETECTION_AIC = String(detection);
+      process.env.GH_AW_EVALS_AIC = String(evals);
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "{ai_credits}|{ai_credits_formatted}|{agent_ai_credits}|{threat_detection_ai_credits}|{evals_ai_credits}",
+      });
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      expect(getFooterMessage({ workflowName: "Test Workflow", runUrl: "https://github.com/test/repo/actions/runs/123" })).toBe(`${agent + detection + evals}|${formatted}|${agent}|${detection}|${evals}`);
+    });
+
     it("should include ambient context in the default footer when GH_AW_AMBIENT_CONTEXT is set", async () => {
       process.env.GH_AW_AMBIENT_CONTEXT = "900";
 

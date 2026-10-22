@@ -13,6 +13,7 @@ const { getMissingInfoSections, getCollectedMissings, generateMissingInfoReportS
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatCompactInteger } = require("./compact_numbers.cjs");
+const { formatEstimatedAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
@@ -111,14 +112,6 @@ function getAmbientContextFromEnv() {
     ambientContextFormatted,
     ambientContextSuffix: ambientContextFormatted ? ` · ⊞ ${ambientContextFormatted}` : "",
   };
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function formatEstimatedAIC(value) {
-  return `~${Math.ceil(value)}`;
 }
 
 /**
