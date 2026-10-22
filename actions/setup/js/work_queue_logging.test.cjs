@@ -319,6 +319,42 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("private-");
   });
 
+  it("extracts failure metadata once for classification and logging", () => {
+    const getOwnPropertyDescriptor = vi.fn(Reflect.getOwnPropertyDescriptor);
+    const headers = new Proxy({ "x-ratelimit-remaining": "0" }, { getOwnPropertyDescriptor });
+    createWorkQueueLogger("native").failure("run.read.failed", { status: 403, response: { headers } }, true);
+    expect(getOwnPropertyDescriptor.mock.calls.filter(([, key]) => key === "x-ratelimit-remaining")).toHaveLength(1);
+    expect(output()).toContain("rate_limit_remaining=0");
+    expect(output()).toContain("queue_control_github_rate_limited=true");
+  });
+
+  it.each(["Resource not accessible by integration", "Resource not accessible by personal access token"])("preserves explicit permission evidence with an exhausted quota: %s", message => {
+    const error = { status: 403, response: { headers: { "x-ratelimit-remaining": "0" }, data: { message } } };
+    expect(queueControlErrorCode(error)).toBe("queue_control_github_access_denied");
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    expect(output()).toContain("rate_limit_remaining=0");
+    expect(output()).toContain("resource_not_accessible=true");
+    expect(output()).toContain("queue_control_github_access_denied=true");
+    expect(output()).not.toContain("queue_control_github_rate_limited=true");
+    expect(output()).not.toContain(message);
+  });
+
+  it.each([{ headers: { "retry-after": "60" } }, { errors: [{ type: "RATE_LIMITED", message: "private-provider-message" }] }])(
+    "retains explicit throttling evidence alongside permission denial and an exhausted quota: %j",
+    ({ headers = {}, errors }) => {
+      const error = {
+        status: 403,
+        response: { headers: { "x-ratelimit-remaining": "0", ...headers }, data: { message: "Resource not accessible by integration" } },
+        errors,
+      };
+      expect(queueControlErrorCode(error)).toBe("queue_control_github_rate_limited");
+      createWorkQueueLogger("native").failure("run.read.failed", error, true);
+      expect(output()).toContain("resource_not_accessible=true");
+      expect(output()).toContain("queue_control_github_rate_limited=true");
+      expect(output()).not.toContain("private-");
+    }
+  );
+
   it("logs only validated quota counters, retry timing and fixed resource flags", () => {
     createWorkQueueLogger("native").failure(
       "run.read.failed",
@@ -382,8 +418,35 @@ describe("privacy-preserving work queue logging", () => {
     const error = { status: 403, response: { headers }, errors: [{ type: "private-type", message: "private-message" }, Object.defineProperty({}, "type", { get: getter })] };
     createWorkQueueLogger("native").failure("run.read.failed", error, true);
     createWorkQueueLogger("native").failure("run.read.failed", Object.defineProperty({}, "errors", { get: getter }), true);
+    createWorkQueueLogger("native").failure("run.read.failed", Object.defineProperty({}, "headers", { get: getter }), true);
+    createWorkQueueLogger("native").failure("run.read.failed", { headers }, true);
     expect(getter).not.toHaveBeenCalled();
     expect(output()).toContain("graphql_errors=2");
+    expect(output()).not.toContain("private");
+  });
+
+  it("logs validated quota metadata from GraphqlResponseError top-level headers without its response body", () => {
+    const errors = [{ type: "RATE_LIMITED", message: "private-message", path: ["private-alias"] }];
+    const error = {
+      name: "GraphqlResponseError",
+      headers: {
+        "x-ratelimit-limit": "5000",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-used": "5000",
+        "x-ratelimit-reset": "1792675926",
+        "retry-after": "60",
+        "x-ratelimit-resource": "graphql",
+        authorization: "private-token",
+        location: "https://private.example/?token=private-token",
+      },
+      errors,
+      response: { data: { "private-alias": null }, errors },
+    };
+    expect(queueControlErrorCode(error)).toBe("queue_control_github_rate_limited");
+    createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", error, true);
+    expect(output()).toContain("rate_limit_limit=5000 rate_limit_remaining=0 rate_limit_used=5000 rate_limit_reset_unix=1792675926 retry_after_seconds=60");
+    expect(output()).toContain("rate_limit_resource_graphql=true");
+    expect(output()).toContain("graphql_rate_limited=true");
     expect(output()).not.toContain("private");
   });
 

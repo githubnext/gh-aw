@@ -81,7 +81,7 @@ async function withGraphQLProjectionLocks({ githubClient, repositoryId, head, ke
   if (held.length !== locks.length)
     log.diagnostic(
       "projection.locks.acquire.pending",
-      { requested: locks.length, acknowledged: held.length, pending_targets: skipped.length },
+      { requested: locks.length, acknowledged: held.length, ...(scopes ? { pending_targets: skipped.length } : {}) },
       "Only exactly acknowledged locks authorize projection; existing locks or an uncertain acquisition remain pending."
     );
   let retain = [];

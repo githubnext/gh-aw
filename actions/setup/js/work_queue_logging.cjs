@@ -119,7 +119,7 @@ function headerInteger(headers, name) {
 /** @param {unknown} error */
 function githubFailureMetadata(error) {
   const response = ownValue(error, "response");
-  const headers = ownValue(response, "headers");
+  const headers = ownValue(response, "headers") ?? ownValue(error, "headers");
   /** @type {Record<string, number | boolean>} */
   const fields = {};
   for (const [header, field] of [
@@ -160,8 +160,8 @@ function githubFailureMetadata(error) {
   return fields;
 }
 
-/** @param {unknown} error */
-function queueControlErrorCode(error) {
+/** @param {unknown} error @param {Record<string, number | boolean>} [metadata] */
+function queueControlErrorCode(error, metadata) {
   for (const key of ["code", "message"]) {
     const code = ownValue(error, key);
     if (typeof code === "string" && CONTROL_ERROR_CODES.has(code)) return code;
@@ -169,8 +169,11 @@ function queueControlErrorCode(error) {
   const response = ownValue(error, "response");
   const status = ownValue(error, "status") ?? ownValue(response, "status");
   if (status === 401) return "queue_control_github_authentication_failed";
-  const metadata = githubFailureMetadata(error);
-  if ((status === 403 && (metadata.rate_limit_remaining === 0 || metadata.retry_after_seconds !== undefined || metadata.rate_limit_message || metadata.secondary_rate_limit)) || metadata.graphql_rate_limited)
+  metadata ??= githubFailureMetadata(error);
+  if (
+    (status === 403 && ((metadata.rate_limit_remaining === 0 && !metadata.resource_not_accessible) || metadata.retry_after_seconds !== undefined || metadata.rate_limit_message || metadata.secondary_rate_limit)) ||
+    metadata.graphql_rate_limited
+  )
     return "queue_control_github_rate_limited";
   if (status === 403) return "queue_control_github_access_denied";
   if (status === 404) return "queue_control_github_not_found";
@@ -225,7 +228,8 @@ function createWorkQueueLogger(component) {
     const status = ownValue(error, "status") ?? ownValue(response, "status");
     const message = ownValue(ownValue(response, "data"), "message");
     const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
-    const code = queueControlErrorCode(error);
+    const metadata = githubFailureMetadata(error);
+    const code = queueControlErrorCode(error, metadata);
     const requestId = ownValue(ownValue(response, "headers"), "x-github-request-id");
     const validRequestId = typeof requestId === "string" && !/\s/.test(requestId) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(requestId);
     const requestDiagnostic = Number.isInteger(status) && status >= 100 && status <= 599 ? ` GitHub request ID: ${validRequestId ? requestId : "unknown"}.` : "";
@@ -234,7 +238,7 @@ function createWorkQueueLogger(component) {
       {
         failed: true,
         ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}),
-        ...githubFailureMetadata(error),
+        ...metadata,
         ...(status === 422
           ? {
               ref_not_found: boundedMessage.startsWith("No ref found for:"),
