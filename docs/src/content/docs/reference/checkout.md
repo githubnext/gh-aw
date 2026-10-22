@@ -174,7 +174,7 @@ checkout: false
 
 This is equivalent to omitting the checkout step from the agent job. Custom dev-mode steps (such as "Checkout actions folder") are unaffected.
 
-## Disabling the PR Branch Checkout
+## PR Head Checkout and Branch Deletion
 
 PR head checkout fetches the repository's retained `refs/pull/<number>/head`
 ref, including for same-repository PRs. A queued review can therefore check out
@@ -196,6 +196,8 @@ workflows and staged previews are preserved. Configured safe-output tokens need
 read access to the triggering PR; a failed state lookup is an error, not proof of
 closure. PR-branch pushes also refuse to recreate deleted target branches.
 These checks cannot make a PR-state lookup and a later GitHub write atomic.
+
+## Disabling the PR Branch Checkout
 
 To keep the normal repository checkout but suppress the compiler-generated "Checkout PR branch" step and its associated base-config snapshot/restore steps, set `pull-request: false` under `checkout`:
 

@@ -482,7 +482,7 @@ async function main() {
       await fetchPRHead([`+refs/pull/${pullRequest.number}/head:${PR_HEAD_BASE_REF}`, ...fetchArgs]);
 
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
+      await exec.exec("git", ["checkout", "-B", branchName, PR_HEAD_BASE_REF]);
 
       await exportPRHeadBaseline({
         branchName,
@@ -531,7 +531,7 @@ async function main() {
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
-      await exec.exec("git", ["checkout", "-B", branchName, "origin/pr-head"]);
+      await exec.exec("git", ["checkout", "-B", branchName, PR_HEAD_BASE_REF]);
 
       await exportPRHeadBaseline({
         branchName,
