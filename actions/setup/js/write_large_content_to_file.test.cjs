@@ -262,4 +262,11 @@ describe("writeLargeContentToFile", () => {
       fs.writeFileSync = origWriteFileSync;
     }
   });
+
+  it("should return a bare sha256 filename written under the safeoutputs directory", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+    const result = writeLargeContentToFile('{"k":1}');
+    expect(result.filename).toMatch(/^[0-9a-f]{64}\.json$/);
+    expect(fs.existsSync(`/tmp/gh-aw/safeoutputs/${result.filename}`)).toBe(true);
+  });
 });

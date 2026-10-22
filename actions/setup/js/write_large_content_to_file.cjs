@@ -13,12 +13,12 @@ const { getErrorMessage } = require("./error_helpers.cjs");
  * @returns {{ filename: string, description: string }} Object with filename and description
  */
 function writeLargeContentToFile(content) {
-  const logsDir = "/tmp/gh-aw/safeoutputs";
+  const outputDir = "/tmp/gh-aw/safeoutputs";
 
   try {
-    fs.mkdirSync(logsDir, { recursive: true });
+    fs.mkdirSync(outputDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${logsDir}: ${getErrorMessage(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${outputDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Generate SHA256 hash of content
@@ -26,7 +26,7 @@ function writeLargeContentToFile(content) {
 
   // MCP tools return JSON, so always use .json extension
   const filename = `${hash}.json`;
-  const filepath = path.join(logsDir, filename);
+  const filepath = path.join(outputDir, filename);
 
   try {
     fs.writeFileSync(filepath, content, "utf8");
