@@ -1,0 +1,95 @@
+{
+  "model": "copilot-responses/gpt-5.6-luna",
+  "providers": [
+    {
+      "name": "copilot-responses",
+      "type": "openai",
+      "baseUrl": "http://api-proxy:10002",
+      "wireApi": "responses"
+    },
+    {
+      "name": "copilot-completions",
+      "type": "openai",
+      "baseUrl": "http://api-proxy:10002",
+      "wireApi": "completions"
+    }
+  ],
+  "models": [
+    {
+      "id": "claude-haiku-4.5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "claude-haiku-5.5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "claude-opus-5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "claude-opus-5.5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "claude-sonnet-5.5",
+      "provider": "copilot-completions"
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-5.6-luna-utility",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-6-astra",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-6-luna",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-6-sol",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "grok-4.6",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "grok-4.7",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "mai-code-1.1-flash",
+      "provider": "copilot-responses"
+    },
+    {
+      "id": "trajectory-compaction",
+      "provider": "copilot-completions"
+    }
+  ]
+}

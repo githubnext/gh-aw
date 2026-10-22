@@ -267,8 +267,12 @@ func CompactCheckpoint(commits []QueueCommit, priorGitSHA string, actor Actor, a
 // final-timestamp derivation. Legacy writers could not admit deadline-bearing
 // Work, so that compatibility path must never authorize expiration history.
 func reconstructCheckpoint(commits []QueueCommit, priorGitSHA string, actor Actor, at int64, expectedStateSHA string) ([]QueueCommit, error) {
+	return reconstructCheckpointForHost(commits, priorGitSHA, actor, at, expectedStateSHA, "")
+}
+
+func reconstructCheckpointForHost(commits []QueueCommit, priorGitSHA string, actor Actor, at int64, expectedStateSHA, host string) ([]QueueCommit, error) {
 	for _, legacy := range []bool{false, true} {
-		checkpoint, err := compactCheckpoint(commits, priorGitSHA, actor, at, legacy)
+		checkpoint, err := compactCheckpointForHost(commits, priorGitSHA, actor, at, legacy, host)
 		if err != nil {
 			continue
 		}
@@ -281,10 +285,14 @@ func reconstructCheckpoint(commits []QueueCommit, priorGitSHA string, actor Acto
 }
 
 func compactCheckpoint(commits []QueueCommit, priorGitSHA string, actor Actor, at int64, legacy bool) ([]QueueCommit, error) {
+	return compactCheckpointForHost(commits, priorGitSHA, actor, at, legacy, "")
+}
+
+func compactCheckpointForHost(commits []QueueCommit, priorGitSHA string, actor Actor, at int64, legacy bool, host string) ([]QueueCommit, error) {
 	if !revisionPattern.MatchString(priorGitSHA) || actor.Role != "administrator" {
 		return nil, queueError("checkpoint_invalid", "checkpoint requires an administrator and a prior Git commit SHA")
 	}
-	state, err := Replay(commits)
+	state, err := ReplayForHost(commits, host)
 	if err != nil {
 		return nil, err
 	}
@@ -342,13 +350,17 @@ func compactCheckpoint(commits []QueueCommit, priorGitSHA string, actor Actor, a
 		Request: request, Actor: actor, PolicyEpoch: state.PolicyEpoch, At: at,
 		Operations: []Operation{op},
 	}
-	if _, err := Replay([]QueueCommit{checkpoint}); err != nil {
+	if _, err := ReplayForHost([]QueueCommit{checkpoint}, host); err != nil {
 		return nil, err
 	}
 	return []QueueCommit{checkpoint}, nil
 }
 
 func restoreCheckpoint(commit QueueCommit) (Projection, error) {
+	return restoreCheckpointForHost(commit, "")
+}
+
+func restoreCheckpointForHost(commit QueueCommit, host string) (Projection, error) {
 	invalid := func() (Projection, error) {
 		return Projection{}, queueError("checkpoint_invalid", "checkpoint state does not bind a valid prior projection")
 	}
@@ -371,10 +383,11 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 		commit.At < snapshot.LastAt {
 		return invalid()
 	}
-	if err := ValidatePolicy(*snapshot.Policy); err != nil {
+	if err := validatePolicyForHost(*snapshot.Policy, host); err != nil {
 		return invalid()
 	}
 	state := snapshot.Projection
+	state.resourceHost = host
 	state.timeWatermark = snapshot.LastAt
 	if err := validateDeploymentCheckpoint(state, snapshot.Requests); err != nil {
 		return invalid()

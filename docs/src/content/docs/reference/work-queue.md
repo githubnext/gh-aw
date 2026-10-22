@@ -599,7 +599,10 @@ evidence variant; historical records and terminal-run recovery remain valid.
 Audit exports for each Claim contain executed operations, temporary-ID
 references, and structured errors. They do not contain raw handler output and
 are not proof of Result. Exports use private directories and files, redact
-secrets from decoded fields, and default to one-day retention. Final uploads
+secrets from decoded fields, and default to one-day retention. Failed worker
+jobs retain `safe-outputs-items` for seven days so delivery diagnostics remain
+available for investigation. The repository artifact-retention policy or
+`GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` overrides these defaults. Final uploads
 fail closed: if redaction fails, the upload does not proceed. Protected
 in-memory verification evidence remains separate, and the unused on-disk
 delivery receipt is removed.

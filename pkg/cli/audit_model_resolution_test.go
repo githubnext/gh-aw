@@ -243,6 +243,30 @@ func TestAuditModelAvailabilityPreservesOtherResolutionCauses(t *testing.T) {
 	assert.NotContains(t, findings[0].Description, "recorded cause model_unavailable")
 }
 
+func TestAuditModelAvailabilityClassifiesUnsupportedEndpoint(t *testing.T) {
+	// Derived from run 39499464895: the recorded mini-whoami failure with its cause changed
+	// to unsupported_endpoint, the cause Codex sub-agents record for a live model without
+	// /responses.
+	session := readModelResolutionReplayFile(t, "39499464895", "aw_session.jsonl")
+	require.Contains(t, session, `"status":"failed","cause":"model_unavailable"`)
+	session = strings.Replace(session, `"status":"failed","cause":"model_unavailable"`, `"status":"failed","cause":"unsupported_endpoint"`, 1)
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499464895", map[string]string{"usage/aw_session.jsonl": session})
+
+	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
+	require.Len(t, findings, 1)
+	assert.Equal(t, AuditFindingModelEndpointUnsupported, findings[0].Code)
+	assert.Equal(t, "Model Endpoint Unsupported", findings[0].Title)
+	assert.Contains(t, findings[0].Description, "recorded cause unsupported_endpoint")
+	assert.Contains(t, findings[0].Description, "the model is live, but the engine cannot call its endpoint; choose a compatible model")
+	assert.NotContains(t, findings[0].Description, "model absence cannot be confirmed")
+	assert.Contains(t, findings[0].Impact, "Choose a model that supports the engine's endpoint")
+
+	recommendations := appendModelAvailabilityRecommendations(nil, findings)
+	require.Len(t, recommendations, 1)
+	assert.Contains(t, recommendations[0].Action, "Choose a model that supports the endpoint the engine calls")
+	assert.NotContains(t, recommendations[0].Action, "Inspect same-run model discovery")
+}
+
 func TestAuditModelAvailabilityLegacyFallbackRequiresNoFailedResolution(t *testing.T) {
 	// A session whose only resolution record succeeded leaves the Pi log as the evidence.
 	session := `{"type":"session.format","data":{"version":1},"provenance":{"component":"collector","phase":"conclusion","path":"usage/aw_session.jsonl","index":0}}

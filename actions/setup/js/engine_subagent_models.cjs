@@ -15,9 +15,9 @@
  * gets the concrete id; repository agents are resolved and recorded, but their files are
  * never changed — a warning says when the resolved id is not applied.
  *
- * Codex: the staged Markdown agents are not loaded by Codex (it discovers custom agents only
- * from TOML role files), so their models are resolved and recorded for observability and a
- * warning says they are not applied; only a reserved name fails closed.
+ * Codex: workflow-declared inline agents fail closed; each staged Markdown agent becomes a
+ * native TOML role file in `$CODEX_HOME/agents` carrying the resolved concrete id, because
+ * Codex discovers custom agents only from TOML role files.
  *
  * The sub-agent name `main` is reserved for both engines: it is the role of the main model's
  * `model.resolution` record, which a sub-agent record with the same role would replace. A
@@ -33,7 +33,7 @@ const { isModelAvailableInReflectData } = require("./awf_model_routing.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_agent_errors.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
-const { loadModelAliasMap, ModelAliasResolutionError, recordModelResolution, resolveEngineModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
+const { loadModelAliasMap, ModelAliasResolutionError, recordModelResolution, resolveConfiguredModel, resolveEngineModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 
 /** The `model.resolution` role of the engine's main model; no sub-agent may use it. */
 const RESERVED_SUBAGENT_NAME = "main";
@@ -98,14 +98,16 @@ function parseAgentFrontmatter(content) {
 /**
  * Read the Markdown agent files (`*.md`) in one directory.
  * `name` is the trimmed frontmatter `name` string, or null when absent;
- * `model` is the trimmed frontmatter `model` string, when declared.
+ * `model` is the trimmed frontmatter `model` string, when declared; a declared model that is
+ * not a string (for example `model: [small]` or `model: false`) is reported as
+ * `invalidModel`, its JSON form, so callers can fail instead of inheriting the main model.
  * A directory or file that cannot be read or parsed is skipped with a warning, unless
  * `onInvalid` is given: it then receives the path and error instead, so the caller can
  * fail closed.
  * @param {string} directory
  * @param {(msg: string) => void} logger
  * @param {{ onInvalid?: (filePath: string, error: unknown) => void }} [options]
- * @returns {Array<{ fileName: string, path: string, name: string | null, model?: string }>}
+ * @returns {Array<{ fileName: string, path: string, name: string | null, model?: string, invalidModel?: string }>}
  */
 function listMarkdownAgentFiles(directory, logger, options = {}) {
   const invalid = options.onInvalid || ((/** @type {string} */ filePath, /** @type {unknown} */ error) => logger(`warning: cannot read custom agent ${filePath}: ${getErrorMessage(error)}`));
@@ -123,7 +125,9 @@ function listMarkdownAgentFiles(directory, logger, options = {}) {
     try {
       const frontmatter = parseAgentFrontmatter(fs.readFileSync(agentPath, "utf8"));
       const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : null;
-      agents.push({ fileName: entry.name, path: agentPath, name, ...(typeof frontmatter.model === "string" ? { model: frontmatter.model.trim() } : {}) });
+      const model = frontmatter.model;
+      const declared = typeof model === "string" ? { model: model.trim() } : model !== undefined && model !== null ? { invalidModel: JSON.stringify(model) } : {};
+      agents.push({ fileName: entry.name, path: agentPath, name, ...declared });
     } catch (error) {
       invalid(agentPath, error);
     }
@@ -173,29 +177,112 @@ function classifyUnlistedModel(reflectData, providers) {
 }
 
 /**
+ * The per-model endpoint metadata (`routing_models`) published by the configured `/reflect`
+ * endpoints of the engine's providers, or null when none of them publishes it.
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @returns {any[] | null}
+ */
+function routingModelsFor(reflectData, providers) {
+  const endpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(
+    endpoint => endpoint?.configured === true && providers.has(normalizeReflectProviderName(endpoint.provider)) && Array.isArray(endpoint.routing_models)
+  );
+  return endpoints.length > 0 ? endpoints.flatMap(endpoint => endpoint.routing_models) : null;
+}
+
+/**
+ * What the `routing_models` entries of one model say about `wireApi`: "supported" when an
+ * entry lists it, "unsupported" when every entry has complete metadata
+ * (`candidate_metadata_complete: true`) without it, otherwise "unknown" (no entry, or
+ * incomplete metadata, as `copilot_wire_api.cjs` and `awf_model_routing.cjs` treat it).
+ * @param {string} model
+ * @param {any[]} routingModels
+ * @param {string} wireApi
+ * @returns {"supported" | "unsupported" | "unknown"}
+ */
+function endpointSupportIn(model, routingModels, wireApi) {
+  const id = String(model || "").toLowerCase();
+  const entries = routingModels.filter(candidate => typeof candidate?.model_id === "string" && candidate.model_id.toLowerCase() === id);
+  if (entries.some(entry => Array.isArray(entry.supported_endpoints) && entry.supported_endpoints.includes(wireApi))) return "supported";
+  const complete =
+    entries.length > 0 && entries.every(entry => entry.candidate_metadata_complete === true && Array.isArray(entry.supported_endpoints) && entry.supported_endpoints.every(/** @param {unknown} value */ value => typeof value === "string"));
+  return complete ? "unsupported" : "unknown";
+}
+
+/**
+ * Whether `/reflect` shows that `model` supports `wireApi` on the engine's providers (see
+ * `endpointSupportIn`). Null when those providers publish no per-model endpoint metadata.
+ * @param {string} model
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @param {string} wireApi
+ * @returns {"supported" | "unsupported" | "unknown" | null}
+ */
+function modelEndpointSupport(model, reflectData, providers, wireApi) {
+  const routingModels = routingModelsFor(reflectData, providers);
+  return routingModels ? endpointSupportIn(model, routingModels, wireApi) : null;
+}
+
+/**
+ * A copy of `/reflect` data whose model lists, on the engine's providers that publish
+ * per-model endpoint metadata, drop the models confirmed not to support `wireApi`, so
+ * aliases resolve among models the engine can call. Models whose endpoints cannot be
+ * verified stay candidates.
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @param {string} wireApi
+ * @returns {any}
+ */
+function restrictReflectToEndpoint(reflectData, providers, wireApi) {
+  if (!reflectData || !Array.isArray(reflectData.endpoints)) return reflectData;
+  return {
+    ...reflectData,
+    endpoints: reflectData.endpoints.map(endpoint => {
+      if (endpoint?.configured !== true || !providers.has(normalizeReflectProviderName(endpoint.provider)) || !Array.isArray(endpoint.routing_models) || !Array.isArray(endpoint.models)) return endpoint;
+      return { ...endpoint, models: endpoint.models.filter(/** @param {any} model */ model => endpointSupportIn(String(model), endpoint.routing_models, wireApi) !== "unsupported") };
+    }),
+  };
+}
+
+/**
  * Resolve the models of Claude or Codex sub-agents in one batch. Agents without a model or
  * with `inherit` are skipped without a record. A `<provider>/` prefix must name the engine's
  * provider; another credential route is never opened. The returned `model` is the bare,
- * engine-normalized id; model parameters are not carried into agent definitions.
+ * engine-normalized id; the effective model parameters (the caller's over an alias's, for
+ * example `?effort=low`) are returned as `params` when there are any. A declared model that
+ * is not a string (`invalidModel`) fails with cause `model_unavailable`.
  *
  * Failures are recorded as `failed` and returned, never thrown. `fatal` agents log the shared
  * ModelAliasResolutionError diagnostic; other agents get a warning without it, so a failure
  * that does not stop the run is not classified as an unsupported-model run failure.
  *
+ * With `wireApi`, the engine calls sub-agent models only through that endpoint (Codex:
+ * `/responses`). Where the provider's `/reflect` endpoint publishes per-model
+ * `supported_endpoints`, a configured value that is a live exact id is checked against the
+ * unfiltered catalogue first, so it is never resolved through an alias of the same name;
+ * aliases resolve among models not confirmed to lack `wireApi`. A selected model whose
+ * complete metadata omits `wireApi` fails with cause `unsupported_endpoint`, also when an
+ * alias would resolve only to such models; a selected model whose endpoints cannot be
+ * verified (no routing entry or incomplete metadata, also after one refresh) fails with cause
+ * `catalog_unavailable`. Providers without per-model endpoint metadata are not filtered.
+ *
  * @param {{
  *   engine: "claude" | "codex",
- *   agents: Array<{ name: string, model?: string, path?: string, fatal: boolean, origin: string }>,
+ *   agents: Array<{ name: string, model?: string, invalidModel?: string, path?: string, fatal: boolean, origin: string }>,
  *   provider: string,
  *   normalize: (model: string) => string,
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   aliasMap?: Record<string, string[]> | null,
+ *   wireApi?: string,
+ *   appliedParams?: string[],
  *   nonFatalOutcome: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger: (msg: string) => void,
- * }} options `nonFatalOutcome` says what happens to a non-fatal agent whose model fails.
+ * }} options `nonFatalOutcome` says what happens to a non-fatal agent whose model fails;
+ *   `appliedParams` names the model parameters the engine applies to the agent definition.
  * @returns {Promise<{
- *   resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>,
+ *   resolutions: Array<{ name: string, configuredModel: string, model: string, status: string, params?: Record<string, string> }>,
  *   failures: Array<{ name: string, configuredModel: string, fatal: boolean, failure: InstanceType<typeof ModelAliasResolutionError> }>,
  * }>}
  */
@@ -203,7 +290,7 @@ async function resolveEngineSubagentModels(options) {
   const { engine, logger } = options;
   const env = options.env || process.env;
   const providers = reflectProvidersFor(options.provider);
-  const withModel = options.agents.filter(agent => typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherit");
+  const withModel = options.agents.filter(agent => agent.invalidModel !== undefined || (typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherit"));
   /** @type {Awaited<ReturnType<typeof resolveEngineSubagentModels>>} */
   const outcome = { resolutions: [], failures: [] };
   if (withModel.length === 0) return outcome;
@@ -229,6 +316,16 @@ async function resolveEngineSubagentModels(options) {
     return refresh;
   };
   const liveCheck = env.AWF_REFLECT_ENABLED === "1" || Boolean(options.reflectData);
+  const wireApi = options.wireApi || "";
+  const appliedParams = new Set(options.appliedParams || []);
+  // The engine id an alias resolves to without the endpoint constraint, or null; never recorded.
+  const resolveUnconstrained = (/** @type {string} */ configuredModel, /** @type {any} */ data, /** @type {(resolution: { resolvedModel: string }) => string} */ engineId) => {
+    try {
+      return engineId(resolveConfiguredModel({ configuredModel, aliasMap, reflectData: data, provider: options.provider }));
+    } catch {
+      return null;
+    }
+  };
   const stripProvider = (/** @type {string} */ model) => {
     const { base } = splitModelIdentifier(model);
     const slash = base.indexOf("/");
@@ -236,7 +333,7 @@ async function resolveEngineSubagentModels(options) {
   };
 
   for (const agent of withModel) {
-    const configuredModel = String(agent.model).trim();
+    const configuredModel = agent.invalidModel !== undefined ? agent.invalidModel : String(agent.model).trim();
     const agentLogger = agent.fatal ? logger : (/** @type {string} */ message) => (MODEL_NOT_SUPPORTED_PATTERN.test(message) ? undefined : logger(message));
     const fail = (/** @type {InstanceType<typeof ModelAliasResolutionError>} */ failure, /** @type {string} */ detail) => {
       recordModelResolution({ engine, role: agent.name, configured_model: configuredModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason }, env);
@@ -248,11 +345,45 @@ async function resolveEngineSubagentModels(options) {
       }
     };
 
+    if (agent.invalidModel !== undefined) {
+      fail(new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: options.provider }), `Sub-agent model ${configuredModel} is not a string; declare a model id or alias, or omit 'model' to inherit the main model.`);
+      continue;
+    }
+
     const { base } = splitModelIdentifier(configuredModel);
     const slash = base.indexOf("/");
     const prefix = slash > 0 ? base.slice(0, slash) : "";
     if (prefix && ![...reflectProvidersFor(prefix)].some(name => providers.has(name))) {
       fail(new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: prefix }), `Sub-agent model '${configuredModel}' names provider '${prefix}', but ${engine} is provisioned for '${options.provider}'.`);
+      continue;
+    }
+
+    const engineId = (/** @type {{ resolvedModel: string }} */ resolution) => stripProvider(options.normalize(resolution.resolvedModel));
+    // A live exact id (checked against the unfiltered catalogue) is never filtered, so it is
+    // not resolved through an alias of the same name; only alias lookups are restricted.
+    const isLiveExact = (/** @type {any} */ data) => {
+      try {
+        return resolveConfiguredModel({ configuredModel, aliasMap, reflectData: data, provider: options.provider }).status === "exact";
+      } catch {
+        return false;
+      }
+    };
+    const constrain = (/** @type {any} */ data) => (wireApi && !isLiveExact(data) ? restrictReflectToEndpoint(data, providers, wireApi) : data);
+    const failEndpoint = (/** @type {string} */ model) =>
+      fail(
+        new ModelAliasResolutionError(configuredModel, "unsupported_endpoint", { provider: options.provider }),
+        `Sub-agent model '${configuredModel}'${model !== configuredModel ? ` (resolved to '${model}')` : ""} does not list ${wireApi} in its supported_endpoints on the configured awf-reflect endpoints, and ${engine === "claude" ? "Claude" : "Codex"} sub-agents call models only through ${wireApi}.`
+      );
+    // The model an alias resolves to only without the endpoint constraint, when that model
+    // lacks the endpoint: the alias then fails with unsupported_endpoint, not model_unavailable.
+    const endpointOnlyMatch = () => {
+      if (!wireApi || resolveUnconstrained(configuredModel, constrain(reflectData), engineId)) return null;
+      const unconstrained = resolveUnconstrained(configuredModel, reflectData, engineId);
+      return unconstrained && modelEndpointSupport(unconstrained, reflectData, providers, wireApi) === "unsupported" ? unconstrained : null;
+    };
+    const blocked = endpointOnlyMatch();
+    if (blocked) {
+      failEndpoint(blocked);
       continue;
     }
 
@@ -263,16 +394,22 @@ async function resolveEngineSubagentModels(options) {
         role: agent.name,
         configuredModel,
         aliasMap,
-        reflectData,
+        reflectData: constrain(reflectData),
         provider: options.provider,
-        refetchReflectData: refreshOnce,
+        refetchReflectData: async () => constrain(await refreshOnce()),
         logPrefix: `${engine} sub-agent '${agent.name}' model alias resolution`,
-        normalize: resolution => stripProvider(options.normalize(resolution.resolvedModel)),
+        normalize: engineId,
         env,
         logger: agentLogger,
       });
     } catch (error) {
       if (error instanceof ModelAliasResolutionError) {
+        // The refreshed catalogue may show that the alias matches only models without the endpoint.
+        const refreshedBlocked = endpointOnlyMatch();
+        if (refreshedBlocked) {
+          failEndpoint(refreshedBlocked);
+          continue;
+        }
         fail(error, "");
         continue;
       }
@@ -292,10 +429,26 @@ async function resolveEngineSubagentModels(options) {
         continue;
       }
     }
-    const { params } = splitModelIdentifier(configuredModel);
-    if ([...params.keys()].length > 0) logger(`${engine} sub-agent '${agent.name}': model parameters in '${configuredModel}' are not applied to the agent definition`);
+    if (wireApi) {
+      let support = modelEndpointSupport(model, reflectData, providers, wireApi);
+      if (support === "unknown" && (await refreshOnce())) support = modelEndpointSupport(model, reflectData, providers, wireApi);
+      if (support === "unsupported") {
+        failEndpoint(model);
+        continue;
+      }
+      if (support === "unknown") {
+        fail(
+          new ModelAliasResolutionError(configuredModel, "catalog_unavailable", { provider: result.provider || options.provider }),
+          `Sub-agent model '${configuredModel}'${resolvedNote} has no complete endpoint metadata on the configured awf-reflect endpoints, so it cannot be verified that it supports ${wireApi}, the only endpoint ${engine === "claude" ? "Claude" : "Codex"} sub-agents call.`
+        );
+        continue;
+      }
+    }
+    const params = Object.fromEntries(splitModelIdentifier(result.resolvedModel).params);
+    const unapplied = Object.keys(params).filter(key => !appliedParams.has(key));
+    if (unapplied.length > 0) logger(`${engine} sub-agent '${agent.name}': model parameters (${unapplied.join(", ")}) in '${result.resolvedModel}' are not applied to the agent definition`);
     logger(`${engine} sub-agent '${agent.name}': model '${configuredModel}' -> '${model}'`);
-    outcome.resolutions.push({ name: agent.name, configuredModel, model, status: result.status });
+    outcome.resolutions.push({ name: agent.name, configuredModel, model, status: result.status, ...(Object.keys(params).length > 0 ? { params } : {}) });
   }
   return outcome;
 }
@@ -383,8 +536,8 @@ async function applyClaudeSubagentModels(options) {
   const { resolutions, failures } = await resolveEngineSubagentModels({
     engine: "claude",
     agents: [
-      ...declared.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
-      ...repository.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: false, origin: "repository agent" })),
+      ...declared.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
+      ...repository.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: false, origin: "repository agent" })),
     ],
     provider: options.provider,
     normalize: model => normalizeClaudeModel(model, options.provider, env, { reflectData: options.reflectData, logger }),
@@ -473,17 +626,173 @@ function writePluginAgents(pluginDir, stagedDir, resolvedDefinitions, logger) {
 }
 
 /**
- * Codex: declare and warn only. Codex discovers custom agents only from TOML role files
- * (verified for Codex 0.163.0), so the workflow-declared Markdown agents staged in
- * `<agentsBaseDir>/.codex/agents` are not loaded and their models are not applied. Their
- * models are still resolved and recorded so audits see the declarations; a model failure is
- * a warning and never stops Codex. An agent named `main` makes `ok` false, because its
- * record would replace the main model's record; Codex must then not start.
+ * Split a TOML dotted key (bare or quoted parts) into its parts, or null when it is not one.
+ * @param {string} key
+ * @returns {string[] | null}
+ */
+function splitTomlDottedKey(key) {
+  /** @type {string[]} */
+  const parts = [];
+  const pattern = /\s*("(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_-]+)\s*(\.|$)/y;
+  let match;
+  while (pattern.lastIndex < key.length && (match = pattern.exec(key))) {
+    const part = match[1];
+    parts.push(part.startsWith('"') ? JSON.parse(part) : part.startsWith("'") ? part.slice(1, -1) : part);
+    if (!match[2]) return pattern.lastIndex === key.length ? parts : null;
+  }
+  return null;
+}
+
+/**
+ * The role names of explicit `[agents.<name>]` entries in a Codex `config.toml`. Table
+ * headers, dotted keys and inline tables are recognized; multi-line strings are skipped.
+ * @param {string} content
+ * @returns {string[]}
+ */
+function tomlAgentRoleNames(content) {
+  /** @type {Set<string>} */
+  const names = new Set();
+  /** @type {string[]} */
+  let table = [];
+  /** @type {string | null} */
+  let multiline = null;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (multiline) {
+      if (line.split(multiline).length % 2 === 0) multiline = null;
+      continue;
+    }
+    const header = /^\[\[?([^\]]+)\]\]?\s*(?:#.*)?$/.exec(line);
+    if (header) {
+      table = splitTomlDottedKey(header[1]) || [];
+      if (table[0] === "agents" && table.length >= 2) names.add(table[1]);
+      continue;
+    }
+    const assignment = /^((?:"(?:[^"\\]|\\.)*"|'[^']*'|[A-Za-z0-9_.\s-])+?)\s*=\s*(.*)$/.exec(line);
+    if (!assignment) continue;
+    const key = [...table, ...(splitTomlDottedKey(assignment[1]) || [])];
+    if (key[0] === "agents" && (key.length >= 3 || (key.length === 2 && assignment[2].startsWith("{")))) names.add(key[1]);
+    const delimiter = ['"""', "'''"].find(candidate => assignment[2].startsWith(candidate));
+    if (delimiter && assignment[2].split(delimiter).length % 2 === 0) multiline = delimiter;
+  }
+  return [...names];
+}
+
+/**
+ * The explicit `[agents.<name>]` roles Codex loads from its configuration: the compiled
+ * `engine.config` (`GH_AW_CODEX_CONFIG_JSON` or the `GH_AW_CODEX_CONFIG` file) and
+ * `$CODEX_HOME/config.toml`, mapped to where each is defined. Scalar `[agents]` settings
+ * such as `max_threads` are not roles.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} codexHome
+ * @returns {Map<string, string>}
+ */
+function explicitCodexAgentRoles(env, codexHome) {
+  const { isTable } = require("./codex_config.cjs");
+  /** @type {Map<string, string>} */
+  const roles = new Map();
+  const inline = env.GH_AW_CODEX_CONFIG_JSON;
+  const compiledPath = env.GH_AW_CODEX_CONFIG;
+  if (inline || (compiledPath && fs.existsSync(compiledPath))) {
+    const compiled = JSON.parse(inline || fs.readFileSync(compiledPath || "", "utf8"));
+    for (const layer of [compiled?.defaults, compiled?.overrides]) {
+      const agents = isTable(layer) ? layer.agents : null;
+      if (!isTable(agents)) continue;
+      for (const [name, value] of Object.entries(agents)) if (isTable(value)) roles.set(name, "engine.config");
+    }
+  }
+  const configPath = path.join(codexHome, "config.toml");
+  if (fs.existsSync(configPath)) {
+    for (const name of tomlAgentRoleNames(fs.readFileSync(configPath, "utf8"))) if (!roles.has(name)) roles.set(name, configPath);
+  }
+  return roles;
+}
+
+const CODEX_MANAGED_ROLE_MANIFEST = ".gh-aw-managed-roles.json";
+
+function readManagedCodexRoleNames(rolesDir) {
+  const manifestPath = path.join(rolesDir, CODEX_MANAGED_ROLE_MANIFEST);
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw new Error(`cannot read the generated-role manifest ${manifestPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+  if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.roles) || manifest.roles.some(name => typeof name !== "string" || !/^[a-z][a-z0-9_-]*$/.test(name)) || new Set(manifest.roles).size !== manifest.roles.length) {
+    throw new Error(`the generated-role manifest ${manifestPath} is invalid`);
+  }
+  return manifest.roles;
+}
+
+function writeManagedCodexRoleNames(rolesDir, names) {
+  const manifestPath = path.join(rolesDir, CODEX_MANAGED_ROLE_MANIFEST);
+  const temporaryPath = `${manifestPath}.tmp`;
+  try {
+    fs.writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, roles: names }, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(temporaryPath, manifestPath);
+  } catch (error) {
+    throw new Error(`cannot update the generated-role manifest ${manifestPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+function prepareCodexRoleDirectory(codexHome, names) {
+  const rolesDir = path.join(codexHome, "agents");
+  const manifestPath = path.join(rolesDir, CODEX_MANAGED_ROLE_MANIFEST);
+  if (names.length === 0 && !fs.existsSync(manifestPath)) return { rolesDir, managedNames: [] };
+
+  try {
+    fs.mkdirSync(rolesDir, { recursive: true });
+  } catch (error) {
+    throw new Error(`cannot create the native role directory ${rolesDir}: ${getErrorMessage(error)}`, { cause: error });
+  }
+  const previousNames = readManagedCodexRoleNames(rolesDir);
+  const previouslyManaged = new Set(previousNames);
+  for (const name of names) {
+    const rolePath = path.join(rolesDir, `${name}.toml`);
+    if (!previouslyManaged.has(name) && fs.existsSync(rolePath)) {
+      throw new Error(`the role file ${rolePath} already exists and is not tracked as generated by gh-aw`);
+    }
+  }
+  const managedNames = [...new Set([...previousNames, ...names])].sort();
+  if (managedNames.length > 0) {
+    writeManagedCodexRoleNames(rolesDir, managedNames);
+    for (const name of managedNames) {
+      const rolePath = path.join(rolesDir, `${name}.toml`);
+      try {
+        fs.rmSync(rolePath, { force: true });
+      } catch (error) {
+        throw new Error(`cannot remove the previously generated role file ${rolePath}: ${getErrorMessage(error)}`, { cause: error });
+      }
+    }
+  }
+  return { rolesDir, managedNames };
+}
+
+/**
+ * Codex: generate one native TOML role file per workflow-declared sub-agent before Codex
+ * starts. Codex discovers custom agents only from `.toml` role files (verified for Codex
+ * 0.163.0), so the Markdown agents staged by the activation job in
+ * `<agentsBaseDir>/.codex/agents` are converted into `<codexHome>/agents/<name>.toml` with
+ * the declared block name, the frontmatter `description`, the Markdown body as
+ * `developer_instructions` and the resolved concrete model. The effective `?effort=` model
+ * parameter (the agent's own, else the one its alias carries) becomes
+ * `model_reasoning_effort`; an agent without a model (or with `inherit`) inherits the main
+ * model. Roles inherit the main agent's provider, tools and MCP servers, so no tool list is
+ * written.
+ *
+ * Workflow-declared agents fail closed: when one cannot be read, parsed, resolved or written,
+ * declares a non-string model or an effort Codex does not accept, uses the reserved name
+ * `main`, or has the name of an explicit `[agents.<name>]` role in the Codex configuration
+ * (`engine.config` or `$CODEX_HOME/config.toml`), `ok` is false and Codex must not start.
+ * Codex 0.163.0 loads explicit `[agents.<name>]` entries before discovered role files and
+ * ignores a discovered duplicate, so the generated role would not be used.
  *
  * @param {{
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   provider: string,
+ *   codexHome?: string,
  *   agentsBaseDir?: string,
  *   aliasMap?: Record<string, string[]> | null,
  *   env?: NodeJS.ProcessEnv,
@@ -491,14 +800,40 @@ function writePluginAgents(pluginDir, stagedDir, resolvedDefinitions, logger) {
  * }} options
  * @returns {Promise<{ ok: boolean, agents: string[], resolutions: Array<{ name: string, configuredModel: string, model: string, status: string }>, failures: Array<{ name: string }> }>}
  */
-async function declareCodexSubagentModels(options) {
+async function applyCodexSubagentModels(options) {
   const { logger } = options;
   const env = options.env || process.env;
   const { normalizeCodexModel } = require("./model_fallback.cjs");
+  const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+  const { serializeConfig } = require("./codex_config.cjs");
+  const { getAWFModelRoutingPolicy, mapAWFRoutingEffort } = require("./awf_model_routing.cjs");
   const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
   const directory = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("codex")).dir);
-  const agents = listMarkdownAgentFiles(directory, logger).map(agent => ({ ...agent, name: agent.name || agent.fileName.slice(0, -".md".length) }));
-  if (agents.length === 0) return { ok: true, agents: [], resolutions: [], failures: [] };
+  /** @type {string[]} */
+  const invalid = [];
+  const agents = listMarkdownAgentFiles(directory, logger, {
+    onInvalid: (filePath, error) => {
+      invalid.push(filePath);
+      logger(`codex sub-agent file ${filePath}: cannot read or parse the staged workflow sub-agent: ${getErrorMessage(error)}.`);
+    },
+  }).map(agent => ({ ...agent, name: agent.fileName.slice(0, -".md".length) }));
+  const names = agents.map(agent => agent.name);
+  if (invalid.length > 0) {
+    logger(`Refusing to start Codex: ${invalid.length} workflow-declared sub-agent file(s) cannot be read or parsed, so their native role files cannot be generated.`);
+    return { ok: false, agents: names, resolutions: [], failures: [] };
+  }
+  const codexHome = String(options.codexHome || "").trim();
+  if (agents.length === 0) {
+    if (!codexHome) return { ok: true, agents: [], resolutions: [], failures: [] };
+    try {
+      const { rolesDir, managedNames } = prepareCodexRoleDirectory(codexHome, []);
+      if (managedNames.length > 0) writeManagedCodexRoleNames(rolesDir, []);
+    } catch (error) {
+      logger(`Refusing to start Codex: cannot remove previously generated sub-agent roles: ${getErrorMessage(error)}.`);
+      return { ok: false, agents: [], resolutions: [], failures: [] };
+    }
+    return { ok: true, agents: [], resolutions: [], failures: [] };
+  }
   if (
     rejectReservedDeclaredNames(
       "codex",
@@ -506,29 +841,133 @@ async function declareCodexSubagentModels(options) {
       logger
     )
   ) {
-    return { ok: false, agents: agents.map(agent => agent.name), resolutions: [], failures: [] };
+    return { ok: false, agents: names, resolutions: [], failures: [] };
   }
-  logger(
-    `warning: Codex discovers custom agents only from TOML role files (verified for Codex 0.163.0); the ${agents.length} workflow-declared Markdown sub-agent(s) in ${directory} (${agents.map(agent => agent.name).join(", ")}) are not loaded by Codex, and their declared models are recorded but not applied.`
-  );
+  if (!codexHome) {
+    logger(`Refusing to start Codex: CODEX_HOME is not set, so the ${agents.length} workflow-declared sub-agent(s) (${names.join(", ")}) cannot be registered as native Codex roles.`);
+    return { ok: false, agents: names, resolutions: [], failures: [] };
+  }
+
+  let explicitRoles;
+  try {
+    explicitRoles = explicitCodexAgentRoles(env, codexHome);
+  } catch (error) {
+    logger(`Refusing to start Codex: cannot read the Codex configuration to check the sub-agent role names: ${getErrorMessage(error)}.`);
+    return { ok: false, agents: names, resolutions: [], failures: [] };
+  }
+  const collisions = agents.filter(agent => explicitRoles.has(agent.name));
+  if (collisions.length > 0) {
+    for (const agent of collisions) {
+      logger(
+        `codex sub-agent file ${agent.path}: the Codex configuration (${explicitRoles.get(agent.name)}) already defines the role [agents.${agent.name}], which Codex loads instead of the generated role file. Rename the workflow sub-agent or remove the explicit role. Refusing to start Codex.`
+      );
+    }
+    return { ok: false, agents: names, resolutions: [], failures: [] };
+  }
+
+  /** @type {Array<{ name: string, path: string, description: string, instructions: string, configuredModel: string, effort: string | null }>} */
+  const definitions = [];
+  for (const agent of agents) {
+    try {
+      const content = fs.readFileSync(agent.path, "utf8");
+      const frontmatter = parseAgentFrontmatter(content);
+      const description = typeof frontmatter.description === "string" ? frontmatter.description.trim() : "";
+      if (!description) throw new Error("the frontmatter has no nonblank 'description', which Codex requires for a custom role");
+      const instructions = extractFrontmatterAndBody(content).markdown.trim();
+      if (!instructions) throw new Error("the agent has no instructions after its frontmatter, which Codex requires for a custom role");
+      if (!/^[a-z][a-z0-9_-]*$/.test(agent.name)) throw new Error(`'${agent.name}' is not a valid sub-agent name`);
+      const configuredModel = typeof agent.model === "string" ? agent.model : "";
+      const declaredEffort = configuredModel ? splitModelIdentifier(configuredModel).params.get("effort") : null;
+      const mapped = mapAWFRoutingEffort("codex", declaredEffort ? declaredEffort.trim().toLowerCase() : null);
+      if (mapped.error) throw new Error(`model '${configuredModel}': ${mapped.error}`);
+      definitions.push({ name: agent.name, path: agent.path, description, instructions, configuredModel, effort: mapped.effort });
+    } catch (error) {
+      logger(`codex sub-agent file ${agent.path}: ${getErrorMessage(error)}. Refusing to start Codex without the declared sub-agent.`);
+      return { ok: false, agents: names, resolutions: [], failures: [] };
+    }
+  }
+
   const { resolutions, failures } = await resolveEngineSubagentModels({
     engine: "codex",
-    agents: agents.map(agent => ({ name: agent.name, model: agent.model, path: agent.path, fatal: false, origin: "workflow sub-agent" })),
+    agents: agents.map(agent => ({ name: agent.name, model: agent.model, invalidModel: agent.invalidModel, path: agent.path, fatal: true, origin: "workflow sub-agent" })),
     provider: options.provider,
     normalize: model => normalizeCodexModel(model, options.provider, { env, logger }),
     reflectData: options.reflectData,
     refetchReflectData: options.refetchReflectData,
     aliasMap: options.aliasMap,
-    nonFatalOutcome: "Codex does not load the Markdown agent, so the run continues",
+    wireApi: getAWFModelRoutingPolicy("codex").endpoints[0],
+    appliedParams: ["effort"],
+    nonFatalOutcome: "Codex does not start",
     env,
     logger,
   });
-  return { ok: true, agents: agents.map(agent => agent.name), resolutions, failures };
+  if (failures.length > 0) return { ok: false, agents: names, resolutions, failures };
+
+  // The effective effort is the resolved one: the agent's own parameter wins over its alias's.
+  for (const definition of definitions) {
+    const resolvedEffort = resolutions.find(candidate => candidate.name === definition.name)?.params?.effort;
+    if (resolvedEffort === undefined) continue;
+    const mapped = mapAWFRoutingEffort("codex", resolvedEffort.trim().toLowerCase());
+    if (mapped.error) {
+      logger(`codex sub-agent '${definition.name}': model '${definition.configuredModel}' resolves with effort '${resolvedEffort}': ${mapped.error}. Refusing to start Codex without the declared sub-agent.`);
+      return { ok: false, agents: names, resolutions, failures };
+    }
+    definition.effort = mapped.effort;
+  }
+
+  let rolesDir;
+  let managedNames;
+  try {
+    ({ rolesDir, managedNames } = prepareCodexRoleDirectory(
+      codexHome,
+      definitions.map(definition => definition.name)
+    ));
+  } catch (error) {
+    logger(`Refusing to start Codex: cannot reconcile previously generated sub-agent roles: ${getErrorMessage(error)}.`);
+    return { ok: false, agents: names, resolutions, failures };
+  }
+
+  for (const definition of definitions) {
+    const resolution = resolutions.find(candidate => candidate.name === definition.name);
+    /** @type {Record<string, string>} */
+    const role = { name: definition.name, description: definition.description, developer_instructions: definition.instructions };
+    if (resolution) role.model = resolution.model;
+    if (definition.effort) role.model_reasoning_effort = definition.effort;
+    const rolePath = path.join(rolesDir, `${definition.name}.toml`);
+    try {
+      fs.writeFileSync(rolePath, serializeConfig(role), { mode: 0o600 });
+    } catch (error) {
+      logger(`codex sub-agent '${definition.name}': cannot write the native role file ${rolePath}: ${getErrorMessage(error)}. Refusing to start Codex without the declared sub-agent.`);
+      for (const name of managedNames) {
+        try {
+          fs.rmSync(path.join(rolesDir, `${name}.toml`), { force: true });
+        } catch (cleanupError) {
+          logger(`codex sub-agent '${name}': cannot remove a partial native role file: ${getErrorMessage(cleanupError)}.`);
+        }
+      }
+      return { ok: false, agents: names, resolutions, failures };
+    }
+    logger(`codex sub-agent '${definition.name}': wrote native role ${rolePath} (model: ${resolution ? resolution.model : "inherits the main model"}${definition.effort ? `, effort: ${definition.effort}` : ""})`);
+  }
+  try {
+    writeManagedCodexRoleNames(rolesDir, definitions.map(definition => definition.name).sort());
+  } catch (error) {
+    logger(`Refusing to start Codex: cannot update the generated-role manifest: ${getErrorMessage(error)}.`);
+    for (const name of managedNames) {
+      try {
+        fs.rmSync(path.join(rolesDir, `${name}.toml`), { force: true });
+      } catch (cleanupError) {
+        logger(`codex sub-agent '${name}': cannot remove a partial native role file: ${getErrorMessage(cleanupError)}.`);
+      }
+    }
+    return { ok: false, agents: names, resolutions, failures };
+  }
+  return { ok: true, agents: names, resolutions, failures };
 }
 
 module.exports = {
   applyClaudeSubagentModels,
-  declareCodexSubagentModels,
+  applyCodexSubagentModels,
   isDetectionPhase,
   listMarkdownAgentFiles,
   replaceAgentModel,

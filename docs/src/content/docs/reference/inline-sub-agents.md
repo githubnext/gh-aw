@@ -66,7 +66,7 @@ contents. Be concise and factual.
 | Field | Required | Description |
 |---|---|---|
 | `model` | No | AI model to use (e.g. `claude-haiku-4.5`). Defaults to the parent workflow's model. |
-| `description` | For Pi | Short description of the sub-agent's purpose. |
+| `description` | For Pi and Codex | Short description of the sub-agent's purpose. |
 | `tools` | No | Pi accepts a comma-separated string or list of tool names, restricted by the parent workflow's tool policy. |
 
 ## Runtime behavior
@@ -80,6 +80,8 @@ At runtime, each inline sub-agent block is extracted to a location that the AI e
 | `codex` | `.codex/agents/<name>.md` |
 | `gemini` | `.gemini/agents/<name>.md` |
 | `pi` | `.pi/agents/<name>.md`, restored into the managed Pi user scope |
+
+Codex discovers custom agents only from TOML role files, so before Codex starts the harness converts each staged Codex sub-agent into `$CODEX_HOME/agents/<name>.toml` with its `name`, `description`, the Markdown body as `developer_instructions`, and the resolved concrete `model` (a `?effort=` parameter becomes `model_reasoning_effort`). The main agent invokes it with `spawn_agent` and `agent_type: "<name>"`. Roles inherit the main agent's provider, tools, and MCP servers; `tools:` is not applied. Codex calls models only through `/responses`, so where the provider's AWF `/reflect` catalogue lists each model's `supported_endpoints` (such as the Copilot provider), an alias resolves only among models that list `/responses` (for example `large` resolves to a GPT model rather than a Claude model). An exact model without `/responses`, or an alias that matches only such models, fails with cause `unsupported_endpoint`. If a sub-agent's model cannot be resolved, or its definition cannot be parsed or written, Codex does not start.
 
 Pi exposes a managed `subagent` tool in the built-in CLI, SDK, and RPC modes, including bare mode. It accepts one declared agent and task: `{"agent":"file-summarizer","task":"Summarize README.md"}`. Model aliases such as `small` resolve against the parent's provider inventory; cross-provider delegation is rejected. See [Pi sub-agents](/gh-aw/engines/pi/#sub-agents) for controls and limitations.
 

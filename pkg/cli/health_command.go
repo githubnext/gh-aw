@@ -44,6 +44,7 @@ Shows health metrics for workflows including:
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
 - Warnings when success rate drops below threshold
+- Work-queue diagnostics when a selected published workflow uses work-queue
 
 Inventories failure signals from run-list payloads, verifies one representative
 per branch/event, then samples successful and pending runs. Reuses local Git
@@ -149,7 +150,7 @@ func RunHealth(config HealthConfig) error {
 		ProducerVersion:     GetVersion(),
 		ReportSchemaVersion: 1,
 		ObservedAt:          time.Now().UTC(),
-		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering"},
+		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering", "work_queue"},
 		Host:                normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
 		StartDate:           config.StartDate,
 		EndDate:             config.EndDate,
@@ -162,6 +163,7 @@ func RunHealth(config HealthConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch workflow runs: %w", err)
 	}
+	collectHealthWorkQueue(config.collection)
 
 	if len(runs) == 0 && len(config.collection.workflows) == 0 && !config.collection.Partial {
 		if config.WorkflowName != "" {

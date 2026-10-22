@@ -151,7 +151,7 @@ func authorizeWorkerQueueRequest(state Projection, actor Actor, request Request)
 			if err := json.Unmarshal(operation, &observation); err != nil {
 				return err
 			}
-			if err := validateResource(observation.Resource, state.Policy.Pools[parent.Pool]); err != nil {
+			if err := validateResourceForHost(observation.Resource, state.Policy.Pools[parent.Pool], state.resourceHost); err != nil {
 				return err
 			}
 		}
