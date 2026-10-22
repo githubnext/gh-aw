@@ -188,8 +188,9 @@ Parent workflow success does not imply successful delegation. `metrics.error_cou
 | `multiple_errors` | The run produced more than five errors |
 | `mcp_server_failures` | One or more MCP servers failed |
 | `tools_not_available` | Requested tools were unavailable |
-| `model_unavailable` | Pi rejected a model at startup and the same run's complete provider inventory confirms it was not advertised |
-| `model_availability_unknown` | Pi rejected a model at startup, but saved reflection cannot confirm its absence |
+| `model_unavailable` | Model resolution stopped startup and the same run's complete provider inventory confirms the model was not advertised |
+| `model_availability_unknown` | Model resolution stopped startup, but saved evidence cannot confirm model absence or records another discovery failure |
+| `model_resolution_failed` | Low-severity advisory: failed model resolution was recorded, but evidence does not establish it as the startup failure cause |
 | `model_endpoint_unsupported` | Startup recorded `unsupported_endpoint`: the model is live, but the engine cannot call its endpoint; choose a compatible model |
 | `blocked_network_requests` | The firewall blocked network requests |
 | `workflow_succeeded` | The parent workflow completed successfully; the description qualifies any observed delegated failures |
@@ -205,7 +206,16 @@ Parent workflow success does not imply successful delegation. `metrics.error_cou
 
 The audit inspects the `detection` job result and the downloaded `detection` artifact. A failed job emits `threat_detection_job_failed`. A structured verdict in `detection_result.json`, or a legacy `THREAT_DETECTION_RESULT` verdict in `detection.log`, emits `threat_detected` when `prompt_injection`, `secret_leak`, or `malicious_patch` is true. Threat reasons are not copied into the finding description because they may contain sensitive agent output.
 
-For Pi's `not advertised` startup failure, audit checks the exact model ID against
+Audit reads failed `model.resolution` events from `usage/aw_session.jsonl` across
+engines. It attributes a role's resolution failure to startup only when the run
+failed, `agent.execution` exited nonzero, no native agent session activity is
+present, and `agent-stdio.log` records a harness refusal or model-specific
+resolution error for that role. Otherwise, it emits `model_resolution_failed`;
+optional repository agents can record unresolved models without stopping the run.
+Pi's legacy `not advertised` log check applies only when the unified session has
+no failed resolution records.
+
+For recorded `model_unavailable` failures, audit checks the exact model ID against
 the matching configured provider in the same run's `awf-reflect.json`. It confirms
 absence only when discovery completed and an array inventory is available.
 Missing, malformed, incomplete, ambiguous, or contradictory evidence produces

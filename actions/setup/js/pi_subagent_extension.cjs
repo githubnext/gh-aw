@@ -77,7 +77,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         cwd: ctx.cwd,
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, GH_AW_PI_MODEL: `${process.env.GH_AW_PI_NATIVE_PROVIDER || "github-copilot"}/${agent.modelId}`, GH_AW_PI_SUBAGENT_CHILD: "1" },
+        env: { ...process.env, GH_AW_PI_MODEL: `${process.env.GH_AW_PI_NATIVE_PROVIDER || "github-copilot"}/${agent.modelId}`, GH_AW_PI_SUBAGENT_CHILD: "1", GH_AW_PI_SUBAGENT_NAME: agent.name },
       });
       if (!child.stdout || !child.stderr || !child.stdin) {
         child.kill("SIGTERM");

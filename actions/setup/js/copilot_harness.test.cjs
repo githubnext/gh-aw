@@ -58,6 +58,7 @@ const {
   isCAPIServerError,
   isHTTP400ResponseError,
   isToolCallIdSchemaError,
+  isIncompleteToolCallStreamError,
   isSDKSessionIdleTimeoutError,
   PROMPT_FILE_INLINE_THRESHOLD_BYTES,
   resolvePromptFileInput,
@@ -3254,6 +3255,66 @@ process.exit(1);`,
       // Harness exits 0 because the core work (add_comment) already succeeded
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("invocation cap saturated but safe-outputs already contain expected output");
+    });
+  });
+
+  describe("incomplete tool-call stream recovery", () => {
+    const streamError = "Failed to finalize chat-completions stream: missing choices[0].tool_calls[1].id";
+
+    it("recognizes the observed stream error without matching unrelated or empty output", () => {
+      expect(isIncompleteToolCallStreamError(streamError)).toBe(true);
+      expect(isIncompleteToolCallStreamError(streamError.replace("[0]", "[12]").replace("[1]", "[3]"))).toBe(true);
+      expect(isIncompleteToolCallStreamError("")).toBe(false);
+      expect(isIncompleteToolCallStreamError("missing choices[0].tool_calls[1].id")).toBe(false);
+      expect(isIncompleteToolCallStreamError("Failed to finalize chat-completions stream: missing choices[0].message")).toBe(false);
+      expect(classifyCopilotFailure({ hasOutput: true, isIncompleteToolCallStream: true })).toBe("incomplete_tool_call_stream");
+    });
+
+    it.each([
+      { retries: "1", persistent: false, expectedStatus: 0, expectedCalls: 2 },
+      { retries: "1", persistent: true, expectedStatus: 1, expectedCalls: 2 },
+      { retries: "0", persistent: true, expectedStatus: 1, expectedCalls: 1 },
+    ])("restarts fresh within the configured detection budget: %j", ({ retries, persistent, expectedStatus, expectedCalls }) => {
+      const tempDir = makeHarnessTempDir("copilot-incomplete-tool-stream-");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const priorCalls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").length : 0;
+fs.appendFileSync(callsPath, JSON.stringify(process.argv.slice(2)) + "\\n");
+if (priorCalls === 0 || process.env.PERSISTENT_STREAM_ERROR === "true") {
+  process.stderr.write(${JSON.stringify(streamError)} + "\\n");
+  process.exit(1);
+}
+process.stdout.write("Detection complete\\n");`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "analyze the fixture", "utf8");
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...harnessChildEnv,
+          GH_AW_PHASE: "detection",
+          GH_AW_HARNESS_MAX_RETRIES: retries,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          PERSISTENT_STREAM_ERROR: String(persistent),
+          GH_AW_SAFE_OUTPUTS: path.join(tempDir, "safe-outputs.jsonl"),
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const calls = fs
+        .readFileSync(callsPath, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(result.status).toBe(expectedStatus);
+      expect(calls).toHaveLength(expectedCalls);
+      expect(calls.every(args => !args.includes("--continue"))).toBe(true);
+      expect(result.stderr).toContain("failureClass=incomplete_tool_call_stream");
     });
   });
 

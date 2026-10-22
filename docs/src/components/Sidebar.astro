@@ -5,20 +5,215 @@
  * Starlight's own tree and MobileMenuFooter. Above 50rem only the tree shows.
  */
 import Default from '@astrojs/starlight/components/Sidebar.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
 import MobileNav from './MobileNav.astro';
 import { getSection } from './site-nav';
 
 const section = getSection(Astro.locals.starlightRoute.id);
 const heading = section === 'blog' ? 'Blog posts' : 'Documentation';
+
+const catalogs = new Map<string, typeof Astro.locals.starlightRoute.sidebar>();
+
+// Keep full catalogs in inert templates so More can expand without navigation.
+Astro.locals.starlightRoute.sidebar = Astro.locals.starlightRoute.sidebar.map((entry) => {
+	if (entry.type !== 'group') return entry;
+	if (entry.label === 'Guides' || entry.label === 'Design Patterns' || entry.label === 'Reference') {
+		const directory = entry.label === 'Guides' ? 'guides'
+			: entry.label === 'Design Patterns' ? 'patterns' : 'reference';
+		const id = Astro.locals.starlightRoute.id;
+		const isInSection = id === directory || id.startsWith(`${directory}/`) ||
+			entry.entries.some((item) => item.type === 'link' && item.isCurrent);
+		if (isInSection) return { ...entry, collapsed: false };
+		catalogs.set(directory, entry.entries);
+		if (entry.label === 'Reference') {
+			const preview = ['FAQ', 'AI Engines', 'Cost Management', 'Safe Outputs', 'Workflows'].map((label) => {
+				const item = entry.entries.find((item) => item.label === label);
+				if (!item || item.type !== 'link') throw new Error(`Missing Reference sidebar link: ${label}`);
+				return item;
+			});
+			return {
+				...entry,
+				entries: [...preview, ...preview.slice(-1).map((item) => ({
+					...item, label: 'More...', attrs: { ...item.attrs, 'data-sidebar-more': directory },
+				}))],
+			};
+		}
+		return {
+			...entry,
+			entries: entry.entries.slice(0, 3).map((item, index) => index === 2 && item.type === 'link'
+				? { ...item, label: 'More...', attrs: { ...item.attrs, 'data-sidebar-more': directory } }
+				: item),
+		};
+	}
+	if (entry.label !== 'Gallery') return entry;
+	const overview: (typeof entry.entries)[number] = {
+		type: 'link',
+		label: 'All workflows',
+		href: `${import.meta.env.BASE_URL.replace(/\/$/, '')}/gallery/`,
+		isCurrent: Astro.locals.starlightRoute.id === 'gallery',
+		attrs: {},
+	};
+	const fullCatalog = [...entry.entries, overview];
+	if (section === 'gallery') return { ...entry, collapsed: false, entries: fullCatalog };
+	catalogs.set('gallery', fullCatalog);
+	return {
+		...entry,
+		entries: [
+			...entry.entries.filter((item) => item.type === 'link' && 'data-gallery-preview' in item.attrs),
+			{ ...overview, label: 'More...', attrs: { 'data-sidebar-more': 'gallery' } },
+		],
+	};
+});
 ---
 
 <div class="mobile-menu-top">
 	<MobileNav />
 	<h2 class="mobile-menu-heading">{heading}</h2>
 </div>
+<script is:inline define:vars={{ baseUrl: import.meta.env.BASE_URL }}>
+(() => {
+	const navigationKey = 'gh-aw:sidebar:navigation';
+	let destination;
+	document.documentElement.dataset.sidebarExpanded = '';
+
+	// Transfer state only while leaving for another page, then consume it.
+	// Nothing remains in storage to restore on reload, a new tab, or restart.
+	const restoreExpansions = (fromHistory = false) => {
+		let saved;
+		try {
+			saved = sessionStorage.getItem(navigationKey);
+			sessionStorage.removeItem(navigationKey);
+		} catch (error) {
+			console.warn('Unable to restore sidebar navigation state.', error);
+			return;
+		}
+		const navigation = performance.getEntriesByType('navigation')[0];
+		if (!saved || (!fromHistory && navigation instanceof PerformanceNavigationTiming && navigation.type === 'reload')) return;
+		/** @type {unknown} */
+		let state;
+		try {
+			state = JSON.parse(saved);
+		} catch (error) {
+			console.warn('Invalid sidebar navigation state.', error);
+			return;
+		}
+		if (!state || typeof state !== 'object' ||
+			!('destination' in state) || typeof state.destination !== 'string' ||
+			!('expanded' in state) || !Array.isArray(state.expanded) ||
+			!state.expanded.every((id) => typeof id === 'string')) {
+			console.warn('Invalid sidebar navigation state.');
+			return;
+		}
+		if (state.destination === location.href) {
+			document.documentElement.dataset.sidebarExpanded = state.expanded.join(' ');
+		}
+	};
+	restoreExpansions();
+
+	/** @param {string} href */
+	const recordDestination = (href) => {
+		const url = new URL(href, location.href);
+		destination = url.origin === location.origin && url.pathname.startsWith(baseUrl) &&
+			(url.pathname !== location.pathname || url.search !== location.search)
+			? url.href : undefined;
+	};
+	const navigation = Reflect.get(window, 'navigation');
+	if (navigation instanceof EventTarget) {
+		navigation.addEventListener('navigate', (event) => {
+			destination = undefined;
+			if ('navigationType' in event && event.navigationType === 'reload') return;
+			if ('destination' in event && event.destination && typeof event.destination === 'object' &&
+				'url' in event.destination && typeof event.destination.url === 'string') {
+				if ('sameDocument' in event.destination && event.destination.sameDocument) return;
+				recordDestination(event.destination.url);
+			}
+		});
+		navigation.addEventListener('navigateerror', () => { destination = undefined; });
+	} else {
+		document.addEventListener('click', (event) => {
+			if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+			const link = event.target instanceof Element ? event.target.closest('a') : null;
+			if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+			recordDestination(link.href);
+		});
+	}
+	window.addEventListener('pagehide', () => {
+		const expanded = document.documentElement.dataset.sidebarExpanded?.split(' ').filter(Boolean) || [];
+		if (!destination || expanded.length === 0) return;
+		try {
+			sessionStorage.setItem(navigationKey, JSON.stringify({ destination, expanded }));
+		} catch (error) {
+			console.warn('Unable to transfer sidebar navigation state.', error);
+		}
+	});
+	window.addEventListener('pageshow', (event) => {
+		destination = undefined;
+		if (event.persisted) {
+			restoreExpansions(true);
+			document.dispatchEvent(new Event('aw:sidebar-restore'));
+		}
+	});
+})();
+</script>
+
 <Default />
+{Array.from(catalogs, ([id, entries]) => (
+	<template id={`sidebar-catalog-${id}`}>
+		<SidebarSublist sublist={entries} nested />
+	</template>
+))}
 
 <script>
+	const initializeCatalogs = () => {
+		const expandedCatalogs = new Set(document.documentElement.dataset.sidebarExpanded?.split(' ').filter(Boolean));
+		document.querySelectorAll<HTMLAnchorElement>('a[data-sidebar-more]').forEach((link) => {
+			const id = link.dataset.sidebarMore;
+			const template = document.getElementById(`sidebar-catalog-${id}`);
+			const group = link.closest('details');
+			const list = group?.querySelector(':scope > ul');
+			if (!(template instanceof HTMLTemplateElement) || !group || !list) {
+				throw new Error(`Missing sidebar catalog markup: ${id}`);
+			}
+			const previewHrefs = new Set(Array.from(list.querySelectorAll('a'), (item) => item.href));
+			const expand = (focus: boolean) => {
+				const fullList = template.content.firstElementChild?.cloneNode(true);
+				if (!(fullList instanceof HTMLUListElement)) {
+					throw new Error(`Missing sidebar catalog list: ${id}`);
+				}
+				fullList.id = `sidebar-catalog-list-${id}`;
+				list.replaceWith(fullList);
+				group.open = true;
+				if (focus) {
+					const firstNewLink = Array.from(fullList.querySelectorAll('a'))
+						.find((item) => !previewHrefs.has(item.href));
+					firstNewLink?.focus();
+				}
+			};
+			if (id && expandedCatalogs.has(id)) {
+				expand(false);
+				return;
+			}
+			list.id = `sidebar-catalog-list-${id}`;
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'sidebar-more';
+			button.textContent = link.textContent;
+			button.setAttribute('aria-expanded', 'false');
+			button.setAttribute('aria-controls', list.id);
+			button.addEventListener('click', () => {
+				expand(true);
+				if (id) {
+					expandedCatalogs.add(id);
+					document.documentElement.dataset.sidebarExpanded = [...expandedCatalogs].join(' ');
+				}
+			}, { once: true });
+			link.replaceWith(button);
+		});
+	};
+	initializeCatalogs();
+	document.addEventListener('astro:page-load', initializeCatalogs);
+	document.addEventListener('aw:sidebar-restore', initializeCatalogs);
+
 	// Desktop: Starlight restores the sidebar's saved scroll position when you
 	// navigate within it, but a fresh load of a deep page leaves the current
 	// item far below the fold. If it's out of view, centre it in the pane.
@@ -37,6 +232,14 @@ const heading = section === 'blog' ? 'Blog posts' : 'Documentation';
 </script>
 
 <style>
+	:global(.sidebar-more) {
+		display: block;
+		width: 100%;
+		font: inherit;
+		text-align: start;
+		cursor: pointer;
+	}
+
 	.mobile-menu-top {
 		display: flex;
 		flex-direction: column;

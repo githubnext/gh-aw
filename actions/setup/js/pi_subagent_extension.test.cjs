@@ -36,6 +36,7 @@ function launcher(message, code = 0) {
     });
     expect(options.env.GH_AW_PI_TOOL_POLICY).toBe('{"bash":false,"edit":false}');
     expect(options.env.GH_AW_PI_SUBAGENT_CHILD).toBe("1");
+    expect(options.env.GH_AW_PI_SUBAGENT_NAME).toBe(agent.name);
     return child;
   });
 }

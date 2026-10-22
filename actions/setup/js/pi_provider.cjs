@@ -23,6 +23,10 @@
  *                    or bare "model". Preferred over PI_MODEL so gh-aw can pass
  *                    model context to extensions without changing Pi CLI behavior.
  *   PI_MODEL         Legacy fallback used when GH_AW_PI_MODEL is not set.
+ *   GH_AW_PI_SUBAGENT_CHILD / GH_AW_PI_SUBAGENT_NAME
+ *                    Set by pi_subagent_extension.cjs in a sub-agent process. Each
+ *                    Pi process sends its own AWF caller declaration
+ *                    (x-awf-caller: main or subagent/<name>) on provider requests.
  */
 
 "use strict";
@@ -84,6 +88,42 @@ function resolveGatewayUrl(provider) {
   const port = GATEWAY_PORTS[provider];
   if (!port) return null;
   return `http://api-proxy:${port}`;
+}
+
+const AWF_CALLER_HEADER = "x-awf-caller";
+const AWF_CALLER_MAX_LENGTH = 128;
+const AWF_CALLER_PATTERN = /^(?:main|subagent\/[A-Za-z0-9_.:/-]+)$/;
+
+/**
+ * Resolve this Pi process's AWF caller declaration. The parent process is the
+ * main agent; a sub-agent process (launched by pi_subagent_extension.cjs with
+ * its own environment) declares its agent definition name. Returns null when
+ * the value would be invalid, so the request is sent without the header rather
+ * than with a truncated or misleading caller.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string|null}
+ */
+function resolveAwfCaller(env = process.env) {
+  if (env.GH_AW_PI_SUBAGENT_CHILD !== "1") return "main";
+  const caller = `subagent/${env.GH_AW_PI_SUBAGENT_NAME || ""}`;
+  return caller.length <= AWF_CALLER_MAX_LENGTH && AWF_CALLER_PATTERN.test(caller) ? caller : null;
+}
+
+/**
+ * Set the AWF caller header on mutable Pi provider headers, replacing any
+ * differently cased copy so exactly one value is sent.
+ *
+ * @param {Record<string, string|null>|undefined|null} headers
+ * @param {string|null} caller
+ * @returns {void}
+ */
+function applyAwfCallerHeader(headers, caller) {
+  if (!headers || typeof headers !== "object") return;
+  for (const name of Object.keys(headers)) {
+    if (name.toLowerCase() === AWF_CALLER_HEADER) delete headers[name];
+  }
+  if (caller) headers[AWF_CALLER_HEADER] = caller;
 }
 
 /**
@@ -316,6 +356,16 @@ function piProviderExtension(pi) {
   let successfulProviderResponseCount = 0;
   registerConfiguredProviders(pi, log);
 
+  // Process isolation is the attribution boundary: the parent and every
+  // sub-agent run as separate Pi processes that each load this extension.
+  // Only send the header to the AWF api-proxy, never directly to a provider
+  // (e.g. sandbox.agent: false — no api-proxy running).
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    const awfCaller = resolveAwfCaller();
+    if (!awfCaller) log("x-awf-caller omitted: sub-agent name is not a valid AWF caller");
+    pi.on("before_provider_headers", event => applyAwfCallerHeader(event?.headers, awfCaller));
+  }
+
   pi.on("before_provider_request", (_event, ctx) => {
     providerRequestCount += 1;
     lastProviderRequest = resolveProviderRequestTarget(ctx && ctx.model);
@@ -431,3 +481,5 @@ _piExports.resolveProviderRequestTarget = resolveProviderRequestTarget;
 _piExports.formatResponseHeaderNames = formatResponseHeaderNames;
 _piExports.emitInfrastructureIncompleteIfNoSafeOutputs = emitInfrastructureIncompleteIfNoSafeOutputs;
 _piExports.logReflectFailure = logReflectFailure;
+_piExports.resolveAwfCaller = resolveAwfCaller;
+_piExports.applyAwfCallerHeader = applyAwfCallerHeader;

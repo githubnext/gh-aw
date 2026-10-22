@@ -111,26 +111,6 @@ func jobDependsOnActivation(jobConfig map[string]any) bool {
 	return false
 }
 
-// jobDependsOnAgent checks if a job config has agent as a dependency.
-// Jobs that depend on agent should run AFTER the agent job, not before it.
-// The jobConfig parameter is expected to be a map representing the job's YAML configuration,
-// where "needs" can be either a string (single dependency) or []any (multiple dependencies).
-// Returns false if "needs" is missing, malformed, or doesn't contain the agent job.
-func jobDependsOnAgent(jobConfig map[string]any) bool {
-	if needs, hasNeeds := jobConfig["needs"]; hasNeeds {
-		if needsList, ok := needs.([]any); ok {
-			for _, need := range needsList {
-				if needStr, ok := need.(string); ok && needStr == string(constants.AgentJobName) {
-					return true
-				}
-			}
-		} else if needStr, ok := needs.(string); ok && needStr == string(constants.AgentJobName) {
-			return true
-		}
-	}
-	return false
-}
-
 // getJobsDependingOnAgent includes the agent and every job that transitively needs it.
 func getJobsDependingOnAgent(jobs map[string]any) map[string]struct{} {
 	dependents := make(map[string][]string)

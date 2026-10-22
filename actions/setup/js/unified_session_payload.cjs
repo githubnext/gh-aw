@@ -321,6 +321,8 @@ const EVENT_FIELDS = {
     provider: ["provider"],
     model: ["model"],
     purpose: ["purpose"],
+    agentName: ["agentName", "agent_name"],
+    callerSource: ["callerSource", "caller_source"],
     path: ["path", "endpoint"],
     xInitiator: ["x_initiator", "xInitiator"],
     requestId: ["requestId", "request_id"],

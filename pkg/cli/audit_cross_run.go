@@ -401,11 +401,9 @@ func buildCrossRunMCPHealth(mcpServerMap map[string]*crossRunMCPServerAgg, total
 			unreliable = true
 		}
 		health = append(health, MCPServerCrossRunHealth{
-			MCPServerStatsBase: MCPServerStatsBase{
-				ServerName:    name,
-				ToolCallCount: agg.totalCalls,
-				ErrorCount:    agg.totalErrors,
-			},
+			ServerName:    name,
+			ToolCallCount: agg.totalCalls,
+			ErrorCount:    agg.totalErrors,
 			RunsConnected: connected,
 			TotalRuns:     totalRuns,
 			ErrorRate:     errorRate,
