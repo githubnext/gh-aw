@@ -51,17 +51,13 @@ See [deployment](../../docs/src/content/docs/guides/deploy-work-queue.md).
 `aw.json` `work_queue.issues: true` mirrors admitted Work with purple `work` /
 `work:<status>` labels. `label` customizes both prefixes; `title_prefix` defaults
 to `[work queue]`. Titles/summaries show 12-character Work IDs; bodies use full IDs.
-No per-workflow overrides. Only protected AW hooks project their admissions/original
-Claims. Immutable `backing_issue` binds one Work per Issue. Agents never write
+No per-workflow overrides. Only protected AW hooks project admissions/original Claims.
+Immutable `backing_issue` binds one Work per Issue. Agents never write
 mirrors; human edits never establish Result. Pre-existing Issues require exact
 installed `backing_issues` grants. Only trusted admission-time `completion_policy`
 permits closure, never payload. Keep uncertain writes pending; never recreate or
-globally repair. Maintenance may update existing AW mirrors only for exact
-terminal requests authored by its authenticated current run/attempt.
-Maintainers/admins may explicitly synchronize one committed terminal request
-with `gh aw work-queue sync-issues --request-id REQUEST_ID`; this grants no
-admission/Claim authority, creation, closure, or lock stealing.
-Upgrade closed-schema readers first. See
+globally repair. Maintenance: exact-run sync; recovery: `work-queue sync-issues --request-id ID`.
+Upgrade closed-schema readers. See
 [backing Issue reference](../../docs/src/content/docs/reference/work-queue.md#backing-issues).
 Mirroring generates `.github/workflows/agentic-workqueue.yml` for Issue lifecycle
 events; disabling removes it.
