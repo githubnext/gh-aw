@@ -97,6 +97,7 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 	if err != nil || !valid {
 		return false, err
 	}
+	var active string
 	hasPositive, broad := false, false
 	for _, pattern := range patterns {
 		if err := ctx.Err(); err != nil {
@@ -104,21 +105,27 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 		}
 		pattern = strings.TrimSpace(pattern)
 		if excluded, negative := strings.CutPrefix(pattern, "!"); negative {
-			// GitHub applies filters in order. A universal exclusion
-			// clears earlier matches before later patterns re-include.
-			if len(excluded) >= 2 && strings.Trim(excluded, "*") == "" {
+			// GitHub applies filters in order. A universal exclusion clears earlier
+			// positive scope before later allowlist entries can re-include it.
+			if strings.Trim(excluded, "*?/+") == "" {
+				active = ""
 				broad = false
+				continue
+			}
+			if active != "" && strings.TrimSpace(excluded) == strings.TrimSpace(active) {
+				active = ""
 			}
 			continue
 		}
 		hasPositive = true
-		// A broad positive pattern also defeats narrower entries in the
-		// same allowlist. Exclusions alone are not a positive trust scope.
+		active = pattern
+		// A broad positive pattern defeats narrower entries in the same allowlist,
+		// unless a later universal exclusion clears the whole set.
 		if strings.Trim(pattern, "*?/+") == "" {
 			broad = true
 		}
 	}
-	return hasPositive && !broad, nil
+	return hasPositive && !broad && active != "", nil
 }
 
 func workflowRunTrigger(ctx context.Context, on any) (any, string, bool, error) {

@@ -115,6 +115,8 @@ func TestWorkflowRunScopeBranchSelection(t *testing.T) {
 		{name: "wildcard with question", fields: "branches: ['**?**']"},
 		{name: "broad positive before scoped positive", fields: "branches: ['**', main]"},
 		{name: "broad positive after scoped positive", fields: "branches: [main, '**']"},
+		{name: "positive canceled by exact exclusion", fields: "branches: [main, '!main']"},
+		{name: "positive canceled by scoped exclusion", fields: "branches: ['release/**', '!release/**']"},
 		{name: "negative only", fields: "branches: ['!untrusted/**']"},
 		{name: "negative wildcard only", fields: "branches: ['!**']"},
 		{name: "broad positive with exclusions", fields: "branches: ['**', '!untrusted/**']"},
