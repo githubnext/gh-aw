@@ -237,6 +237,26 @@ exec /bin/rm "$@"`
     expect(result.calls.split("\n").filter(line => line === "rm -f awmg-cli-proxy")).toHaveLength(1);
   });
 
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("keeps %s private when upstream connectivity fails", name => {
+    const value = name.toLowerCase() === "no_proxy" ? "private-backend.internal,private-api.internal" : "http://synthetic-user:synthetic-password@proxy.example:8080";
+    const registered = "synthetic-runtime-proxy-credential";
+    const result = runProxy({
+      ready: true,
+      upstreamFailure: true,
+      proxyEnv: { [name]: value },
+      diagnostics: `${registered}\nproxy: ${value}\nescaped proxy: ${JSON.stringify(value)}\n::add-mask::${registered}\n`,
+    });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("CLI proxy could not reach the upstream GitHub API");
+    for (const sensitive of [value, registered, "synthetic-password", "private-backend.internal"]) {
+      expect(result.output).not.toContain(sensitive);
+    }
+    expect(result.output).not.toContain("::add-mask::");
+    expect(result.calls).not.toContain(value);
+    expect(result.calls).toContain("logs awmg-cli-proxy");
+    expect(result.calls.match(/rm -f awmg-cli-proxy/g)).toHaveLength(2);
+  });
+
   it("ignores TMPDIR inside the artifact tree", () => {
     const result = runProxy({ ready: true });
     expect(result.status).toBe(0);

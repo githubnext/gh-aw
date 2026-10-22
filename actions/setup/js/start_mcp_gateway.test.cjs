@@ -832,6 +832,16 @@ describe("start_mcp_gateway startup diagnostics", () => {
     expect(redacted).toBe("token=[REDACTED]");
     expect(redacted).not.toContain("credential-value");
   });
+
+  it("redacts earlier gateway diagnostics using later mask registrations", () => {
+    const value = 'synthetic-runtime"\\proxy-credential';
+    const redacted = redactGatewayDiagnostics(`proxy failed: ${value}\nescaped: ${JSON.stringify(value)}\n::add-mask::${value}`, {});
+
+    expect(redacted).toContain("proxy failed:");
+    expect(redacted).not.toContain(value);
+    expect(redacted).not.toContain(JSON.stringify(value).slice(1, -1));
+    expect(redacted).not.toContain("::add-mask::");
+  });
 });
 
 describe("start_mcp_gateway startup marker", () => {
