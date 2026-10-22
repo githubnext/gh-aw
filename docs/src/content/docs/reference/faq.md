@@ -314,30 +314,68 @@ See [Conditional Execution](/gh-aw/reference/frontmatter/#conditional-execution-
 
 ### How should I configure Go caches safely in agentic workflows?
 
-For Go workflows, cache module downloads and build artifacts explicitly, and scope cache keys tightly:
+Treat module sources and compiled outputs as separate caches with an explicit trusted-writer policy:
 
-```yaml wrap
+| Cache | Contents | Verification boundary |
+|---|---|---|
+| `GOMODCACHE` | Module metadata, downloaded archives, extracted sources, and recorded hashes | Go authenticates module downloads using `go.sum` and, when applicable, the checksum database. Restoring an Actions archive does not perform those checks. |
+| `GOCACHE` | Compiled outputs, cached test results, and fuzzing data | Go's cache hashes support reuse; they do not authenticate the producer. Neither `go.sum` nor `go mod verify` verifies compiled outputs. |
+
+The following configuration fragment persists module sources only, using one cache owner and shared paths on a GitHub-hosted Linux runner with the Docker sandbox. It assumes a Go module checkout and [network access for Go dependencies](network.md). Only use the `trusted-v1` namespace for producers the consumer trusts; the label itself grants no protection.
+
+```aw wrap
+pre-steps:
+  - name: Set shared Go cache paths
+    run: |
+      mkdir -p /tmp/gh-aw/agent/go-mod /tmp/gh-aw/agent/go-cache
+      echo "GOMODCACHE=/tmp/gh-aw/agent/go-mod" >> "$GITHUB_ENV"
+      echo "GOCACHE=/tmp/gh-aw/agent/go-cache" >> "$GITHUB_ENV"
+
+steps:
+  - uses: actions/setup-go@v5
+    with:
+      go-version: '1.25'
+      cache: false
+
 cache:
-  key: go-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
-  path: |
-    ~/go/pkg/mod
-    ~/.cache/go-build
+  key: go-mod-trusted-v1-${{ runner.os }}-${{ runner.arch }}-go1.25-${{ hashFiles('**/go.mod', '**/go.sum') }}
+  path: /tmp/gh-aw/agent/go-mod
   restore-keys: |
-    go-${{ runner.os }}-
+    go-mod-trusted-v1-${{ runner.os }}-${{ runner.arch }}-go1.25-
 
-jobs:
-  setup:
-    steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: false
-      - run: |
-          echo "GOMODCACHE=$HOME/go/pkg/mod" >> "$GITHUB_ENV"
-          echo "GOCACHE=$HOME/.cache/go-build" >> "$GITHUB_ENV"
+pre-agent-steps:
+  - name: Verify modules and pre-build
+    run: |
+      go mod download
+      go mod verify
+      go build ./...
 ```
 
-Keep cache keys specific to the OS and `go.sum`, do not share writable keys across trust boundaries such as untrusted forks and protected branches, and never place secrets in `GOMODCACHE` or `GOCACHE`.
+These hooks run in the generated agent job. Top-level `cache:` restores **after** `steps:`, so verification and pre-building belong in `pre-agent-steps:` when consuming that restore. An explicit restore action before a build is another option. By contrast, `jobs.setup` creates a separate job: its Go installation, files, and `$GITHUB_ENV` values do not automatically reach the agent. Cross-job preparation needs an explicit artifact download or cache restore and consumer-side runtime/environment setup; use a run-specific artifact when same-run handoff must not depend on cache availability. See [Custom Steps and Jobs](steps-jobs.md).
+
+#### What does verification guarantee?
+
+Keep reviewed `go.sum` files. Normal Go commands compare recorded module hashes with the consuming module's sums, but cached archives use precomputed hashes rather than rehashing all restored files. [`go mod verify`](https://go.dev/ref/mod#go-mod-verify) rehashes downloaded archives and extracted directories in the build list against the baseline recorded **inside the module cache**. It detects changes relative to that baseline, not the provenance of an archive that includes both files and baseline. It does not directly use `go.sum` to verify module content, download all missing modules, or verify `GOCACHE`; graph loading may fetch `go.mod` metadata.
+
+The sequence above is for an accepted cache producer, not a way to make an untrusted cache safe. If module-cache provenance is uncertain, use a fresh module directory and download dependencies under the intended checksum policy. Keep `GOCACHE` fresh when compiled outputs are not trusted; on reused self-hosted runners, use a new run-specific directory rather than assuming an existing path is empty. `GODEBUG=gocacheverify=1` is a rebuild/debugging facility, not producer authentication.
+
+[`GOSUMDB`, `GONOSUMDB`, and `GOPRIVATE`](https://go.dev/ref/mod#authenticating) control checksum-database use. `GOSUMDB=off` disables lookups; `GONOSUMDB` excludes matching modules, and `GOPRIVATE` supplies its default. These exclusions do not disable comparisons with existing `go.sum` entries, but missing trusted sums without database verification need another trusted source. They do not govern compiled build caches. `GONOSUMCHECK` is not a Go setting.
+
+#### How should keys and writers be isolated?
+
+Keep the writer/policy namespace in the primary key and **every** restore prefix. Rotate it when the accepted producers or policy change; never fall back to a broader `go-` or OS-only prefix. Omit `restore-keys` when older dependency caches are not acceptable. Keep the toolchain label aligned with the selected Go version; OS, architecture, toolchain, and dependency hashes improve cache selection, not producer authentication.
+
+If trusted compiled outputs also need persistence, cache `/tmp/gh-aw/agent/go-cache` separately with a distinct `go-build-trusted-v1-` namespace and the same OS, architecture, toolchain, and dependency identity. Do not bundle it into the module archive or restore from broader writer-policy prefixes.
+
+[Actions cache access restrictions](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache) still apply. Ordinary `pull_request` caches are merge-ref-scoped and cannot be restored by the base branch, while permitted workflows in the same scope can share caches. Current Actions defaults also restrict writes for low-trust triggers; explicit write-capable overrides change that protection. Do not enable those overrides just to populate a cache. Use restore-only actions for consumers that should not publish caches, and restrict the workflows that can write the consumer's cache scope; a known key prefix is not an access control.
+
+`tools.github.min-integrity` filters GitHub tool content; it does **not** add integrity or policy prefixes to arbitrary top-level `cache:` entries. [Cache-memory integrity isolation](cache-memory.md#integrity-aware-caching) is a separate compiler-managed feature. Never store credentials in either Go cache, and consider private module source sensitive: fork PRs may read base-branch caches.
+
+#### Can `actions/setup-go` own the cache instead?
+
+An explicitly customized `actions/setup-go` step can use `cache: true` instead of top-level caching. In v5, it caches both `go env GOMODCACHE` and `go env GOCACHE` with an action-owned OS/architecture/image/Go-version/dependency-hash key. It does not provide a trust-policy key input or add module verification. Set path overrides before setup restores, keep them consistent through its post-job save, and do not also cache those directories through top-level `cache:`.
+
+Generated Go setup defaults to `cache: false`. Runtime deduplication can replace a step containing only `go-version-file: go.mod` and `cache: true` with that default; an explicit `go-version` customization is preserved. Inspect the compiled `.lock.yml` before relying on built-in caching. Prefer explicit top-level ownership when separate module/build caches or custom trust namespaces are needed.
 
 ## Guardrails
 

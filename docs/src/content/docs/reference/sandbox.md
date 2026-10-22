@@ -316,22 +316,22 @@ Use this for OpenAI-compatible proxies and gateways that expect additional reque
 
 #### Go cache paths in AWF (`GOMODCACHE` / `GOCACHE`)
 
-When using `actions/setup-go` in AWF, pin Go cache paths explicitly so restore behavior is predictable:
+Pin absolute Go cache paths in the **agent job**, and ensure Actions and the sandbox see the same backing directories. For the Linux Docker runtime, `/tmp/gh-aw` is explicitly shared read-write:
 
-```yaml wrap
-jobs:
-  setup:
-    steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: false
-      - run: |
-          echo "GOMODCACHE=$HOME/go/pkg/mod" >> "$GITHUB_ENV"
-          echo "GOCACHE=$HOME/.cache/go-build" >> "$GITHUB_ENV"
+```aw wrap
+pre-steps:
+  - name: Set shared Go cache paths
+    run: |
+      mkdir -p /tmp/gh-aw/agent/go-mod /tmp/gh-aw/agent/go-cache
+      echo "GOMODCACHE=/tmp/gh-aw/agent/go-mod" >> "$GITHUB_ENV"
+      echo "GOCACHE=/tmp/gh-aw/agent/go-cache" >> "$GITHUB_ENV"
 ```
 
-Then cache those paths via top-level `cache:` (see [Frontmatter cache configuration](/gh-aw/reference/frontmatter/)). Keep cache keys scoped to trusted contexts and avoid sharing writeable keys between untrusted and protected runs.
+The default Docker sandbox has a writable replacement home with selected host directories overlaid. The host `.cache` directory is shared, but `~/go` is not automatically shared: a writable sandbox `~/go/pkg/mod` need not contain the host cache restored by Actions. Redirecting to an arbitrary `/tmp` path does not by itself guarantee host persistence.
+
+Other runtimes and runner topologies have different exports and ownership. Cloud Hypervisor does not automatically export the host home; custom write policies can further restrict access. Setting `GOMODCACHE` or `GOCACHE` does not create a mount or grant permissions. Check effective `go env` paths, writability, and host-to-sandbox persistence for the selected backend.
+
+See the [Go cache FAQ](faq.md#how-should-i-configure-go-caches-safely-in-agentic-workflows) for cache ownership, verification, trust-scoped keys, and a same-job pre-build example. A separate `jobs.setup` job requires explicit transfer and consumer-side setup; its `$GITHUB_ENV` values are not inherited by the agent.
 
 ## MCP Gateway
 
