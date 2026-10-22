@@ -23,12 +23,12 @@
     "test:debug": "playwright test --debug"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "7.3.2",
+    "@astrojs/markdown-remark": "7.3.3",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "@astrojs/starlight": "^0.42.6",
     "@primer/octicons": "^19.40.0",
-    "astro": "^7.3.8",
+    "astro": "^7.4.0",
     "astro-mermaid": "^2.1.0",
     "mermaid": "11.17.2",
     "sharp": "^0.35.5",
@@ -45,7 +45,7 @@
     "starlight-github-alerts": "^0.5.0"
   },
   "overrides": {
-    "@astrojs/markdown-remark": "7.3.2",
+    "@astrojs/markdown-remark": "7.3.3",
     "p-queue": "9.3.3",
     "zod": "4.6.5",
     "mermaid": {
