@@ -37,9 +37,9 @@ type EpisodeOutcomeMembershipCoverage struct {
 }
 
 type episodeOutcomesLogs struct {
-	Runs          []RunData                  `json:"runs"`
-	Episodes      []episodeOutcomeMembership `json:"episodes"`
-	OutcomeRunIDs []int64                    `json:"-"`
+	Runs     []RunData                  `json:"runs"`
+	Episodes []episodeOutcomeMembership `json:"episodes"`
+	Outcomes []OutcomesData             `json:"outcomes,omitempty"`
 }
 
 type episodeOutcomeMembership struct {
@@ -239,16 +239,16 @@ func buildEpisodeOutcomes(logs episodeOutcomesLogs, observations []EpisodeOutcom
 	for _, observation := range latest {
 		byRun[observation.RunID] = append(byRun[observation.RunID], observation)
 	}
+	for _, report := range logs.Outcomes {
+		if report.EvalError == "" && len(report.Items) == 0 {
+			if _, observed := byRun[report.RunID]; !observed {
+				byRun[report.RunID] = []EpisodeOutcomeObservation{}
+			}
+		}
+	}
 	runs := make(map[int64]bool)
 	for _, run := range logs.Runs {
 		runs[run.RunID] = true
-	}
-	evaluated := make(map[int64]bool, len(logs.OutcomeRunIDs)+len(byRun))
-	for _, id := range logs.OutcomeRunIDs {
-		evaluated[id] = true
-	}
-	for id := range byRun {
-		evaluated[id] = true
 	}
 	members := make(map[int64]bool)
 	data := EpisodeOutcomesData{Episodes: []EpisodeOutcomeData{}, UnmatchedOutcomeRunIDs: []int64{}}
@@ -259,7 +259,7 @@ func buildEpisodeOutcomes(logs episodeOutcomesLogs, observations []EpisodeOutcom
 			}
 			members[id] = true
 		}
-		row, err := summarizeEpisodeOutcomes(episode, byRun, costs, runs, evaluated)
+		row, err := summarizeEpisodeOutcomes(episode, byRun, costs, runs)
 		if err != nil {
 			return EpisodeOutcomesData{}, err
 		}
@@ -275,7 +275,7 @@ func buildEpisodeOutcomes(logs episodeOutcomesLogs, observations []EpisodeOutcom
 	return data, nil
 }
 
-func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64][]EpisodeOutcomeObservation, costs map[int64]episodeOutcomeCost, runs, evaluated map[int64]bool) (EpisodeOutcomeData, error) {
+func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64][]EpisodeOutcomeObservation, costs map[int64]episodeOutcomeCost, runs map[int64]bool) (EpisodeOutcomeData, error) {
 	row := EpisodeOutcomeData{
 		EpisodeID: episode.EpisodeID, RunIDs: slices.Clone(episode.RunIDs),
 		MembershipScope: "selected_runs", Items: []EpisodeOutcomeObservation{},
@@ -290,7 +290,8 @@ func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64]
 	}
 	legacy, incompleteEvidence := false, false
 	for _, id := range row.RunIDs {
-		if err := addEpisodeOutcomeRun(&row, id, byRun[id], costs[id], runs[id], evaluated[id]); err != nil {
+		items, evaluated := byRun[id]
+		if err := addEpisodeOutcomeRun(&row, id, items, costs[id], runs[id], evaluated); err != nil {
 			return row, err
 		}
 		for _, item := range byRun[id] {

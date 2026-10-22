@@ -176,7 +176,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
-	// These fields are JSON-only; text output renders outcomes through renderLogsOutcomes.
+	// These fields are for JSON output; text outcomes are rendered separately by renderLogsOutcomes.
 	report.Outcomes = logsData.Outcomes
 	report.EpisodeOutcomes = logsData.EpisodeOutcomes
 	report.FailureClusters = logsData.FailureClusters

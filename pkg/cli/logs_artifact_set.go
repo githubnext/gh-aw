@@ -77,7 +77,8 @@ const (
 	// conclusion job (aw-info.jsonl, usage summaries, token usage JSONL).
 	ArtifactSetUsage ArtifactSet = "usage"
 
-	// ArtifactSetOutcomes downloads executed safe-output manifests and compact enrichment data.
+	// ArtifactSetOutcomes downloads executed safe-output manifests and compact
+	// agent output used to recover references omitted from handler results.
 	ArtifactSetOutcomes ArtifactSet = "outcomes"
 
 	// ArtifactSetGraders downloads the artifacts that carry grader results

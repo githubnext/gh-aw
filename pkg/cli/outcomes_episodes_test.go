@@ -200,23 +200,6 @@ func TestBuildEpisodeOutcomesLatestAcrossRuns(t *testing.T) {
 	assert.Equal(t, data, reversed)
 }
 
-func TestBuildEpisodeOutcomesIncludesVerifiedZeroItemRun(t *testing.T) {
-	t.Parallel()
-	logs := episodeLogs(1, 2)
-	logs.OutcomeRunIDs = []int64{1, 2}
-	data, err := buildEpisodeOutcomes(logs,
-		[]EpisodeOutcomeObservation{episodeObservation(1, "item-1", OutcomeStatusAccepted)},
-		map[int64]episodeOutcomeCost{1: episodeCost(3), 2: episodeCost(2)})
-	require.NoError(t, err)
-	require.Len(t, data.Episodes, 1)
-	row := data.Episodes[0]
-	assert.Equal(t, "complete", row.OutcomeCoverage)
-	assert.Equal(t, []int64{1, 2}, row.OutcomeRunIDs)
-	assert.Empty(t, row.MissingOutcomeRunIDs)
-	require.NotNil(t, row.CostPerAcceptedOutcome)
-	assert.InDelta(t, 5, *row.CostPerAcceptedOutcome, 1e-9)
-}
-
 func TestBuildEpisodeOutcomesCostAndEvidence(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

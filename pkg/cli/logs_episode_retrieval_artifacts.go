@@ -102,6 +102,9 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	if complete, err := completedEpisodeArtifact(dir); err != nil {
 		return "", err
 	} else if complete {
+		if err := writeSensitiveFile(filepath.Join(dir, ".episode-artifact-name"), []byte(artifact.Name)); err != nil {
+			return "", err
+		}
 		return dir, nil
 	}
 	if artifact.Expired {
@@ -127,6 +130,9 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	if err := extractEpisodeArtifact(ctx, data, extracted); err != nil {
 		return "", fmt.Errorf("extract compact episode artifact: %w", err)
 	}
+	if err := writeSensitiveFile(filepath.Join(extracted, ".episode-artifact-name"), []byte(artifact.Name)); err != nil {
+		return "", err
+	}
 	if err := writeSensitiveFile(filepath.Join(extracted, ".episode-complete"), []byte("v1\n")); err != nil {
 		return "", err
 	}
@@ -142,7 +148,7 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 }
 
 func compareEpisodeArtifacts(a, b episodeArtifact) int {
-	if aOutcome, bOutcome := isEpisodeOutcomeArtifact(a.Name), isEpisodeOutcomeArtifact(b.Name); aOutcome != bOutcome {
+	if aOutcome, bOutcome := episodeArtifactNeedsIdentity(a.Name), episodeArtifactNeedsIdentity(b.Name); aOutcome != bOutcome {
 		if aOutcome {
 			return 1
 		}
@@ -161,7 +167,7 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 	var dirs []string
 	var priorAttempt bool
 	for _, artifact := range artifacts {
-		if isEpisodeOutcomeArtifact(artifact.Name) {
+		if episodeArtifactNeedsIdentity(artifact.Name) {
 			info, err := selectEpisodeInfo(infos)
 			if err != nil {
 				continue
@@ -190,7 +196,7 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 			}
 			return nil, nil, err
 		}
-		if isEpisodeOutcomeArtifact(artifact.Name) {
+		if episodeArtifactNeedsIdentity(artifact.Name) {
 			dirs = append(dirs, dir)
 			continue
 		}
@@ -215,11 +221,21 @@ func episodeArtifactUnavailable(err error) bool {
 	return errorutil.IsNotFoundError(err) || errorutil.IsGoneError(err)
 }
 
-// readEpisodeArtifactDirs returns the immutable, validated inventory for one
-// collection. Older collections keep their own inventory and cached evidence.
+// Enrichment artifacts mirror accounting already present in usage. Keep them
+// out of existing accounting readers while outcome readers use the full inventory.
 func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
+	dirs, found, err := readEpisodeAllArtifactDirs(runDir)
+	dirs = slices.DeleteFunc(dirs, func(dir string) bool {
+		return strings.HasSuffix(filepath.Base(dir), "-enrichment")
+	})
+	return dirs, found, err
+}
+
+// readEpisodeAllArtifactDirs returns the immutable, validated inventory for one
+// collection. Older collections keep their own inventory and cached evidence.
+func readEpisodeAllArtifactDirs(runDir string) ([]string, bool, error) {
 	id, kind, artifactDir := strings.Cut(filepath.Base(filepath.Clean(runDir)), "-")
-	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage" || kind == "outcomes" || kind == "outcome-enrichment") {
+	if _, validID := parseEpisodeRunID(id); artifactDir && validID && validEpisodeArtifactKind(kind) {
 		return nil, false, nil // An archive cannot supply its own trusted collection inventory.
 	}
 	data, err := os.ReadFile(filepath.Join(runDir, ".episode-artifacts.json"))
@@ -237,7 +253,7 @@ func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
 	for _, relative := range inventory {
 		name := filepath.Base(relative)
 		id, kind, valid := strings.Cut(name, "-")
-		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" && kind != "outcomes" && kind != "outcome-enrichment" || relative != filepath.Join("..", name) {
+		if _, validID := parseEpisodeRunID(id); !valid || !validID || !validEpisodeArtifactKind(kind) || relative != filepath.Join("..", name) {
 			return nil, true, fmt.Errorf("invalid episode artifact inventory entry %q", relative)
 		}
 		dir := filepath.Join(runDir, relative)
@@ -279,18 +295,22 @@ func episodeArtifactKind(name string) string {
 	if artifactMatchesFilter(name, []string{"safe-outputs-items"}) {
 		return "outcomes"
 	}
-	if artifactMatchesFilter(name, []string{"agent-output-fallback"}) {
-		return "outcome-enrichment"
-	}
 	if artifactMatchesFilter(name, []string{"info"}) {
 		return "info"
+	}
+	if artifactMatchesFilter(name, []string{"agent-output-fallback"}) {
+		return "enrichment"
 	}
 	return "usage"
 }
 
-func isEpisodeOutcomeArtifact(name string) bool {
+func validEpisodeArtifactKind(kind string) bool {
+	return kind == "info" || kind == "usage" || kind == "outcomes" || kind == "enrichment"
+}
+
+func episodeArtifactNeedsIdentity(name string) bool {
 	kind := episodeArtifactKind(name)
-	return kind == "outcomes" || kind == "outcome-enrichment"
+	return kind == "outcomes" || kind == "enrichment"
 }
 
 func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {

@@ -124,10 +124,7 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 			skipped++
 			continue
 		}
-		repo := item.Repo
-		if repo == "" {
-			repo = repoOverride
-		}
+		repo := resolveItemRepo(item, repoOverride)
 		eval, ok := outcomeEvaluators[item.Type]
 		if !ok {
 			outcomeEvalLog.Printf("No evaluator registered for type %q, using generic sticky", item.Type)
@@ -361,17 +358,35 @@ func isBotUser(login string) bool {
 	return strings.HasSuffix(login, "[bot]") || login == "github-actions" || login == "copilot-swe-agent"
 }
 
-// resolveItemRepo returns the repo to use for API calls, preferring the item's repo field.
+// resolveItemRepo prefers the item's repository, inheriting its URL or run host when hostless.
 func resolveItemRepo(item CreatedItemReport, repoOverride string) string {
-	if item.Repo != "" {
+	repo, host := repoutil.NormalizeRepoForAPI(item.Repo)
+	if host != "" {
 		return item.Repo
 	}
-	if item.URL != "" {
-		if r := parseRepoFromURL(item.URL); r != "" {
-			return r
+	_, host = repoutil.NormalizeRepoForAPI(repoOverride)
+	if objectURL, err := url.Parse(item.URL); err == nil && objectURL.Host != "" &&
+		(objectURL.Scheme == "https" || objectURL.Scheme == "http") {
+		owner, rest, found := strings.Cut(strings.Trim(objectURL.Path, "/"), "/")
+		repository, _, _ := strings.Cut(rest, "/")
+		if found && owner != "" && repository != "" {
+			if repo == "" {
+				repo = strings.Join([]string{owner, repository}, "/")
+			}
+			// An explicit object URL can target a different host from the run.
+			if objectURL.Host != "github.com" || host != "" {
+				return strings.Join([]string{objectURL.Host, repo}, "/")
+			}
+			return repo
 		}
 	}
-	return repoOverride
+	if repo == "" {
+		return repoOverride
+	}
+	if host != "" {
+		return strings.Join([]string{host, repo}, "/")
+	}
+	return repo
 }
 
 // resolveItemNumber returns the object number, trying item.Number first then URL parsing.

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 
@@ -13,7 +12,7 @@ let prepareIssueOutcomes;
 
 beforeEach(() => {
   vi.stubEnv("GH_AW_OUTCOME_GH_TIMEOUT_MS", "300000");
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-impact-outcomes-"));
+  root = fs.mkdtempSync(path.join(path.dirname(scriptPath), ".impact-outcomes-test-"));
   exec = vi.spyOn(childProcess, "execFileSync");
   delete req.cache[scriptPath];
   ({ prepareIssueOutcomes } = req(scriptPath));
@@ -98,26 +97,6 @@ describe("CLI-backed impact report outcomes", () => {
     expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8"))).toMatchObject({ outcome_status: "accepted", signal: "completed" });
   });
 
-  it("publishes available observations with explicit partial coverage for runs missing manifests", () => {
-    writeRuns([{ run_id: 1 }, { run_id: 2 }]);
-    exec.mockReturnValue(
-      JSON.stringify({
-        outcomes: [
-          { run_id: 1, items: [{ type: "create_issue", outcome_status: "accepted", object_number: 42 }] },
-          { run_id: 2, items: [], eval_error: "safe-output manifest unavailable; outcome coverage is unknown" },
-        ],
-      })
-    );
-    prepareIssueOutcomes(root, "acme/repo");
-    const rows = fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ run_id: 1, object_number: 42, outcome_status: "accepted" });
-    expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-summary.json"), "utf8"))).toMatchObject({
-      coverage_status: "partial",
-      missing_evidence: [{ run_id: 2, error: "safe-output manifest unavailable; outcome coverage is unknown" }],
-    });
-  });
-
   it("surfaces CLI failures without publishing a successful empty report", () => {
     writeRuns([{ run_id: 1 }]);
     exec.mockImplementation(() => {
@@ -127,18 +106,60 @@ describe("CLI-backed impact report outcomes", () => {
     expect(fs.existsSync(path.join(root, "safe-output-issue-summary.json"))).toBe(false);
   });
 
+  it("retains available observations and explicit missing evidence in a partial summary", () => {
+    writeRuns([{ run_id: 1 }, { run_id: 2, workflow_name: "missing", url: "https://github.com/acme/repo/actions/runs/2" }]);
+    exec.mockReturnValue(
+      JSON.stringify({
+        outcomes: [
+          { run_id: 1, items: [{ type: "create_issue", outcome_status: "accepted" }] },
+          { run_id: 2, items: [], eval_error: "safe-output manifest unavailable; outcome coverage is unknown" },
+        ],
+      })
+    );
+    prepareIssueOutcomes(root, "acme/repo");
+    expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8"))).toMatchObject({ run_id: 1, outcome_status: "accepted" });
+    expect(JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-summary.json"), "utf8"))).toMatchObject({
+      partial: true,
+      selected_run_count: 2,
+      evaluated_run_count: 1,
+      unavailable_run_count: 1,
+      total_issue_outcomes: 1,
+      accepted_count: 1,
+      run_errors: [{ run_id: 2, workflow_name: "missing", workflow_run_url: "https://github.com/acme/repo/actions/runs/2", eval_error: "safe-output manifest unavailable; outcome coverage is unknown" }],
+    });
+  });
+
+  it.each([
+    ["all unavailable", "safe-output manifest unavailable; outcome coverage is unknown", true, 0, 1],
+    ["verified empty", undefined, false, 1, 0],
+  ])("distinguishes %s runs from no published issue outcomes", (_label, evalError, partial, evaluated, unavailable) => {
+    writeRuns([{ run_id: 1 }]);
+    exec.mockReturnValue(JSON.stringify({ outcomes: [{ run_id: 1, items: [], eval_error: evalError }] }));
+    prepareIssueOutcomes(root, "acme/repo");
+    expect(fs.readFileSync(path.join(root, "safe-output-issue-evaluations.jsonl"), "utf8")).toBe("");
+    const summary = JSON.parse(fs.readFileSync(path.join(root, "safe-output-issue-summary.json"), "utf8"));
+    expect(summary).toMatchObject({ partial, selected_run_count: 1, evaluated_run_count: evaluated, unavailable_run_count: unavailable, total_issue_outcomes: 0 });
+    expect(summary.run_errors).toHaveLength(unavailable);
+    if (evalError) expect(summary.run_errors[0]).toMatchObject({ run_id: 1, eval_error: evalError });
+  });
+
   it.each([
     "invalid JSON",
     '{"run_id":1}',
     '{"outcomes":[{"run_id":2,"items":[]}]}',
     '{"outcomes":[{"run_id":1,"items":[null]}]}',
+    '{"outcomes":[]}',
+    '{"outcomes":[{"run_id":1,"items":[]},{"run_id":2,"items":[]}]}',
     '{"outcomes":[{"run_id":1,"items":[],"eval_error":true}]}',
+    '{"outcomes":[{"run_id":1,"eval_error":"missing manifest"}]}',
+    '{"outcomes":[{"run_id":1,"items":[{"type":"create_issue","outcome_status":"accepted"}],"eval_error":"missing manifest"}]}',
     '{"outcomes":[null]}',
     '{"outcomes":[{"run_id":1,"items":[]},{"run_id":1,"items":[]}]}',
   ])("rejects malformed CLI output: %s", output => {
     writeRuns([{ run_id: 1 }]);
     exec.mockReturnValue(output);
     expect(() => prepareIssueOutcomes(root, "acme/repo")).toThrow(/Invalid gh aw logs --outcomes/);
+    expect(fs.existsSync(path.join(root, "safe-output-issue-summary.json"))).toBe(false);
   });
 
   it("does not invoke the CLI for an empty source run list", () => {

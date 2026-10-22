@@ -103,8 +103,9 @@ after a run:
 printf '%s\n' 1234567890 | gh aw logs --stdin --repo owner/repo --outcomes
 ```
 
-The command downloads the run's safe-output artifacts, queries the current
-state of each affected GitHub object, and includes per-run outcome summaries in
+The command downloads executed safe-output manifests and compact agent-output
+fallback evidence, without downloading workflow logs by default. It queries the
+current state of each affected GitHub object and includes per-run outcome summaries in
 the logs output. Use `--json` for item-level classifications. Use a run ID from
 the repository's GitHub Actions page. Specify
 `--repo owner/repo` when running outside the target repository.
@@ -211,6 +212,9 @@ summing independent stream totals. Agent JSON remains a fallback when agent
 JSONL has no usable cost; an executed phase without accounting qualifies cost
 coverage as partial.
 Both compact and verbose logs JSON retain all canonical episodes, including standalone episodes.
+A successfully evaluated empty or all-skipped manifest establishes outcome coverage
+for that selected run. A missing manifest does not establish zero outputs and
+keeps outcome coverage partial.
 
 Membership can also come from [`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
 Its bounded retrieval report uses the same episode contract. The outcome join
