@@ -1,106 +1,35 @@
 ### 📊 Performance Summary
 
-**Date**: 2026-10-19  
-**Analysis Status**: ⚡ 1 warning(s) detected
+**Date:** 2026-10-22  
+**Analysis:** 1 regression(s), 4 warning(s); likely environment noise: false
 
 ### 🎯 Key Metrics
 
-- **Total Benchmarks**: 9
-- **Stable**: 8
-- **Warnings**: 1
-- **Regressions**: 0
-- **Improvements**: 0
+- **Benchmarks:** 9 total; 3 stable, 4 warnings, 1 regression(s), 1 improvement(s)
+- **Regression:** `CompileComplexWorkflow` at 12.13 ms/op, 15.9% slower than its 10.47 ms/op historical median (13 data points).
+- **Warnings:** `CompileSimpleWorkflow` (+7.6%), `CompileMCPWorkflow` (+7.9%), `CompileMemoryUsage` (+5.6%), and `YAMLGeneration` (+7.5%).
+- **Improvement:** `FindIncludesInContent` is 8.6% faster. Parsing, validation, and workflow-name extraction are stable.
 
 <details>
-<summary><b>📈 Detailed Benchmark Results</b></summary>
+<summary><b>📈 Detailed benchmark results</b></summary>
 
-#### ✓ CompileComplexWorkflow
-
-- **Current**: 10.47ms
-- **Historical Median**: 10.46ms
-- **Change**: +0.0%
-- **Memory**: 5864732 B/op
-- **Allocations**: 38570 allocs/op
-- **Status**: ✓ STABLE: 0.0% change from historical average
-
-#### ✓ CompileMCPWorkflow
-
-- **Current**: 7.49ms
-- **Historical Median**: 7.40ms
-- **Change**: +1.3%
-- **Memory**: 3869806 B/op
-- **Allocations**: 30112 allocs/op
-- **Status**: ✓ STABLE: 1.3% change from historical average
-
-#### ✓ CompileMemoryUsage
-
-- **Current**: 9.90ms
-- **Historical Median**: 9.49ms
-- **Change**: +4.4%
-- **Memory**: 5421576 B/op
-- **Allocations**: 35588 allocs/op
-- **Status**: ✓ STABLE: 4.4% change from historical average
-
-#### ✓ CompileSimpleWorkflow
-
-- **Current**: 7.18ms
-- **Historical Median**: 7.16ms
-- **Change**: +0.2%
-- **Memory**: 3765109 B/op
-- **Allocations**: 26956 allocs/op
-- **Status**: ✓ STABLE: 0.2% change from historical average
-
-#### ✓ ExtractWorkflowNameFromFile
-
-- **Current**: 2.29µs
-- **Historical Median**: 2.31µs
-- **Change**: -1.0%
-- **Memory**: 216 B/op
-- **Allocations**: 4 allocs/op
-- **Status**: ✓ STABLE: -1.0% change from historical average
-
-#### ✓ FindIncludesInContent
-
-- **Current**: 106.4ns
-- **Historical Median**: 111ns
-- **Change**: -4.1%
-- **Memory**: 64 B/op
-- **Allocations**: 1 allocs/op
-- **Status**: ✓ STABLE: -4.1% change from historical average
-
-#### ⚡ ParseWorkflow
-
-- **Current**: 1.11ms
-- **Historical Median**: 1.03ms
-- **Change**: +7.8%
-- **Memory**: 728416 B/op
-- **Allocations**: 13664 allocs/op
-- **Status**: ⚡ WARNING: 7.8% slower than historical average
-
-#### ✓ Validation
-
-- **Current**: 154.69µs
-- **Historical Median**: 155.90µs
-- **Change**: -0.8%
-- **Memory**: 231339 B/op
-- **Allocations**: 653 allocs/op
-- **Status**: ✓ STABLE: -0.8% change from historical average
-
-#### ✓ YAMLGeneration
-
-- **Current**: 7.12ms
-- **Historical Median**: 7.00ms
-- **Change**: +1.8%
-- **Memory**: 3726615 B/op
-- **Allocations**: 26132 allocs/op
-- **Status**: ✓ STABLE: 1.8% change from historical average
+| Benchmark | Current | Historical median | Change | Memory | Allocations | Status |
+|---|---:|---:|---:|---:|---:|---|
+| `CompileComplexWorkflow` | 12.13 ms | 10.47 ms | +15.9% | 6145611 B/op | 39549 | regression |
+| `CompileMCPWorkflow` | 8.08 ms | 7.49 ms | +7.9% | 4275490 B/op | 31094 | warning |
+| `CompileMemoryUsage` | 10.60 ms | 10.04 ms | +5.5% | 5796813 B/op | 36562 | warning |
+| `CompileSimpleWorkflow` | 7.73 ms | 7.19 ms | +7.6% | 4185058 B/op | 27953 | warning |
+| `ExtractWorkflowNameFromFile` | 2.32 µs | 2.31 µs | +0.7% | 216 B/op | 4 | stable |
+| `FindIncludesInContent` | 98 ns | 107 ns | -8.6% | 64 B/op | 1 | improvement |
+| `ParseWorkflow` | 991.92 µs | 1.03 ms | -3.7% | 723324 B/op | 13608 | stable |
+| `Validation` | 155.43 µs | 156.14 µs | -0.5% | 231497 B/op | 661 | stable |
+| `YAMLGeneration` | 7.59 ms | 7.07 ms | +7.5% | 4145088 B/op | 27115 | warning |
 
 </details>
 
 ### 💡 Recommendations
 
-- Monitor the warned benchmarks in upcoming runs.
-- Consider profiling if the warning persists.
+- Review recent compilation pipeline changes and profile `CompileComplexWorkflow` if the regression persists.
+- Monitor the four warning results on the next benchmark run.
 
-**References:**
-- [Workflow run 39273077217](https://github.com/github/gh-aw/actions/runs/39273077217)
+**References:** [Run 39799490862](https://github.com/github/gh-aw/actions/runs/39799490862)
