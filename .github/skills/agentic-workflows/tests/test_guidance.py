@@ -10,7 +10,8 @@ SKILL = Path(__file__).resolve().parents[1]
 ROOT = SKILL.parents[2]
 DEBUG_GUIDE = ROOT / ".github/aw/debug-agentic-workflow.md"
 GUIDES = (ROOT / ".github/aw/debug-model-engine-misconfiguration.md",)
-BOOTSTRAP = ROOT / "debug.md"
+BOOTSTRAP = ROOT / ".github/aw/debug-bootstrap.md"
+EVIDENCE_GUIDE = ROOT / ".github/aw/debug-workflow-evidence.md"
 FIXTURES = json.loads((SKILL / "tests/fixtures.json").read_text())
 ANCHOR = "#model-and-engine-misconfiguration"
 
@@ -97,14 +98,37 @@ class GuidanceTests(unittest.TestCase):
                 if anchor:
                     headings = re.findall(r"^#+ (.+)$", target.read_text(), re.M)
                     self.assertIn(anchor, [heading.lower().replace(" ", "-") for heading in headings])
-        self.assertIn(".github/aw/debug-playbook.md", links)
-        self.assertIn(".github/aw/analyzing-runs.md", links)
-        self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", links)
+        self.assertIn("debug-playbook.md", links)
+        self.assertIn("analyzing-runs.md", links)
+        self.assertIn(f"debug-agentic-workflow.md{ANCHOR}", links)
+
+    def test_legacy_debug_entries_are_thin_routers(self):
+        for path, destination in (
+            (ROOT / "debug.md", ".github/aw/debug-bootstrap.md"),
+            (ROOT / ".github/skills/debugging-workflows/SKILL.md", "../../aw/debug-workflow-evidence.md"),
+        ):
+            with self.subTest(path=path):
+                text = path.read_text()
+                self.assertLessEqual(len(text.split()), 200)
+                self.assertIn(destination, text)
+                self.assertTrue((path.parent / destination).is_file())
+                self.assertNotIn("gh aw version", text)
+                self.assertNotIn("gh aw audit", text)
+                self.assertNotIn("gh extension install", text)
+        self.assertIn("same ref", (ROOT / "debug.md").read_text())
+        self.assertIn("retaining the ref", (ROOT / ".github/skills/debugging-workflows/SKILL.md").read_text())
+
+    def test_moved_evidence_links_resolve(self):
+        for link in re.findall(r"\]\(([^)]+)\)", EVIDENCE_GUIDE.read_text()):
+            with self.subTest(link=link):
+                path = link.partition("#")[0]
+                if path and not path.startswith("https://"):
+                    self.assertTrue((EVIDENCE_GUIDE.parent / path).is_file())
 
     def test_debug_inventory_preserves_all_debug_named_markdown(self):
         inventory = BOOTSTRAP.read_text().split("## Debugging Entry Point Inventory\n", 1)[1]
         links = re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", inventory)
-        documented = {(ROOT / link).resolve() for link in links}
+        documented = {(BOOTSTRAP.parent / link).resolve() for link in links}
         candidates = [ROOT / "debug.md"]
         for directory in (".github/aw", ".github/workflows/shared", "docs", "scratchpad", ".changeset"):
             candidates.extend((ROOT / directory).rglob("*debug*.md"))
@@ -129,7 +153,7 @@ class GuidanceTests(unittest.TestCase):
             ROOT / "pkg/cli/data/agentic_workflows_agent.md",
         ):
             with self.subTest(router=path):
-                self.assertIn("https://raw.githubusercontent.com/github/gh-aw/main/debug.md", path.read_text())
+                self.assertIn("https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md", path.read_text())
         self.assertEqual(
             (ROOT / ".github/agents/agentic-workflows.md").read_text(),
             (ROOT / "pkg/cli/data/agentic_workflows_agent.md").read_text(),
@@ -141,11 +165,11 @@ class GuidanceTests(unittest.TestCase):
         self.assertTrue(installed.endswith(after))
 
     def test_debugging_skill_delegates_execution_policy(self):
-        guide = (ROOT / ".github/skills/debugging-workflows/SKILL.md").read_text()
+        guide = EVIDENCE_GUIDE.read_text()
         preamble = guide.split("## Table of Contents", 1)[0]
         for route in (
-            "../../../debug.md",
-            "../../aw/debug-agentic-workflow.md",
+            "debug-bootstrap.md",
+            "debug-agentic-workflow.md",
             "#test-workflow-changes-from-a-branch",
             "#session-authorization",
             "#dry-run-dangerous-features",
@@ -541,9 +565,12 @@ class GuidanceTests(unittest.TestCase):
             "two evidence-backed YES votes", "two-affirmative-vote requirement",
         ):
             self.assertNotIn(obsolete, gate)
-        for skill in ("debugging-workflows", "review-agentic-workflows"):
-            with self.subTest(skill=skill):
-                text = (ROOT / f".github/skills/{skill}/SKILL.md").read_text()
+        for path in (
+            EVIDENCE_GUIDE,
+            ROOT / ".github/skills/review-agentic-workflows/SKILL.md",
+        ):
+            with self.subTest(path=path):
+                text = path.read_text()
                 self.assertIn("debug-security-review.md#single-reviewer", text)
                 self.assertIn(
                     "debug-security-review.md#annotated-markdown-change-overview", text
@@ -652,7 +679,7 @@ class GuidanceTests(unittest.TestCase):
         for section in ("Collect Existing Evidence", "Identify the First Failing Boundary"):
             content = full.split(f"## {section}\n", 1)[1].split("\n## ", 1)[0]
             self.assertIn(ANCHOR, content)
-        self.assertIn(f".github/aw/debug-agentic-workflow.md{ANCHOR}", BOOTSTRAP.read_text())
+        self.assertIn(f"debug-agentic-workflow.md{ANCHOR}", BOOTSTRAP.read_text())
 
     def test_docs_merged_example_labels_search_best_effort(self):
         guide = (ROOT / ".github/aw/documentation-workflows.md").read_text()

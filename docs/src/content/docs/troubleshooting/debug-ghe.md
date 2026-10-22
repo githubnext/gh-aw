@@ -7,7 +7,7 @@ sidebar:
 
 This guide walks you through setting up and running agentic workflows on **GitHub Enterprise Cloud with data residency** (`*.ghe.com`). It reflects the configuration needed as of `gh aw` **v0.61.1+** for enterprises using data residency in the EU or other regions.
 
-For an existing failed run, start with the [debug.md bootstrap](https://github.com/github/gh-aw/blob/main/debug.md)
+For an existing failed run, start with the [debugging bootstrap](https://github.com/github/gh-aw/blob/main/.github/aw/debug-bootstrap.md)
 and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md),
 using the full `https://yourorg.ghe.com/OWNER/REPO/actions/runs/RUN_ID` URL.
 Those instructions own setup, evidence collection, review, and live-execution

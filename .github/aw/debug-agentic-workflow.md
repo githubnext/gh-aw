@@ -9,7 +9,7 @@ Default to diagnose/patch; active debugging requires the live gates below.
 Do not emulate Actions.
 
 For a fresh session without CLI setup or run identity, first use
-[debug.md](../../debug.md), the public bootstrap and entry-point inventory.
+[debug-bootstrap.md](debug-bootstrap.md), the canonical bootstrap and entry-point inventory.
 If it already loaded this strategy, continue here; do not repeat setup.
 Other debugging pages are routers or specialized references, not alternative
 execution policies.

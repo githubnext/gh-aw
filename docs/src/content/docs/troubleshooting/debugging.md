@@ -7,7 +7,7 @@ sidebar:
 
 This guide shows you how to debug agentic workflow failures on **github.com** using the Copilot CLI, the `gh aw` debugging commands, and manual investigation techniques.
 
-All agent entry points use the same [debug.md bootstrap and inventory](https://github.com/github/gh-aw/blob/main/debug.md)
+All agent entry points use the same [debugging bootstrap and inventory](https://github.com/github/gh-aw/blob/main/.github/aw/debug-bootstrap.md)
 and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
 Start with existing evidence; diagnosis does not authorize dispatch. The shared
 strategy owns local execution, MCP startup review, compilation, and live-test

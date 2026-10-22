@@ -10,7 +10,7 @@ Use this skill when a user asks to design, create, update, debug, or upgrade Git
 This skill is a dispatcher: identify the task type, load the matching workflow prompt/skill file, and follow it directly. Keep responses concise and ask a clarifying question if the correct prompt is unclear.
 
 For debugging sessions needing CLI setup or run-URL scoping, first load
-`https://raw.githubusercontent.com/github/gh-aw/main/debug.md`; it bootstraps
+`https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`; it bootstraps
 the same shared strategy used by the debugging routes below.
 
 Repository overlay (optional):

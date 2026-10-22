@@ -11,7 +11,7 @@ or questions about version fields. Referenced from [debug-agentic-workflow.md](d
 
 Read the [shared debugging strategy](debug-agentic-workflow.md) before running
 these commands or applying fixes. For CLI setup and run-URL scoping, use
-[debug.md](../../debug.md). This checklist supplies model-specific evidence;
+[debug-bootstrap.md](debug-bootstrap.md). This checklist supplies model-specific evidence;
 it does not authorize execution, publication, or live testing.
 Preserve full run/job/step URLs; add `--repo HOST/OWNER/REPO` to bare-ID audit
 examples below rather than inferring the target from the current checkout.

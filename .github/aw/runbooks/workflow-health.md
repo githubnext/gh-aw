@@ -1,6 +1,6 @@
 # Workflow Health Monitoring Runbook
 
-For a fresh debugging session, start with [debug.md](../../../debug.md).
+For a fresh debugging session, start with [the bootstrap](../debug-bootstrap.md).
 Follow the [shared debugging strategy](../debug-agentic-workflow.md) before
 using this operational reference: it owns MCP startup review, compilation,
 credential triage, and live-execution gates. Use existing evidence; this

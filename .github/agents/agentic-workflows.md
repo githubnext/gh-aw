@@ -96,7 +96,7 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 The shared strategy distinguishes diagnosis/patching from permitted active debug
 loops using explicit live gates and includes existing-run evidence triage.
 For CLI setup or run-URL scoping in a fresh session, first load
-`https://raw.githubusercontent.com/github/gh-aw/main/debug.md`; it bootstraps
+`https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`; it bootstraps
 this same strategy rather than a separate debug procedure.
 
 **Use cases**:

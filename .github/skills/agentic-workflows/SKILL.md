@@ -10,7 +10,7 @@ Use this skill when a user asks to design, create, update, debug, or upgrade Git
 This skill is a dispatcher: identify the task type, load the matching workflow prompt/skill file, and follow it directly. Keep responses concise and ask a clarifying question if the correct prompt is unclear.
 
 For debugging sessions needing CLI setup or run-URL scoping, first load
-`https://raw.githubusercontent.com/github/gh-aw/main/debug.md`; it bootstraps
+`https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`; it bootstraps
 the same shared strategy used by the debugging routes below.
 
 Repository overlay (optional):
@@ -37,9 +37,11 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 - `.github/aw/create-agentic-workflow.md`
 - `.github/aw/create-shared-agentic-workflow.md`
 - `.github/aw/debug-agentic-workflow.md`
+- `.github/aw/debug-bootstrap.md`
 - `.github/aw/debug-model-engine-misconfiguration.md`
 - `.github/aw/debug-playbook.md`
 - `.github/aw/debug-security-review.md`
+- `.github/aw/debug-workflow-evidence.md`
 - `.github/aw/dependabot.md`
 - `.github/aw/deployment-status.md`
 - `.github/aw/designer-mappings.md`

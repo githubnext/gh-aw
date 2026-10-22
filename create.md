@@ -3,7 +3,7 @@
 This prompt guides you, a coding agent, to create, debug, update or do other actions related to **GitHub Agentic Workflows (gh-aw)** in a repository.
 
 For a debugging, failed-run, or log-investigation request, load
-[debug.md](debug.md) from the same repository/ref **before Step 1**, then follow
+[debugging bootstrap](.github/aw/debug-bootstrap.md) from the same repository/ref **before Step 1**, then follow
 its shared debugging strategy instead of the setup, editing, and publication
 steps below. Keep this URL as a compatibility entry point for existing links.
 
@@ -81,7 +81,7 @@ Here are the common actions you may be asked to do, with links to the appropriat
 
 **Load when**: User needs to investigate, audit, debug, or understand a workflow, troubleshoot issues, analyze logs, or fix errors
 
-**Prompt file**: [debug.md](debug.md) at this file's repository/ref; it loads
+**Prompt file**: [debugging bootstrap](.github/aw/debug-bootstrap.md) at this file's repository/ref; it loads
 the canonical `.github/aw/debug-agentic-workflow.md` strategy.
 
 **Use cases**:
@@ -163,7 +163,7 @@ If there is branch protection on the default branch, create a pull request inste
 ## Troubleshooting
 
 - For errors while creating, updating, or compiling a workflow, re-check the relevant prompt file loaded in Step 2 (e.g. `ROOT/.github/aw/create-agentic-workflow.md`).
-- For failing or unexpected workflow runs, use [debug.md](debug.md) at the same repository/ref and follow its shared strategy.
+- For failing or unexpected workflow runs, use [the debugging bootstrap](.github/aw/debug-bootstrap.md) at the same repository/ref and follow its shared strategy.
 - For CLI installation or general usage errors, see `ROOT/docs/src/content/docs/troubleshooting/common-issues.md`.
 
 ## Instructions
