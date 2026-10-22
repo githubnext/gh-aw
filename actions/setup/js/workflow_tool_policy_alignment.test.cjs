@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -28,6 +28,68 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it.each([799, 800, 801])("prepares exact File Diet metrics at the %i-line threshold without agent shell discovery", lines => {
+    const { workflow, prompt, steps } = readWorkflow("daily-file-diet");
+    const preparation = workflow.steps.find(step => step.name === "Prepare Go file size metrics");
+    const execution = steps.find(step => step.name === "Execute GitHub Copilot CLI");
+    expect(preparation.uses).toBe("actions/github-script@v9.0.0");
+    expect(steps.findIndex(step => step.name === preparation.name)).toBeLessThan(steps.findIndex(step => step.name === "Execute GitHub Copilot CLI"));
+    expect(workflow.tools.bash).toEqual(["cat /tmp/gh-aw/agent/file-diet-metrics.json"]);
+    expect(execution.run).toContain("shell(cat /tmp/gh-aw/agent/file-diet-metrics.json)");
+    expect(execution.run).not.toContain("-exec wc -l");
+    expect(execution.run).not.toContain("--allow-all-tools");
+    expect(prompt).toContain("`noop` safe-output tool");
+    expect(prompt).toContain("largest_file.test_file");
+    expect(prompt).not.toMatch(/^\s*(?:find |TEST_FILE=|if \[)/m);
+    const directory = mkdtempSync(resolve(tmpdir(), "gh-aw-file-diet-"));
+    try {
+      const nested = resolve(directory, "pkg/nested/deeper");
+      mkdirSync(nested, { recursive: true });
+      writeFileSync(resolve(nested, "a.go"), "line\n".repeat(lines) + "unterminated");
+      writeFileSync(resolve(nested, "a_test.go"), "test\n".repeat(400));
+      writeFileSync(resolve(nested, "z.go"), "tie\n".repeat(lines));
+      writeFileSync(resolve(nested, "ignored_test.go"), "test\n".repeat(2000));
+      writeFileSync(resolve(nested, "ignored.txt"), "text\n".repeat(2000));
+      writeFileSync(resolve(directory, "outside.go"), "outside\n".repeat(3000));
+      symlinkSync(resolve(directory, "outside.go"), resolve(nested, "symlink.go"));
+      symlinkSync(directory, resolve(nested, "cycle"));
+      const outputPath = resolve(directory, "metrics/result.json");
+      const prepare = () =>
+        runInNewContext(
+          preparation.with.script,
+          {
+            require,
+            process: { env: { GITHUB_WORKSPACE: directory, FILE_DIET_METRICS_PATH: outputPath } },
+          },
+          { timeout: 1000 }
+        );
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toEqual({
+        healthy_threshold: 800,
+        source_file_count: 2,
+        largest_file: {
+          path: "pkg/nested/deeper/a.go",
+          line_count: lines,
+          test_file: { path: "pkg/nested/deeper/a_test.go", line_count: 400 },
+        },
+      });
+      rmSync(resolve(nested, "a_test.go"));
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8")).largest_file.test_file).toBeNull();
+      symlinkSync(resolve(directory, "outside.go"), resolve(nested, "a_test.go"));
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8")).largest_file.test_file).toBeNull();
+      rmSync(resolve(nested, "a.go"));
+      rmSync(resolve(nested, "z.go"));
+      expect(prepare).toThrow("No non-test Go source files found under pkg/");
+      rmSync(outputPath);
+      rmSync(resolve(directory, "pkg"), { recursive: true });
+      expect(prepare).toThrow();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("advertises Caveman ledger tools and requires the CLI audit before clean completion", () => {
     const { workflow, prompt, lock, manifest, steps } = readWorkflow("daily-caveman-optimizer");
     expect(workflow.tools["cli-proxy"]).toBe(true);
