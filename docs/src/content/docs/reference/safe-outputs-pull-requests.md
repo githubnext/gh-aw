@@ -9,6 +9,8 @@ This page covers pull-request-focused safe outputs: [`create-pull-request`](#pul
 
 Code-writing types (`create-pull-request` and `push-to-pull-request-branch`) enforce [Protected Files](#protected-files) by default. For all other safe-output types, see [Safe Outputs](/gh-aw/reference/safe-outputs/).
 
+Before agent execution, configuration restoration uses the checked-out commit when HEAD exactly matches the workflow repository's verified default-branch remote-tracking ref. This preserves config additions, edits, and deletions that landed after activation, including subsequent ambient-folder restores. PR/feature heads, missing trusted refs, and the reserved `origin/pr-head` staging ref retain activation-snapshot restoration. No base ref is fetched by restoration; missing objects needed to materialize verified configuration stop the step with an error. Patch and post-apply `allowed-files` checks remain enforced independently.
+
 ## Pull Request Creation (`create-pull-request:`)
 
 Creates a PR with the agent's code changes. Falls back to opening an issue if PR creation is blocked (e.g. org settings) — set `fallback-as-issue: false` to disable. The default `max: 1` is a **per-workflow-run quota shared by all agents and sub-agents**, not a per-agent limit. Set `max` to the number of PRs the run may create when using parallel agents or creating multiple independent PRs; excess `create_pull_request` calls are rejected.

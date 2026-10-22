@@ -32,7 +32,7 @@ engine:
 
 gh-aw enables `EXTENSIONS`, loads project extensions, and pre-approves workflow runs. SDK sessions honor the same switch. Store definitions in `.github/extensions/<name>/extension.mjs` and request the registered workflow by name in the prompt. Their agents retain workflow tool/sandbox restrictions. Availability also depends on the Copilot account; enabling extensions does not make them available with BYOK.
 
-The trusted activation snapshot recursively restores `.github/` after agent checkouts, even with PR checkout disabled, preventing PR-head extensions/settings/hooks from replacing trusted definitions. Use `ambient-folders` for support files elsewhere. Without dynamic workflows, project extensions are not loaded, runs are denied, and configuration restoration occurs only when PR checkout requires it.
+Trusted configuration recursively restores `.github/` after agent checkouts, even with PR checkout disabled, preventing PR-head extensions/settings/hooks from replacing trusted definitions. When the workspace root's HEAD exactly matches the repository's default-branch remote-tracking ref, configuration is materialized from that commit instead of the older activation snapshot, including in sparse checkouts. Other heads retain activation-snapshot restoration; the reserved `origin/pr-head` staging ref never establishes trust. Use `ambient-folders` for support files elsewhere. Without dynamic workflows, project extensions are not loaded, runs are denied, and configuration restoration occurs only when PR checkout requires it.
 
 See the [dynamic workflow example](https://github.com/github/gh-aw/blob/main/.github/workflows/smoke-copilot-dynamic-workflow.md).
 
