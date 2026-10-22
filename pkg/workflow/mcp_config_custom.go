@@ -144,6 +144,8 @@ func determineMCPPropertyOrder(toolName string, mcpConfig *parser.RegistryMCPSer
 		return []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry", "required"}, true
 	case "http":
 		if renderer.Format == "toml" {
+			// Forward-looking: production HTTP MCP callers currently use JSON;
+			// this TOML property order is not exercised by engine compilation.
 			return []string{"url", "ca_cert_file", "http_headers"}, true
 		}
 		if len(headerSecrets) > 0 {

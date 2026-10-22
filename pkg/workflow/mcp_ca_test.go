@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,10 +64,29 @@ func TestMCPCACertFileValidation(t *testing.T) {
 }
 
 func TestMCPCACertFileTypedRoundTrip(t *testing.T) {
-	config := MCPServerConfig{BaseMCPServerConfig: types.BaseMCPServerConfig{
-		Type: "http", URL: "https://private.example", CACertFile: ".github/ca.pem",
-	}}
-	require.Equal(t, ".github/ca.pem", mcpServerConfigToMap(config)["ca-cert-file"])
+	raw := map[string]any{
+		"type": "http", "url": "https://private.example", "ca-cert-file": ".github/ca.pem",
+	}
+	tools, err := ParseToolsConfig(map[string]any{"private": raw})
+	require.NoError(t, err)
+	config := tools.Custom["private"]
+	require.Equal(t, ".github/ca.pem", config.CACertFile)
+	require.NotContains(t, config.CustomFields, "ca-cert-file")
+	require.Equal(t, raw, mcpServerConfigToMap(config))
+
+	config.CACertFile = ".github/updated-ca.pem"
+	serialized := mcpServerConfigToMap(config)
+	require.Equal(t, ".github/updated-ca.pem", serialized["ca-cert-file"])
+	tools, err = ParseToolsConfig(map[string]any{"private": serialized})
+	require.NoError(t, err)
+	require.Equal(t, ".github/updated-ca.pem", tools.Custom["private"].CACertFile)
+
+	config.CACertFile = ""
+	serialized = mcpServerConfigToMap(config)
+	require.NotContains(t, serialized, "ca-cert-file")
+	tools, err = ParseToolsConfig(map[string]any{"private": serialized})
+	require.NoError(t, err)
+	require.Empty(t, tools.Custom["private"].CACertFile)
 }
 
 func TestMCPCACertFileOldGateway(t *testing.T) {

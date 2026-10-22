@@ -305,7 +305,7 @@ mcp-servers:
     ca-cert-file: .github/certs/internal-ca.pem
 ```
 
-The path is relative to the checked-out repository, or an absolute Linux host path. The exact prefixes `${{ github.workspace }}/` and `${{ runner.temp }}/` are also supported. Paths may contain letters, digits, spaces, `_`, `.`, `/`, and `-`; parent-directory traversal, shell substitutions, and other expressions are rejected. The file must exist and be readable by the runner before the **Start MCP Gateway** step. The launcher resolves symlinks and mounts only that file read-only at a gateway-private path, including when `sandbox.mcp.mounts` overrides the defaults. No extra gateway mount configuration is needed.
+The path is relative to `GITHUB_WORKSPACE`, or an absolute Linux host path. For a custom checkout path such as `checkout: { path: target }`, include that directory: `ca-cert-file: target/.github/certs/internal-ca.pem`. The exact prefixes `${{ github.workspace }}/` and `${{ runner.temp }}/` are also supported. Paths may contain letters, digits, spaces, `_`, `.`, `/`, and `-`; parent-directory traversal, shell substitutions, and other expressions are rejected. The file must exist and be readable by the runner before the **Start MCP Gateway** step. The launcher resolves symlinks and mounts only that file read-only at a gateway-private path, including when `sandbox.mcp.mounts` overrides the defaults. No extra gateway mount configuration is needed.
 
 For PEM content stored in a secret, a reviewed setup step can provision the file through an environment variable; the server then uses `ca-cert-file: "${{ runner.temp }}/internal-ca.pem"`:
 
