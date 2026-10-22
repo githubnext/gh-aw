@@ -113,7 +113,14 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 				broad = false
 				continue
 			}
-			delete(live, excluded)
+			for positive := range live {
+				if err := ctx.Err(); err != nil {
+					return false, err
+				}
+				if workflowRunExclusionMayCover(positive, excluded) {
+					delete(live, positive)
+				}
+			}
 			continue
 		}
 		live[pattern] = struct{}{}
@@ -124,6 +131,48 @@ func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
 		}
 	}
 	return !broad && len(live) > 0, nil
+}
+
+// Reject potentially covering exclusions rather than approximating the full
+// Actions glob language with a filesystem matcher (notably, ? is optional).
+func workflowRunExclusionMayCover(positive, excluded string) bool {
+	if positive == excluded {
+		return true
+	}
+	positivePrefix := workflowRunGlobPrefix(positive)
+	excludedPrefix := workflowRunGlobPrefix(excluded)
+	if positivePrefix == positive {
+		if excludedPrefix == excluded {
+			return false
+		}
+		return strings.HasPrefix(positive, excludedPrefix)
+	}
+	if !strings.HasPrefix(positivePrefix, excludedPrefix) && !strings.HasPrefix(excludedPrefix, positivePrefix) {
+		return false
+	}
+	// A trailing star admits direct children. Exclusions confined to deeper
+	// subdirectories cannot exhaust these, even when several are combined.
+	suffix := strings.TrimPrefix(positive, positivePrefix)
+	if (suffix == "*" || suffix == "**") && strings.HasSuffix(positivePrefix, "/") &&
+		strings.Contains(strings.TrimPrefix(excludedPrefix, positivePrefix), "/") {
+		return false
+	}
+	return true
+}
+
+func workflowRunGlobPrefix(pattern string) string {
+	previous := 0
+	for index, char := range pattern {
+		switch char {
+		case '?':
+			// Actions ? makes the preceding character optional.
+			return pattern[:previous]
+		case '*', '+', '[', '\\':
+			return pattern[:index]
+		}
+		previous = index
+	}
+	return pattern
 }
 
 func workflowRunTrigger(ctx context.Context, on any) (any, string, bool, error) {

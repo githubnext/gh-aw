@@ -163,6 +163,51 @@ func TestWorkflowRunScopeStrictPolicy(t *testing.T) {
 	}
 }
 
+func TestWorkflowRunScopeGlobExclusions(t *testing.T) {
+	tests := []struct {
+		name     string
+		branches string
+		scoped   bool
+	}{
+		{name: "star cancels literal", branches: "[main, '!m*']"},
+		{name: "star cancels release branch", branches: "['release/v1', '!release/*']"},
+		{name: "double star cancels release scope", branches: "['release/*', '!release/**']"},
+		{name: "prefix glob cancels release scope", branches: "['release/**', '!r**']"},
+		{name: "character class cancels literal", branches: "[main, '![mn]ain']"},
+		{name: "plus cancels literal", branches: "[main, '!main+']"},
+		{name: "optional character cancels shorter literal", branches: "[mai, '!main?']"},
+		{name: "optional slash cancels literal", branches: "['release', '!release/?']"},
+		{name: "exact exclusion preserves other literal", branches: "[main, dev, '!dev']", scoped: true},
+		{name: "exact exclusion preserves other scope", branches: "['release/**', main, '!main']", scoped: true},
+		{name: "shorter exact exclusion does not cover literal", branches: "[main, '!mai']", scoped: true},
+		{name: "longer exact exclusion does not cover literal", branches: "[main, '!main/other']", scoped: true},
+		{name: "disjoint literal survives", branches: "[main, '!release/**']", scoped: true},
+		{name: "disjoint scopes survive", branches: "['release/**', '!feature/**']", scoped: true},
+		{name: "partial subdirectory exclusion", branches: "['release/**', '!release/beta/**']", scoped: true},
+		{name: "several partial subdirectory exclusions", branches: "['release/**', '!release/beta/**', '!release/alpha/**']", scoped: true},
+		{name: "single star retains direct children", branches: "['release/*', '!release/beta/**']", scoped: true},
+		{name: "later exclusion cancels remaining release scope", branches: "['release/**', '!release/beta/**', '!release/**']"},
+		{name: "another positive survives glob exclusion", branches: "[main, develop, '!m*']", scoped: true},
+		{name: "literal reincluded after glob exclusion", branches: "[main, '!m*', main]", scoped: true},
+		{name: "scope reincluded after glob exclusion", branches: "['release/*', '!release/**', 'release/*']", scoped: true},
+		{name: "duplicate positives canceled once", branches: "[main, main, '!m*']"},
+		{name: "uncertain coverage is rejected conservatively", branches: "['release/**', '!release/*']"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := workflowRunScopeInput(t, "on: {workflow_run: {workflows: [Build], branches: "+tt.branches+"}}")
+			diagnostics := runWorkflowRunScope(t, input)
+			if tt.scoped {
+				assert.Empty(t, diagnostics)
+			} else {
+				require.Len(t, diagnostics, 1)
+				assert.Equal(t, Warning, diagnostics[0].Severity)
+				assert.Equal(t, "on.workflow_run.branches", diagnostics[0].Path)
+			}
+		})
+	}
+}
+
 func TestWorkflowRunScopeParsedAWPolicy(t *testing.T) {
 	for _, tt := range []struct {
 		source   string
