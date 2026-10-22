@@ -126,6 +126,14 @@ class GuidanceTests(unittest.TestCase):
         self.assertIn("does not\nexecute the workflow", evidence)
         self.assertIn("rather than\npublishing it as a production replacement", evidence)
 
+    def test_missing_tool_example_requires_evidence_before_reconfiguration(self):
+        section = EVIDENCE_GUIDE.read_text().split("### Missing Tool Errors\n", 1)[1].split("\n### ", 1)[0]
+        self.assertIn("cached registration/startup evidence", section)
+        self.assertIn("before changing tools or permissions", section)
+        self.assertIn("Only if source inspection confirms missing", section)
+        self.assertLess(section.index("Only if"), section.index("tools:"))
+        self.assertIn("dry-run compile the source change", section)
+
     def test_health_route_preserves_revision_and_completeness_contract(self):
         guide = HEALTH.read_text()
         for required in (

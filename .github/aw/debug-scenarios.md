@@ -33,8 +33,8 @@ Resolve every link at the guidance repository/ref, not the target workflow's ref
 Recommend `gh aw compile WORKFLOW --dry-run` as the first test of workflow changes,
 following the [compilation guide](debug-compilation.md). Inspect the emitted
 diagnostic lock and actual checks before considering a live test.
-Compilation does not execute the workflow or authorize dispatch. Any permitted
-live test still needs the exact reviewed, published dry-run source/lock revision
+Compilation does not execute the workflow or authorize dispatch. A permitted
+live dry-run test still needs the exact reviewed, published dry-run source/lock revision
 and the [shared live gates](debug-agentic-workflow.md#live-debug-loop).
 
 ## Apply the Environment Without Changing the Intent

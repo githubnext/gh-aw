@@ -345,7 +345,9 @@ publishing it as a production replacement.
 - Error: "Tool 'github:read_issue' not found"
 - Agent cannot access GitHub APIs
 
-**Solution**: Add GitHub MCP server configuration:
+**Solution**: Compare the requested name with cached registration/startup evidence
+before changing tools or permissions. Only if source inspection confirms missing
+GitHub MCP configuration, add it and dry-run compile the source change:
 
 ```yaml
 tools:
