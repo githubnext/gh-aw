@@ -51,10 +51,11 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
+	postAgentJobs := getJobsDependingOnAgent(data.Jobs)
 	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
-	// Custom jobs that depend on agent should run AFTER the agent job, not before it
+	// Custom jobs that transitively depend on agent must run AFTER it.
 	if data.Jobs != nil {
 		for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
 			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
@@ -62,7 +63,7 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 				continue
 			}
 			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
+				if !jobDependsOnPreActivation(configMap) && !setutil.Contains(postAgentJobs, jobName) {
 					depends = append(depends, jobName)
 				}
 			}
@@ -95,8 +96,8 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
-		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-		if isBuiltinJobName(jobName) {
+		// References cannot make post-agent jobs available before the agent.
+		if isBuiltinJobName(jobName) || setutil.Contains(postAgentJobs, jobName) {
 			continue
 		}
 		if !slices.Contains(depends, jobName) {

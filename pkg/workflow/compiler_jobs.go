@@ -131,6 +131,33 @@ func jobDependsOnAgent(jobConfig map[string]any) bool {
 	return false
 }
 
+// getJobsDependingOnAgent includes the agent and every job that transitively needs it.
+func getJobsDependingOnAgent(jobs map[string]any) map[string]struct{} {
+	dependents := make(map[string][]string)
+	for name, config := range jobs {
+		if job, ok := config.(map[string]any); ok {
+			for _, need := range parseNeedsField(job["needs"]) {
+				dependents[need] = append(dependents[need], name)
+			}
+		}
+	}
+
+	queue := []string{string(constants.AgentJobName)}
+	blocked := map[string]struct{}{string(constants.AgentJobName): {}}
+	for len(queue) > 0 {
+		current := queue[0] //nolint:uncheckedsliceindex // The loop requires a nonempty queue.
+		queue = queue[1:]
+		for _, name := range dependents[current] {
+			if setutil.Contains(blocked, name) {
+				continue
+			}
+			blocked[name] = struct{}{}
+			queue = append(queue, name)
+		}
+	}
+	return blocked
+}
+
 // getCustomJobsDependingOnPreActivation returns custom job names that explicitly depend on pre_activation
 // but NOT on activation. These jobs run after pre_activation but before activation, and activation
 // should depend on them. Jobs that also depend on activation cannot run before activation.

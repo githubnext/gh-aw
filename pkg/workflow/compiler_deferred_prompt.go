@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var deferredPromptOutputPattern = regexp.MustCompile(`^needs\.([a-zA-Z_][a-zA-Z0-9_-]*)\.(?:outputs\.([a-zA-Z_][a-zA-Z0-9_-]*)|result)$`)
@@ -16,6 +18,7 @@ func rewriteDeferredPromptExpressions(mappings []*ExpressionMapping, jobs map[st
 	rewritten := make([]*ExpressionMapping, 0, len(mappings))
 	var deferred []*ExpressionMapping
 	seen := make(map[string]struct{})
+	postAgentJobs := getJobsDependingOnAgent(jobs)
 	for _, mapping := range mappings {
 		parts := deferredPromptOutputPattern.FindStringSubmatch(mapping.Content)
 		if len(parts) < 3 {
@@ -28,7 +31,7 @@ func rewriteDeferredPromptExpressions(mappings []*ExpressionMapping, jobs map[st
 			continue
 		}
 		job, ok := jobs[producer].(map[string]any)
-		if !ok || jobDependsOnAgent(job) {
+		if !ok || setutil.Contains(postAgentJobs, producer) {
 			rewritten = append(rewritten, mapping)
 			continue
 		}

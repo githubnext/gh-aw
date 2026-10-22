@@ -118,6 +118,26 @@ func TestBuildMainJobDependencies(t *testing.T) {
 		assert.NotContains(t, depends, "pre_act_job")
 	})
 
+	t.Run("post-agent jobs are excluded even when referenced", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Jobs: map[string]any{
+				"prepare": map[string]any{"needs": "activation"},
+				"middle":  map[string]any{"needs": "agent"},
+				"release": map[string]any{"needs": []any{"middle", "prepare"}},
+				"report":  map[string]any{"needs": []string{"release"}},
+			},
+			MarkdownContent: "${{ needs.release.outputs.id }}",
+			CustomSteps:     "run: echo ${{ needs.middle.result }}",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{"REPORT": "${{ needs.report.result }}"},
+			},
+		}
+		depends, _ := c.buildMainJobDependencies(data, true)
+		assert.Equal(t, []string{"activation", "prepare"}, depends)
+		assert.Equal(t, depends, data.AgentJobNeeds)
+	})
+
 	t.Run("builtin job names are never added to depends", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
@@ -149,6 +169,24 @@ func TestBuildMainJobDependencies(t *testing.T) {
 		_, engineEnvContent := c.buildMainJobDependencies(data, false)
 		assert.Contains(t, engineEnvContent, "needs.activation.outputs.model")
 	})
+}
+
+func TestGetJobsDependingOnAgent(t *testing.T) {
+	jobs := map[string]any{
+		"middle":   map[string]any{"needs": "agent"},
+		"release":  map[string]any{"needs": []any{"middle", "prepare", "report"}},
+		"report":   map[string]any{"needs": []string{"release"}},
+		"prepare":  map[string]any{"needs": "activation"},
+		"cycle_a":  map[string]any{"needs": "cycle_b"},
+		"cycle_b":  map[string]any{"needs": "cycle_a"},
+		"missing":  map[string]any{"needs": "unknown"},
+		"no_needs": map[string]any{},
+		"invalid":  "not a job",
+	}
+	assert.Equal(t, map[string]struct{}{
+		"agent": {}, "middle": {}, "release": {}, "report": {},
+	}, getJobsDependingOnAgent(jobs))
+	assert.Equal(t, map[string]struct{}{"agent": {}}, getJobsDependingOnAgent(nil))
 }
 
 // TestBuildMainJobOutputs tests that the output map contains expected keys under various config.

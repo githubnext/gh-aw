@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,6 +15,8 @@ func TestRewriteDeferredPromptExpressions(t *testing.T) {
 	jobs := map[string]any{
 		"release": map[string]any{"needs": "activation", "outputs": map[string]any{"release_id": "public"}},
 		"report":  map[string]any{"needs": "agent", "outputs": map[string]any{"value": "public"}},
+		"middle":  map[string]any{"needs": []any{"report"}, "outputs": map[string]any{"value": "public"}},
+		"final":   map[string]any{"needs": []string{"release", "middle"}, "outputs": map[string]any{"value": "public"}},
 	}
 	for _, tt := range []struct {
 		expression string
@@ -26,6 +29,10 @@ func TestRewriteDeferredPromptExpressions(t *testing.T) {
 		{"needs.release.outputs.unknown", nil, false},
 		{"needs.unknown.outputs.value", nil, false},
 		{"needs.report.outputs.value", nil, false},
+		{"needs.middle.outputs.value", nil, false},
+		{"needs.middle.result", nil, false},
+		{"needs.final.outputs.value", nil, false},
+		{"needs.final.result", nil, false},
 		{"needs.agent.outputs.value", nil, false},
 		{"needs.release.outputs.release_id || 'fallback'", nil, false},
 		{"github.repository", nil, false},
@@ -102,6 +109,61 @@ Release ID: ${{ needs.release.outputs.release_id }}
 			assert.Contains(t, lock[agent:], "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
 			assert.Contains(t, lock[agent:], "${{ needs.release.outputs.release_id }}")
 			assert.Less(t, strings.Index(lock[agent:], "Download activation artifact"), strings.Index(lock[agent:], "Resolve deferred prompt expressions"))
+		})
+	}
+}
+
+func TestDeferredPromptCompilationExcludesPostAgentJobs(t *testing.T) {
+	for _, inline := range []bool{false, true} {
+		t.Run(map[bool]string{false: "runtime", true: "inline"}[inline], func(t *testing.T) {
+			dir := t.TempDir()
+			source := `---
+on: workflow_dispatch
+engine: copilot
+jobs:
+  middle:
+    needs: agent
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo middle
+  release:
+    needs: [middle]
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - id: release
+        run: echo "id=123" >> "$GITHUB_OUTPUT"
+---
+Release ID: ${{ needs.release.outputs.release_id }}
+Release result: ${{ needs.release.result }}
+`
+			path := filepath.Join(dir, "release.md")
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			compiler := NewCompiler()
+			compiler.SetQuiet(true)
+			compiler.inlinePrompt = inline
+			require.NoError(t, compiler.CompileWorkflow(path))
+			content, err := os.ReadFile(filepath.Join(dir, "release.lock.yml"))
+			require.NoError(t, err)
+			var lock struct {
+				Jobs map[string]map[string]any `yaml:"jobs"`
+			}
+			require.NoError(t, yaml.Unmarshal(content, &lock))
+			for _, jobName := range []string{"activation", "agent"} {
+				job, ok := lock.Jobs[jobName]
+				require.True(t, ok, jobName)
+				needs := parseNeedsField(job["needs"])
+				assert.NotContains(t, needs, "middle")
+				assert.NotContains(t, needs, "release")
+				rendered, err := yaml.Marshal(job)
+				require.NoError(t, err)
+				assert.NotContains(t, string(rendered), "${{ needs.release.")
+				assert.NotContains(t, string(rendered), "GH_AW_DEFERRED_")
+				assert.NotContains(t, string(rendered), "Resolve deferred prompt expressions")
+			}
+			assert.Equal(t, []string{"agent"}, parseNeedsField(lock.Jobs["middle"]["needs"]))
+			assert.Equal(t, []string{"middle"}, parseNeedsField(lock.Jobs["release"]["needs"]))
 		})
 	}
 }
