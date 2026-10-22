@@ -195,7 +195,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       message: { required: true, type: "string", sanitize: true, maxLength: 65000 },
     },
   },
-  missing_tool: {
+  report_missing_tool: {
     defaultMax: 20,
     fields: {
       tool: { required: true, type: "string", sanitize: true, maxLength: 128 },
@@ -209,6 +209,7 @@ const SAMPLE_VALIDATION_CONFIG = {
       title: { required: true, type: "string", sanitize: true, maxLength: 128 },
       body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 64 },
       category: { type: "string", sanitize: true, maxLength: 128 },
+      temporary_id: { type: "string", pattern: "^#?aw_[A-Za-z0-9_]{3,12}$" },
     },
   },
   create_code_scanning_alert: {
@@ -315,6 +316,16 @@ describe("safe_output_type_validator", () => {
   });
 
   describe("validateItem", () => {
+    it.each(["aw_discuss", "#aw_Discuss"])("preserves discussion temporary ID %s during ingestion", async temporaryId => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+      const item = { type: "create_discussion", title: "Report", body: "Discussion report with enough detail to satisfy the minimum body length.", temporary_id: temporaryId };
+
+      const result = validateItem(item, "create_discussion", 1);
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem).toEqual(item);
+    });
+
     it("preserves an agent-selected duplicate state reason in API casing", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 

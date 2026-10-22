@@ -107,7 +107,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" ` + string(constants.DefaultFirewallVersion) + ` --rootless`,
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-firewall/api-proxy:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-mcpg:` + string(constants.DefaultMCPGatewayVersion),
 		`{"schema":"https://github.com/github/gh-aw-firewall/releases/download/` + string(constants.DefaultFirewallVersion) + `/awf-config.schema.json","imageTag":"` + string(constants.DefaultFirewallVersion) + `"}`,
-		`GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '` + constants.SonnetDefaultModel + `' }}`,
+		`GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'detection' }}`,
 		`GH_AW_INFO_VERSION: "` + string(constants.DefaultClaudeCodeVersion) + `"`,
 		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultClaudeCodeVersion) + `"`,
 		`run: npm install -g @anthropic-ai/claude-code@` + string(constants.DefaultClaudeCodeVersion),
@@ -134,7 +134,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.Contains(t, normalized, `ghcr.io/github/gh-aw-mcpg:MCPG_VERSION`)
 	require.Contains(t, normalized, `releases/download/vAWF_VERSION/awf-config.schema.json`)
 	require.Contains(t, normalized, `"imageTag":"AWF_VERSION"`)
-	require.Contains(t, normalized, `GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'default' }}`)
+	require.Contains(t, normalized, `GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'detection' }}`)
 	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "CLAUDE_VERSION"`)
 	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "CLAUDE_VERSION"`)
 	require.Contains(t, normalized, `@anthropic-ai/claude-code@CLAUDE_VERSION`)
@@ -209,6 +209,7 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 				WithSkipValidation(true),
 				WithWorkflowIdentifier(testName),
 			)
+			compiler.gitRoot = absFixturesDir
 
 			wd, err := compiler.ParseWorkflowString(string(content), fixture)
 			if err != nil {

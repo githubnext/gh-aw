@@ -50,6 +50,21 @@ describe("sanitize_content.cjs", () => {
     it("should preserve normal text", () => {
       expect(sanitizeContent("Hello, this is normal text.")).toBe("Hello, this is normal text.");
     });
+
+    it.each([{ options: {} }, { options: { allowedAliases: ["allowed"], maxMentions: 1 } }, { options: { deferMentions: true } }])("stabilizes encodings before URL-domain policy with $options", ({ options }) => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "github.com";
+      const content = "https:/&am\u0000p;amp;amp;amp;amp;ZeroWidthSpace;/outside.invalid https:/&amp;amp;amp;amp;amp;ZeroWidthSpace;/github.com/o/r";
+      const sanitized = sanitizeContent(content, options);
+      expect(sanitized).toBe("(outside.invalid/redacted) https://github.com/o/r");
+      expect(sanitizeContent(sanitized, options)).toBe(sanitized);
+    });
+
+    it("keeps normalized URLs in code only when the configured domain policy permits it", () => {
+      process.env.GH_AW_ALLOWED_DOMAINS = "github.com";
+      process.env.GH_AW_SAFE_OUTPUTS_URLS = "allowed-or-code-region";
+      const encoded = "https:/&amp;amp;amp;amp;amp;ZeroWidthSpace;/outside.invalid";
+      expect(sanitizeContent(`\`${encoded}\` ${encoded}`)).toBe("`https://outside.invalid` (outside.invalid/redacted)");
+    });
   });
 
   describe("command neutralization", () => {

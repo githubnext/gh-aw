@@ -17,29 +17,30 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 
 // toolsProcessingResult holds the results of tools and markdown processing
 type toolsProcessingResult struct {
-	tools                 map[string]any
-	resolvedMCPServers    map[string]any // fully merged mcp-servers from main workflow and all imports
-	runtimes              map[string]any
-	runInstallScripts     bool // true when runtimes.node.run-install-scripts: true is set (from main + imports)
-	toolsTimeout          string
-	toolsStartupTimeout   string
-	markdownContent       string
-	importedMarkdown      string   // Only imports WITH inputs (for compile-time substitution)
-	importPaths           []string // Import paths for runtime-import macro generation (imports without inputs)
-	promptImports         []parser.PromptImportEntry
-	mainWorkflowMarkdown  string // main workflow markdown without imports (for runtime-import)
-	rawMainMarkdown       string // raw main markdown before include expansion, without inline sub-agent sections
-	allIncludedFiles      []string
-	workflowName          string
-	frontmatterName       string
-	frontmatterEmoji      string
-	needsTextOutput       bool
-	trackerID             string
-	safeOutputs           *SafeOutputsConfig
-	secretMasking         *SecretMaskingConfig
-	parsedFrontmatter     *FrontmatterConfig
-	subAgentModels        []parser.SubAgentModel
-	hasExplicitGitHubTool bool // true if tools.github was explicitly configured in frontmatter
+	tools                   map[string]any
+	resolvedMCPServers      map[string]any // fully merged mcp-servers from main workflow and all imports
+	runtimes                map[string]any
+	runInstallScripts       bool // true when runtimes.node.run-install-scripts: true is set (from main + imports)
+	toolsTimeout            string
+	toolsStartupTimeout     string
+	markdownContent         string
+	importedMarkdown        string   // Only imports WITH inputs (for compile-time substitution)
+	importPaths             []string // Import paths for runtime-import macro generation (imports without inputs)
+	promptImports           []parser.PromptImportEntry
+	mainWorkflowMarkdown    string // main workflow markdown without imports (for runtime-import)
+	rawMainMarkdown         string // raw main markdown before include expansion, without inline sub-agent sections
+	allIncludedFiles        []string
+	workflowName            string
+	frontmatterName         string
+	frontmatterEmoji        string
+	needsTextOutput         bool
+	trackerID               string
+	safeOutputs             *SafeOutputsConfig
+	secretMasking           *SecretMaskingConfig
+	explicitlyDisabledTools map[string]struct{}
+	parsedFrontmatter       *FrontmatterConfig
+	subAgentModels          []parser.SubAgentModel
+	hasExplicitGitHubTool   bool // true if tools.github was explicitly configured in frontmatter
 }
 
 // toolsAndConfigData holds the pre-markdown-expansion configuration resolved
@@ -102,6 +103,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	orchestratorToolsLog.Printf("Processing tools and markdown")
 	workflowLog.Print("Processing tools and includes...")
 
+	explicitlyDisabledTools := collectExplicitlyDisabledTools(extractToolsMapFromFrontmatter(result.Frontmatter))
 	config, err := c.resolveToolsAndConfig(result, markdownDir, agenticEngine, engineSetting, importsResult)
 	if err != nil {
 		return nil, err
@@ -120,29 +122,30 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 	subAgentModels := parser.ExtractSubAgentModels(result.Markdown)
 
 	return &toolsProcessingResult{
-		tools:                 config.toolsData.tools,
-		resolvedMCPServers:    config.toolsData.resolvedMCPServers,
-		runtimes:              config.runtimes,
-		runInstallScripts:     config.runInstallScripts,
-		toolsTimeout:          config.toolsData.toolsTimeout,
-		toolsStartupTimeout:   config.toolsData.toolsStartupTimeout,
-		markdownContent:       markdownData.markdownContent,
-		importedMarkdown:      markdownData.importedMarkdown,
-		importPaths:           markdownData.importPaths,
-		promptImports:         markdownData.promptImports,
-		mainWorkflowMarkdown:  markdownData.mainWorkflowMarkdown,
-		rawMainMarkdown:       config.effectiveMarkdown,
-		allIncludedFiles:      markdownData.allIncludedFiles,
-		workflowName:          markdownData.workflowName,
-		frontmatterName:       markdownData.frontmatterName,
-		frontmatterEmoji:      markdownData.frontmatterEmoji,
-		needsTextOutput:       needsTextOutput,
-		trackerID:             trackerID,
-		safeOutputs:           config.safeOutputs,
-		secretMasking:         config.secretMasking,
-		parsedFrontmatter:     parsedFrontmatter,
-		subAgentModels:        subAgentModels,
-		hasExplicitGitHubTool: config.toolsData.hasExplicitGitHubTool,
+		tools:                   config.toolsData.tools,
+		resolvedMCPServers:      config.toolsData.resolvedMCPServers,
+		runtimes:                config.runtimes,
+		runInstallScripts:       config.runInstallScripts,
+		toolsTimeout:            config.toolsData.toolsTimeout,
+		toolsStartupTimeout:     config.toolsData.toolsStartupTimeout,
+		markdownContent:         markdownData.markdownContent,
+		importedMarkdown:        markdownData.importedMarkdown,
+		importPaths:             markdownData.importPaths,
+		promptImports:           markdownData.promptImports,
+		mainWorkflowMarkdown:    markdownData.mainWorkflowMarkdown,
+		rawMainMarkdown:         config.effectiveMarkdown,
+		allIncludedFiles:        markdownData.allIncludedFiles,
+		workflowName:            markdownData.workflowName,
+		frontmatterName:         markdownData.frontmatterName,
+		frontmatterEmoji:        markdownData.frontmatterEmoji,
+		needsTextOutput:         needsTextOutput,
+		trackerID:               trackerID,
+		safeOutputs:             config.safeOutputs,
+		secretMasking:           config.secretMasking,
+		explicitlyDisabledTools: explicitlyDisabledTools,
+		parsedFrontmatter:       parsedFrontmatter,
+		subAgentModels:          subAgentModels,
+		hasExplicitGitHubTool:   config.toolsData.hasExplicitGitHubTool,
 	}, nil
 }
 

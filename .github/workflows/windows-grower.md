@@ -30,6 +30,15 @@ jobs:
   windows_probe:
     name: windows_probe
     needs: [activation]
+    # Reusable callers must grant the union of the callee's job permissions.
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     uses: ./.github/workflows/windows.lock.yml
     with:
       topic: "Windows runner support"

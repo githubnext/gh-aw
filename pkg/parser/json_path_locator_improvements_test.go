@@ -253,6 +253,29 @@ func TestLocateJSONPathForPathInfoUsesNestedAdditionalPropertiesErrorKind(t *tes
 	}
 }
 
+func TestLocateJSONPathForPathInfoUsesReferencedAdditionalPropertiesErrorKind(t *testing.T) {
+	yamlContent := `safe-outputs:
+  create-discussion:
+  missing-tool:
+    create-discussion: true`
+	info := JSONPathInfo{
+		Path:      "/safe-outputs/missing-tool",
+		Message:   "this message is intentionally not parseable",
+		ErrorKind: &kind.Reference{Keyword: "$ref"},
+		Causes: []*jsonschema.ValidationError{{
+			ErrorKind: &kind.OneOf{},
+			Causes: []*jsonschema.ValidationError{{
+				ErrorKind: &kind.AdditionalProperties{Properties: []string{"create-discussion"}},
+			}},
+		}},
+	}
+
+	location := LocateJSONPathForPathInfo(yamlContent, info)
+	if !location.Found || location.Line != 4 || location.Column != 5 {
+		t.Fatalf("expected referenced additional property at line 4, col 5; got %+v", location)
+	}
+}
+
 // TestNestedSearchOptimization demonstrates the improved approach of searching within sub-YAML content
 func TestNestedSearchOptimization(t *testing.T) {
 	// Create a complex YAML with many sections to demonstrate the optimization benefit

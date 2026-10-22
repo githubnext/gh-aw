@@ -39,7 +39,20 @@ func RecoveryHeadroom(state Projection) int64 {
 }
 
 func Replay(commits []QueueCommit) (Projection, error) {
+	return ReplayForHost(commits, "")
+}
+
+// ReplayForHost validates a ledger against an explicit GitHub resource host.
+// An empty host preserves Replay's GITHUB_SERVER_URL-based default.
+func ReplayForHost(commits []QueueCommit, host string) (Projection, error) {
 	state := newProjection()
+	if host != "" {
+		var err error
+		state.resourceHost, err = resourceHost(host)
+		if err != nil {
+			return state, err
+		}
+	}
 	ordered, err := causalOrder(commits)
 	if err != nil {
 		return state, err
@@ -52,7 +65,7 @@ func Replay(commits []QueueCommit) (Projection, error) {
 		firstCommit := ordered[0]
 		if len(firstCommit.Operations) > 0 {
 			if kind, kindErr := operationKind(firstCommit.Operations[0]); kindErr == nil && kind == "Checkpoint" {
-				state, err = restoreCheckpoint(firstCommit)
+				state, err = restoreCheckpointForHost(firstCommit, state.resourceHost)
 				if err != nil {
 					return state, err
 				}
@@ -179,6 +192,7 @@ func submissionMatchesOperations(request Request, operations []Operation) bool {
 }
 
 func (state *Projection) replayCommit(commit QueueCommit, ordinal int, epochs, generations identitySet) error {
+	state.advanceExpiration(commit.At)
 	isPolicy, err := state.validateReplayCommit(commit, ordinal)
 	if err != nil {
 		return err
@@ -227,6 +241,9 @@ func (state *Projection) replayCommit(commit QueueCommit, ordinal int, epochs, g
 	} else if commit.Request.Kind == "dispatch_next" {
 		return queueError("request_invalid", "no-grant evaluation must not consume request identity")
 	}
+	// Operations may admit Work or make it expirable by cancelling a Claim or
+	// verifying retained delivery; the pre-operation pass cannot cover these changes.
+	state.advanceExpiration(commit.At)
 	if err := state.accountReplayCommit(commit, hasAdmission, hasObservations); err != nil {
 		return err
 	}
@@ -347,7 +364,7 @@ func (state *Projection) installReplayPolicy(op Operation, commit QueueCommit, i
 	if commit.PolicyEpoch != operation.Epoch || epochs.contains(operation.Epoch) {
 		return queueError("policy_epoch_invalid", "policy epoch is reused or inconsistent")
 	}
-	if err := validatePolicy(operation.Policy); err != nil {
+	if err := validatePolicyWithHost(operation.Policy, state.resourceHost); err != nil {
 		return err
 	}
 	if operation.Policy.Authorization == "aw" {
@@ -512,6 +529,7 @@ func buildCandidateWithObservations(commits []QueueCommit, actor Actor, request 
 		}
 		return commits, &existing, decision, nil
 	}
+	state.advanceExpiration(at)
 	if actor.Repository != state.Repository {
 		return nil, nil, Decision{}, queueError("actor_unauthorized", "request originates from another queue repository")
 	}

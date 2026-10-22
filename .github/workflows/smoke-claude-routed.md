@@ -66,6 +66,9 @@ post-steps:
           executionOutcome: process.env.SMOKE_EXECUTION,
           allowedModels: ["claude-sonnet-5"],
           mainEndpoint: "/v1/messages",
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 

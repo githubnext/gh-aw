@@ -1637,7 +1637,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGr
 			}
 
 			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
-				t.Fatalf("expected operational-value evaluator to pass schema validation, got: %v", err)
+				t.Fatal(err)
 			}
 		})
 	}
@@ -3812,5 +3812,33 @@ func TestValidateMainWorkflowFrontmatterAcceptsDeclarativeMemorySchemas(t *testi
 	}
 	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "memory-schema-example.md"); err != nil {
 		t.Fatalf("expected declarative memory schema frontmatter to validate, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchemaAcceptsModelAliasKeys(t *testing.T) {
+	t.Parallel()
+
+	valid := map[string]any{
+		"on":     "push",
+		"engine": "codex",
+		"models": map[string]any{
+			"luna":    []any{"copilot/gpt-5.6*"},
+			"opus":    []any{"copilot/claude-opus-5*", "anthropic/*opus*"},
+			"allowed": []any{"copilot/*"},
+		},
+	}
+	if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(valid, "/tmp/gh-aw/model-alias-keys-test.md"); err != nil {
+		t.Fatalf("expected alias keys under models: to pass schema validation, got: %v", err)
+	}
+
+	for name, value := range map[string]any{
+		"string instead of list": "copilot/gpt-5.6*",
+		"empty list":             []any{},
+		"empty entry":            []any{""},
+	} {
+		invalid := map[string]any{"on": "push", "engine": "codex", "models": map[string]any{"luna": value}}
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalid, "/tmp/gh-aw/model-alias-keys-invalid-test.md"); err == nil {
+			t.Errorf("expected %s alias value to fail schema validation", name)
+		}
 	}
 }

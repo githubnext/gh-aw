@@ -11,7 +11,7 @@ import (
 
 func TestSessionParserSourcesIncludeLocalDependencies(t *testing.T) {
 	t.Parallel()
-	localRequire := regexp.MustCompile(`require\(["'](\./[^"']+\.cjs)["']\)`)
+	localRequire := regexp.MustCompile(`require\(["'](\./[^"']+\.(?:cjs|json))["']\)`)
 	err := fs.WalkDir(SessionParserSources, "js", func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err

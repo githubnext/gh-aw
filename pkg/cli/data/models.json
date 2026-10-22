@@ -655,15 +655,6 @@
           "provider_type": "openai",
           "wire_api": "responses"
         },
-        "mai-code-1-flash-picker": {
-          "cost": {
-            "input": "7.5e-07",
-            "output": "4.5e-06",
-            "cache_read": "7e-08"
-          },
-          "provider_type": "openai",
-          "wire_api": "responses"
-        },
         "kimi-k2.7-code": {
           "cost": {
             "input": "9.5e-07",

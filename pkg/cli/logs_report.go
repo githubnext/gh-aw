@@ -29,6 +29,7 @@ type LogsData struct {
 	Runs                 []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
 	Episodes             []EpisodeData               `json:"episodes" console:"-"`
 	Edges                []EpisodeEdge               `json:"edges" console:"-"`
+	EpisodeRetrieval     *EpisodeRetrieval           `json:"episode_retrieval,omitempty" console:"-"`
 	ToolUsage            []ToolUsageSummary          `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	MCPToolUsage         *MCPToolUsageSummary        `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
 	Observability        []ObservabilityInsight      `json:"observability_insights,omitempty" console:"-"`
@@ -105,6 +106,10 @@ type WorkflowContinuation struct {
 
 // LogsSummary contains aggregate metrics across all runs
 type LogsSummary struct {
+	ObsoletePRRuns      int     `json:"obsolete_pr_runs,omitempty" console:"header:Obsolete PR Runs,omitempty"`
+	NonExecutionRuns    int     `json:"non_execution_runs,omitempty" console:"header:Jobless Runs,omitempty"`
+	ExecutedRuns        int     `json:"executed_runs" console:"-"`
+	ExecutedSuccessRuns int     `json:"executed_success_runs" console:"-"`
 	TotalRuns           int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration       string  `json:"total_duration" console:"header:Total Duration"`
 	TotalAIC            float64 `json:"total_aic,omitempty"`
@@ -161,6 +166,10 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
+	ObsoletePR      *ObsoletePREvidence `json:"obsolete_pr,omitempty" console:"-"`
+	ExclusionReason string              `json:"exclusion_reason,omitempty" console:"-"`
+	// JobCount is absent when job evidence is unavailable, not zero.
+	JobCount          *int            `json:"job_count,omitempty" console:"-"`
 	FailureSignals    []FailureSignal `json:"failure_signals,omitempty" console:"-"`
 	FailureClusterIDs []string        `json:"failure_cluster_ids,omitempty" console:"-"`
 	RunID             int64           `json:"run_id" console:"header:Run ID"`
@@ -237,7 +246,8 @@ type RunData struct {
 	TaskDomain                 *TaskDomainInfo        `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
-	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	AwContext                  *AwContext             `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
+	EpisodeHops                []EpisodeHop           `json:"episode_hops,omitempty" console:"-"`
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	SteeringNotices            []SteeringNotice       `json:"steering_notices,omitempty" console:"-"`                                               // AWF steering notices delivered on model requests
 	SteeringNoticesUnavailable bool                   `json:"steering_notices_unavailable,omitempty" console:"-"`                                   // True when the unified session could not be read
@@ -522,7 +532,7 @@ func applyGitHubMetadataToRunData(runData *RunData, run WorkflowRun) {
 
 // buildRunData converts a processed run into RunData while accumulating rollup totals.
 // localRepo guards against cross-repo misclassification of intentional-failure workflows.
-func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate) RunData {
+func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate, classifyLocal bool) RunData {
 	if pr.cachedData != nil {
 		agg.accumulateCachedRunTotals(*pr.cachedData)
 		return *pr.cachedData
@@ -544,7 +554,6 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 
 	// Extract engine ID and aw_context from aw_info.json.
 	engineInfo := extractRunEngineInfo(pr)
-	// Accumulate engine counts from aw_info.json data (authoritative source).
 	if engineInfo.engineID != "" {
 		agg.engineCounts[engineInfo.engineID]++
 	}
@@ -552,6 +561,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
 
 	runData := newRunData(pr, engineInfo, chainMetrics, comparison, failureKind, gitHubAPICalls)
+	runData.EpisodeHops = collectRunEpisodeHops(pr, engineInfo.awContext)
 	runData.ModelRouting = pr.ModelRouting
 	runData.SteeringNotices = tokenUsageSteeringNotices(pr.TokenUsage)
 	runData.SteeringNoticesUnavailable = tokenUsageSteeringNoticesUnavailable(pr.TokenUsage)
@@ -564,7 +574,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	// agents and dashboards can exclude them from fleet-health success-rate rollups.
 	// Only classify when the run comes from the same repository as the local checkout
 	// (or when either side is unknown), to avoid cross-repo misclassification.
-	if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
+	if classifyLocal && (localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository)) {
 		runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
 	}
 	if runData.IntentionalFailure {
@@ -588,7 +598,6 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 // newRunData assembles the base RunData fields for a processed run.
 func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutputChainMetrics, comparison *AuditComparisonData, failureKind string, gitHubAPICalls int) RunData {
 	run := pr.Run
-	modelAttribution := resolveEffectiveModelAttribution(pr.Run.LogsPath, engineInfo.awInfo, pr.ModelRouting, pr.TokenUsage)
 	runData := RunData{
 		RunID:                      run.DatabaseID,
 		Number:                     run.Number,
@@ -644,7 +653,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		SafeOutputs:                pr.SafeOutputs,
 		WorkQueue:                  pr.WorkQueue,
 	}
-	applyModelAttributionToRunData(&runData, modelAttribution)
+	applyRunExecutionEvidence(&runData, pr)
+	applyModelAttributionToRunData(&runData, resolveEffectiveModelAttribution(pr.Run.LogsPath, engineInfo.awInfo, pr.ModelRouting, pr.TokenUsage))
 	applyGitHubMetadataToRunData(&runData, run)
 	return runData
 }
@@ -665,6 +675,10 @@ func runAmbientContext(pr ProcessedRun) *AmbientContextMetrics {
 
 // buildLogsData creates structured logs data from processed runs
 func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	return buildLogsDataWithCollectionCoverage(processedRuns, outputDir, continuation, logsCollectionCoverageOptions{})
+}
+
+func buildLogsDataWithCollectionCoverage(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData, collection logsCollectionCoverageOptions) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
 
 	agg := &logsAggregate{engineCounts: make(map[string]int)}
@@ -675,20 +689,28 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// may match an unrelated local file.  We skip detection when the run's repository
 	// is known and does not match the local checkout.  Fails open (empty string) when
 	// the slug cannot be determined.
-	localRepo, _ := GetCurrentRepoSlug()
+	var localRepo string
+	if !collection.disableLocalClassification {
+		localRepo, _ = GetCurrentRepoSlug()
+	}
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		runData := buildRunData(pr, processedRuns, localRepo, agg)
+		runData := buildRunData(pr, processedRuns, localRepo, agg, !collection.disableLocalClassification)
 		if pr.cachedData == nil {
 			runData.FailureSignals = failureSignalsForRun(pr)
+		}
+		runData.ExclusionReason = ""
+		if isObsoletePRRun(runData) {
+			runData.ExclusionReason = "obsolete_pr"
 		}
 		runs = append(runs, runData)
 	}
 
 	summary := agg.summary(len(processedRuns))
+	addRunExecutionSummary(&summary, runs)
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
 	for _, episode := range episodes {
@@ -706,6 +728,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	data.Episodes = episodes
 	data.Edges = edges
 	data.Continuation = continuation
+	applyLogsCollectionCoverage(&data, collection)
 	data.LogsLocation, _ = filepath.Abs(outputDir)
 	return data
 }
@@ -816,7 +839,6 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
 // token_usage_summary, experiments, ambient_context from each run.
-// Omits episodes when all are standalone (single-run episodes add no information).
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
 	for i := range data.Runs {
@@ -828,22 +850,6 @@ func compactLogsData(data LogsData) LogsData {
 		data.Runs[i].Experiments = nil
 		data.Runs[i].AmbientContext = nil
 		data.Runs[i].AwContext = nil
-	}
-
-	// Omit episodes when all are standalone (no multi-run episodes)
-	allStandalone := true
-	for _, ep := range data.Episodes {
-		if ep.TotalRuns > 1 {
-			allStandalone = false
-			break
-		}
-	}
-	if allStandalone {
-		// Use empty slices (not nil) so JSON marshaling produces [] instead of null.
-		// A null value breaks agent-side Python code that calls len(d.get('episodes', []))
-		// because d.get returns None (the existing key's value) rather than the default [].
-		data.Episodes = []EpisodeData{}
-		data.Edges = []EpisodeEdge{}
 	}
 
 	return data

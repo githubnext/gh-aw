@@ -54,6 +54,7 @@ func renderConsole(data AuditData, logsPath string) {
 	renderConsoleActionableSections(data)
 	renderConsoleOperationalSections(data)
 	renderConsolePolicyAndExperiments(data)
+	renderConsoleEvidenceSearch(data.EvidenceSearch)
 	renderConsoleLogsPath(logsPath)
 }
 
@@ -170,6 +171,9 @@ func renderConsoleFingerprint(fingerprint *BehaviorFingerprint) {
 
 func renderConsoleMetrics(metrics MetricsData) {
 	line := fmt.Sprintf("  metrics: errors=%d warnings=%d", metrics.ErrorCount, metrics.WarningCount)
+	if metrics.SubagentFailureCount > 0 {
+		line += fmt.Sprintf(" subagent_failures=%d", metrics.SubagentFailureCount)
+	}
 	if metrics.Turns > 0 {
 		line += fmt.Sprintf(" turns=%d", metrics.Turns)
 	}

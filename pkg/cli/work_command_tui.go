@@ -280,7 +280,7 @@ func workQueueService(ctx context.Context, branch workqueue.Branch, session *wor
 			if err != nil {
 				return workqueue.Projection{}, err
 			}
-			return workqueue.Replay(commits)
+			return workqueue.ReplayAt(commits, time.Now().UnixMilli())
 		},
 		publish: func(id, kind string, params workqueue.OperationsParameters) (workqueue.Publication, error) {
 			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

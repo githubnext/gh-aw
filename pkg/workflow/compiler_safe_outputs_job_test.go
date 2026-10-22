@@ -17,6 +17,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSafeOutputsPRLifecyclePermissions(t *testing.T) {
+	t.Parallel()
+	for _, trigger := range []string{"pull_request", "pull_request_review", "pull_request_review_comment", "issue_comment", "workflow_call", "issues", "schedule"} {
+		t.Run(trigger, func(t *testing.T) {
+			data := &WorkflowData{
+				On:          "on:\n  " + trigger + ":",
+				SafeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{}},
+			}
+			permissions, _ := safeOutputsJobPermissions(data)
+			level, exists := permissions.Get(PermissionPullRequests)
+			if trigger == "issues" || trigger == "schedule" {
+				assert.False(t, exists)
+			} else {
+				assert.True(t, exists)
+				assert.Equal(t, PermissionRead, level)
+			}
+			permissions.Set(PermissionPullRequests, PermissionWrite)
+			addPRLifecycleReadPermission(data, permissions)
+			level, _ = permissions.Get(PermissionPullRequests)
+			assert.Equal(t, PermissionWrite, level)
+		})
+	}
+}
+
 // TestBuildConsolidatedSafeOutputsJob tests the main job builder function
 func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	tests := []struct {
@@ -1020,6 +1044,22 @@ func TestJobOutputs(t *testing.T) {
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.status }}", job.Outputs["process_safe_outputs_status"])
 }
 
+func TestWorkQueueOutcomeOutputIsWorkerOnly(t *testing.T) {
+	for _, worker := range []bool{false, true} {
+		outputs := map[string]string{}
+		addConditionalHandlerManagerOutputs(&WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{},
+			Tools:       map[string]any{"work-queue": map[string]any{"worker": worker}},
+		}, outputs)
+		if worker {
+			assert.Equal(t, "${{ steps.process_safe_outputs.outputs.work_queue_outcome }}", outputs["work_queue_outcome"])
+		} else {
+			assert.NotContains(t, outputs, "work_queue_outcome")
+		}
+		assert.NotContains(t, outputs, "claim_results", "raw handler results must not become job outputs")
+	}
+}
+
 // TestJobDependencies tests that job dependencies are correctly set
 func TestJobDependencies(t *testing.T) {
 	tests := []struct {
@@ -1818,16 +1858,41 @@ func TestSafeOutputClaimArtifactsRequireWorkerAndSuccessfulRedaction(t *testing.
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/safe-output-items.jsonl")
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/temporary-id-map.json")
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/safe-output-errors.json")
+				require.Contains(t, content, "/tmp/gh-aw/claims/*/claim-delivery-errors.json")
 				require.Contains(t, content, "id: redact_secrets")
 				require.Contains(t, content, "steps.redact_secrets.outcome == 'success'")
 				require.Contains(t, content, "SECRET_PRIVATE_TOKEN: ${{ secrets.PRIVATE_TOKEN }}")
-				require.Contains(t, content, "retention-days: 1")
+				require.Contains(t, content, "retention-days: ${{ job.status == 'failure' && 7 || 1 }}")
 				require.Less(t, strings.Index(content, "id: redact_secrets"), strings.Index(content, "Upload Safe Outputs Items"))
 			} else {
 				require.NotContains(t, content, "/claims/")
 				require.NotContains(t, content, "redact_secrets")
 				require.NotContains(t, content, "retention-days:")
 			}
+		})
+	}
+}
+
+func TestClaimDiagnosticRetentionPreservesRepositoryOverrides(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		config *RepoConfig
+		want   any
+	}{
+		{name: "default", want: "${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || (job.status == 'failure' && 7 || 1) }}"},
+		{name: "repository", config: &RepoConfig{ArtifactRetentionDays: new(TemplatableInt32("14"))}, want: 14},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			steps := buildSafeOutputItemsManifestUploadStep("", func(action string) string {
+				return action + "@v4"
+			}, true, &WorkflowData{})
+			output, err := applyArtifactRetention("jobs:\n  test:\n    steps:\n"+strings.Join(steps, ""), test.config)
+			require.NoError(t, err)
+			uploads := retentionTestSteps(t, output)
+			require.Len(t, uploads, 1)
+			assert.EqualValues(t, test.want, uploads[0]["with"].(map[string]any)["retention-days"])
+			assert.Contains(t, output, "steps.redact_secrets.outcome == 'success'")
+			assert.Contains(t, output, "/tmp/gh-aw/claims/*/claim-delivery-errors.json")
 		})
 	}
 }

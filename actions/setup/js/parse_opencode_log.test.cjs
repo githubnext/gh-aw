@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseOpenCodeLog, isOpenCodeEvent } from "./parse_opencode_log.cjs";
+import { parseOpenCodeLog, isOpenCodeEvent, getOpenCodeMCPFailures, getOpenCodeSessionSteps } from "./parse_opencode_log.cjs";
 import { parseCustomLog } from "./parse_custom_log.cjs";
+import { sessionTokenTotal } from "./agent_session.cjs";
 import { parseEngineSession, mergeSessionSources, writeUnifiedSession } from "./unified_session.cjs";
 import { opencodeCiExcerpt, opencodeCiStreamErrors } from "./fixtures/opencode_ci_sessions.cjs";
 import fs from "node:fs";
@@ -13,6 +14,276 @@ const record = (type, part, extra = {}) => ({ type, timestamp, sessionID, part: 
 const jsonl = records => records.map(value => JSON.stringify(value)).join("\n");
 
 describe("OpenCode JSON session parser", () => {
+  it("recovers only completed assistant-step metadata from v2 exports", () => {
+    const steps = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          { type: "user", text: "Never publish this prompt." },
+          { type: "assistant", id: "pending", time: { created: timestamp } },
+          { type: "assistant", id: "completed", finish: "stop", time: { completed: new Date(timestamp).toISOString() }, tokens: { input: 10, output: 2, cache: { read: 5 } }, cost: 0.01, providerState: { private: true } },
+        ],
+      },
+      sessionID
+    );
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ type: "step_finish", sessionID, timestamp, part: { messageID: "completed", reason: "stop", tokens: { input: 10 }, cost: 0.01 } });
+    expect(JSON.stringify(steps)).not.toContain("prompt");
+    expect(JSON.stringify(steps)).not.toContain("providerState");
+    expect(parseOpenCodeLog(jsonl(steps)).logEntries.at(-1)).toMatchObject({ type: "session.result", data: { numTurns: 1, usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 5 }, totalCostUsd: 0.01 } });
+  });
+
+  it("includes native v2 reasoning in exported output without changing v1 artifact semantics", () => {
+    const tokens = { input: 10, output: 2, reasoning: 7, cache: { read: 3, write: 0 } };
+    const steps = getOpenCodeSessionSteps({ info: { id: sessionID }, messages: [{ type: "assistant", id: "reasoning", time: { completed: timestamp }, tokens }] }, sessionID);
+    expect(steps[0].part.tokens).toEqual({ ...tokens, output: 9 });
+    expect(tokens.output).toBe(2);
+    const events = parseOpenCodeLog(jsonl(steps)).logEntries;
+    expect(events.at(-1).data).toEqual({
+      numTurns: 1,
+      usage: { input_tokens: 10, output_tokens: 9, reasoning_output_tokens: 7, cache_read_input_tokens: 3, cache_creation_input_tokens: 0, input_tokens_include_cache: false },
+    });
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events }]);
+    expect(unified.at(-1).data.usage).toMatchObject({ outputTokens: 9, reasoningOutputTokens: 7 });
+    expect(sessionTokenTotal(unified.at(-1).data.usage)).toBe(22);
+    const native = parseOpenCodeLog(jsonl([record("step_finish", { tokens })])).logEntries;
+    expect(native.at(-1).data.usage).toMatchObject({ output_tokens: 2, reasoning_output_tokens: 7 });
+    expect(sessionTokenTotal(native.at(-1).data.usage)).toBe(15);
+  });
+
+  it("recovers compaction accounting without assistant turns or sensitive export fields", () => {
+    const sensitive = "private-native-export-data";
+    const steps = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          { type: "user", text: sensitive },
+          { type: "assistant", id: "assistant", time: { completed: timestamp }, tokens: { input: 30, output: 2, reasoning: 1, cache: { read: 0, write: 0 }, providerState: sensitive }, cost: 0.03, providerState: sensitive },
+          {
+            type: "compaction",
+            id: "compaction",
+            status: "completed",
+            time: { created: new Date(timestamp + 1).toISOString() },
+            tokens: { input: 100, output: 3, reasoning: 4, cache: { read: 5, write: 6, private: sensitive }, private: sensitive },
+            cost: 0.1,
+            summary: sensitive,
+            recent: sensitive,
+            providerState: { secret: sensitive },
+            providerContext: sensitive,
+            metadata: { secret: sensitive },
+          },
+          { type: "compaction", id: "running", status: "running", tokens: { input: 999 }, cost: 99, summary: sensitive },
+        ],
+      },
+      sessionID
+    );
+    expect(steps).toHaveLength(2);
+    expect(steps.filter(step => step.type === "step_finish")).toHaveLength(1);
+    expect(steps[1]).toEqual({
+      type: "opencode.compaction",
+      timestamp: timestamp + 1,
+      sessionID,
+      part: { id: "gh_aw_export_compaction", sessionID, messageID: "compaction", tokens: { input: 100, output: 7, reasoning: 4, cache: { read: 5, write: 6 } }, cost: 0.1 },
+    });
+    expect(JSON.stringify(steps)).not.toContain(sensitive);
+    expect(isOpenCodeEvent(steps[1])).toBe(true);
+    const result = parseOpenCodeLog(jsonl(steps));
+    expect(result.logEntries.filter(event => event.type === "opencode.step_finish")).toHaveLength(1);
+    expect(result.logEntries.filter(event => event.type === "opencode.compaction")).toHaveLength(1);
+    expect(result.logEntries.at(-1).data).toEqual({
+      numTurns: 1,
+      totalCostUsd: 0.13,
+      usage: { input_tokens: 130, output_tokens: 10, reasoning_output_tokens: 5, cache_read_input_tokens: 5, cache_creation_input_tokens: 6, input_tokens_include_cache: false },
+    });
+    expect(JSON.stringify(result)).not.toContain(sensitive);
+    expect(parseEngineSession(jsonl(steps), "opencode")).toEqual(result.logEntries);
+    expect(parseCustomLog(jsonl(steps)).logEntries).toEqual(result.logEntries);
+    expect(parseOpenCodeLog(jsonl(result.logEntries)).logEntries).toEqual(result.logEntries);
+    expect(sessionTokenTotal(mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-session.jsonl", events: result.logEntries }]).at(-1).data.usage)).toBe(151);
+  });
+
+  it.each(["completed", "failed"])("accounts for settled %s compactions alone without inventing model turns", status => {
+    const steps = getOpenCodeSessionSteps(
+      { info: { id: sessionID }, messages: [{ type: "compaction", id: "settled", status, time: { created: timestamp }, tokens: { input: 100, output: 0, reasoning: 0 }, cost: 0.1, error: "private error" }] },
+      sessionID
+    );
+    expect(steps).toHaveLength(1);
+    expect(steps[0].type).toBe("opencode.compaction");
+    const events = parseOpenCodeLog(jsonl(steps)).logEntries;
+    expect(events.at(-1).data).toEqual({ totalCostUsd: 0.1, usage: { input_tokens: 100, output_tokens: 0, reasoning_output_tokens: 0, input_tokens_include_cache: false } });
+    expect(events.some(event => event.type === "opencode.step_finish" || event.type.startsWith("assistant."))).toBe(false);
+    expect(JSON.stringify(events)).not.toContain("private error");
+  });
+
+  it("reconciles replayed compaction accounting once per message and independently per session", () => {
+    const [compaction] = getOpenCodeSessionSteps(
+      { info: { id: sessionID }, messages: [{ type: "compaction", id: "replayed", status: "completed", time: { created: timestamp }, tokens: { input: 100, output: 2, reasoning: 3 }, cost: 0.1 }] },
+      sessionID
+    );
+    const replay = { ...compaction, timestamp: timestamp + 1, part: { ...compaction.part, id: "fresh_part", tokens: { input: 110 }, cost: 0.2 } };
+    const events = parseOpenCodeLog(jsonl([compaction, compaction, replay, replay])).logEntries;
+    expect(events.filter(event => event.type === "opencode.compaction")).toHaveLength(2);
+    expect(events.at(-1).data).toEqual({ totalCostUsd: 0.2, usage: { input_tokens: 110, output_tokens: 5, reasoning_output_tokens: 3, input_tokens_include_cache: false } });
+    expect(parseOpenCodeLog(jsonl(events)).logEntries).toEqual(events);
+    const otherSession = parseOpenCodeLog(jsonl([compaction, { ...compaction, sessionID: "other_session" }])).logEntries;
+    expect(otherSession.at(-1).data).toEqual({ totalCostUsd: 0.2, usage: { input_tokens: 200, output_tokens: 10, reasoning_output_tokens: 6, input_tokens_include_cache: false } });
+  });
+
+  it.each(["id", "partID"])("reconciles assistant usage by message across fresh %s projections and export recovery", idField => {
+    const first = record("step_finish", { [idField]: "live_first", messageID: "msg_first", tokens: { input: 10, output: 2, reasoning: 0 }, cost: 0.01 });
+    const replay = { ...first, timestamp: timestamp + 1, part: { ...first.part, [idField]: "live_replayed" } };
+    const exported = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          { type: "assistant", id: "msg_first", time: { completed: timestamp + 2 }, tokens: { input: 10, output: 2, reasoning: 0 }, cost: 0.01 },
+          { type: "assistant", id: "msg_second", time: { completed: timestamp + 3 }, tokens: { input: 20, output: 3, reasoning: 0 }, cost: 0.02 },
+        ],
+      },
+      sessionID
+    );
+    const events = parseOpenCodeLog(jsonl([first, replay, ...exported, ...exported])).logEntries;
+    expect(events.at(-1).data).toEqual({ numTurns: 2, totalCostUsd: 0.03, usage: { input_tokens: 30, output_tokens: 5, reasoning_output_tokens: 0, input_tokens_include_cache: false } });
+    expect(events.filter(event => event.type === "opencode.step_finish")).toHaveLength(4);
+    expect(parseOpenCodeLog(jsonl(events)).logEntries).toEqual(events);
+  });
+
+  it("falls back to part identity for assistant accounting without message IDs", () => {
+    const first = record("step_finish", { id: "first", tokens: { input: 10 }, cost: 0.01 });
+    delete first.part.messageID;
+    const replay = { ...first, timestamp: timestamp + 1, part: { ...first.part, tokens: { input: 20 }, cost: 0.02 } };
+    const second = { ...first, part: { ...first.part, id: "second" } };
+    const events = parseOpenCodeLog(jsonl([first, replay, second])).logEntries;
+    expect(events.at(-1).data).toEqual({ numTurns: 2, totalCostUsd: 0.03, usage: { input_tokens: 30, input_tokens_include_cache: false } });
+  });
+
+  it("projects only finite accounting fields and does not publish malformed token payloads", () => {
+    const steps = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          {
+            type: "assistant",
+            id: "invalid",
+            time: { completed: timestamp },
+            finish: { secret: "private" },
+            tokens: { input: -1, output: 2, reasoning: Number.MAX_SAFE_INTEGER, cache: { read: "private", write: 0 }, private: "private" },
+            cost: { secret: "private" },
+          },
+          { type: "assistant", id: "array", time: { completed: timestamp }, tokens: ["private"], cost: -1 },
+        ],
+      },
+      sessionID
+    );
+    expect(steps[0].part.tokens).toEqual({ reasoning: Number.MAX_SAFE_INTEGER, cache: { write: 0 } });
+    expect(steps[0].part).not.toHaveProperty("reason");
+    expect(steps[0].part).not.toHaveProperty("cost");
+    expect(steps[1].part).not.toHaveProperty("tokens");
+    expect(steps[1].part).not.toHaveProperty("cost");
+    expect(JSON.stringify(steps)).not.toContain("private");
+    expect(parseOpenCodeLog(jsonl(steps)).logEntries.at(-1).data.usage).not.toHaveProperty("output_tokens");
+  });
+
+  it("rejects invalid v2 session exports instead of inventing completion metadata", () => {
+    for (const exported of [
+      null,
+      {},
+      { info: { id: "other" }, messages: [] },
+      { info: { id: sessionID }, messages: null },
+      { info: { id: sessionID }, messages: [{ type: "assistant", id: "bad", time: { completed: "not-a-date" } }] },
+      { info: { id: sessionID }, messages: [{ type: "compaction", id: "bad", status: "completed" }] },
+      { info: { id: sessionID }, messages: [{ type: "compaction", status: "failed", time: { created: timestamp } }] },
+    ]) {
+      expect(() => getOpenCodeSessionSteps(exported, sessionID)).toThrow("OpenCode session export");
+    }
+  });
+
+  it.each([0, 2])("correlates v2 tools using partID and id, retaining nested exit metadata: %s", exit => {
+    const first = {
+      type: "tool_use",
+      timestamp,
+      sessionID,
+      part: {
+        partID: "prt_v2_first",
+        id: "call_v2",
+        sessionID,
+        messageID: "msg_v2",
+        type: "tool",
+        tool: "shell",
+        state: {
+          status: "completed",
+          input: { command: "make build" },
+          output: "build output\n",
+          metadata: { metadata: { exit }, content: [{ type: "text", text: "build output\n" }], rawInput: '{"command":"make build"}' },
+          time: { start: timestamp, end: timestamp + 30 },
+        },
+      },
+    };
+    const replay = { ...first, part: { ...first.part, partID: "prt_v2_replay" } };
+    const content = jsonl([first, replay, record("step_finish", { reason: "stop", tokens: { input: 10, output: 2, reasoning: 0, cache: { read: 5, write: 0 } } })]);
+    const result = parseOpenCodeLog(content);
+    const starts = result.logEntries.filter(event => event.type === "tool.execution_start");
+    const completions = result.logEntries.filter(event => event.type === "tool.execution_complete");
+    expect(starts).toHaveLength(1);
+    expect(starts[0]).toMatchObject({ id: "prt_v2_first", parentId: "msg_v2", data: { toolCallId: "call_v2", toolName: "shell" } });
+    expect(completions).toHaveLength(1);
+    expect(completions[0]).toMatchObject({ id: "prt_v2_first", data: { toolCallId: "call_v2", exitCode: exit, success: exit === 0, output: "build output\n", durationMs: 30, metadata: first.part.state.metadata } });
+    expect(parseEngineSession(content, "opencode")).toEqual(result.logEntries);
+    expect(parseCustomLog(content).logEntries).toEqual(result.logEntries);
+    expect(parseOpenCodeLog(jsonl(result.logEntries)).logEntries).toEqual(result.logEntries);
+  });
+
+  it("retains v2 failed tool errors and does not confuse the tool call ID with its part ID", () => {
+    const tool = record("tool_use", { partID: "prt_v2_error", id: "call_v2_error", tool: "github_search", state: { status: "error", input: {}, error: "Request rejected", metadata: { rawInput: "{}" } } });
+    const result = parseOpenCodeLog(jsonl([tool]));
+    expect(result.logEntries.find(event => event.type === "tool.execution_complete")).toMatchObject({ id: "prt_v2_error", data: { toolCallId: "call_v2_error", success: false, error: "Request rejected" } });
+    expect(result.logEntries.find(event => event.type === "tool.execution_complete").data).not.toHaveProperty("exitCode");
+  });
+
+  it("recognizes only structured v2 MCP connection failure diagnostics", () => {
+    const prefix = "timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1";
+    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server=github status="{\\"status\\":\\"failed\\"}"`)).toEqual(["github"]);
+    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server="server with spaces" status=failed`)).toEqual(["server with spaces"]);
+    for (const content of [
+      "",
+      "mcp connect failed server=github",
+      `${prefix} message="mcp connected" server=github status=failed`,
+      `${prefix} message="mcp connect failed" status=failed`,
+      `${prefix} message="mcp connect failed" server=github`,
+      `${prefix} message="mcp connect failed" server=github status=connecting`,
+      `${prefix} message="mcp connect failed" server=github status="{\\"status\\":\\"connected\\"}"`,
+      `${prefix} message="mcp connect failed" server=github status="{\\"error\\":\\"failed\\"}"`,
+      `${prefix} message="mcp connect failed" server=github status="not json"`,
+      `${prefix} message="mcp connect failed" server=github status=failed malformed`,
+    ])
+      expect(getOpenCodeMCPFailures(content)).toEqual([]);
+  });
+
+  it("does not poison a recovered MCP startup with a transient v2 warning", () => {
+    const prefix = "timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1";
+    const warning = `${prefix} message="mcp connect failed" server=github`;
+    const recovered = `${prefix.replace("level=WARN", "level=INFO")} message="mcp connected" server=github status=connected`;
+    const content = `${warning}\n${recovered}\n${jsonl([record("step_finish", { reason: "stop", tokens: { input: 10 } })])}`;
+    expect(parseOpenCodeLog(content).mcpFailures).toEqual([]);
+    expect(parseOpenCodeLog(content).logEntries.at(-1).data).not.toHaveProperty("status");
+    expect(getOpenCodeMCPFailures(`${warning.replace("level=WARN", "level=ERROR")}\n${recovered}`)).toEqual([]);
+    expect(parseOpenCodeLog(`${warning} status="{\\"status\\":\\"failed\\"}"\n${content}`).mcpFailures).toEqual(["github"]);
+  });
+
+  it("recognizes pinned v2 flattened MCP failure status without matching transient status or error prose", () => {
+    const failure = String.raw`timestamp=2026-10-18T17:22:46.585Z level=WARN run=fixture message="mcp connect failed" server=fixture status.status=failed status.error="Error POSTing to endpoint: {\"error\":\"fixture denial\"} (HTTP 403)"`;
+    expect(getOpenCodeMCPFailures(failure)).toEqual(["fixture"]);
+    expect(parseOpenCodeLog(`${failure}\n${failure}`).mcpFailures).toEqual(["fixture"]);
+    expect(getOpenCodeMCPFailures(failure.replace("level=WARN", "level=ERROR"))).toEqual(["fixture"]);
+    for (const transient of [
+      failure.replace("status.status=failed", "status.status=connecting"),
+      failure.replace("status.status=failed", "status.status=connected"),
+      failure.replace("status.status=failed ", ""),
+      failure.replace("status.status=failed", "status.status=connecting").replace("fixture denial", "failed"),
+    ])
+      expect(getOpenCodeMCPFailures(transient)).toEqual([]);
+  });
+
   it("preserves text, reasoning, tools, errors, timestamps and per-step usage", () => {
     const records = [
       record("step_start", { type: "step-start" }),
@@ -20,7 +291,7 @@ describe("OpenCode JSON session parser", () => {
       record("tool_use", { type: "tool", callID: "call_fixture", tool: "bash", state: { status: "completed", input: { command: "pwd" }, output: "/workspace\n", time: { start: timestamp + 10, end: timestamp + 40 } } }),
       record("step_finish", { type: "step-finish", reason: "tool-calls", cost: 0.01, tokens: { input: 10, output: 5, reasoning: 2, cache: { read: 20, write: 3 } } }),
       record("text", { type: "text", text: "Finished.\n" }, { timestamp: timestamp + 50 }),
-      record("step_finish", { id: "prt_finish_2", type: "step-finish", reason: "stop", cost: 0, tokens: { input: 4, output: 2, reasoning: 0, cache: { read: 0, write: 0 } } }, { timestamp: timestamp + 60 }),
+      record("step_finish", { id: "prt_finish_2", messageID: "msg_second", type: "step-finish", reason: "stop", cost: 0, tokens: { input: 4, output: 2, reasoning: 0, cache: { read: 0, write: 0 } } }, { timestamp: timestamp + 60 }),
     ];
     const content = `[INFO] AWF setup\nDEBUG OpenCode startup\n{broken\n${jsonl(records)}\nProcess exiting with code: 0`;
     const result = parseOpenCodeLog(content);
@@ -132,7 +403,9 @@ describe("OpenCode JSON session parser", () => {
   });
 
   it("marks token overflow unavailable and ignores negative or invalid usage", () => {
-    const result = parseOpenCodeLog(jsonl([record("step_finish", { tokens: { input: Number.MAX_SAFE_INTEGER, output: -1, cache: { read: "12" } } }), record("step_finish", { id: "prt_other", tokens: { input: 1, output: 2 } })]));
+    const result = parseOpenCodeLog(
+      jsonl([record("step_finish", { tokens: { input: Number.MAX_SAFE_INTEGER, output: -1, cache: { read: "12" } } }), record("step_finish", { id: "prt_other", messageID: "msg_other", tokens: { input: 1, output: 2 } })])
+    );
     expect(result.logEntries.at(-1).data.usage).toMatchObject({ output_tokens: 2, overflowed_tokens: ["input_tokens"] });
     expect(result.logEntries.at(-1).data.usage).not.toHaveProperty("input_tokens");
     expect(result.logEntries.at(-1).data.usage).not.toHaveProperty("cache_read_input_tokens");
@@ -169,9 +442,9 @@ describe("OpenCode JSON session parser", () => {
 
   it("does not restore overflowing native total/reasoning aggregates from a later partial report", () => {
     const records = [
-      record("step_finish", { id: "first", tokens: { total: Number.MAX_SAFE_INTEGER, reasoning: Number.MAX_SAFE_INTEGER } }),
-      record("step_finish", { id: "second", tokens: { total: 1, reasoning: 1 } }),
-      record("step_finish", { id: "third", tokens: { total: 2, reasoning: 2 } }),
+      record("step_finish", { id: "first", messageID: "msg_first", tokens: { total: Number.MAX_SAFE_INTEGER, reasoning: Number.MAX_SAFE_INTEGER } }),
+      record("step_finish", { id: "second", messageID: "msg_second", tokens: { total: 1, reasoning: 1 } }),
+      record("step_finish", { id: "third", messageID: "msg_third", tokens: { total: 2, reasoning: 2 } }),
     ];
     const result = parseOpenCodeLog(jsonl(records));
     expect(result.logEntries.at(-1).data.usage).not.toHaveProperty("total_tokens");
@@ -348,7 +621,13 @@ describe("OpenCode JSON session parser", () => {
   });
 
   it("omits overflowing costs instead of retaining a misleading partial subtotal", () => {
-    const events = parseOpenCodeLog(jsonl([record("step_finish", { id: "cost-1", cost: Number.MAX_VALUE }), record("step_finish", { id: "cost-2", cost: Number.MAX_VALUE }), record("step_finish", { id: "cost-3", cost: 1 })])).logEntries;
+    const events = parseOpenCodeLog(
+      jsonl([
+        record("step_finish", { id: "cost-1", messageID: "msg_first", cost: Number.MAX_VALUE }),
+        record("step_finish", { id: "cost-2", messageID: "msg_second", cost: Number.MAX_VALUE }),
+        record("step_finish", { id: "cost-3", messageID: "msg_third", cost: 1 }),
+      ])
+    ).logEntries;
     expect(events.at(-1).data).not.toHaveProperty("totalCostUsd");
     expect(events.at(-1).data.numTurns).toBe(3);
   });

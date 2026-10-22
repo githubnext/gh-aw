@@ -91,9 +91,11 @@
       { "if": { "properties": { "type": { "const": "firewall.model_routing" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelRoutingData" } } } },
       { "if": { "properties": { "type": { "const": "firewall.steering" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/FirewallSteeringData" } } } },
       { "if": { "properties": { "type": { "const": "firewall.token_usage" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/UsageReportData" } } } },
+      { "if": { "properties": { "type": { "const": "firewall.upstream_error" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/FirewallUpstreamErrorData" } } } },
       { "if": { "properties": { "type": { "const": "github_api.rate_limit" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GitHubApiRateLimitData" } } } },
       { "if": { "properties": { "type": { "const": "grader.manifest" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderManifestData" } } } },
       { "if": { "properties": { "type": { "const": "grader.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderResultData" } } } },
+      { "if": { "properties": { "type": { "const": "guardrail.admission" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/AdmissionDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "guardrail.daily_aic" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/DailyAICDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.configuration" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpConfigurationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.difc.filtered" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
@@ -121,7 +123,10 @@
       { "if": { "properties": { "type": { "const": "mcp.rpc.request" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.rpc.response" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.tool_call" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
+      { "if": { "properties": { "type": { "const": "model.baseline_estimate" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelBaselineEstimateData" } } } },
+      { "if": { "properties": { "type": { "const": "model.config" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelConfigData" } } } },
       { "if": { "properties": { "type": { "const": "model.inventory" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelInventoryData" } } } },
+      { "if": { "properties": { "type": { "const": "model.resolution" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelResolutionData" } } } },
       { "if": { "properties": { "type": { "const": "model_endpoint.mismatch" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelEndpointMismatchData" } } } },
       { "if": { "properties": { "type": { "const": "model_routing.outcome" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/ModelRoutingOutcomeData" } } } },
       { "if": { "properties": { "type": { "const": "plugin.installation" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/PluginInstallationData" } } } },
@@ -411,6 +416,18 @@
     }
   ],
   "definitions": {
+    "AdmissionDecisionData": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["admitted", "ignored", "skipped"] },
+        "maxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "threatDetectionMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "evalsMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+      },
+      "required": ["status"],
+      "additionalProperties": false,
+      "description": "Validated admission allowances, not spend or credentials."
+    },
     "AgentExecutionData": {
       "type": "object",
       "properties": {
@@ -530,7 +547,13 @@
         "originEvent": { "$ref": "#/definitions/JsonValue" },
         "rootRepo": { "$ref": "#/definitions/JsonValue" },
         "rootWorkflowId": { "$ref": "#/definitions/JsonValue" },
-        "rootRunId": { "$ref": "#/definitions/JsonValue" }
+        "rootRunId": { "$ref": "#/definitions/JsonValue" },
+        "parentRepo": { "$ref": "#/definitions/JsonValue" },
+        "parentRunId": { "$ref": "#/definitions/JsonValue" },
+        "parentRunAttempt": { "$ref": "#/definitions/JsonValue" },
+        "parentWorkflowId": { "$ref": "#/definitions/JsonValue" },
+        "parentWorkflowCallId": { "$ref": "#/definitions/JsonValue" },
+        "parentEventType": { "$ref": "#/definitions/JsonValue" }
       },
       "additionalProperties": false,
       "description": "Observed lineage from aw_info.context; hopId identifies the recorded caller."
@@ -592,6 +615,20 @@
       "additionalProperties": false,
       "description": "AWF API proxy steering event-log observation."
     },
+    "FirewallUpstreamErrorData": {
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "httpStatus": { "type": "integer" },
+        "errorCode": { "type": "string", "description": "Identifier-shaped provider error code; absent means the provider did not supply one." },
+        "errorType": { "type": "string" },
+        "errorParam": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "description": "Proxy-written upstream error response, projected without bodies, headers or messages."
+    },
     "GitHubApiRateLimitData": {
       "type": "object",
       "properties": {
@@ -632,7 +669,11 @@
       },
       "additionalProperties": false
     },
-    "GraderManifestData": { "type": "object", "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } } }, "additionalProperties": false },
+    "GraderManifestData": {
+      "type": "object",
+      "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } }, "customGraders": { "type": "array", "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
     "GraderMeasurementData": {
       "type": "object",
       "properties": {
@@ -764,6 +805,57 @@
       },
       "additionalProperties": false
     },
+    "ModelBaselineEstimateData": {
+      "type": "object",
+      "properties": {
+        "estimated": { "type": "boolean", "const": true },
+        "baselineModel": { "type": "string" },
+        "aic": { "type": "number", "description": "Sum over priced main-agent requests; absent when no request could be priced." },
+        "mainRequests": { "type": "integer", "minimum": 0 },
+        "pricedRequests": { "type": "integer", "minimum": 0 },
+        "unpricedRequests": { "type": "integer", "minimum": 0 },
+        "unattributedRequests": { "type": "integer", "minimum": 0 },
+        "complete": { "type": "boolean", "description": "True only when every agent-phase request was attributed and every main request was priced." }
+      },
+      "required": ["estimated", "mainRequests", "pricedRequests", "unpricedRequests", "unattributedRequests", "complete"],
+      "additionalProperties": false,
+      "description": "Collector-written repricing of main-agent requests at the baseline model; routed runs only."
+    },
+    "ModelConfigData": {
+      "type": "object",
+      "properties": {
+        "routing": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "goal": { "type": "string" },
+            "mode": { "type": "string" },
+            "allowedModels": { "type": "array", "items": { "type": "string" }, "description": "Configured routing candidates as authored (exact ids or gh-aw aliases) without provider prefix; absent means the router default or unknown." },
+            "candidateModels": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Effective router pool sent to AWF as provider-qualified ids or patterns: aliases expanded, narrowed by the model policy; absent when unknown or expression-valued."
+            }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false,
+          "description": "Configured routing policy, never the router's per-run selection."
+        },
+        "models": {
+          "type": "object",
+          "properties": { "allowed": { "type": "array", "items": { "type": "string" } }, "blocked": { "type": "array", "items": { "type": "string" } } },
+          "required": ["allowed", "blocked"],
+          "additionalProperties": false,
+          "description": "Configured model allow/block policy; empty lists mean no restriction was configured."
+        },
+        "maxAiCredits": { "type": "integer", "description": "Effective per-run AI credit budget.", "minimum": 1, "maximum": 2147483647 },
+        "maxAiCreditsSource": { "type": "string", "enum": ["frontmatter", "default", "admission"], "description": "Provenance of the budget: compiled frontmatter, the repository default, or the admission allowance." },
+        "baselineModel": { "type": "string", "description": "Concrete main model the run would use without routing, after alias resolution." }
+      },
+      "required": ["routing"],
+      "additionalProperties": false,
+      "description": "Runner-written configured model policy; absent fields are unknown, not false, empty or zero."
+    },
     "ModelEndpointMismatchData": {
       "type": "object",
       "properties": {
@@ -791,19 +883,45 @@
             "type": "object",
             "properties": {
               "provider": { "type": "string" },
-              "models": { "type": "array", "items": { "type": "string" } },
+              "configured": { "type": "boolean", "description": "AWF's endpoint configuration state; absent when the source did not supply it." },
+              "models": { "type": "array", "items": { "type": "string" }, "description": "Advertised model IDs in source order; absent means unknown, not empty." },
               "routingModels": {
                 "type": "array",
-                "items": { "type": "object", "properties": { "modelId": { "type": "string" }, "supportedEndpoints": { "type": "array", "items": { "type": "string" } } }, "required": ["modelId"], "additionalProperties": false }
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelId": { "type": "string" },
+                    "supportedEndpoints": { "type": "array", "items": { "type": "string" } },
+                    "supportedReasoningEfforts": { "type": "array", "items": { "type": "string" }, "description": "Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty." },
+                    "contextWindowTokens": { "type": "integer", "description": "Positive context window size in tokens; absent means unknown.", "minimum": 1, "maximum": 9007199254740991 }
+                  },
+                  "required": ["modelId"],
+                  "additionalProperties": false
+                },
+                "description": "Routing metadata in source order; absent means unknown, not empty."
               }
             },
-            "required": ["provider", "models"],
+            "required": ["provider"],
             "additionalProperties": false
           }
         },
         "modelsFetchComplete": { "type": "boolean" }
       },
       "required": ["endpoints"],
+      "additionalProperties": false
+    },
+    "ModelResolutionData": {
+      "type": "object",
+      "properties": {
+        "engine": { "type": "string" },
+        "role": { "type": "string" },
+        "configured_model": { "type": "string" },
+        "resolved_model": { "type": ["string", "null"] },
+        "provider": { "type": ["string", "null"] },
+        "status": { "type": "string", "enum": ["resolved", "exact", "failed"] },
+        "cause": { "type": ["string", "null"], "enum": ["model_unavailable", "catalog_unavailable", "unsupported_endpoint", null] }
+      },
+      "required": ["engine", "role", "configured_model", "resolved_model", "provider", "status", "cause"],
       "additionalProperties": false
     },
     "ModelRoutingData": {
@@ -841,7 +959,19 @@
         "classifierAttempts": { "$ref": "#/definitions/JsonValue" },
         "deviations": { "$ref": "#/definitions/JsonValue" },
         "requestedModel": { "$ref": "#/definitions/JsonValue" },
-        "requestedEffort": { "$ref": "#/definitions/JsonValue" }
+        "requestedEffort": { "$ref": "#/definitions/JsonValue" },
+        "rankedChoices": { "type": "array", "items": { "$ref": "#/definitions/ModelRoutingRankedChoice" }, "description": "AWF route choices in rank order; ranks are one-based array positions." },
+        "eligibleChoices": { "$ref": "#/definitions/JsonValue" },
+        "catalogueOverlap": { "$ref": "#/definitions/JsonValue" },
+        "selectedEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "requestedEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "upstreamEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "unavailable": { "type": "array", "items": { "type": "string" }, "description": "Request-telemetry dimensions AWF did not observe, such as `model` and `effort`; not unavailable models." },
+        "status": { "$ref": "#/definitions/JsonValue", "description": "Observed HTTP status, independent of `outcome`." },
+        "phase": { "$ref": "#/definitions/JsonValue", "description": "AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase." },
+        "errorCode": { "type": "string", "description": "Identifier-only provider or AWF error code on failed request records; absent means unknown." },
+        "errorType": { "type": "string", "description": "Identifier-only provider or AWF error type on failed request records; absent means unknown." },
+        "errorSource": { "type": "string", "enum": ["upstream", "awf"], "description": "Whether a failed request was rejected by the upstream provider or by AWF; absent means unknown." }
       },
       "additionalProperties": false
     },
@@ -856,6 +986,12 @@
         "appliedEffort": { "$ref": "#/definitions/JsonValue" },
         "failureCode": { "$ref": "#/definitions/JsonValue" }
       },
+      "additionalProperties": false
+    },
+    "ModelRoutingRankedChoice": {
+      "type": "object",
+      "properties": { "rank": { "type": "number" }, "id": { "type": "string" }, "model": { "type": "string" }, "effort": { "type": ["string", "null"] } },
+      "required": ["rank"],
       "additionalProperties": false
     },
     "ModelSelectionData": {
@@ -1072,6 +1208,8 @@
         "provider": { "$ref": "#/definitions/JsonValue" },
         "model": { "$ref": "#/definitions/JsonValue" },
         "purpose": { "$ref": "#/definitions/JsonValue" },
+        "agentName": { "$ref": "#/definitions/JsonValue", "description": "AWF caller declaration: declared sub-agent name for `purpose: subagent`; absent for the main agent and AWF-owned traffic." },
+        "callerSource": { "$ref": "#/definitions/JsonValue", "description": "Origin of `purpose`: `awf` for AWF-owned traffic, `caller_header` for an `x-awf-caller` declaration." },
         "path": { "$ref": "#/definitions/JsonValue" },
         "xInitiator": { "$ref": "#/definitions/JsonValue" },
         "requestId": { "$ref": "#/definitions/JsonValue" },
@@ -1089,6 +1227,7 @@
       "type": "object",
       "properties": {
         "engineId": { "$ref": "#/definitions/JsonValue" },
+        "engineHarness": { "type": "string", "enum": ["copilot-cli", "copilot-sdk"], "description": "Compiled Copilot harness; absent means unknown, never inferred from engineId." },
         "agentVersion": { "$ref": "#/definitions/JsonValue" },
         "cliVersion": { "$ref": "#/definitions/JsonValue" },
         "awfVersion": { "$ref": "#/definitions/JsonValue" },
@@ -1100,8 +1239,18 @@
         "triggerType": { "$ref": "#/definitions/JsonValue" },
         "dryRun": { "$ref": "#/definitions/JsonValue" },
         "workflow": { "$ref": "#/definitions/JsonValue" },
+        "workflowId": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference supplied by the compiler from job.workflow_ref." },
+        "workflowRef": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference (job.workflow_ref); same value as workflowId." },
+        "workflowCallId": { "$ref": "#/definitions/JsonValue", "description": "Current workflow invocation ID from aw_info, separate from the caller's ID." },
+        "callerWorkflowRef": { "$ref": "#/definitions/JsonValue", "description": "GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows." },
         "repository": { "$ref": "#/definitions/JsonValue" },
         "runId": { "$ref": "#/definitions/JsonValue" },
+        "runAttempt": { "$ref": "#/definitions/JsonValue" },
+        "serverUrl": { "$ref": "#/definitions/JsonValue", "description": "GitHub server origin, such as https://github.com." },
+        "ref": { "$ref": "#/definitions/JsonValue" },
+        "sha": { "$ref": "#/definitions/JsonValue" },
+        "actor": { "$ref": "#/definitions/JsonValue" },
+        "targetRepo": { "$ref": "#/definitions/JsonValue" },
         "awContext": { "$ref": "#/definitions/Record%3Cstring%2CJsonValue%3E" },
         "episode": { "anyOf": [{ "$ref": "#/definitions/EpisodeLineageData" }, { "type": "null" }] }
       },

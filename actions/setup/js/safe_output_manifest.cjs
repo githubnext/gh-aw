@@ -1,4 +1,5 @@
 // @ts-check
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
 const fs = require("fs");
 const nodePath = require("path");
@@ -7,6 +8,8 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { MANIFEST_FILE_PATH, TEMPORARY_ID_MAP_FILE_PATH, SAFE_OUTPUT_ERRORS_FILE_PATH } = require("./constants.cjs");
 const { redactBuiltInPatterns, redactSecrets, extractMCPGatewayTokens, MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
 const { currentClaimHandle, claimArtifactPath, claimIdentity, assertClaimIdentity, assertClaimArtifactDirectory, assertClaimArtifactFile } = require("./work_queue_claim_scope.cjs");
+
+const CLAIM_DELIVERY_ERRORS_FILE_NAME = "claim-delivery-errors.json";
 
 /** @param {string} filename @returns {string} */
 function scopedArtifactFile(filename) {
@@ -84,15 +87,15 @@ const CREATE_ITEM_TYPES = new Set([
  * Safe output types that should NEVER be logged to the manifest.
  * These types represent metadata signals rather than GitHub state changes:
  * - noop: no-op message, produces no GitHub side effects
- * - missing_tool: records a missing tool capability (metadata only)
- * - missing_data: records missing required data (metadata only)
+ * - report_missing_tool: records a missing tool capability (metadata only)
+ * - report_missing_data: records missing required data (metadata only)
  * - report_incomplete: signals that the task could not be completed (metadata only)
  *
  * All other types — built-in handler types, custom safe job types, and
  * any future types — are logged automatically without needing to update this list.
  * @type {Set<string>}
  */
-const NOT_LOGGED_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NOT_LOGGED_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "report_incomplete"]);
 
 /**
  * @typedef {Object} ManifestEntry
@@ -248,7 +251,7 @@ function ensureManifestExists(manifestFile = MANIFEST_FILE_PATH) {
  * @returns {{type: string, url?: string, number?: number, repo?: string, provider?: string, id?: string|number, identifier?: string, target?: Object, labels?: Array<{name: string, database_id?: number, node_id?: string}>, temporaryId?: string, metadata?: Record<string, any>, before_state?: Object, after_state?: Object, labelsAdded?: string[], labelsSuggested?: string[], labelsBefore?: string[]}|null}
  */
 function extractCreatedItemFromResult(type, result) {
-  if (!result || NOT_LOGGED_TYPES.has(type)) return null;
+  if (!result || NOT_LOGGED_TYPES.has(normalizeSafeOutputName(type))) return null;
 
   // PR reviews are buffered first and only gain durable identity fields after the
   // final submitReview() call, so skip logging placeholder buffer results here.
@@ -284,6 +287,7 @@ function extractCreatedItemFromResult(type, result) {
   const labels = Array.isArray(result.labels) ? result.labels : Array.isArray(result.labelsAdded) ? result.labelsAdded.map(name => ({ name })) : undefined;
   const metadata = {
     ...(result.metadata || {}),
+    ...(type === "dispatch_workflow" && result.run_id != null ? { run_id: result.run_id } : {}),
     ...(type === "assign_milestone" && result.milestone_number != null ? { milestone_number: result.milestone_number } : {}),
     ...(type === "push_to_pull_request_branch" && result.commit_sha ? { commit_sha: result.commit_sha } : {}),
   };
@@ -392,6 +396,7 @@ module.exports = {
   MANIFEST_FILE_PATH,
   TEMPORARY_ID_MAP_FILE_PATH,
   SAFE_OUTPUT_ERRORS_FILE_PATH,
+  CLAIM_DELIVERY_ERRORS_FILE_NAME,
   CREATE_ITEM_TYPES,
   NOT_LOGGED_TYPES,
   createManifestLogger,

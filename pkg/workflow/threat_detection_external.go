@@ -135,9 +135,10 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		ContainerPinMappings: maps.Clone(data.ContainerPinMappings),
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				Type:   SandboxTypeAWF,
-				Images: maps.Clone(getSandboxAgentImages(data)),
-				CACert: resolveThreatDetectionCACert(data, engineID),
+				Type:            SandboxTypeAWF,
+				ChecksumsSHA256: getAWFChecksumsSHA256(data),
+				Images:          maps.Clone(getSandboxAgentImages(data)),
+				CACert:          resolveThreatDetectionCACert(data, engineID),
 			},
 		},
 	}
@@ -170,6 +171,13 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 	}
 
 	return detectionData
+}
+
+func getAWFChecksumsSHA256(data *WorkflowData) string {
+	if agent := getAgentConfig(data); agent != nil {
+		return agent.ChecksumsSHA256
+	}
+	return ""
 }
 
 // resolveThreatDetectionCACert prefers an explicit detection CA path, honors
@@ -532,6 +540,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data, engineID),
 	}
+	if data.NetworkPermissions != nil {
+		threatDetectionData.NetworkPermissions.Blocked = slices.Clone(data.NetworkPermissions.Blocked)
+	}
 	// Add a read-write mount so the threat-detect binary can write
 	// detection_result.json inside the container and it becomes visible
 	// on the host through the bind mount.
@@ -545,16 +556,14 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, coreSecretVarNames)
 
-	// Compute allowed domains for the detection engine. The AWF firewall for the
-	// detection job must permit the engine's required API endpoints. Without this,
-	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
-	// with "domain not in allowlist" and the detection job exits with code 1/2.
+	// Preserve the concrete API transport hosts required by external detection.
+	// Codex authentication/telemetry is separate and requires codex-vendor opt-in;
+	// detection authenticates through the API proxy, not interactive vendor login.
 	var allowedDomains string
 	if engineID == string(constants.CodexEngine) {
 		// Codex's allowed domains depend on the resolved LLM provider (e.g. GitHub-hosted
 		// inference adds CopilotDefaultDomains), which GetAllowedDomainsForEngine's static
-		// defaults do not account for. Compute domains the same way the main Codex
-		// execution path does so GitHub-hosted detection requests are not blocked.
+		// defaults do not account for. Avoid OpenAI access for GitHub-hosted detection.
 		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(threatDetectionData), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
 	} else {
 		allowedDomains = GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
@@ -758,7 +767,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String()
 	steps := []string{
 		"      - name: Upload threat detection artifact\n",
-		"        if: always()\n",
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
@@ -770,9 +779,8 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	}
 	// Include the detection AWF run's own firewall proxy/audit logs (token usage, squid
 	// logs) so detection-phase usage surfaces in the usage artifact and counts toward the
-	// AI-credits budget cap (see gh-aw#54047). These are firewall/proxy metadata, not the
-	// untrusted agent transcript, so bundling them does not introduce the secret-exfiltration
-	// risk that keeps detection.log off this artifact.
+	// AI-credits budget cap (see gh-aw#54047). These files are collected before the
+	// detection-specific redaction passes; console masking cannot sanitize artifacts.
 	if isFirewallEnabled(data) {
 		threatLog.Print("Including firewall logs in detection artifact upload")
 		steps = append(steps,
@@ -805,7 +813,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 	steps := []string{
 		"      - name: Conclude threat detection\n",
 		"        id: detection_conclusion\n",
-		"        if: always()\n",
+		"        if: " + detectionConclusionCondition + "\n",
 	}
 
 	if continueOnErrorExpr != nil {

@@ -129,6 +129,9 @@ func modelRoutingDefaultImages(workflowData *WorkflowData, configuredImages map[
 
 	if _, configured := configuredImages[awfImageRoleRouter]; !configured {
 		image := constants.DefaultRouterRegistry + ":" + string(constants.DefaultRouterVersion)
+		if awfSupportsRouterReleaseImage(getFirewallConfig(workflowData)) {
+			image = defaultAWFImageForRole(awfImageRoleRouter, imageTag)
+		}
 		pin, found := lookupContainerPin(image, workflowData.ActionCache)
 		if !found || pin.PinnedImage == "" {
 			missing = append(missing, image)

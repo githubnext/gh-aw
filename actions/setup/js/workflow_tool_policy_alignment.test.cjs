@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "./work_queue_yaml.cjs";
 
@@ -26,6 +28,137 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it.each([799, 800, 801])("prepares exact File Diet metrics at the %i-line threshold without agent shell discovery", lines => {
+    const { workflow, prompt, steps } = readWorkflow("daily-file-diet");
+    const preparation = workflow.steps.find(step => step.name === "Prepare Go file size metrics");
+    const execution = steps.find(step => step.name === "Execute GitHub Copilot CLI");
+    expect(preparation.uses).toBe("actions/github-script@v9.0.0");
+    expect(steps.findIndex(step => step.name === preparation.name)).toBeLessThan(steps.findIndex(step => step.name === "Execute GitHub Copilot CLI"));
+    expect(workflow.tools.bash).toEqual(["cat /tmp/gh-aw/agent/file-diet-metrics.json"]);
+    expect(execution.run).toContain("shell(cat /tmp/gh-aw/agent/file-diet-metrics.json)");
+    expect(execution.run).not.toContain("-exec wc -l");
+    expect(execution.run).not.toContain("--allow-all-tools");
+    expect(prompt).toContain("`noop` safe-output tool");
+    expect(prompt).toContain("largest_file.test_file");
+    expect(prompt).not.toMatch(/^\s*(?:find |TEST_FILE=|if \[)/m);
+    const directory = mkdtempSync(resolve(tmpdir(), "gh-aw-file-diet-"));
+    try {
+      const nested = resolve(directory, "pkg/nested/deeper");
+      mkdirSync(nested, { recursive: true });
+      writeFileSync(resolve(nested, "a.go"), "line\n".repeat(lines) + "unterminated");
+      writeFileSync(resolve(nested, "a_test.go"), "test\n".repeat(400));
+      writeFileSync(resolve(nested, "z.go"), "tie\n".repeat(lines));
+      writeFileSync(resolve(nested, "ignored_test.go"), "test\n".repeat(2000));
+      writeFileSync(resolve(nested, "ignored.txt"), "text\n".repeat(2000));
+      writeFileSync(resolve(directory, "outside.go"), "outside\n".repeat(3000));
+      symlinkSync(resolve(directory, "outside.go"), resolve(nested, "symlink.go"));
+      symlinkSync(directory, resolve(nested, "cycle"));
+      const outputPath = resolve(directory, "metrics/result.json");
+      const prepare = () =>
+        runInNewContext(
+          preparation.with.script,
+          {
+            require,
+            process: { env: { GITHUB_WORKSPACE: directory, FILE_DIET_METRICS_PATH: outputPath } },
+          },
+          { timeout: 1000 }
+        );
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toEqual({
+        healthy_threshold: 800,
+        source_file_count: 2,
+        largest_file: {
+          path: "pkg/nested/deeper/a.go",
+          line_count: lines,
+          test_file: { path: "pkg/nested/deeper/a_test.go", line_count: 400 },
+        },
+      });
+      rmSync(resolve(nested, "a_test.go"));
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8")).largest_file.test_file).toBeNull();
+      symlinkSync(resolve(directory, "outside.go"), resolve(nested, "a_test.go"));
+      prepare();
+      expect(JSON.parse(readFileSync(outputPath, "utf8")).largest_file.test_file).toBeNull();
+      rmSync(resolve(nested, "a.go"));
+      rmSync(resolve(nested, "z.go"));
+      expect(prepare).toThrow("No non-test Go source files found under pkg/");
+      rmSync(outputPath);
+      rmSync(resolve(directory, "pkg"), { recursive: true });
+      expect(prepare).toThrow();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("advertises Caveman ledger tools and requires the CLI audit before clean completion", () => {
+    const { workflow, prompt, lock, manifest, steps } = readWorkflow("daily-caveman-optimizer");
+    expect(workflow.tools["cli-proxy"]).toBe(true);
+    expect(workflow.tools.ledger["caveman-run-history"]).toMatchObject({ type: "table", key: "run_id" });
+    const config = JSON.parse(steps.find(step => step.env?.GH_AW_SAFE_OUTPUTS_CONFIG).env.GH_AW_SAFE_OUTPUTS_CONFIG);
+    expect(config.ledger_append.ledgers[0]).toMatchObject({ name: "caveman-run-history", type: "table", key: "run_id" });
+    expect(manifest.mcp_servers.find(server => server.name === "mcpscripts").tools).toContain("caveman-run-state");
+    expect(lock).toMatch(/Tools: [^\n]*ledger_append/);
+    expect(prompt).toContain("safeoutputs ledger_append '<json>'");
+    expect(prompt).toContain("safeoutputs report_incomplete");
+    expect(prompt).toContain("do not emit a clean `noop`, request a PR, or claim the audit record was persisted");
+    expect(workflow["mcp-scripts"]["caveman-run-state"].env).toEqual({ CAVEMAN_RUN_ID: "${{ github.run_id }}" });
+  });
+
+  it("queries Caveman audit state with real read-only SQLite without a sqlite3 executable", () => {
+    const { workflow } = readWorkflow("daily-caveman-optimizer");
+    const script = workflow["mcp-scripts"]["caveman-run-state"].script;
+    const directory = mkdtempSync(resolve(tmpdir(), "gh-aw-caveman-state-"));
+    const databasePath = resolve(directory, "ledger.db");
+    const runID = "39494738069";
+    const value = { record_type: "caveman_run", run_id: runID, files_processed: 5, files_optimized: 0, date: "2026-10-20", planned_outcome: "noop" };
+    let connection;
+    const query = id =>
+      runInNewContext(
+        `(function () { ${script}\n})()`,
+        {
+          process: { env: { CAVEMAN_RUN_ID: id } },
+          require: name => {
+            expect(name).toBe("node:sqlite");
+            return {
+              DatabaseSync: function (path, options) {
+                expect(path).toBe("/tmp/gh-aw/ledgers/caveman-run-history/ledger.db");
+                expect(options).toEqual({ readOnly: true });
+                connection = new DatabaseSync(databasePath, options);
+                return connection;
+              },
+            };
+          },
+        },
+        { timeout: 1000 }
+      );
+    try {
+      expect(() => query(runID)).toThrow();
+      const fixture = new DatabaseSync(databasePath);
+      try {
+        fixture.exec("CREATE TABLE state (key TEXT PRIMARY KEY, value TEXT)");
+        fixture.prepare("INSERT INTO state VALUES (?, ?)").run(runID, JSON.stringify(value));
+        fixture.prepare("INSERT INTO state VALUES (?, ?)").run("invalid", "{");
+      } finally {
+        fixture.close();
+      }
+      expect(query(runID)).toEqual({ current_run: value });
+      expect(connection.isOpen).toBe(false);
+      expect(query("missing")).toEqual({ current_run: null });
+      expect(connection.isOpen).toBe(false);
+      expect(query("' OR 1=1 --")).toEqual({ current_run: null });
+      expect(() => query("invalid")).toThrow();
+      expect(connection.isOpen).toBe(false);
+      const persisted = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        expect(persisted.prepare("SELECT COUNT(*) AS count FROM state").get().count).toBe(2);
+      } finally {
+        persisted.close();
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ["audit-workflows", "audit-history"],
     ["copilot-centralization-optimizer", "centralization"],

@@ -19,8 +19,9 @@ const {
 } = require("./work_queue_claim_scope.cjs");
 const { digest, canonical, canonicalBytes } = require("./work_queue_codec.cjs");
 const { BUILTIN_EFFECT_FIELDS, builtinTargetNumber } = require("./work_queue_declared_verification.cjs");
+const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
 
-const NO_WRITE_TYPES = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
+const NO_WRITE_TYPES = new Set(["noop", "report_missing_tool", "report_missing_data", "missing_tool", "missing_data", "report_incomplete"]);
 const controlInventories = new WeakMap();
 const deliveryReceipts = new WeakMap();
 const deliveryAttestations = new WeakMap();
@@ -40,8 +41,17 @@ function recordClaimDelivery(delivery, assignment, member, binding, inventory, o
     delivery.controls_digest !== inventory.controls_digest ||
     !claimEffectChannelMatches(options.effectChannel, options.effects || [], assignment, member.handle) ||
     (delivery.disposition === "none" && member.work.effect_contract?.kind !== "none" && member.work.effect_contract?.no_writes !== true)
-  )
+  ) {
+    log.debug("delivery.receipt.not_recorded", {
+      binding_present: !!binding,
+      native_run_present: !!nativeRun,
+      run_matches: !!binding && !!nativeRun && binding.run_id === nativeRun.run_id && binding.run_attempt === nativeRun.run_attempt,
+      control_inventory_required: options.requireControlInventory === true,
+      controls_match: !!inventory && delivery.controls_digest === inventory.controls_digest,
+      no_effects: delivery.disposition === "none",
+    });
     return;
+  }
   const record = {
     version: 3,
     dispatch_id: assignment.dispatch_id,
@@ -109,8 +119,15 @@ async function verifyClaimDelivery(member, verification) {
     verification.run?.run_attempt !== 1 ||
     typeof verification.run.run_id !== "string" ||
     !/^[1-9][0-9]{0,255}$/.test(verification.run.run_id)
-  )
+  ) {
+    log.debug("delivery.verify.binding_invalid", {
+      original_claim: !!original,
+      contract_present: verification.contract !== undefined,
+      attempt: verification.attempt,
+      first_run_attempt: verification.run?.run_attempt === 1,
+    });
     return pending;
+  }
   const delivery = await trusted.recheck(original, verification);
   verification.signal?.throwIfAborted();
   const record = delivery && deliveryReceipts.get(delivery);
@@ -126,8 +143,17 @@ async function verifyClaimDelivery(member, verification) {
     record.run_id !== verification.run.run_id ||
     record.run_attempt !== verification.run.run_attempt ||
     canonical(record.run) !== canonical(verification.run)
-  )
+  ) {
+    log.debug("delivery.verify.receipt_rejected", {
+      receipt_present: !!record,
+      readback_verified: delivery?.verification === "verified",
+      dispatch_matches: record?.dispatch_id === assignment.dispatch_id,
+      claim_matches: record?.claim_id === original.claim_id && record?.claim_handle === original.handle,
+      work_matches: record?.work_id === original.work_id,
+      run_matches: record?.run_id === verification.run.run_id && record?.run_attempt === verification.run.run_attempt,
+    });
     return pending;
+  }
   const proof = {
     verified: true,
     contractVerified: true,
@@ -171,7 +197,7 @@ function validateDeliveryContract(value) {
       !output ||
       typeof output.type !== "string" ||
       !output.type ||
-      types.has(output.type) ||
+      types.has(normalizeSafeOutputName(output.type)) ||
       !Number.isSafeInteger(output.min) ||
       !Number.isSafeInteger(output.max) ||
       output.min < 0 ||
@@ -198,7 +224,7 @@ function validateDeliveryContract(value) {
       )
         throw new Error("Invalid declarative effect_contract verification intent");
     }
-    types.add(output.type);
+    types.add(normalizeSafeOutputName(output.type));
   }
   if (value.no_writes !== undefined && typeof value.no_writes !== "boolean") throw new Error("effect_contract.no_writes must be boolean");
   if (value.outputs.length === 0 && value.no_writes !== true) throw new Error("Empty output contracts must explicitly declare no_writes");
@@ -234,7 +260,7 @@ async function inspectClaimDelivery(options) {
   const claim = assignment.claims.find(member => member.handle === claim_handle);
   if (!claim) throw new Error("Delivery handle is foreign to the immutable assignment");
   const receipt = { version: 3, claim_handle, dispatch_id: assignment.dispatch_id, work_id: claim.work_id, claim_id: claim.claim_id, verification: "unknown", disposition: "unknown", descriptor: null };
-  const normalized = messages.map(message => normalizeClaimScope(message, assignment));
+  const normalized = messages.map(message => normalizeClaimScope({ ...message, type: normalizeSafeOutputName(message.type) }, assignment));
   if (normalized.some(message => message.claim_handle !== claim_handle)) throw new Error("Delivery cannot consume another Claim's messages");
   try {
     await assertClaimAuthorized({ type: "work_queue_result", claim_handle }, { authorize, context: options.context, github: options.github, requireCompletion: !options.staged });
@@ -255,7 +281,10 @@ async function inspectClaimDelivery(options) {
       controlInventory = await options.readControlInventory();
       options.signal?.throwIfAborted();
       const provenance = controlInventories.get(controlInventory);
-      if (!provenance || provenance.assignment !== canonical(assignment) || provenance.claim_handle !== claim_handle) return { ...receipt, reason: "Independent durable queue-control inventory is unavailable or untrusted" };
+      if (!provenance || provenance.assignment !== canonical(assignment) || provenance.claim_handle !== claim_handle) {
+        log.debug("controls.readback.untrusted", { provenance_present: !!provenance });
+        return { ...receipt, reason: "Independent durable queue-control inventory is unavailable or untrusted" };
+      }
     } catch (error) {
       log.failure("controls.readback.failed", error);
       return { ...receipt, reason: `Independent queue-control readback failed: ${error.message}` };
@@ -271,19 +300,28 @@ async function inspectClaimDelivery(options) {
     log.failure("delivery.contract.invalid", error);
     return { ...receipt, reason: error.message };
   }
-  const known = new Set(contract.outputs.map(output => output.type));
+  const declaredOutputs = contract.outputs.map(output => ({ ...output, type: normalizeSafeOutputName(output.type) }));
+  const known = new Set(declaredOutputs.map(output => output.type));
   log.debug("delivery.contract.checked", { outputs: contract.outputs.length, messages: normalized.length, no_writes: contract.no_writes === true });
   if (normalized.some(message => !known.has(message.type) && !(contract.no_writes === true && NO_WRITE_TYPES.has(message.type)))) {
+    log.debug("delivery.contract.undeclared_output");
     return { ...receipt, reason: "Undeclared output type in immutable effect_contract" };
   }
-  for (const expected of contract.outputs) {
+  for (const [index, expected] of declaredOutputs.entries()) {
     const count = normalized.filter(message => message.type === expected.type).length;
-    if (count < expected.min || count > expected.max) return { ...receipt, reason: "Immutable output cardinality contract was not met" };
+    if (count < expected.min || count > expected.max) {
+      log.debug("delivery.contract.cardinality_mismatch", { index, count, min: expected.min, max: expected.max });
+      return { ...receipt, reason: "Immutable output cardinality contract was not met" };
+    }
   }
   if (contract.no_writes === true && normalized.some(message => !NO_WRITE_TYPES.has(message.type))) {
+    log.debug("delivery.contract.resource_output_forbidden");
     return { ...receipt, reason: "A no-write contract cannot deliver resource-writing outputs" };
   }
-  if (contract.no_writes === true && options.effects?.length) return { ...receipt, reason: "A no-write contract has attempted undeclared resource effects" };
+  if (contract.no_writes === true && options.effects?.length) {
+    log.debug("delivery.contract.effects_forbidden", { effects: options.effects.length });
+    return { ...receipt, reason: "A no-write contract has attempted undeclared resource effects" };
+  }
   const outputs = [];
   const verifiedResources = [];
   const verifiedControls = new Set();
@@ -293,27 +331,50 @@ async function inspectClaimDelivery(options) {
     const message = normalized[index];
     const outcome = results.find(result => result.messageIndex === index);
     if (!outcome || !outcome.success || outcome.delegated || outcome.deferred || outcome.skipped || outcome.cancelled) {
-      log.debug("delivery.output.receipt_missing", { index });
+      log.debug("delivery.output.receipt_missing", {
+        index,
+        receipt_present: !!outcome,
+        succeeded: outcome?.success === true,
+        delegated: !!outcome?.delegated,
+        deferred: !!outcome?.deferred,
+        skipped: !!outcome?.skipped,
+        cancelled: !!outcome?.cancelled,
+      });
       return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Missing exact nondelegated delivery receipt" };
     }
     if (outcome.claim_handle && outcome.claim_handle !== claim_handle) throw new Error("Foreign Claim delivery receipt");
-    const verification = contract.outputs.find(expected => expected.type === message.type)?.verification;
+    const verification = declaredOutputs.find(expected => expected.type === message.type)?.verification;
     const verify = verification === undefined ? verifyOutput : options.verifyDeclaredOutput;
-    if (verification !== undefined && (NO_WRITE_TYPES.has(message.type) || !require("./work_queue_claim_adapters.cjs").isDeclaredAdapterVerifier(verify, message.type, verification)))
+    if (verification !== undefined && (NO_WRITE_TYPES.has(message.type) || !require("./work_queue_claim_adapters.cjs").isDeclaredAdapterVerifier(verify, message.type, verification))) {
+      log.debug("delivery.output.verifier_binding_invalid", { index });
       return { ...receipt, reason: "Declared immutable verification intent requires a supported trusted verifier binding" };
+    }
     if (NO_WRITE_TYPES.has(message.type)) {
       outputs.push({ type: message.type, effect: "none" });
       continue;
     }
-    if (typeof verify !== "function") return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Independent delivery verifier unavailable" };
+    if (typeof verify !== "function") {
+      log.debug("delivery.output.verifier_unavailable", { index });
+      return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Independent delivery verifier unavailable" };
+    }
     await assertClaimAuthorized(message, { authorize, context: options.context, github: options.github });
     const proof = await verify({ claim, message, result: outcome.result, context: options.context, github: options.github, signal: options.signal, ...(verification === undefined ? {} : { verification }) });
     options.signal?.throwIfAborted();
     if (!proof || proof.verified !== true || proof.claim_handle !== claim_handle || !proof.resource || typeof proof.resource !== "object" || Array.isArray(proof.resource) || !proof.evidence) {
-      log.debug("delivery.output.proof_invalid", { index });
+      log.debug("delivery.output.proof_invalid", {
+        index,
+        proof_present: !!proof,
+        verified: proof?.verified === true,
+        claim_matches: proof?.claim_handle === claim_handle,
+        resource_present: !!proof?.resource,
+        evidence_present: !!proof?.evidence,
+      });
       return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Independent scoped resource verification failed" };
     }
-    if (proof.effect_resources !== undefined && !Array.isArray(proof.effect_resources)) return { ...receipt, reason: "Independent effect metadata requires a complete resource array" };
+    if (proof.effect_resources !== undefined && !Array.isArray(proof.effect_resources)) {
+      log.debug("delivery.output.effect_resources_invalid", { index });
+      return { ...receipt, reason: "Independent effect metadata requires a complete resource array" };
+    }
     if (["work_queue_submit", "work_queue_dispatch_next"].includes(message.type)) {
       const control = controlInventory?.controls.find(entry => entry.request_id === proof.evidence.request_id);
       if (
@@ -327,10 +388,13 @@ async function inspectClaimDelivery(options) {
         Object.keys(proof.resource).some(field => !["kind", "repository", "id"].includes(field)) ||
         (proof.effect_resources !== undefined && (!Array.isArray(proof.effect_resources) || proof.effect_resources.length !== 0)) ||
         verifiedControls.has(control.request_id)
-      )
+      ) {
+        log.debug("delivery.output.control_receipt_invalid", { index, control_present: !!control, duplicate: !!control && verifiedControls.has(control.request_id) });
         return { ...receipt, reason: "Queue-control delivery has no exact independent completed-Claim ledger receipt" };
+      }
       const checked = await require("./work_queue_control_receipts.cjs").verifyClaimQueueControl({ assignment, claim_handle, message, inventory: controlInventory });
       if (checked.verified !== true || checked.claim_handle !== claim_handle || canonical(checked.resource) !== canonical(proof.resource) || canonical(checked.evidence) !== canonical(proof.evidence)) {
+        log.debug("delivery.output.control_intent_mismatch", { index });
         return { ...receipt, reason: "Queue-control delivery does not match its independently checked original intent" };
       }
       verifiedControls.add(control.request_id);
@@ -354,6 +418,7 @@ async function inspectClaimDelivery(options) {
         await withClaimResourceVerification(proof, checkAuthorities, { authorize, context: options.context, github: options.github });
       } catch (error) {
         if (!(error instanceof Error) || error.message !== "work_queue_claim_scope: adapter verification requires its private in-process authority receipt") throw error;
+        log.debug("delivery.output.authority_receipt_missing", { index });
         return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Independent scoped resource authorization requires its private in-process authority receipt" };
       }
     }
@@ -362,7 +427,10 @@ async function inspectClaimDelivery(options) {
     verifiedResources.push(proof.resource, ...(proof.effect_resources || []));
   }
   const descriptor = { version: 1, outputs };
-  if (controlInventory?.controls.some(control => !verifiedControls.has(control.request_id))) return { ...receipt, reason: "An undeclared durable queue-control effect is outside the complete output contract" };
+  if (controlInventory?.controls.some(control => !verifiedControls.has(control.request_id))) {
+    log.debug("delivery.controls.uncovered", { controls: controlInventory.controls.length, verified_controls: verifiedControls.size });
+    return { ...receipt, reason: "An undeclared durable queue-control effect is outside the complete output contract" };
+  }
   for (const effect of options.effects || []) {
     const covered =
       effect.claim_handle === claim_handle &&
@@ -373,9 +441,22 @@ async function inspectClaimDelivery(options) {
       verifiedResources.some(resource => {
         return resource && effect.kind === resource.kind && effect.repository === resource.repository && (effect.id ? effect.id === resource.id : Number.isSafeInteger(effect.number) && effect.number === resource.number);
       });
-    if (!covered) return { ...receipt, disposition: "unknown", reason: "An auxiliary or ambiguous effect has no independently verified declared resource receipt" };
+    if (!covered) {
+      log.debug("delivery.effect.uncovered", {
+        succeeded: effect.outcome === "succeeded",
+        claim_matches: effect.claim_handle === claim_handle && effect.claim_id === claim.claim_id,
+        work_matches: effect.work_id === claim.work_id,
+        dispatch_matches: effect.dispatch_id === assignment.dispatch_id,
+        verified_resources: verifiedResources.length,
+      });
+      return { ...receipt, disposition: "unknown", reason: "An auxiliary or ambiguous effect has no independently verified declared resource receipt" };
+    }
   }
-  if (canonicalBytes(descriptor) > 4 * 1024) return { ...receipt, reason: "Verified Result descriptor exceeds the supported byte ceiling" };
+  const descriptorBytes = canonicalBytes(descriptor);
+  if (descriptorBytes > 4 * 1024) {
+    log.debug("delivery.descriptor.oversized", { bytes: descriptorBytes, max_bytes: 4 * 1024 });
+    return { ...receipt, reason: "Verified Result descriptor exceeds the supported byte ceiling" };
+  }
   const delivery = {
     ...receipt,
     verification: "verified",
@@ -392,19 +473,25 @@ async function inspectClaimDelivery(options) {
 /** @param {Record<string, any>} options */
 async function verifyBuiltinDeliveryOutput(options) {
   const { claim, message, result, github } = options;
-  // PR creation/branch updates also need pinned commit/tree evidence, not merely a visible PR.
-  if (["create_pull_request", "update_pull_request"].includes(message.type)) return { verified: false };
+  const unverified = (event, fields = {}) => {
+    log.debug(event, fields);
+    return { verified: false };
+  };
+  if (["create_discussion", "create_pull_request"].includes(message.type)) return require("./work_queue_native_creation_delivery.cjs").verifyNativeCreationDelivery(options);
+  // Updating branches still requires its own pinned commit/tree verifier.
+  if (message.type === "update_pull_request") return unverified("delivery.builtin.pinned_verifier_required");
   const verifiedFields = new Set(["type", "claim_handle", "claim_id", "work_id", "repo", "item_number", "issue_number", "pull_request_number", "temporary_id", ...(BUILTIN_EFFECT_FIELDS[message.type] || [])]);
-  if (Object.keys(message).some(field => !verifiedFields.has(field))) return { verified: false };
-  if (!result || result.staged || !github?.rest || message.data !== undefined || message.duplicate_of !== undefined) return { verified: false };
+  if (Object.keys(message).some(field => !verifiedFields.has(field))) return unverified("delivery.builtin.undeclared_fields");
+  if (!result || result.staged || !github?.rest || message.data !== undefined || message.duplicate_of !== undefined)
+    return unverified("delivery.builtin.readback_unavailable", { result_present: !!result, staged: !!result?.staged, client_present: !!github?.rest, data_present: message.data !== undefined, duplicate: message.duplicate_of !== undefined });
   const repository = result.repo || message.repo || options.config?.["target-repo"] || options.context?.payload?.repository?.full_name;
   const pieces = typeof repository === "string" ? repository.split("/") : [];
-  if (pieces.length !== 2) return { verified: false };
+  if (pieces.length !== 2) return unverified("delivery.builtin.repository_invalid");
   await assertClaimAuthorized({ ...message, repo: repository }, { authorize: options.authorize, context: options.context, github });
   const [owner, repo] = pieces;
   const requestedNumber = builtinTargetNumber(message);
   const number = Number(result.number || result.issue_number || result.pull_request_number || message.item_number || message.issue_number || message.pull_request_number);
-  if (requestedNumber !== undefined && requestedNumber !== String(number)) return { verified: false };
+  if (requestedNumber !== undefined && requestedNumber !== String(number)) return unverified("delivery.builtin.target_mismatch");
   let data;
   let kind;
   if (["create_issue", "update_issue", "close_issue", "add_labels", "remove_labels", "replace_label"].includes(message.type) && Number.isSafeInteger(number) && number > 0) {
@@ -414,16 +501,17 @@ async function verifyBuiltinDeliveryOutput(options) {
     ({ data } = await github.rest.pulls.get({ owner, repo, pull_number: number }));
     kind = "pull_request";
   } else if (message.type === "add_comment" && Number.isSafeInteger(Number(result.comment_id || result.commentId || result.id))) {
-    if (!Number.isSafeInteger(number) || number < 1) return { verified: false };
+    if (!Number.isSafeInteger(number) || number < 1) return unverified("delivery.builtin.comment_target_invalid");
     ({ data } = await github.rest.issues.getComment({ owner, repo, comment_id: Number(result.comment_id || result.commentId || result.id) }));
     const api = (process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "");
-    if (data?.issue_url !== `${api}/repos/${repository}/issues/${number}`) return { verified: false };
+    if (data?.issue_url !== `${api}/repos/${repository}/issues/${number}`) return unverified("delivery.builtin.comment_parent_mismatch");
     kind = "comment";
   } else {
-    return { verified: false };
+    return unverified("delivery.builtin.unsupported_output");
   }
-  if (!data || !data.id || !data.html_url || (data.number !== undefined && data.number !== number)) return { verified: false };
-  if (typeof data.id === "number" ? !Number.isSafeInteger(data.id) || data.id < 1 : typeof data.id !== "string" || !/^[1-9][0-9]{0,255}$/.test(data.id)) return { verified: false };
+  if (!data || !data.id || !data.html_url || (data.number !== undefined && data.number !== number))
+    return unverified("delivery.builtin.resource_mismatch", { resource_present: !!data, identity_present: !!data?.id, url_present: !!data?.html_url, number_matches: data?.number === number });
+  if (typeof data.id === "number" ? !Number.isSafeInteger(data.id) || data.id < 1 : typeof data.id !== "string" || !/^[1-9][0-9]{0,255}$/.test(data.id)) return unverified("delivery.builtin.resource_identity_invalid");
   const expected = {};
   for (const effect of options.effects || []) {
     if (effect.claim_handle === claim.handle && effect.outcome === "succeeded" && effect.kind === kind && effect.repository === repository && (effect.id ? effect.id === String(data.id) : effect.number === number)) {
@@ -432,20 +520,21 @@ async function verifyBuiltinDeliveryOutput(options) {
   }
   for (const field of ["title", "body"]) {
     const value = Object.prototype.hasOwnProperty.call(expected, field) ? expected[field] : message[field];
-    if (value !== undefined && data[field] !== value) return { verified: false };
+    if (value !== undefined && data[field] !== value) return unverified("delivery.builtin.content_mismatch", { title: field === "title", body: field === "body" });
   }
-  for (const field of ["state", "state_reason"]) if (expected[field] !== undefined && data[field] !== expected[field]) return { verified: false };
-  if (expected.milestone !== undefined && (expected.milestone === null ? data.milestone != null : data.milestone?.number !== Number(expected.milestone))) return { verified: false };
-  if ((message.state || message.status) && data.state !== (message.state || message.status)) return { verified: false };
-  if (message.state_reason && data.state_reason !== message.state_reason) return { verified: false };
-  if (message.type.startsWith("close_") && data.state !== "closed") return { verified: false };
-  if (message.type === "merge_pull_request" && data.merged !== true) return { verified: false };
-  if (message.type === "mark_pull_request_as_ready_for_review" && data.draft !== false) return { verified: false };
+  for (const field of ["state", "state_reason"])
+    if (expected[field] !== undefined && data[field] !== expected[field]) return unverified("delivery.builtin.expected_state_mismatch", { state: field === "state", state_reason: field === "state_reason" });
+  if (expected.milestone !== undefined && (expected.milestone === null ? data.milestone != null : data.milestone?.number !== Number(expected.milestone))) return unverified("delivery.builtin.milestone_mismatch");
+  if ((message.state || message.status) && data.state !== (message.state || message.status)) return unverified("delivery.builtin.state_mismatch");
+  if (message.state_reason && data.state_reason !== message.state_reason) return unverified("delivery.builtin.state_reason_mismatch");
+  if (message.type.startsWith("close_") && data.state !== "closed") return unverified("delivery.builtin.close_not_observed");
+  if (message.type === "merge_pull_request" && data.merged !== true) return unverified("delivery.builtin.merge_not_observed");
+  if (message.type === "mark_pull_request_as_ready_for_review" && data.draft !== false) return unverified("delivery.builtin.ready_not_observed");
   if (["add_labels", "remove_labels"].includes(message.type)) {
     const actual = new Set((data.labels || []).map(label => (typeof label === "string" ? label : label.name).toLowerCase()));
     for (const label of message.labels || []) {
       const name = (typeof label === "string" ? label : label.name).toLowerCase();
-      if (actual.has(name) !== (message.type === "add_labels")) return { verified: false };
+      if (actual.has(name) !== (message.type === "add_labels")) return unverified("delivery.builtin.label_change_not_observed");
     }
   }
   const names = values => values.map(value => (typeof value === "string" ? value : value.name || value.login).toLowerCase()).sort();
@@ -454,29 +543,29 @@ async function verifyBuiltinDeliveryOutput(options) {
     const desired = names(desiredLabels);
     const actual = names(data.labels || []);
     const exact = Object.hasOwn(expected, "labels") || options.verification !== undefined || message.type === "update_issue";
-    if (!desired.every(value => actual.includes(value)) || (exact && JSON.stringify(desired) !== JSON.stringify(actual))) return { verified: false };
+    if (!desired.every(value => actual.includes(value)) || (exact && JSON.stringify(desired) !== JSON.stringify(actual))) return unverified("delivery.builtin.labels_mismatch", { expected: desired.length, actual: actual.length, exact });
   }
   const desiredAssignees = Object.hasOwn(expected, "assignees") ? expected.assignees : message.assignees;
   if (desiredAssignees !== undefined) {
     const desired = names(desiredAssignees);
     const actual = names(data.assignees || []);
     const exact = Object.hasOwn(expected, "assignees") || options.verification !== undefined || message.type === "update_issue";
-    if (!desired.every(value => actual.includes(value)) || (exact && JSON.stringify(desired) !== JSON.stringify(actual))) return { verified: false };
+    if (!desired.every(value => actual.includes(value)) || (exact && JSON.stringify(desired) !== JSON.stringify(actual))) return unverified("delivery.builtin.assignees_mismatch", { expected: desired.length, actual: actual.length, exact });
   }
   if (message.milestone !== undefined) {
-    if (message.milestone === null ? data.milestone != null : !Number.isSafeInteger(Number(message.milestone)) || data.milestone?.number !== Number(message.milestone)) return { verified: false };
+    if (message.milestone === null ? data.milestone != null : !Number.isSafeInteger(Number(message.milestone)) || data.milestone?.number !== Number(message.milestone)) return unverified("delivery.builtin.milestone_mismatch");
   }
   if (message.type === "replace_label") {
     const actual = new Set(names(data.labels || []));
-    if (message.label_to_remove && actual.has(String(message.label_to_remove).trim().toLowerCase())) return { verified: false };
-    if (message.label_to_add && !actual.has(String(message.label_to_add).trim().toLowerCase())) return { verified: false };
+    if (message.label_to_remove && actual.has(String(message.label_to_remove).trim().toLowerCase())) return unverified("delivery.builtin.label_removal_not_observed");
+    if (message.label_to_add && !actual.has(String(message.label_to_add).trim().toLowerCase())) return unverified("delivery.builtin.label_addition_not_observed");
   }
   const resource = { kind, repository, number: data.number || number || null, id: String(data.id), url: data.html_url };
   let authorityResource = ["issue", "pull_request"].includes(kind) ? await resolveParentResourceTarget(github, { repository, kind, number: resource.number }, data) : await resolveRepositoryTarget(github, resource);
   if (kind === "comment") {
-    if (typeof github.rest.issues.get !== "function") return { verified: false };
+    if (typeof github.rest.issues.get !== "function") return unverified("delivery.builtin.parent_reader_unavailable");
     const { data: parent } = await github.rest.issues.get({ owner, repo, issue_number: number });
-    if (!parent || parent.number !== number) return { verified: false };
+    if (!parent || parent.number !== number) return unverified("delivery.builtin.parent_mismatch");
     authorityResource = { ...authorityResource, ...(await resolveParentResourceTarget(github, { repository, kind: "issue", number }, parent)) };
   }
   const observed = {

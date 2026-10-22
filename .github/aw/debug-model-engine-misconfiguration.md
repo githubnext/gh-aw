@@ -89,6 +89,28 @@ succeed without showing the sub-agent failure in its final output. Check for
 `subagent.failed` events in `usage/aw_session.jsonl`, and for the **Sub-agent
 Failed** finding and `deviated` requests in `gh aw audit RUN_ID`.
 
+### AI-credit pricing rejection is separate from alias or endpoint resolution
+
+`unknown_model_ai_credits` or `Model "<model>" has no AI credits pricing` means
+AWF's active AI-credit guard could not price the selected model. An alias in
+`apiProxy.models` only selects model IDs; it does not supply their pricing.
+Inspect the same run's `awf-config.json`, requested/resolved model, provider
+catalog, and AWF version before changing aliases or wire APIs.
+
+For example, Contribution Check run `39068401375` used AWF `v0.28.62` and emitted
+the `kiwi` alias, but its `report-formatter` sub-agent received this pricing 400.
+The config had no provider pricing overlay, `modelPricingCatalog`, or explicit
+`defaultAiCreditsPricing`. This establishes a pricing rejection, not a missing
+compiler alias or an endpoint mismatch. Correct pricing must come from verified
+provider/runtime metadata or an explicitly configured, accurate pricing table;
+do not invent a fallback rate, disable the budget, or substitute an older model.
+
+The parent can recover and leave Actions green. After collecting compact usage
+with `gh aw logs --artifacts usage`, inspect `gh aw health --logs-dir <cache-dir>`
+for `subagent_failures_observed`, invocation counts, and affected run URLs.
+Health reuses matching cached summaries without downloading more artifacts;
+missing cached evidence does not establish successful delegation.
+
 ## 3. Apply fixes in this order
 
 1. **Upgrade gh-aw and recompile.** Use a release containing the relevant fix.

@@ -45,7 +45,7 @@ func TestOpenCodeSampleInstallationAndCapabilities(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: def.Version},
 	}
 	steps := strings.Join(flattenSteps(engine.GetInstallationSteps(data)), "\n")
-	assert.Contains(t, steps, "opencode-ai@"+def.Version)
+	assert.Contains(t, steps, "@opencode/cli@"+def.Version)
 	assert.Contains(t, steps, "NPM_CONFIG_MIN_RELEASE_AGE: '3'")
 	assert.Contains(t, steps, "opencode --version")
 	assert.NotContains(t, steps, "--ignore-scripts")
@@ -55,8 +55,8 @@ func TestOpenCodeSampleInstallationAndCapabilities(t *testing.T) {
 
 func TestOpenCodeSampleVersionOutsideCooldown(t *testing.T) {
 	def := loadOpenCodeSample(t)
-	require.Equal(t, "1.18.35", def.Version, "update npm publication evidence with the pin")
-	publishedAt, err := time.Parse(time.RFC3339, "2026-10-06T20:21:30Z")
+	require.Equal(t, "2.0.26", def.Version, "update npm publication evidence with the pin")
+	publishedAt, err := time.Parse(time.RFC3339, "2026-10-08T19:43:12Z")
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, time.Since(publishedAt), 72*time.Hour)
 }
@@ -90,6 +90,8 @@ func TestOpenCodeSampleProviderExecution(t *testing.T) {
 			assert.Contains(t, execution, "AWF_REFLECT_ENABLED: 1")
 			assert.Contains(t, execution, "GH_AW_MAX_TURNS:")
 			assert.Contains(t, execution, "--format json")
+			assert.Contains(t, execution, "--standalone")
+			assert.Contains(t, execution, "--log-level info")
 			assert.Contains(t, execution, "--exclude-env "+test.secret)
 			assert.NotContains(t, execution, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`)
 			assert.NotContains(t, def.Behaviors.HarnessScript, "172.30.0.30")

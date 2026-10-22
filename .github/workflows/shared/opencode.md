@@ -2,7 +2,7 @@
 engine:
   id: opencode
   detection-engine: copilot
-  version: "1.18.35"
+  version: "2.0.26"
   display-name: OpenCode
   description: OpenCode CLI with headless mode and multi-provider LLM support
   runtime-id: opencode
@@ -34,7 +34,7 @@ engine:
         codex: api.openai.com
     installation:
       package-manager: npm
-      package-name: opencode-ai
+      package-name: "@opencode/cli"
       step-name: Install OpenCode CLI
       binary-name: opencode
       include-node-setup: true
@@ -43,11 +43,12 @@ engine:
       cooldown: true
       verify-command: opencode --version
       verify-step-name: Verify OpenCode CLI installation
-      docs-url: https://opencode.ai/docs
+      docs-url: https://opencode.ai/v2/docs
     execution:
       command-name: opencode
       args:
         - run
+        - --standalone
         - --format
         - json
         - --agent
@@ -55,7 +56,7 @@ engine:
         - --thinking
         - --print-logs
         - --log-level
-        - INFO
+        - info
       step-name: Execute OpenCode CLI
       model-env-var: OPENCODE_MODEL
       mcp-config-env-var: GH_AW_MCP_CONFIG
@@ -66,10 +67,6 @@ engine:
         XDG_CONFIG_HOME: /tmp/opencode-config
         XDG_CACHE_HOME: /tmp/opencode-cache
         XDG_STATE_HOME: /tmp/opencode-state
-        OPENCODE_AUTH_CONTENT: "{}"
-        OPENCODE_DISABLE_AUTOUPDATE: "1"
-        OPENCODE_DISABLE_DEFAULT_PLUGINS: "1"
-        OPENCODE_DISABLE_LSP_DOWNLOAD: "1"
         OPENCODE_DISABLE_MODELS_FETCH: "1"
         NO_COLOR: "1"
     mcp:
@@ -77,23 +74,25 @@ engine:
       config-adapter: |
         const { loadGatewayContext, filterAndTransformServers, rewriteUrl, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
         const context = loadGatewayContext();
-        const mcp = filterAndTransformServers(context.servers, context.cliServers, (name, entry) => {
+        const servers = filterAndTransformServers(context.servers, context.cliServers, (name, entry) => {
           if (typeof entry.url !== "string") {
             throw new Error(`OpenCode requires a gateway HTTP URL for MCP server ${name}`);
           }
           return {
             type: "remote",
             url: rewriteUrl(entry.url, context.urlPrefix),
-            enabled: true,
+            disabled: false,
+            codemode: false,
             oauth: false,
             ...(entry.headers ? { headers: entry.headers } : {}),
           };
         });
-        writeSecureOutput("/tmp/gh-aw/opencode-mcp.json", JSON.stringify({ mcp }, null, 2));
+        writeSecureOutput("/tmp/gh-aw/opencode-mcp.json", JSON.stringify({ mcp: { servers } }, null, 2));
     harness-script: |
       const { readFileSync } = require("fs");
+      const { execFile } = require("child_process");
       const { runProcess } = require("./process_runner.cjs");
-      const { isOpenCodeEvent, getOpenCodeMCPFailures } = require("./parse_opencode_log.cjs");
+      const { isOpenCodeEvent, getOpenCodeMCPFailures, getOpenCodeSessionSteps } = require("./parse_opencode_log.cjs");
       const { fetchAWFReflect, deriveBaseUrlFromModelsURL, normalizeReflectProviderName, REFLECT_PROVIDER_ALIASES } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
@@ -150,18 +149,28 @@ engine:
         }
         const config = {
           model: `awf-proxy/${model}`,
-          autoupdate: false,
+          update: "disable",
           share: "disabled",
-          enabled_providers: ["awf-proxy"],
-          disabled_providers: [],
-          permission: "allow",
-          agent: { build: { permission: "allow", ...(maxTurns !== undefined ? { steps: maxTurns } : {}) } },
-          ...(toolTimeout !== undefined ? { experimental: { mcp_timeout: toolTimeout } } : {}),
-          provider: {
+          experimental: {
+            policies: [
+              { action: "provider.use", resource: "*", effect: "deny" },
+              { action: "provider.use", resource: "awf-proxy", effect: "allow" },
+            ],
+          },
+          permissions: [{ action: "*", resource: "*", effect: "allow" }],
+          agents: { build: { permissions: [{ action: "*", resource: "*", effect: "allow" }], ...(maxTurns !== undefined ? { steps: maxTurns } : {}) } },
+          mcp: {
+            servers: {},
+            timeout: {
+              ...(startupTimeout !== undefined ? { startup: startupTimeout, catalog: startupTimeout } : {}),
+              ...(toolTimeout !== undefined ? { execution: toolTimeout } : {}),
+            },
+          },
+          providers: {
             "awf-proxy": {
               name: "GitHub Agentic Workflows",
-              npm: isAnthropic ? "@ai-sdk/anthropic" : "@ai-sdk/openai-compatible",
-              options: { baseURL, apiKey },
+              package: isAnthropic ? "@opencode/ai/providers/anthropic" : "@opencode/ai/providers/openai-compatible",
+              settings: { baseURL, apiKey },
               models: { [model]: { name: model } },
             },
           },
@@ -175,13 +184,10 @@ engine:
           } catch (error) {
             throw new Error("Failed to parse OpenCode MCP configuration", { cause: error });
           }
-          if (!mcpConfig.mcp || typeof mcpConfig.mcp !== "object" || Array.isArray(mcpConfig.mcp)) {
-            throw new Error("OpenCode MCP configuration must contain an mcp object");
+          if (!mcpConfig?.mcp?.servers || typeof mcpConfig.mcp.servers !== "object" || Array.isArray(mcpConfig.mcp.servers)) {
+            throw new Error("OpenCode MCP configuration must contain an mcp.servers object");
           }
-          config.mcp = mcpConfig.mcp;
-          if (startupTimeout !== undefined) {
-            config.mcp = Object.fromEntries(Object.entries(config.mcp).map(([name, server]) => [name, { ...server, timeout: startupTimeout }]));
-          }
+          config.mcp.servers = mcpConfig.mcp.servers;
         }
         const promptPath = process.env.GH_AW_PROMPT;
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
@@ -189,8 +195,12 @@ engine:
         let turns = 0;
         let reportedError = false;
         let maxTurnsHit = false;
-        const finishedParts = new Set();
+        let sessionID;
+        const finishedSteps = new Set();
+        const finishedMessageParts = new Map();
         const observedMCPFailures = new Set();
+        const runtimeEnv = { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify(config) };
+        delete runtimeEnv.PWD;
         const result = await runProcess({
           command,
           args: [...commandArgs, "--model", `awf-proxy/${model}`],
@@ -198,7 +208,7 @@ engine:
           attempt: 0,
           log,
           stdin: prompt,
-          env: { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify(config) },
+          env: runtimeEnv,
           maxCollectedOutputBytes: 1024 * 1024,
           onStderrLine: line => {
             for (const server of getOpenCodeMCPFailures(line)) observedMCPFailures.add(server);
@@ -207,11 +217,17 @@ engine:
             let entry;
             try { entry = JSON.parse(line); } catch { return; }
             if (!isOpenCodeEvent(entry)) return;
+            if (entry.sessionID) sessionID = entry.sessionID;
             if (entry?.type === "error" && entry.error) reportedError = true;
+            if (maxTurns !== undefined && entry.type === "tool_use" && entry.part?.state?.status === "error" && entry.part.state.error === "Tools are disabled after the maximum agent steps") {
+              maxTurnsHit = true;
+            }
             if (entry?.type !== "step_finish") return;
-            const identity = typeof entry.part?.id === "string" ? JSON.stringify([entry.sessionID, entry.part.id]) : undefined;
-            if (identity !== undefined && finishedParts.has(identity)) return;
-            if (identity !== undefined) finishedParts.add(identity);
+            const messageIdentity = typeof entry.part.messageID === "string" ? JSON.stringify([entry.sessionID, entry.part.messageID]) : undefined;
+            const identity = messageIdentity ?? (typeof entry.part.id === "string" ? JSON.stringify([entry.sessionID, "part", entry.part.id]) : undefined);
+            if (identity !== undefined && finishedSteps.has(identity)) return;
+            if (identity !== undefined) finishedSteps.add(identity);
+            if (messageIdentity !== undefined) finishedMessageParts.set(messageIdentity, { id: entry.part.id, messageID: entry.part.messageID });
             turns++;
             if (maxTurns !== undefined && turns >= maxTurns && entry.part?.reason === "tool-calls") {
               maxTurnsHit = true;
@@ -235,6 +251,41 @@ engine:
           throw new Error(`OpenCode MCP server(s) failed to start: ${mcpFailures.join(", ")}`);
         }
         if (reportedError) throw new Error("OpenCode reported an error despite exiting with code 0");
+        if (!sessionID) throw new Error("OpenCode produced no session events");
+        const exported = await new Promise((resolve, reject) => {
+          execFile(command, ["session", "export", "--standalone", sessionID], {
+            env: runtimeEnv,
+            cwd: process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || undefined,
+            timeout: 60000,
+            maxBuffer: 64 * 1024 * 1024,
+          }, (error, stdout) => {
+            if (error) {
+              const diagnostics = [];
+              if (Number.isSafeInteger(error.code) || (typeof error.code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code))) diagnostics.push(`code=${error.code}`);
+              if (typeof error.signal === "string" && /^SIG[A-Z0-9]{1,16}$/.test(error.signal)) diagnostics.push(`signal=${error.signal}`);
+              if (error.killed === true) diagnostics.push("killed=true");
+              const detail = diagnostics.length ? ` (${diagnostics.join(", ")})` : "";
+              return reject(new Error(`Unable to export the OpenCode session for step reconciliation${detail}`, { cause: error }));
+            }
+            try { resolve(JSON.parse(stdout)); } catch {
+              reject(new Error("Failed to parse the OpenCode session export"));
+            }
+          });
+        });
+        const records = getOpenCodeSessionSteps(exported, sessionID);
+        const steps = records.filter(entry => entry.type === "step_finish");
+        if (!steps.length) throw new Error("OpenCode session export contains no completed model steps");
+        for (const entry of records) {
+          if (entry.type === "step_finish") {
+            const observedPart = finishedMessageParts.get(JSON.stringify([entry.sessionID, entry.part.messageID]));
+            if (observedPart) entry.part = { ...entry.part, id: observedPart.id, messageID: observedPart.messageID };
+          }
+          process.stdout.write(JSON.stringify(entry) + "\n");
+        }
+        if (maxTurns !== undefined && steps.slice(maxTurns - 1).some(entry => entry.part.reason === "tool-calls")) {
+          process.stdout.write(JSON.stringify({ type: "opencode.max_turns", timestamp: Date.now(), data: { maxTurns } }) + "\n");
+          throw new Error("OpenCode max-turns limit reached");
+        }
       };
       main().catch(error => {
         log(error instanceof Error ? error.message : String(error));
@@ -267,44 +318,58 @@ when the sandbox is explicitly disabled.
 
 The harness discovers the selected AWF provider endpoint rather than assuming
 a fixed proxy address. It passes the model through `--model`, supplies the
-prompt on stdin, and requests JSONL events. Provider credentials remain in AWF;
+prompt on stdin, and requests JSONL events. `run --standalone` starts a private,
+short-lived server so the run cannot reuse a background service with different
+configuration or credentials. Provider credentials remain in AWF;
 only a placeholder key reaches the agent. `engine.max-turns` limits completed
 model steps, and a tool-calling turn at the limit fails explicitly.
 MCP startup failures also fail the step, even when OpenCode exits successfully.
 Configured MCP startup/tool timeouts are converted from gh-aw seconds to
-OpenCode milliseconds.
+OpenCode milliseconds: startup also bounds catalog loading, while tool timeout
+bounds execution.
 
 Repository `opencode.json`, `opencode.jsonc`, `.opencode/` agents, and `AGENTS.md`
 retain native discovery and JSONC parsing. Runtime configuration is supplied
 through `OPENCODE_CONFIG_CONTENT`; the harness does not rewrite repository
-settings. OpenCode itself may add `$schema` to a configuration file that lacks
-it, while preserving its JSONC settings and comments. Gateway
+settings. Supported v1 configuration and file-based definitions continue to load
+through OpenCode's compatibility layer. Gateway
 MCP servers use OpenCode's remote transport, preserve authentication headers,
-and disable interactive OAuth. Automatic updates, sharing, default plugins,
-and LSP downloads are disabled. Global configuration, model cache, state, and
+disable interactive OAuth, and set `codemode: false` to retain direct gateway
+tools. Automatic updates and sharing are disabled. V2 does not run language
+servers; use the project's lint, typecheck, or compiler commands instead.
+Global configuration, model cache, state, and
 session/auth data use isolated `/tmp/opencode-*` directories and are not cached
 across runs; pre-existing authentication stores are not loaded.
 
-The pinned CLI is [`1.18.35`](https://github.com/anomalyco/opencode/releases/tag/v1.18.35)
-(npm publication October 6, 2026, 20:21:30 UTC), outside the three-day npm
-cooldown. On October 15, 2026, the latest upstream stable release is
-[`1.19.1`](https://github.com/anomalyco/opencode/releases/tag/v1.19.1), published
-that day and still inside the cooldown. Its session-sharing removal requires
-no harness change: sharing is already disabled. `1.19.0` is old enough, but
-neither `1.19.0` nor `1.19.1` was available from the registry used for this
-validation; `1.18.35` is the newest verified installable release. Tagged
-`1.19.x` source retains the headless JSON event, provider configuration, and
-remote MCP contracts used here; this is static compatibility evidence, not a
-runtime test of those releases.
+The pinned CLI is [`@opencode/cli@2.0.26`](https://github.com/anomalyco/opencode/tree/v2.0.26)
+(npm publication October 8, 2026, 19:43:12 UTC), outside the three-day npm
+cooldown and the newest version available from the registry used for validation.
+The [upstream changelog](https://opencode.ai/changelog) lists newer releases;
+the v1 `opencode-ai` npm package and GitHub's v1 release channel do not install v2.
+See the [v1 migration guide](https://opencode.ai/v2/docs/migrate-v1/).
+Runtime configuration uses native v2 `providers`, `agents`, `permissions`, and
+`mcp.servers`. Provider restrictions use `experimental.policies`, the policy
+location supported by this pin (also accepted by later v2 releases).
 Installation runs the pinned package's lifecycle script to link its native
-binary. The provider SDKs are bundled; model catalog fetching is disabled.
+binary. The native provider runtimes are bundled; model catalog fetching is disabled.
 Custom models without explicit limits retain OpenCode's unknown-limit defaults;
-set `provider.awf-proxy.models.<model>.limit` in native repository configuration
+set `providers.awf-proxy.models.<model>.limit` in native repository configuration
 when authoritative context/output limits are available.
 
 Actions summaries, unified session artifacts, and local session reconstruction
 share the JSONL parser. Text, reasoning, correlated tool calls/results, structured
 errors, timestamps, per-step cost, and input/output/cache token usage are retained.
-Native JavaScript/npm plugins are not gh-aw Agent Plugins and are not advertised
-as supported by this sample.
+The v2 CLI can omit step events or their usage while reconciling completed parts.
+After a successful run, the harness captures `session export --standalone` with a
+60-second/64-MiB bound and emits only safe completed-step and settled compaction
+accounting, retaining observed part identities so usage is merged without extra
+turns. It never emits the export's user messages or provider state. Export
+failures retain their cause and report only safe exit-code/signal diagnostics
+rather than captured output. Native maximum-step tool rejections also fail even
+when the CLI returns zero. Both run and export discard inherited `PWD` so the
+configured working directory controls native repository discovery.
+The parser accepts v1 and v2 tool identities and exit metadata so older session
+artifacts remain readable. Native JavaScript/npm plugins are not gh-aw Agent
+Plugins and are not advertised as supported by this sample. Existing v1 plugins
+must be ported to OpenCode's new plugin API; moving their files is insufficient.
 -->

@@ -1,0 +1,11 @@
+[
+  {
+    "engine": "copilot",
+    "role": "haiku-whoami",
+    "configured_model": "claude-haiku-4.5",
+    "resolved_model": "claude-haiku-4.5",
+    "provider": "copilot",
+    "status": "exact",
+    "cause": null
+  }
+]

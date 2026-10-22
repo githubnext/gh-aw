@@ -24,7 +24,7 @@ name: Smoke Copilot ARM64
 engine:
   id: copilot
   fallback-models:
-    - copilot/gpt-5.4
+    - copilot/gpt-5.6-luna
     - copilot/claude-sonnet-5
 runs-on: ubuntu-24.04-arm
 imports:
@@ -55,7 +55,7 @@ tools:
   playwright:
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:

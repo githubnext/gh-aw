@@ -223,6 +223,56 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(reconciliationCandidates({ dispatches }, "default", 1, 1)).toHaveLength(1);
   });
 
+  it("retains released pending keep-open barriers after Work ownership changes", () => {
+    const retained = {
+      dispatch_id: "retained",
+      pool: "default",
+      state: "bound",
+      run: { run_id: "42" },
+      released: true,
+      claims: [{ claim_id: "original", work_id: "work", handle: "h1" }],
+    };
+    const ordinary = {
+      dispatch_id: "ordinary",
+      pool: "default",
+      state: "bound",
+      run: { run_id: "43" },
+      released: true,
+      claims: [{ claim_id: "old", work_id: "other", handle: "h2" }],
+    };
+    const projection = {
+      dispatches: new Map([
+        [retained.dispatch_id, retained],
+        [ordinary.dispatch_id, ordinary],
+      ]),
+      claims: new Map([
+        ["original", { state: "completed", keep_open: true, barrier: "pending" }],
+        ["old", { state: "completed", barrier: "pending" }],
+      ]),
+      works: new Map([
+        ["work", { claim_id: "regrant", barrier: "pending" }],
+        ["other", { claim_id: "new-owner", barrier: "pending" }],
+      ]),
+    };
+
+    expect(reconciliationCandidates(projection, "default", 16)).toEqual([retained]);
+  });
+
+  it.each([undefined, false])("does not run delivery expiry from reconciliation when opt-in is %s", async expireUnverified => {
+    const { fixture, options } = setup({ bound: true, count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    const finalizer = require("./finish_work_queue_claim.cjs");
+    const finalize = vi.spyOn(finalizer, "finalizeWorkerResults");
+    try {
+      await reconcileQueue({ ...options, ...(expireUnverified === undefined ? {} : { expireUnverified }) });
+      expect(finalize).not.toHaveBeenCalled();
+      expect(fixture.state.works.get(member.work_id).barrier).toBe("pending");
+    } finally {
+      finalize.mockRestore();
+    }
+  });
+
   it("rotates bounded reconciliation sweeps so every outstanding dispatch is revisited", () => {
     const dispatches = new Map(
       Array.from({ length: 17 }, (_, index) => {
@@ -727,12 +777,13 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(assignment).not.toHaveProperty("run");
   });
 
-  it.each(["not_found", "unavailable", "timeout", "title_pending"])("verifies an accepted %s launch with bounded reads and exactly one POST", async failure => {
+  it.each(["not_found", "unavailable", "timeout", "nested_socket", "nested_reset", "nested_timeout", "title_pending"])("verifies an accepted %s launch with bounded reads and exactly one POST", async failure => {
     const { fixture, post, options } = setup({ count: 1 });
     const get = fixture.githubClient.rest.actions.getWorkflowRunAttempt;
     const read = vi.fn(async parameters => {
       if (read.mock.calls.length === 1) {
         if (failure === "title_pending") return { status: 200, data: { ...fixture.nativeRun(), display_title: "worker" } };
+        if (failure.startsWith("nested_")) throw { cause: { cause: { code: failure === "nested_socket" ? "UND_ERR_SOCKET" : failure === "nested_reset" ? "ECONNRESET" : "ETIMEDOUT" } } };
         throw Object.assign(new Error("private response"), failure === "timeout" ? { code: "ETIMEDOUT" } : { status: failure === "not_found" ? 404 : 503 });
       }
       return get(parameters);
@@ -747,12 +798,18 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "bound", released: false, run: { run_id: "42", run_attempt: 1 } });
   });
 
-  it("retains the reservation without asserting native evidence after exhausting verification reads", async () => {
+  it.each(["repository", "attempt"])("retains the reservation after exhausting outer %s verification attempts without nested retries", async endpoint => {
     const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.max_attempts = 2) });
-    const read = vi.fn().mockRejectedValue({ status: 404 });
-    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
-    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
+    const read = vi.fn().mockRejectedValue({ status: 503 });
+    if (endpoint === "attempt") fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
+    else {
+      const get = fixture.githubClient.rest.repos.get;
+      fixture.githubClient.rest.repos.get = parameters => (post.mock.calls.length ? read(parameters) : get(parameters));
+    }
+    const sleepFn = vi.fn(async () => {});
+    expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
     expect(read).toHaveBeenCalledTimes(2);
+    expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1000);
     const dispatch = fixture.state.dispatches.get(fixture.assignment.dispatch_id);
     expect(dispatch).toMatchObject({ state: "uncertain", released: false });
     expect(dispatch.run).toBeUndefined();
@@ -860,17 +917,31 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).run).toBeUndefined();
   });
 
-  it("stops verification reads at the policy deadline without releasing an uncertain launch", async () => {
-    const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.deadline_ms = 1) });
-    const read = vi.fn().mockRejectedValue({ status: 404 });
-    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
+  it.each([
+    { endpoint: "attempt", deadline: 1 },
+    { endpoint: "attempt", deadline: 1000 },
+    { endpoint: "repository", deadline: 1000 },
+  ])("stops $endpoint verification reads at the $deadline ms deadline without releasing an uncertain launch", async ({ endpoint, deadline }) => {
+    const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.deadline_ms = deadline) });
+    const get = fixture.githubClient.rest.repos.get;
+    const failure = { status: endpoint === "attempt" ? 404 : 503 };
+    const read = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockRejectedValueOnce(failure)
+      .mockImplementation(async parameters => (endpoint === "attempt" ? { status: 200, data: fixture.nativeRun() } : get(parameters)));
+    if (endpoint === "attempt") fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
+    else fixture.githubClient.rest.repos.get = parameters => (post.mock.calls.length ? read(parameters) : get(parameters));
     const clock = vi.spyOn(Date, "now").mockReturnValue(0);
-    const sleepFn = vi.fn(async () => clock.mockReturnValue(1));
+    const sleepFn = vi.fn(async () => clock.mockReturnValue(deadline));
     try {
       expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "launch_unresolved", released: false });
       expect(read).toHaveBeenCalledTimes(1);
-      expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1);
+      expect(sleepFn).toHaveBeenCalledExactlyOnceWith(deadline);
       expect(post).toHaveBeenCalledTimes(1);
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "uncertain", released: false });
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).run).toBeUndefined();
+      expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => ["Release", "Result", "DeliveryFailure"].includes(operation.kind))).toBe(false);
     } finally {
       clock.mockRestore();
     }
@@ -1245,6 +1316,49 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
     expect([...fixture.state.claims.values()].every(claim => claim.state === "open")).toBe(true);
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { endpoint: "repository", returnedHint: false, deadline: 1, maxAttempts: 5, reads: 1, sleep: 1 },
+    { endpoint: "repository", returnedHint: true, deadline: 1, maxAttempts: 5, reads: 1, sleep: 1 },
+    { endpoint: "attempt", returnedHint: false, deadline: 1, maxAttempts: 5, reads: 1, sleep: 1 },
+    { endpoint: "attempt", returnedHint: true, deadline: 1, maxAttempts: 5, reads: 1, sleep: 1 },
+    { endpoint: "repository", returnedHint: false, deadline: 1000, maxAttempts: 2, reads: 2, sleep: 50 },
+    { endpoint: "attempt", returnedHint: false, deadline: 1000, maxAttempts: 2, reads: 2, sleep: 50 },
+  ])("keeps $endpoint recovery inside reconciliation budgets with hint=$returnedHint, deadline=$deadline, max_attempts=$maxAttempts", async ({ endpoint, returnedHint, deadline, maxAttempts, reads, sleep }) => {
+    const { fixture, options, post } = setup({
+      count: 1,
+      started: true,
+      configurePolicy: policy => {
+        policy.pools.default.reconciliation.deadline_ms = deadline;
+        policy.pools.default.reconciliation.max_attempts = maxAttempts;
+      },
+    });
+    fixture.githubClient.rest.actions.listWorkflowRuns.mockResolvedValue({ status: 200, data: { workflow_runs: [fixture.nativeRun()] } });
+    const read = vi.fn().mockRejectedValue({ status: 503 });
+    if (endpoint === "attempt") fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
+    else {
+      const get = fixture.githubClient.rest.repos.get;
+      let publisherRead = false;
+      fixture.githubClient.rest.repos.get = parameters => {
+        if (publisherRead) return read(parameters);
+        publisherRead = true;
+        return get(parameters);
+      };
+    }
+    const clock = vi.spyOn(Date, "now").mockReturnValue(0);
+    const sleepFn = vi.fn(async delay => clock.mockReturnValue(Date.now() + delay));
+    try {
+      expect(await reconcileDispatch({ ...options, sleepFn, ...(returnedHint ? { returnedRunId: "42" } : {}) })).toMatchObject({ state: "launch_unresolved", released: false });
+      expect(read).toHaveBeenCalledTimes(reads);
+      expect(sleepFn).toHaveBeenCalledExactlyOnceWith(sleep);
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).run).toBeUndefined();
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
+      expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => ["Release", "Result", "DeliveryFailure"].includes(operation.kind))).toBe(false);
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("rejects later-attempt metadata returned by the original-attempt discovery endpoint", async () => {
@@ -1885,6 +1999,90 @@ describe("native queue launch fencing and conservative recovery", () => {
       expect(post).toHaveBeenCalledTimes(1);
       expect(fixture.state.dispatches.values().next().value).toMatchObject({ released: outcome === "rejected" });
     } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reports an exhausted submit metadata read while independently launching and binding older Work", async () => {
+    const contract = "a".repeat(64);
+    const { fixture, options, post } = setup({
+      granted: false,
+      count: 3,
+      batch: 1,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = contract;
+      },
+    });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-mixed-metadata-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+    let metadataReads = 0;
+    const repository = fixture.githubClient.rest.repos.get;
+    fixture.githubClient.rest.repos.get = vi.fn(async parameters => {
+      if (!parameters.headers && parameters.request?.retryCount === 0 && ++metadataReads <= 3) {
+        throw Object.assign(new Error("private-provider-body"), { status: 500, response: { headers: { "x-github-request-id": requestId, authorization: "private-token" } } });
+      }
+      const response = await repository(parameters);
+      return { ...response, data: { ...response.data, default_branch: "main" } };
+    });
+    const reference = fixture.githubClient.rest.git.getRef;
+    fixture.githubClient.rest.git.getRef = async parameters => (parameters.ref === "heads/main" ? { data: { ref: "refs/heads/main", object: { sha: REF } } } : reference(parameters));
+    const source = "---\ntools:\n  work-queue:\n    worker: true\n---\nExecute approved instructions.\n";
+    const lock = `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${contract}"\n`;
+    fixture.githubClient.rest.repos.getContent = async ({ path }) => ({ data: { type: "file", path, encoding: "base64", content: Buffer.from(path.endsWith(".md") ? source : lock).toString("base64") } });
+    fixture.githubClient.rest.actions.getWorkflow = async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } });
+    const runs = new Map();
+    post.mockImplementation(async parameters => {
+      const assignment = JSON.parse(parameters.inputs.work_queue_assignment);
+      const runId = String(42 + runs.size);
+      runs.set(runId, { ...fixture.nativeRun(), id: runId, display_title: `gh-aw work-queue ${assignment.dispatch_id}` });
+      return { status: 200, data: { workflow_run_id: runId, run_url: `https://api.github.com/repos/owner/repo/actions/runs/${runId}`, html_url: `https://github.com/owner/repo/actions/runs/${runId}` } };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async ({ run_id }) => ({ status: 200, data: runs.get(run_id) });
+    const core = {
+      info: vi.fn(),
+      setOutput: vi.fn(),
+      setFailed: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
+    };
+    const sleepFn = vi.fn(async () => {});
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      stagePlanIntents(filename, {
+        version: 1,
+        nodes: [{ graph_id: "new-cohort", node_key: "new", pool: "default", worker_profile: "default", payload: { task: "new submission" } }],
+        dispatch: { pool: "default", max_claims: 3, max_dispatches: 3 },
+      });
+      const result = await publishQueueControls({ ...options, assignment: null, role: "dispatcher", intentPath: filename, policyProposal: fixture.policy, maxDispatches: 3, sleepFn, core });
+      expect(result).toMatchObject({ status: "recovery_required", success: false, remaining_dispatches: 0 });
+      expect(result.receipts).toEqual([
+        expect.objectContaining({ status: "blocked", reason: "queue_control_github_api_unavailable", failure_stage: "intent_processing" }),
+        expect.objectContaining({
+          status: "durable",
+          success: true,
+          dispatches: 3,
+          launches: [expect.objectContaining({ state: "bound", run_id: "42" }), expect.objectContaining({ state: "bound", run_id: "43" }), expect.objectContaining({ state: "bound", run_id: "44" })],
+        }),
+      ]);
+      expect(metadataReads).toBe(4);
+      expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+      expect(fixture.state.works.size).toBe(3);
+      expect(fixture.state.works.has(nodeId("new-cohort", "new"))).toBe(false);
+      expect(fixture.state.claims.size).toBe(3);
+      expect([...fixture.state.dispatches.values()].every(dispatch => dispatch.state === "bound")).toBe(true);
+      expect(post).toHaveBeenCalledTimes(3);
+      expect(post.mock.calls.every(([parameters]) => parameters.request.retries === 0 && parameters.request.retryCount === 0)).toBe(true);
+      expect(core.setFailed).toHaveBeenCalledOnce();
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      expect(output).toContain("deployment.repository.read.failed");
+      expect(output).toContain(`GitHub request ID: ${requestId}.`);
+      expect(output).toContain("controls.complete durable=1 blocked=1 rejected=0 unresolved=0 recovery_required=true");
+      expect(output + JSON.stringify(result)).not.toContain("private");
+    } finally {
+      stderr.mockRestore();
       fs.rmSync(directory, { recursive: true, force: true });
     }
   });

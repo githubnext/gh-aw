@@ -455,7 +455,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			warningCount, highSeverityCount, err := parseAndDisplayZizmorOutput(tt.stdout, tt.stderr, tt.verbose)
+			warningCount, highSeverityCount, err := parseAndDisplayZizmorOutputWithOptions(tt.stdout, tt.stderr, tt.verbose, zizmorResultOptions{})
 
 			// Restore stderr
 			w.Close()

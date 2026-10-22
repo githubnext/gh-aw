@@ -277,9 +277,9 @@ Each safe-output tool type has its own configuration struct parsed from the `saf
 | `DispatchRepositoryConfig` | struct | Configuration for dispatching `repository_dispatch` events |
 | `DispatchWorkflowConfig` | struct | Configuration for dispatching GitHub Actions workflows |
 | `HideCommentConfig` | struct | Configuration for hiding/minimizing GitHub comments |
-| `IssueReportingConfig` | struct | Shared configuration base for `missing_data`, `missing_tool`, and `report_incomplete` safe outputs |
-| `MissingDataConfig` | type alias | `= IssueReportingConfig` for the `missing_data` safe output |
-| `MissingToolConfig` | type alias | `= IssueReportingConfig` for the `missing_tool` safe output |
+| `IssueReportingConfig` | struct | Shared configuration base for `report_missing_data`, `report_missing_tool`, and `report_incomplete` safe outputs |
+| `MissingDataConfig` | type alias | `= IssueReportingConfig` for the `report_missing_data` safe output |
+| `MissingToolConfig` | type alias | `= IssueReportingConfig` for the `report_missing_tool` safe output |
 | `ReportIncompleteConfig` | type alias | `= IssueReportingConfig` for the `report_incomplete` safe output |
 | `LinkSubIssueConfig` | struct | Configuration for linking issues as sub-issues |
 | `MarkPullRequestAsReadyForReviewConfig` | struct | Configuration for marking draft PRs as ready for review |

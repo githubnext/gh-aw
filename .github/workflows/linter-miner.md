@@ -14,7 +14,7 @@ permissions:
 
 
 tracker-id: linter-miner
-model: copilot/mai-code-1-flash-picker
+model: copilot/claude-sonnet-5.5
 engine:
   id: copilot
   copilot-sdk: true
@@ -178,7 +178,7 @@ Call the `create-pull-request` safe output with:
 ## agent: `discussion-miner`
 ---
 description: Mines GitHub Discussions and Issues for recurring Go code patterns, anti-patterns, and bugs that could be caught by a static linter
-model: copilot/mai-code-1-flash-picker
+model: copilot/claude-sonnet-5.5
 ---
 You are a Go code-review analyst. Your job is to search GitHub Discussions and Issues in the current repository for evidence of recurring Go code patterns or errors that could benefit from automatic static analysis.
 
@@ -211,7 +211,7 @@ Be concise. List at most 5 candidates.
 ## agent: `code-pattern-scanner`
 ---
 description: Scans the Go source with Serena and grep to find error-prone patterns that would benefit from a custom linter
-model: copilot/mai-code-1-flash-picker
+model: copilot/claude-sonnet-5.5
 ---
 You are a Go static-analysis expert. Scan the non-test Go files under `pkg/` and `cmd/` of this repository for recurring error-prone patterns that are not already caught by existing linters.
 
@@ -228,7 +228,7 @@ Output a JSON array of candidate linter ideas (same schema as discussion-miner).
 ## agent: `linter-writer`
 ---
 description: Implements a new Go analysis linter package following the pkg/linters/largefunc conventions
-model: copilot/mai-code-1-flash-picker
+model: copilot/claude-sonnet-5.5
 ---
 You are a Go engineer implementing a custom `go/analysis` linter.
 

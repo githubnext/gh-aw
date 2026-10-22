@@ -55,6 +55,13 @@ dispatch.
 
 ## Test Workflow Changes from a Branch
 
+Notify the user before live-test authorization: a published feature branch
+containing the reviewed Markdown and generated lock is required to live test
+workflow changes. Name the branch and exact commit; reuse the current suitable
+branch rather than creating another. A draft PR is recommended, not required,
+and a merge is not required. If publication is still needed, state that the
+agent will prepare and publish the branch before dispatch.
+
 When updated workflow files are unpublished, recommend a feature branch and
 draft PR instead of requiring a merge to the default branch or ending with a
 generic refusal. Reuse an existing suitable branch or PR. The agent prepares
@@ -84,6 +91,12 @@ protections or unresolved review findings. Do not switch refs, credentials or
 execution contexts to evade a failed gate.
 
 ## Live Debug Loop
+
+Include the published test branch and exact reviewed commit in the user-visible
+authorization packet. Notify the user that this branch is required to live test
+changes; a PR alone does not establish which revision will run. Branch
+publication is agent-owned preparation, not a substitute for live-effect
+authorization.
 
 Before each upload/dispatch, require a completed [agentic security review](debug-security-review.md) for the current source/lock hashes and valid human authorization: source/lock hashes,
 triggers/imports/pins, permissions/OIDC, declared credential sources and flows, destinations,
@@ -146,7 +159,7 @@ requirements. Run zizmor, actionlint and poutine when possible; report unavailab
 checks as unverified, not passed. Without Docker, use a native `shellcheck` binary
 for the required run-step linting. Enabled scanners scan the existing on-disk locks
 before compilation and compare finding identities and occurrence counts against
-the emitted diagnostic locks using the same result filters. Only added
+the emitted diagnostic locks using the same result filters. Existing and added
 medium-or-higher or unclassified findings fail. Low-severity/informational findings
 remain visible but nonblocking. Zizmor's `secrets-outside-env` is excluded from
 dry-run results because repository/organization secrets are common in agentic workflows;
@@ -173,11 +186,23 @@ rather than skipping them; review callees separately without the override.
 `--dry-run` stages safe outputs and disables compiler-managed GitHub mutations:
 push jobs, memory/cache persistence, reusable safe-output calls, work-queue
 operations, reactions, status/failure comments and issues, label removal, and
-issue locking. Diagnostics, summaries, and run artifacts remain available;
+issue locking. Authored custom jobs and custom safe-output jobs become disabled,
+credential-free placeholders; neither step-level staging overrides nor
+`secrets: inherit` can reactivate them. Their declared output names remain
+available, but their outputs are empty and dependent jobs may be skipped.
+Reusable output bindings and self-hosted runner policy remain valid without
+retaining original executable targets or matrix-dependent runner expressions.
+Host steps (`steps`, `pre-steps`, `pre-agent-steps`, `post-steps`, `on.steps`,
+safe-output/threat-detection/secret-masking steps, and unsafe built-in job
+overrides), custom MCP servers, `mcp-scripts`, custom safe-output scripts/actions,
+enabled Bash graders, and authored OIDC permissions (including safe-output
+permissions) are rejected, including declarations from imports. Compiler-owned
+pull-request stack gates remain enabled. Remove those declarations
+from a separate diagnostic workflow; there is no unsafe dry-run override.
+Diagnostics, summaries, and run artifacts remain available;
 `OTEL_*`, `GH_AW_OTLP_*`, `GITHUB_AW_OTEL_*`, `TRACEPARENT`, `TRACESTATE`,
 `BAGGAGE`, and `CLAUDE_CODE_ENABLE_TELEMETRY` environment variables and automatic telemetry
-configuration/authentication are omitted from dry-run locks. Custom scripts
-that configure their own exporters remain outside this control.
+configuration/authentication are omitted from dry-run locks.
 Review that emitted lock, not the previously published normal lock. If a live
 test is permitted, upload and dispatch the exact reviewed revision; restoring
 the normal lock before dispatch does not apply dry-run suppression to it.
@@ -200,9 +225,10 @@ The summary records `warning_baseline: "pre_compile_lock_files"`,
 gate. Check the exit status and all results; preflight failures may emit no
 summary. Passing coverage is not execution approval or per-image/script proof.
 
-This is not a sandbox for arbitrary code. Custom scripts/jobs, agent shell
-commands, external MCP servers, and custom credentials remain unverified.
-The runtime explicitly warns about this scope; review their side effects before
+This is not a sandbox for arbitrary code. Agent shell commands, custom engine
+execution, custom credentials, and compiler-managed OIDC integrations remain
+unverified. Rejected declarations are not evidence that all other code is safe.
+The runtime explicitly warns about this scope; review remaining side effects before
 live testing, even after a successful dry-run compilation.
 
 ## User-Visible Dry-Run Result
@@ -253,6 +279,20 @@ Compare first failing boundaries and normalized error/tool/status signatures,
 not just aggregate metrics or matching HTTP codes. Count each matching run once;
 report matching/inspectable comparable runs and their IDs. Account for workflow,
 revision, trigger/input and configuration differences; missing evidence remains unknown.
+
+To locate a signature within a run, use
+`gh aw audit RUN_ID --output AUDIT_DIR --no-baseline --search "ERROR_CODE tool.name" --json`.
+Read `evidence_search` source references and neighboring events, not relevance
+scores alone. Search ranks actual unified-session events with BM25. Drain3
+grouping activates automatically when repetitive top matches crowd the limit
+and grouping saves excerpt text; it never changes BM25 scores. Groups preserve
+structured outcomes, keeping successful and failed events separate.
+These optional run-local stage/cluster IDs are not fleet failure clusters or
+`--group` finding codes. Keep BM25 relevance and Drain3 anomaly scores separate
+from severity/confidence. Missing sessions or zero hits never establish safety
+or erase deterministic findings. Follow
+[session evidence retrieval](analyzing-runs.md#retrieve-and-cluster-session-evidence)
+for limits and interpretation; do not combine search with grouped/multi-run audits.
 
 Start with the compact audit. Fetch targeted evidence only when needed:
 

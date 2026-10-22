@@ -15,9 +15,16 @@ build/
 schemas/audit.schema.json
 schemas/logs.schema.json
 schemas/logs-jsonl.schema.json
+schemas/outcomes-episodes.schema.json
 
 # DevContainer configuration (should not be reformatted)
 .devcontainer/devcontainer.json
 
 .beads/
 .github/aw/
+
+# Recorded byte-exact AWF reflection fixtures (SHA-256 pinned)
+actions/setup/js/test_data/awf_reflect/*.json
+
+# Verbatim routing-analytics run artifacts (github/gh-aw#70668)
+actions/setup/js/fixtures/routing-analytics/**/*.json

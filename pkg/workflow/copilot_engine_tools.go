@@ -66,11 +66,12 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	var args []string
 	hasRestrictedBashAllowlist := false
 	hasUnrestrictedBash := false
+	bashDisabled := workflowData != nil && workflowData.BashDisabled
 
 	// Check if bash has wildcard - if so, use --allow-all-tools in CLI mode.
 	// SDK mode and restricted-network workflows must keep shell permission scoped
 	// because --allow-all-tools would also authorize hosted web tools.
-	if bashConfig, hasBash := tools["bash"]; hasBash {
+	if bashConfig, hasBash := tools["bash"]; hasBash && !bashDisabled {
 		if bashCommands, ok := bashConfig.([]any); ok {
 			// Check for :* or * wildcard - if present, allow all tools
 			for _, cmd := range bashCommands {
@@ -91,41 +92,43 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Handle bash/shell tools (when no wildcard)
-	if hasUnrestrictedBash {
-		args = append(args, "--allow-tool", "shell")
-	} else if bashConfig, hasBash := tools["bash"]; hasBash && isCopilotToolValueEnabled(tools, "bash") {
-		if bashCommands, ok := bashConfig.([]any); ok {
-			hasRestrictedBashAllowlist = len(bashCommands) > 0
-			// Add specific shell commands
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok {
-					// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
-					// all engines emit the canonical prefix form (shell(jq)) regardless
-					// of whether the command was written with or without the wildcard.
-					cmdStr, _ = normalizeBashCommand(cmdStr)
-					// For stem commands (like dotnet, npm, cargo), Copilot CLI uses
-					// subcommand matching. When the user specifies just the base command
-					// (e.g., "dotnet"), append :* so "dotnet build", "dotnet test", etc.
-					// are all permitted. Skip if the command already has a colon (explicit
-					// matching) or a space (user already specified the subcommand).
-					if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", cmdStr))
-					} else {
-						sanitized, wasSanitized := sanitizeCopilotShellCommand(cmdStr)
-						if wasSanitized {
-							fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-								fmt.Sprintf("bash tool %q contains single quotes that crash Copilot CLI; "+
-									"truncated to safe prefix %q for shell() prefix-matching. "+
-									"Use %q in your workflow to silence this warning.",
-									cmdStr, sanitized, sanitized)))
+	if !bashDisabled {
+		if hasUnrestrictedBash {
+			args = append(args, "--allow-tool", "shell")
+		} else if bashConfig, hasBash := tools["bash"]; hasBash && isCopilotToolValueEnabled(tools, "bash") {
+			if bashCommands, ok := bashConfig.([]any); ok {
+				hasRestrictedBashAllowlist = len(bashCommands) > 0
+				// Add specific shell commands
+				for _, cmd := range bashCommands {
+					if cmdStr, ok := cmd.(string); ok {
+						// Normalize trailing " *" wildcard (e.g. "jq *" → "jq") so that
+						// all engines emit the canonical prefix form (shell(jq)) regardless
+						// of whether the command was written with or without the wildcard.
+						cmdStr, _ = normalizeBashCommand(cmdStr)
+						// For stem commands (like dotnet, npm, cargo), Copilot CLI uses
+						// subcommand matching. When the user specifies just the base command
+						// (e.g., "dotnet"), append :* so "dotnet build", "dotnet test", etc.
+						// are all permitted. Skip if the command already has a colon (explicit
+						// matching) or a space (user already specified the subcommand).
+						if !strings.Contains(cmdStr, ":") && !strings.Contains(cmdStr, " ") && constants.CopilotStemCommands[cmdStr] {
+							args = append(args, "--allow-tool", fmt.Sprintf("shell(%s:*)", cmdStr))
+						} else {
+							sanitized, wasSanitized := sanitizeCopilotShellCommand(cmdStr)
+							if wasSanitized {
+								fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+									fmt.Sprintf("bash tool %q contains single quotes that crash Copilot CLI; "+
+										"truncated to safe prefix %q for shell() prefix-matching. "+
+										"Use %q in your workflow to silence this warning.",
+										cmdStr, sanitized, sanitized)))
+							}
+							args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", sanitized))
 						}
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", sanitized))
 					}
 				}
+			} else {
+				// Bash with no specific commands or null value - allow all shell
+				args = append(args, "--allow-tool", "shell")
 			}
-		} else {
-			// Bash with no specific commands or null value - allow all shell
-			args = append(args, "--allow-tool", "shell")
 		}
 	}
 
@@ -200,6 +203,11 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		// GitHub is a special case - it's an MCP server but doesn't have explicit MCP config in the workflow
 		// It gets MCP configuration through the parser's processBuiltinMCPTool
 		if toolName == "github" {
+			if workflowData != nil {
+				if _, explicitlyDisabled := workflowData.ExplicitlyDisabledTools["github"]; explicitlyDisabled {
+					continue
+				}
+			}
 			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
 				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
 					if allowedList, ok := allowed.([]any); ok {

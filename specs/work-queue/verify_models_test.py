@@ -89,10 +89,97 @@ class ModelRunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No configuration matches", result.stderr)
 
+    def test_delivery_health_configs_require_exact_verdicts(self):
+        model = "ClaimDeliveryHealth"
+        for config in ("DeliveryHealth", "DeliveryHealthStaged"):
+            result = self.run_model(config, "Model checking completed. No error", model=model)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for config, invariant in (
+            ("BrokenDeliveryFalseGreen", "ReportTruth"),
+            ("BrokenDeliveryEarlyStop", "IndependentSiblings"),
+            ("BrokenDeliveryReleaseResult", "ResultAuthority"),
+            ("BrokenDeliveryPrematureRelease", "ReleaseAuthority"),
+            ("DeliveryPendingWitness", "NoPendingSibling"),
+            ("DeliveryFailedWitness", "NoFailedSibling"),
+            ("DeliveryMixedWitness", "NoMixedSuccess"),
+            ("DeliveryReleasedWitness", "NoReleasedPending"),
+        ):
+            with self.subTest(config=config):
+                result = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                rejected = self.run_model(config, "Invariant Safety is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+        result = self.run_model("LifecycleReleasedPendingWitness",
+                                "Invariant NoReleasedPendingDelivery is violated", 12,
+                                model="QueueLifecycle")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rejected = self.run_model("LifecycleReleasedPendingWitness",
+                                  "Invariant ResultSoundness is violated", 12,
+                                  model="QueueLifecycle")
+        self.assertNotEqual(rejected.returncode, 0)
+
     def test_unknown_model_is_rejected(self):
         result = self.run_model("WorkerEvolution", "", model="missing-model")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("TLC_MODEL_FILTER must be", result.stderr)
+
+    def test_expiration_configs_require_exact_verdicts(self):
+        model = "WorkExpiration"
+        accepted = self.run_model("WorkExpiration", "Model checking completed. No error", model=model)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        for config, invariant in (
+            ("BrokenExpirationGrant", "GrantAuthority"),
+            ("BrokenExpirationRelease", "ReservationAuthority"),
+            ("BrokenExpirationClaim", "ClaimAuthority"),
+            ("BrokenExpirationWatermark", "CommittedTimeMonotonicity"),
+            ("BrokenExpirationCheckpoint", "ProjectionSoundness"),
+            ("ExpirationRunningWitness", "NoRunningPastExpiry"),
+            ("ExpirationCheckpointWitness", "NoCheckpointExpiry"),
+        ):
+            with self.subTest(config=config):
+                accepted = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(accepted.returncode, 0, accepted.stderr)
+                rejected = self.run_model(config, "Invariant TypeOK is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+
+    def test_delivery_recovery_configs_require_exact_verdicts(self):
+        model = "ClaimDeliveryRecovery"
+        for config in ("DeliveryRecovery", "DeliveryRecoveryProgress"):
+            result = self.run_model(config, "Model checking completed. No error", model=model)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for config, invariant in (
+            ("BrokenRecoveryPrincipal", "CleanupAuthority"),
+            ("BrokenRecoveryDeadline", "FailureBudget"),
+            ("BrokenRecoveryEvidence", "FailureAuthority"),
+            ("BrokenRecoveryEffects", "UnknownEffects"),
+            ("BrokenRecoveryCAS", "PublicationFence"),
+            ("BrokenRecoveryArtifact", "ResultAuthority"),
+            ("BrokenRecoveryMetadata", "NativeReadbackAgreement"),
+            ("BrokenRecoveryForeignMetadata", "NativeReadbackAgreement"),
+            ("BrokenRecoveryReplay", "NoReplay"),
+            ("BrokenRecoveryRetained", "RetainedFence"),
+            ("RecoveryReleasedWitness", "NoReleasedRecovery"),
+            ("RecoveryEnrichedWitness", "NoEnrichedResult"),
+            ("RecoveryRetainedWitness", "NoRetainedRecovery"),
+            ("RecoveryUnavailableWitness", "NoUnavailablePending"),
+        ):
+            with self.subTest(config=config):
+                accepted = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(accepted.returncode, 0, accepted.stderr)
+                rejected = self.run_model(config, "Invariant Safety is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+
+    def test_released_recovery_control_requires_temporal_counterexample(self):
+        model = "ClaimDeliveryRecovery"
+        message = "Temporal properties were violated"
+        for config in ("BrokenRecoveryReleased", "BrokenRecoveryUnfair"):
+            accepted = self.run_model(config, message, 13, model=model)
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            for output, status in ((message, 0), (message, 12),
+                                   ("Invariant Safety is violated", 12), ("Parsing failed", 151)):
+                with self.subTest(config=config, output=output, status=status):
+                    rejected = self.run_model(config, output, status, model=model)
+                    self.assertNotEqual(rejected.returncode, 0)
 
     def test_default_evidence_and_java_extraction_stay_repository_local(self):
         result = self.run_model("WorkerEvolution", "Model checking completed. No error", default_results=True)
@@ -111,7 +198,11 @@ class ModelRunnerTests(unittest.TestCase):
 
     def test_all_new_configs_are_registered_with_real_invariants(self):
         runner = (SPEC / "check.sh").read_text()
-        for model, pattern in (("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
+        for model, pattern in (("ClaimDeliveryHealth", r"(?:Delivery|BrokenDelivery).*\.cfg"),
+                               ("WorkExpiration", r"(?:WorkExpiration|BrokenExpiration.*|Expiration.*Witness)\.cfg"),
+                               ("ClaimDeliveryRecovery", r"(?:DeliveryRecovery.*|BrokenRecovery.*|Recovery(?:Released|Enriched|Retained|Unavailable)Witness)\.cfg"),
+                               ("QueueLifecycle", r"LifecycleReleasedPendingWitness\.cfg"),
+                               ("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
                                ("WorkerEvolution", r"(?:WorkerEvolution|BrokenEvolution|Evolution).*\.cfg"),
                                ("WorkerDeploymentBoundary", r"(?:WorkerDeploymentBoundary|BrokenBoundary|Boundary).*\.cfg"),
                                ("QueueBootstrap", r"(?:BrokenBootstrapHost|BrokenBootstrapEnrollment|BootstrapTrustedAW).*\.cfg")):
@@ -119,16 +210,20 @@ class ModelRunnerTests(unittest.TestCase):
             if model == "WorkerDeploymentBoundary":
                 source += "\n" + (SPEC / "WorkerEvolution.tla").read_text()
             configurations = [path for path in SPEC.glob("*.cfg") if re.fullmatch(pattern, path.name)]
+            if model == "ClaimDeliveryHealth":
+                configurations = [path for path in configurations if not path.stem.startswith("DeliveryRecovery")]
             self.assertTrue(configurations)
             for path in configurations:
                 with self.subTest(config=path.stem):
                     registration = re.search(rf"^run_model {path.stem} (.+)$", runner, re.MULTILINE)
                     self.assertIsNotNone(registration)
-                    self.assertTrue(registration.group(1).endswith(model))
+                    self.assertEqual(registration.group(1).split()[3], model)
                     match = re.search(r"^INVARIANTS? (.+)$", path.read_text(), re.MULTILINE)
                     self.assertIsNotNone(match)
                     for invariant in match.group(1).split():
                         self.assertRegex(source, rf"(?m)^{invariant} ==")
+                    for prop in re.findall(r"^PROPERTY (.+)$", path.read_text(), re.MULTILINE):
+                        self.assertRegex(source, rf"(?m)^{prop} ==")
 
 
 if __name__ == "__main__":

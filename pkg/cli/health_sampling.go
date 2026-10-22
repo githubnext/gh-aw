@@ -108,7 +108,7 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 			oldest = response.CreatedAt
 		}
 		run := response.workflowRun()
-		if isIgnoredHealthRun(run) {
+		if isIgnoredHealthRun(run) || filterHealthPRLifecycleRun(run, collection) {
 			continue
 		}
 		if run.Status == "waiting" || isClusterFailureConclusion(run.Conclusion) {
@@ -117,6 +117,9 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 				return nil, 0, err
 			}
 			if !hasJobs {
+				if err := observeHealthApprovalExpiry(run, collection); err != nil {
+					return nil, 0, err
+				}
 				healthLog.Printf("Ignoring run %d with no jobs", run.DatabaseID)
 				continue
 			}
@@ -139,11 +142,16 @@ func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, erro
 	if hasJobs, checked := collection.jobPresence[key]; checked {
 		return hasJobs, nil
 	}
+	if jobs := collection.jobs[key]; jobs != nil && jobs.complete {
+		return len(jobs.details) > 0, nil
+	}
 	endpoint := fmt.Sprintf("%s/actions/runs/%d", healthRepositoryEndpoint(collection.repoOverride), run.DatabaseID)
 	if run.Attempt > 0 {
 		endpoint += fmt.Sprintf("/attempts/%d", run.Attempt)
 	}
+	before := collection.APIRequests
 	out, err := healthAPI(collection, path.Join(endpoint, "jobs")+"?per_page=1")
+	collection.JobRequests += collection.APIRequests - before
 	if err != nil {
 		return false, fmt.Errorf("failed to check jobs for health run %d: %w", run.DatabaseID, err)
 	}
@@ -177,9 +185,20 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 		targets = []GitHubWorkflow{{Name: workflowName, Path: workflowName}}
 	}
 	var allRuns []WorkflowRun
+	if len(collection.workflows) > 0 {
+		failures, err := collectHealthFailures(startDate, repoOverride, collection)
+		allRuns = failures
+		if err != nil {
+			if collection.stopped {
+				return allRuns, nil
+			}
+			return allRuns, err
+		}
+		targets = prioritizeHealthFailureWorkflows(targets, failures)
+	}
 	for _, target := range targets {
 		runs, err := sampleHealthWorkflow(target, startDate, repoOverride, verbose, collection)
-		allRuns = append(allRuns, runs...)
+		allRuns = mergeHealthRunSamples(runs, allRuns)
 		if err != nil {
 			if collection.stopped || errors.Is(err, errHealthAPIBudget) {
 				return allRuns, nil
@@ -200,6 +219,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		RepoOverride: repoOverride, Verbose: verbose, OldestFetchedCreatedAt: &oldest}
 	var sample []WorkflowRun
 	seen := make(map[int64]struct{})
+	sourceBoundaries := make(map[string]struct{})
 	for page := 1; ; page++ {
 		batch, total, err := healthListWorkflowRuns(opts, page, collection)
 		if err != nil {
@@ -220,6 +240,10 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 			if run.WorkflowName == "" {
 				run.WorkflowName = target.Name
 			}
+			scope := failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
+			if _, stopped := sourceBoundaries[scope]; stopped {
+				continue
+			}
 			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
@@ -227,11 +251,15 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 				resolveHealthRevision(run, collection)
 			}
 			sample = append(sample, run)
+			if healthSourceChanged(run, collection) {
+				healthLog.Printf("Stopping health history for %s: workflow source changed on %s after run %d", run.WorkflowPath, run.HeadBranch, run.DatabaseID)
+				sourceBoundaries[scope] = struct{}{}
+			}
 		}
 		if collection.stopped {
 			return sample, errHealthAPIBudget
 		}
-		if total < opts.Limit || healthWorkflowEvidenceEnough(sample, collection) {
+		if total < opts.Limit || (healthWorkflowEvidenceEnough(sample, collection) && healthWorkflowFailureScopesCovered(sample, target.Path, collection)) {
 			return sample, nil
 		}
 		if page*opts.Limit >= healthMaximumRunSearchResults {
@@ -241,4 +269,25 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 			page = 0
 		}
 	}
+}
+
+func healthWorkflowFailureScopesCovered(runs []WorkflowRun, workflowPath string, collection *HealthCollection) bool {
+	if collection == nil || len(collection.failureScopes[workflowPath]) == 0 {
+		return true
+	}
+	covered := make(map[string]struct{})
+	for _, status := range healthRevisionStatuses(runs, collection) {
+		if status.Current.IndependentRuns >= healthMinimumRuns && len(runs) > 0 {
+			covered[healthFailureSampleScope(WorkflowRun{
+				Repository: runs[0].Repository, WorkflowPath: status.WorkflowPath,
+				HeadBranch: status.Branch, Event: status.Event,
+			})] = struct{}{}
+		}
+	}
+	for scope := range collection.failureScopes[workflowPath] {
+		if _, ok := covered[scope]; !ok {
+			return false
+		}
+	}
+	return true
 }

@@ -52,7 +52,9 @@ const {
   removeCodexRoutingOverrides,
   applyCodexRoutingEffort,
   resolveCodexModelRouting,
+  resolveCodexConfiguredModel,
 } = require("./codex_harness.cjs");
+const reflectFixtures = require("./fixtures/model_resolution_reflect.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
 const agentTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-harness-tests-"));
@@ -211,6 +213,68 @@ describe("codex_harness.cjs", () => {
       expect(calls).toHaveLength(1);
     });
   });
+  describe("shared model resolution (recorded /reflect from run 38945917145)", () => {
+    const tmpDirs = [];
+    afterAll(() => tmpDirs.forEach(dir => fs.rmSync(dir, { recursive: true, force: true })));
+    const envFor = () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-model-resolution-"));
+      tmpDirs.push(dir);
+      return { GH_AW_TMP_DIR: dir, GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json") };
+    };
+    const resolve = (model, reflectData, options = {}) => resolveCodexConfiguredModel({ model, provider: "copilot", reflectData, logger: () => {}, env: envFor(), ...options });
+    const withAliases = (reflect, aliases) => ({ ...reflect, model_aliases: { ...reflect.model_aliases, ...aliases } });
+
+    it("resolves a workflow-defined glob alias to the newest live match", async () => {
+      const env = envFor();
+      const reflect = withAliases(reflectFixtures.ddgReflect(), { luna: ["copilot/gpt-5.6*"] });
+      expect(await resolve("copilot/luna", reflect, { env })).toBe("gpt-5.6-luna");
+      expect(JSON.parse(fs.readFileSync(path.join(env.GH_AW_TMP_DIR, "agent/model-resolution.json"), "utf8"))).toEqual([
+        { engine: "codex", role: "main", configured_model: "copilot/luna", resolved_model: "gpt-5.6-luna", provider: "copilot", status: "resolved", cause: null },
+      ]);
+      const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
+      expect(resolveConfiguredCopilotModel({ configuredModel: "luna", aliasMap: reflect.model_aliases, reflectData: reflect })).toBe("gpt-5.6-luna");
+    });
+
+    it("passes an exact id through unchanged", async () => {
+      expect(await resolve("copilot/gpt-5.6-sol", reflectFixtures.ddgReflect())).toBe("gpt-5.6-sol");
+    });
+
+    // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+    // "absent" case removes it from a copy of the recording.
+    it("a live exact id wins over an alias with the same name", async () => {
+      expect(await resolve("copilot/gpt-5-mini", reflectFixtures.ddgReflect())).toBe("gpt-5-mini");
+      const env = envFor();
+      expect(await resolve("gpt-5-mini", reflectFixtures.ddgReflect(), { env })).toBe("gpt-5-mini");
+      expect(JSON.parse(fs.readFileSync(path.join(env.GH_AW_TMP_DIR, "agent/model-resolution.json"), "utf8"))).toEqual([
+        { engine: "codex", role: "main", configured_model: "gpt-5-mini", resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null },
+      ]);
+      expect(await resolve("gpt-5-mini", reflectFixtures.withoutCopilotModels(["gpt-5-mini"]))).toBe("gpt-5.4-mini");
+    });
+
+    it("keeps copilot/auto as the Copilot gateway sentinel", async () => {
+      expect(await resolve("copilot/auto", reflectFixtures.ddgReflect())).toBe("auto");
+    });
+
+    it("workflow-defined alias overrides built-in", async () => {
+      const reflect = reflectFixtures.withCopilotModels(["claude-opus-6"]);
+      expect(await resolve("opus", reflect)).toBe("claude-opus-6");
+      expect(await resolve("opus", withAliases(reflect, { opus: ["copilot/claude-opus-5*"] }))).toBe("claude-opus-5.5");
+    });
+
+    // Incomplete discovery is derived from the recorded file (models_fetch_complete: false,
+    // Copilot models: null); no recorded run with this shape exists.
+    it("incomplete discovery passes exact ids through and fails aliases after one refetch", async () => {
+      expect(await resolve("copilot/gpt-5.6-sol", reflectFixtures.incompleteDiscovery())).toBe("gpt-5.6-sol");
+      let refetches = 0;
+      const refetchReflectData = async () => {
+        refetches++;
+        return reflectFixtures.incompleteDiscovery();
+      };
+      await expect(resolve("copilot/gpt-5.6", reflectFixtures.incompleteDiscovery(), { refetchReflectData })).rejects.toMatchObject({ name: "ModelAliasResolutionError", reason: "catalog_unavailable" });
+      expect(refetches).toBe(1);
+    });
+  });
+
   describe("AWF model routing", () => {
     const reflectData = {
       endpoints: [{ provider: "github", configured: true, models: ["gpt-5.6-sol"] }],
@@ -714,6 +778,13 @@ fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
       expect(result.CODEX_API_KEY).toBeUndefined();
       expect(result.OPENAI_API_KEY).toBeUndefined();
     });
+
+    it("does not pass execution evidence metadata to the engine child", () => {
+      const result = buildCodexChildEnv({ PATH: "/usr/bin", GH_AW_AWF_EXECUTION_COMPONENT: "agent", GH_AW_AWF_EXECUTION_EVIDENCE_FILE: "/tmp/evidence.json" }, undefined, undefined);
+
+      expect(result).not.toHaveProperty("GH_AW_AWF_EXECUTION_COMPONENT");
+      expect(result).not.toHaveProperty("GH_AW_AWF_EXECUTION_EVIDENCE_FILE");
+    });
   });
 
   describe("context rebuild circuit breaker", () => {
@@ -1192,16 +1263,16 @@ env_key = "OPENAI_API_KEY"
       expect(hasNumerousPermissionDeniedIssues("permission denied")).toBe(false);
     });
 
-    it("builds missing_tool payload for permission issues", () => {
+    it("builds report_missing_tool payload for permission issues", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload());
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.reason).toContain("missing tool/permission issue");
       expect(payload.denied_commands).toEqual([]);
     });
 
-    it("builds missing_tool payload with denied commands", () => {
+    it("builds report_missing_tool payload with denied commands", () => {
       const payload = JSON.parse(buildMissingToolPermissionIssuePayload(["go version", "ls /usr/local/go"]));
-      expect(payload.type).toBe("missing_tool");
+      expect(payload.type).toBe("report_missing_tool");
       expect(payload.denied_commands).toEqual(["go version", "ls /usr/local/go"]);
     });
   });
@@ -2274,5 +2345,126 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("without trusted firewall audit confirmation");
     });
+  });
+});
+
+describe("Codex native sub-agent roles before spawn (github/gh-aw#70939)", () => {
+  const runs = require("./fixtures/claude_codex_subagent_runs.cjs");
+
+  /**
+   * Stage agents as the activation artifact does and run the harness. The stub CLI snapshots
+   * `$CODEX_HOME/agents` when it starts, so assertions see the state at spawn time.
+   */
+  function runWithAgents({ agents, reflectData = runs.arxivReflect(), env = {} }) {
+    const dir = makeHarnessTempDir("codex-subagents-");
+    const ostmp = path.join(dir, "ostmp");
+    const recordsDir = path.join(dir, "records");
+    const codexHome = path.join(dir, "codex-home");
+    const staged = path.join(ostmp, "gh-aw", ".codex", "agents");
+    fs.mkdirSync(staged, { recursive: true });
+    fs.mkdirSync(codexHome, { recursive: true });
+    for (const [name, content] of Object.entries(agents)) fs.writeFileSync(path.join(staged, name), content);
+    const { result, calls } = runHarnessFixture(
+      `const p=require("path");const d=p.join(process.env.CODEX_HOME,"agents");fs.writeFileSync(p.join(process.env.CODEX_HOME,"roles-at-spawn.json"),JSON.stringify(fs.existsSync(d)?Object.fromEntries(fs.readdirSync(d).filter(n=>n.endsWith(".toml")).sort().map(n=>[n,fs.readFileSync(p.join(d,n),"utf8")])):null));`,
+      {
+        reflectData,
+        env: { TMPDIR: ostmp, CODEX_HOME: codexHome, AWF_REFLECT_ENABLED: "1", GH_AW_LLM_PROVIDER: "openai", GH_AW_TMP_DIR: recordsDir, GH_AW_AWF_CONFIG_PATH: path.join(dir, "missing-awf-config.json"), GH_AW_PHASE: "", ...env },
+      }
+    );
+    const recordPath = path.join(recordsDir, "agent", "model-resolution.json");
+    const records = fs.existsSync(recordPath) ? JSON.parse(fs.readFileSync(recordPath, "utf8")) : [];
+    const snapshotPath = path.join(codexHome, "roles-at-spawn.json");
+    const rolesAtSpawn = fs.existsSync(snapshotPath) ? JSON.parse(fs.readFileSync(snapshotPath, "utf8")) : undefined;
+    const stagedAfter = Object.fromEntries(fs.readdirSync(staged).map(name => [name, fs.readFileSync(path.join(staged, name), "utf8")]));
+    return { result, calls, records, rolesAtSpawn, stagedAfter, codexHome };
+  }
+
+  const recordedAgents = () => Object.fromEntries(fs.readdirSync(runs.arxivAgentsDir).map(name => [name, fs.readFileSync(path.join(runs.arxivAgentsDir, name), "utf8")]));
+  const roleField = (toml, key) =>
+    JSON.parse(
+      toml
+        .split("\n")
+        .find(line => line.startsWith(`${key} = `))
+        .slice(key.length + 3)
+    );
+
+  it("codex_declared_small_writes_native_toml_before_spawn", () => {
+    // Fixture mutation: the recorded paper-screener with its selector changed to `small`.
+    const agent = recordedAgents()["paper-screener.md"].replace("model: openai/gpt-5.4-mini", "model: small");
+    const { result, calls, records, rolesAtSpawn } = runWithAgents({ agents: { "paper-screener.md": agent } });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(Object.keys(rolesAtSpawn)).toEqual(["paper-screener.toml"]);
+    const toml = rolesAtSpawn["paper-screener.toml"];
+    expect(roleField(toml, "name")).toBe("paper-screener");
+    expect(roleField(toml, "description")).toBe("Fast relevance screening of arXiv paper abstracts for GitHub Agentic Workflows");
+    expect(roleField(toml, "developer_instructions")).toBe(agent.slice(agent.indexOf("\n---\n") + 5).trim());
+    expect(roleField(toml, "model")).toBe("gpt-5-mini-2025-08-07");
+    expect(records.filter(record => record.role !== "main")).toEqual([{ engine: "codex", role: "paper-screener", configured_model: "small", resolved_model: "gpt-5-mini-2025-08-07", provider: "openai", status: "resolved", cause: null }]);
+    expect(result.stderr).not.toMatch(/not applied|not loaded by Codex/);
+  });
+
+  it("writes the four recorded arXiv roles with their exact ids and leaves the staged Markdown unchanged", () => {
+    const { result, calls, records, rolesAtSpawn, stagedAfter } = runWithAgents({ agents: recordedAgents() });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(Object.fromEntries(Object.entries(rolesAtSpawn).map(([name, toml]) => [name, roleField(toml, "model")]))).toEqual({
+      "opportunity-extractor.toml": "gpt-5.6-sol",
+      "paper-screener.toml": "gpt-5.4-mini",
+      "preliminary-investigator.toml": "gpt-5.4-mini",
+      "relevance-ranker.toml": "gpt-5.4-mini",
+    });
+    expect(records.filter(record => record.role !== "main").map(record => [record.role, record.resolved_model, record.status])).toEqual([
+      ["opportunity-extractor", "gpt-5.6-sol", "exact"],
+      ["paper-screener", "gpt-5.4-mini", "exact"],
+      ["preliminary-investigator", "gpt-5.4-mini", "exact"],
+      ["relevance-ranker", "gpt-5.4-mini", "exact"],
+    ]);
+    expect(stagedAfter).toEqual(recordedAgents());
+  });
+
+  it("codex_declared_dead_model_fails_before_spawn", () => {
+    // Fixture mutation: the recorded catalogue (also served on refresh) with gpt-5.4-mini removed;
+    // the main model gpt-5.6-sol stays available.
+    const reflectData = runs.arxivReflect();
+    reflectData.endpoints.forEach(endpoint => endpoint.models && (endpoint.models = endpoint.models.filter(model => model !== "gpt-5.4-mini")));
+    const { result, calls, records, codexHome } = runWithAgents({ agents: { "paper-screener.md": recordedAgents()["paper-screener.md"] }, reflectData });
+
+    expect(result.status).not.toBe(0);
+    expect(calls).toEqual([]);
+    expect(records).toContainEqual({ engine: "codex", role: "paper-screener", configured_model: "openai/gpt-5.4-mini", resolved_model: null, provider: "openai", status: "failed", cause: "model_unavailable" });
+    expect(result.stderr).toContain("Refusing to start Codex with a different sub-agent model.");
+    expect(fs.existsSync(path.join(codexHome, "agents"))).toBe(false);
+  });
+
+  it("codex_no_declared_agents_is_noop", () => {
+    const { result, calls, records, rolesAtSpawn } = runWithAgents({ agents: {} });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(rolesAtSpawn).toBeNull();
+    expect(records.filter(record => record.role !== "main")).toEqual([]);
+    expect(result.stderr).not.toContain("codex sub-agent");
+  });
+
+  it("fails closed before spawn for a workflow-declared sub-agent named main", () => {
+    const { result, calls, records } = runWithAgents({ agents: { "main.md": recordedAgents()["paper-screener.md"] } });
+
+    expect(result.status).toBe(1);
+    expect(calls).toEqual([]);
+    expect(result.stderr).toContain("the sub-agent name 'main' is reserved for the Codex main model's resolution record");
+    expect(records.filter(record => record.engine === "codex" && record.role === "main").every(record => record.configured_model !== "openai/gpt-5.4-mini")).toBe(true);
+  });
+
+  it("claude_codex_detection_skips_subagent_resolution (Codex)", () => {
+    const { result, calls, records, rolesAtSpawn, stagedAfter } = runWithAgents({ agents: recordedAgents(), env: { GH_AW_PHASE: "detection" } });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(records.filter(record => record.role !== "main")).toEqual([]);
+    expect(rolesAtSpawn).toBeNull();
+    expect(stagedAfter).toEqual(recordedAgents());
   });
 });

@@ -9,6 +9,7 @@
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, SAFE_OUTPUT_E010, RATE_LIMIT_EXCEEDED } = require("./error_codes.cjs");
 const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
+const { performance } = require("node:perf_hooks");
 
 /**
  * Configuration for retry behavior
@@ -19,6 +20,11 @@ const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
  * @property {number} backoffMultiplier - Backoff multiplier for exponential backoff (default: 2)
  * @property {number} jitterMs - Maximum random jitter in milliseconds added to each retry delay (default: 100)
  * @property {(error: any) => boolean} shouldRetry - Function to determine if error is retryable
+ * @property {(ms: number, signal?: AbortSignal) => Promise<void>} [sleep] - Override retry waits, honoring the signal when a deadline is configured
+ * @property {number} [timeoutMs] - Maximum duration of each operation in milliseconds
+ * @property {number} [deadline] - Absolute monotonic deadline for operations and retry waits
+ * @property {() => number} [now] - Monotonic clock used with timeouts and deadlines (default: performance.now)
+ * @property {() => Error} [timeoutError] - Create an operation-specific timeout error
  */
 
 /**
@@ -126,10 +132,63 @@ function isTransientError(error) {
 /**
  * Sleep for a specified duration
  * @param {number} ms - Duration in milliseconds
+ * @param {AbortSignal} [signal] - Cancel the wait
  * @returns {Promise<void>}
  */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const cancel = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", cancel);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", cancel, { once: true });
+  });
+}
+
+/**
+ * Bound an operation and cancel its transport or timer when its budget expires.
+ * The operation must honor its signal; the race and clock check also reject late
+ * results from noncooperative operations.
+ * @template T
+ * @param {(signal?: AbortSignal) => Promise<T>} operation
+ * @param {Partial<RetryConfig>} config
+ * @returns {Promise<T>}
+ */
+async function runWithinRetryBudget(operation, config) {
+  if (config.timeoutMs === undefined && config.deadline === undefined) return operation();
+  const now = config.now || (() => performance.now());
+  const start = now();
+  if (!Number.isFinite(start)) throw new RangeError(`${ERR_API}: Retry clock must return a finite number`);
+  const deadline = Math.min(config.deadline ?? Infinity, start + (config.timeoutMs ?? Infinity));
+  const remaining = deadline - start;
+  if (remaining > MAX_TIMER_DELAY_MS) throw new RangeError(`${ERR_API}: Retry deadline must be within ${MAX_TIMER_DELAY_MS}ms`);
+  const timeoutError = config.timeoutError ? config.timeoutError() : new Error(`${ERR_API}: Operation timeout exceeded`);
+  if (remaining <= 0) throw timeoutError;
+  const controller = new AbortController();
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  try {
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort(timeoutError);
+        reject(timeoutError);
+      }, remaining);
+    });
+    const result = await Promise.race([operation(controller.signal), timeout]);
+    if (now() >= deadline) throw timeoutError;
+    return result;
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
 }
 
 /**
@@ -249,7 +308,7 @@ function isWorkflowsScopeTimeoutError(error) {
 /**
  * Execute an operation with retry logic and exponential backoff
  * @template T
- * @param {() => Promise<T>} operation - The async operation to execute
+ * @param {(signal?: AbortSignal) => Promise<T>} operation - The async operation to execute; honor the signal when a timeout or deadline is configured
  * @param {Partial<RetryConfig>} [config] - Retry configuration (optional)
  * @param {string} [operationName] - Name of the operation for logging
  * @returns {Promise<T>} The result of the operation
@@ -258,6 +317,7 @@ function isWorkflowsScopeTimeoutError(error) {
 async function withRetry(operation, config = {}, operationName = "operation") {
   const fullConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
   validateRetryConfig(operation, fullConfig);
+  const now = fullConfig.now || (() => performance.now());
   let lastError;
   let delay = fullConfig.initialDelayMs;
 
@@ -268,10 +328,16 @@ async function withRetry(operation, config = {}, operationName = "operation") {
         const delayWithJitter = Math.min(delay + jitter, fullConfig.maxDelayMs);
         core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delayWithJitter}ms delay`);
         logRetryEvent(lastError, operationName, attempt, delayWithJitter);
-        await sleep(delayWithJitter);
+        await runWithinRetryBudget(
+          signal => {
+            const wait = fullConfig.sleep || sleep;
+            return signal ? wait(delayWithJitter, signal) : wait(delayWithJitter);
+          },
+          { ...fullConfig, timeoutMs: undefined }
+        );
       }
 
-      const result = await operation();
+      const result = await runWithinRetryBudget(operation, fullConfig);
 
       if (attempt > 0) {
         core.info(`✓ ${operationName} succeeded on retry attempt ${attempt}`);
@@ -283,7 +349,7 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       const errorMsg = getErrorMessage(error);
 
       // Check if this error should be retried
-      if (error?.code === "ERR_TRANSPORT_INTEGRITY" || !fullConfig.shouldRetry(error)) {
+      if (error?.code === "ERR_TRANSPORT_INTEGRITY" || (fullConfig.deadline !== undefined && now() >= fullConfig.deadline) || !fullConfig.shouldRetry(error)) {
         core.debug(`${operationName} failed with non-retryable error: ${errorMsg}`);
         throw enhanceError(error, {
           operation: operationName,
@@ -368,6 +434,20 @@ function validateRetryConfig(operation, config) {
   }
   if (typeof config.shouldRetry !== "function") {
     throw new TypeError("Retry configuration shouldRetry must be a function");
+  }
+  if (config.sleep !== undefined && typeof config.sleep !== "function") {
+    throw new TypeError("Retry configuration sleep must be a function");
+  }
+  if (config.timeoutMs !== undefined && (!Number.isSafeInteger(config.timeoutMs) || config.timeoutMs < 0 || config.timeoutMs > MAX_TIMER_DELAY_MS)) {
+    throw new RangeError(`${ERR_API}: Retry configuration timeoutMs must be a non-negative safe integer not exceeding ${MAX_TIMER_DELAY_MS}`);
+  }
+  if (config.deadline !== undefined && !Number.isFinite(config.deadline)) {
+    throw new RangeError(`${ERR_API}: Retry configuration deadline must be finite`);
+  }
+  for (const key of ["now", "timeoutError"]) {
+    if (config[key] !== undefined && typeof config[key] !== "function") {
+      throw new TypeError(`${ERR_API}: Retry configuration ${key} must be a function`);
+    }
   }
 }
 

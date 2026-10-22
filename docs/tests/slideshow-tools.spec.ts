@@ -91,7 +91,9 @@ test("cancels unfinished strokes and restores demo interaction in pointer mode",
   await page.locator("[data-slideshow-ink]").dispatchEvent("pointercancel", { pointerId: 1 });
   await page.mouse.up();
   await expect(page.locator("[data-slideshow-ink] [data-drawing-kind]")).toHaveCount(0);
-  await page.getByRole("button", { name: "Interact with slide", exact: true }).click();
+  const pointerTool = page.getByRole("button", { name: "Interact with slide", exact: true });
+  await expect(pointerTool.locator("svg.octicon-crosshairs")).toHaveCount(1);
+  await pointerTool.click();
   await expect(page.locator("[data-slideshow-ink]")).toHaveCSS("pointer-events", "none");
   const tabs = page.locator('[data-wf-picker] [role="tab"]');
   await tabs.nth(1).click();

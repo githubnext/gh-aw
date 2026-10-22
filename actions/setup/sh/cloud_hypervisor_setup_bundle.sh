@@ -29,7 +29,7 @@ if [[ "${version,,}" == "latest" ]]; then
   elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
     auth_header=(-H "Authorization: token ${GITHUB_TOKEN}")
   fi
-  if ! latest_release_json="$(curl -fsSL "${auth_header[@]}" -H "Accept: application/vnd.github+json" \
+  if ! latest_release_json="$(curl --proto '=https' --proto-redir '=https' -fsSL "${auth_header[@]}" -H "Accept: application/vnd.github+json" \
     "https://api.github.com/repos/github/gh-aw-firewall/releases/latest")"; then
     echo "::error::failed to resolve the latest gh-aw-firewall release tag: could not reach the GitHub releases API"
     exit 1
@@ -55,9 +55,9 @@ extract_dir="${bundle_root}/bundle"
 mkdir -p "${bundle_root}" "${extract_dir}"
 
 echo "::group::Download cloud-hypervisor bundle (${version})"
-curl -fsSL -o "${bundle_root}/${asset_name}" "${asset_base_url}/${asset_name}"
-curl -fsSL -o "${bundle_root}/${manifest_name}" "${asset_base_url}/${manifest_name}"
-curl -fsSL -o "${bundle_root}/${manifest_bundle_name}" "${asset_base_url}/${manifest_bundle_name}"
+curl --proto '=https' --proto-redir '=https' -fsSL -o "${bundle_root}/${asset_name}" "${asset_base_url}/${asset_name}"
+curl --proto '=https' --proto-redir '=https' -fsSL -o "${bundle_root}/${manifest_name}" "${asset_base_url}/${manifest_name}"
+curl --proto '=https' --proto-redir '=https' -fsSL -o "${bundle_root}/${manifest_bundle_name}" "${asset_base_url}/${manifest_bundle_name}"
 echo "downloaded release assets"
 echo "::endgroup::"
 

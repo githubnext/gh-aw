@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var minIntegrityNoneBashCodemodLog = logger.New("cli:codemod_min_integrity_none_bash")
@@ -42,48 +41,13 @@ func getMinIntegrityNoneRequiresBashCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, insertBashFalseIntoTopLevelTools)
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				return f.Set([]string{"tools", "bash"}, false)
+			})
 			if applied {
 				minIntegrityNoneBashCodemodLog.Print("Inserted 'tools.bash: false' because tools.github.min-integrity is 'none'")
 			}
 			return newContent, applied, err
 		},
 	}
-}
-
-// insertBashFalseIntoTopLevelTools inserts 'bash: false' as the first child of the
-// top-level 'tools:' block, supporting both block mappings and inline flow mappings.
-// It assumes the caller has already verified that 'tools' exists as a mapping and that
-// 'tools.bash' is not already present.
-func insertBashFalseIntoTopLevelTools(lines []string) ([]string, bool) {
-	toolsLine := -1
-	for i, line := range lines {
-		if isTopLevelBlockKey(line, "tools") {
-			toolsLine = i
-			break
-		}
-	}
-	if toolsLine == -1 {
-		return insertEntryIntoInlineMapping(lines, "tools", "bash: false")
-	}
-
-	fieldIndent := "  "
-	insertAt := toolsLine + 1
-
-	for i := toolsLine + 1; i < len(lines); i++ {
-		line := lines[i]
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if hasExitedBlock(line, "") {
-			break
-		}
-		fieldIndent = getIndentation(line)
-		insertAt = i
-		break
-	}
-
-	result := insertLine(lines, insertAt, fieldIndent+"bash: false")
-	return result, true
 }

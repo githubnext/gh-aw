@@ -51,6 +51,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 	if output, exists := frontmatter["safe-outputs"]; exists {
 		if outputMap, ok := output.(map[string]any); ok {
+			outputMap = normalizeMissingReportKeys(outputMap)
 			safeOutputsConfigLog.Printf("Processing safe-outputs configuration with %d top-level keys", len(outputMap))
 			config = &SafeOutputsConfig{}
 			if adapters, supplied := outputMap["claim-adapters"]; supplied {
@@ -349,7 +350,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			} else {
 				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-tool"]; !exists {
+				if _, exists := outputMap["report-missing-tool"]; !exists {
 					trueVal := "true"
 					config.MissingTool = &MissingToolConfig{
 						CreateIssue: &trueVal,
@@ -365,7 +366,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingData = missingDataConfig
 			} else {
 				// Enable missing-data by default if safe-outputs exists and it wasn't explicitly disabled
-				if _, exists := outputMap["missing-data"]; !exists {
+				if _, exists := outputMap["report-missing-data"]; !exists {
 					trueVal := "true"
 					config.MissingData = &MissingDataConfig{
 						CreateIssue: &trueVal,

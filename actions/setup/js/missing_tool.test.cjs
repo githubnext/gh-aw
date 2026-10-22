@@ -34,9 +34,9 @@ describe("missing_tool.cjs handler", () => {
   });
 
   describe("Message Processing", () => {
-    it("should process valid missing_tool message", async () => {
+    it("should process valid report_missing_tool message", async () => {
       const message = {
-        type: "missing_tool",
+        type: "report_missing_tool",
         tool: "docker",
         reason: "Need containerization support",
         alternatives: "Use VM or manual setup",
@@ -54,7 +54,7 @@ describe("missing_tool.cjs handler", () => {
 
     it("should process message without alternatives", async () => {
       const message = {
-        type: "missing_tool",
+        type: "report_missing_tool",
         tool: "kubectl",
         reason: "Kubernetes cluster management required",
       };
@@ -69,7 +69,7 @@ describe("missing_tool.cjs handler", () => {
 
     it("should process message without tool field (general limitation)", async () => {
       const message = {
-        type: "missing_tool",
+        type: "report_missing_tool",
         reason: "Cannot access external APIs due to network restrictions",
         alternatives: "User can manually fetch data and provide it",
       };
@@ -85,7 +85,7 @@ describe("missing_tool.cjs handler", () => {
 
     it("should reject message missing reason field", async () => {
       const message = {
-        type: "missing_tool",
+        type: "report_missing_tool",
         tool: "some-tool",
       };
 

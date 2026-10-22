@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -779,7 +780,7 @@ func TestDownloadRunArtifactsConcurrentReusesCachedJSONRecord(t *testing.T) {
 		UpdatedAt:    time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC),
 		LogsPath:     "/previous/run-42",
 	}
-	cachedAudit := &AuditData{Overview: OverviewData{RunID: 42}}
+	cachedAudit := &AuditData{SchemaVersion: auditSchemaVersion, Overview: OverviewData{RunID: 42}}
 
 	results := downloadRunArtifactsConcurrent(context.Background(), []WorkflowRun{{DatabaseID: 42, Repository: "github/gh-aw", Status: "completed", Conclusion: "success", Attempt: 1, UpdatedAt: cached.UpdatedAt}}, runArtifactsConcurrentOptions{
 		outputDir:    t.TempDir(),
@@ -814,7 +815,8 @@ func TestPrepareLogsDataAuditUsesCachedDataBestEffort(t *testing.T) {
 		UpdatedAt:    baseline.UpdatedAt,
 	}
 	baselineAudit := &AuditData{
-		CacheSource: auditCacheSourceLogs,
+		SchemaVersion: auditSchemaVersion,
+		CacheSource:   auditCacheSourceLogs,
 		Overview: OverviewData{
 			RunID:        baseline.RunID,
 			WorkflowName: baseline.WorkflowName,
@@ -827,7 +829,8 @@ func TestPrepareLogsDataAuditUsesCachedDataBestEffort(t *testing.T) {
 		FirewallAnalysis: &FirewallAnalysis{AnalysisBase: AnalysisBase{BlockedRequests: 1}},
 	}
 	cachedAudit := &AuditData{
-		CacheSource: auditCacheSourceLogs,
+		SchemaVersion: auditSchemaVersion,
+		CacheSource:   auditCacheSourceLogs,
 		Overview: OverviewData{
 			RunID:        cached.RunID,
 			WorkflowName: cached.WorkflowName,
@@ -868,6 +871,78 @@ func TestPrepareLogsDataAuditUsesCachedDataBestEffort(t *testing.T) {
 	assert.Equal(t, AuditComparisonIntDelta{Before: 1, After: 7, Changed: true}, written.Comparison.Delta.BlockedRequests)
 	require.NotNil(t, written.Comparison.Delta.MCPFailure)
 	assert.Equal(t, []string{"cache-only-mcp"}, written.Comparison.Delta.MCPFailure.After)
+}
+
+func TestCachedJSONLAuditSchemaValidation(t *testing.T) {
+	for _, version := range []int{0, 7, auditSchemaVersion, auditSchemaVersion + 1} {
+		t.Run(strconv.Itoa(version), func(t *testing.T) {
+			outputDir := t.TempDir()
+			cached := cachedLogsJSONLRunData{
+				RunData: RunData{
+					RunID:        42,
+					WorkflowPath: ".github/workflows/cached-workflow.lock.yml",
+					Repository:   "github/gh-aw",
+					UpdatedAt:    time.Date(2026, time.October, 18, 0, 0, 0, 0, time.UTC),
+					Status:       "completed",
+					Conclusion:   "success",
+					RunAttempt:   "1",
+					TokenUsageSummary: &TokenUsageSummary{
+						SubagentModelRequests: []SubagentModelRequest{{AgentName: "reviewer", FailedCount: 2}},
+					},
+				},
+				Audit: &AuditData{
+					SchemaVersion: version,
+					CacheSource:   auditCacheSourceLogs,
+					Overview: OverviewData{
+						RunID:      42,
+						Status:     "completed",
+						Conclusion: "success",
+						UpdatedAt:  time.Date(2026, time.October, 18, 0, 0, 0, 0, time.UTC),
+					},
+					KeyFindings: []AuditFinding{{
+						Code:        AuditFindingWorkflowSucceeded,
+						Description: "stale success narrative",
+					}},
+				},
+			}
+			path := filepath.Join(outputDir, "logs.jsonl")
+			record, err := json.Marshal(cachedLogsJSONLRecord{
+				SchemaVersion: cachedLogsJSONLSchemaVersion,
+				Kind:          cachedLogsJSONLKindRun,
+				Run:           &cached,
+			})
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(path, append(record, '\n'), 0o600))
+			cache, err := loadCachedLogsJSONL(path)
+			require.NoError(t, err)
+			loaded := cache.runs[42]
+			processed := processedRunFromCachedData(loaded.RunData, loaded.Audit, outputDir)
+			processed.Run.Attempt = 1
+
+			result, ok := cachedJSONDownloadResult(processed.Run, cache.runs, runFilterOpts{})
+			assert.Equal(t, version == auditSchemaVersion, ok)
+			if ok {
+				assert.Same(t, loaded.Audit, result.cachedAudit)
+			}
+			writeLogsAuditFiles([]ProcessedRun{processed}, false)
+
+			written, ok := loadCachedAuditData(processed.Run.LogsPath, processed.Run, auditCacheSourceLogs)
+			require.True(t, ok)
+			assert.Equal(t, auditSchemaVersion, written.SchemaVersion)
+			if version == auditSchemaVersion {
+				assert.Equal(t, loaded.Audit.KeyFindings, written.KeyFindings)
+				return
+			}
+			assert.Equal(t, "success", written.Overview.Conclusion)
+			assert.Zero(t, written.Metrics.ErrorCount)
+			assert.Equal(t, 2, written.Metrics.SubagentFailureCount)
+			success := findFindingByCategory(written.KeyFindings, "success")
+			require.NotNil(t, success)
+			assert.Contains(t, success.Description, "2 sub-agent invocation(s) failed")
+			assert.Contains(t, success.Impact, "review sub-agent failures")
+			assert.NotContains(t, success.Description, "stale success narrative")
+		})
+	}
 }
 
 func TestBuildLogsDataPreservesCachedRunRecord(t *testing.T) {
@@ -927,17 +1002,42 @@ func TestBuildLogsDataPreservesCachedRunRecord(t *testing.T) {
 	require.Len(t, data.Episodes, 1)
 	assert.Equal(t, cached.AwContext.EpisodeID, data.Episodes[0].EpisodeID)
 	assert.Equal(t, cached.AwContext, data.Runs[0].AwContext)
+	assert.Equal(t, int64(42), data.Episodes[0].RepresentativeRunID)
+	assert.Equal(t, []EpisodeRoot{{RunID: "40", Repository: "org/repo", WorkflowID: "root"}}, data.Episodes[0].RecordedRoots)
+	assert.Equal(t, "partial", data.Episodes[0].Coverage.Status)
+	assert.Equal(t, []int64{41}, data.Episodes[0].Coverage.MissingParentRunIDs)
+	assert.False(t, data.Episodes[0].Coverage.CollectionTruncated, "coverage is recomputed from this selection, not cached globally")
 }
 
 func TestHydrateProcessedRunWithCachedAuditLedger(t *testing.T) {
-	transactionsAdded := 2
-	processedRun := processedRunFromCachedData(RunData{RunID: 42}, &AuditData{
-		Ledger: &LedgerActivity{TransactionsAdded: &transactionsAdded},
-	}, t.TempDir())
+	t.Parallel()
 
-	hydrated := hydrateProcessedRunWithCachedAudit(processedRun)
+	for _, tc := range []struct {
+		name          string
+		schemaVersion int
+	}{
+		{name: "current schema", schemaVersion: auditSchemaVersion},
+		{name: "unversioned", schemaVersion: 0},
+		{name: "older schema", schemaVersion: auditSchemaVersion - 1},
+		{name: "future schema", schemaVersion: auditSchemaVersion + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transactionsAdded := 2
+			processedRun := processedRunFromCachedData(RunData{RunID: 42}, &AuditData{
+				SchemaVersion: tc.schemaVersion,
+				Ledger:        &LedgerActivity{TransactionsAdded: &transactionsAdded},
+			}, t.TempDir())
 
-	require.NotNil(t, hydrated.Ledger)
-	require.NotNil(t, hydrated.Ledger.TransactionsAdded)
-	assert.Equal(t, 2, *hydrated.Ledger.TransactionsAdded)
+			hydrated := hydrateProcessedRunWithCachedAudit(processedRun)
+
+			if tc.schemaVersion != auditSchemaVersion {
+				assert.Nil(t, hydrated.Ledger)
+				assert.Equal(t, processedRun, hydrated)
+				return
+			}
+			require.NotNil(t, hydrated.Ledger)
+			require.NotNil(t, hydrated.Ledger.TransactionsAdded)
+			assert.Equal(t, 2, *hydrated.Ledger.TransactionsAdded)
+		})
+	}
 }

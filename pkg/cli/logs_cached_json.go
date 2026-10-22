@@ -790,6 +790,9 @@ func (runs cachedLogsRuns) lookup(run WorkflowRun, filters runFilterOpts) (RunDa
 	if cached.Repository == "" || run.Repository == "" || !strings.EqualFold(cached.Repository, run.Repository) {
 		return RunData{}, false
 	}
+	if run.Event == "pull_request" && isClusterFailureConclusion(run.Conclusion) && cached.JobCount == nil {
+		return RunData{}, false
+	}
 	if filters.engine != "" &&
 		!strings.EqualFold(filters.engine, cached.EngineID) &&
 		!strings.EqualFold(filters.engine, cached.Engine) &&

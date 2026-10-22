@@ -1,9 +1,11 @@
 ---
-title: AI issue triage on GitHub
+title: Automated issue triage on GitHub
 description: Use gh-aw to triage GitHub issues automatically by labeling issues, detecting duplicates, and asking follow-up questions through safe outputs.
 ---
 
 AI issue triage with GitHub Agentic Workflows means running an agent whenever a new issue arrives so it can classify the report, set priority labels, detect likely duplicates, and ask for missing details. The workflow stays read-only during analysis, and gh-aw performs the resulting GitHub writes through safe outputs.
+
+Labels and priorities are applied automatically by this sample. Document how contributors can request corrections and how maintainers review disputed classifications. Start with advisory reports and configure human review before enabling consequential routing or classification actions.
 
 To install this sample, use:
 

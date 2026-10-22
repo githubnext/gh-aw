@@ -2,6 +2,8 @@
 // @safe-outputs-exempt SEC-004
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const fs = require("node:fs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -348,7 +350,7 @@ async function main() {
     await core.summary.addRaw(summary).write();
   }
 
-  const createdIssue = await github.rest.issues.create({
+  const createdIssue = await createReportIssue(github, {
     owner: context.repo.owner,
     repo: context.repo.repo,
     title: isErrorOutcome ? FORECAST_ERROR_ISSUE_TITLE : FORECAST_ISSUE_TITLE,

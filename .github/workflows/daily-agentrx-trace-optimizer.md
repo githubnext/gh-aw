@@ -51,9 +51,14 @@ steps:
       # into the sandbox.
       rm -rf "$AGENTRX_HOME"
       mkdir -p "$AGENTRX_HOME"
-      git clone --depth 1 https://github.com/microsoft/AgentRx.git "$AGENTRX_HOME/src"
+      git init "$AGENTRX_HOME/src"
+      git -C "$AGENTRX_HOME/src" remote add origin https://github.com/microsoft/AgentRx.git
+      git -C "$AGENTRX_HOME/src" fetch --depth 1 origin 7a18c79708e7671be15124460f4f7296107c2a55
+      git -C "$AGENTRX_HOME/src" checkout --detach FETCH_HEAD
       uv venv --python 3.12 --python-preference only-managed "$AGENTRX_HOME/.venv"
-      uv pip install --python "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src"
+      # run.py imports AgentRx from the pinned checkout directly. Sync its complete
+      # dependency lock without executing a source build or resolving new versions.
+      uv pip sync --require-hashes --only-binary=:all: --python "$AGENTRX_HOME/.venv/bin/python" "${GITHUB_WORKSPACE}/.github/workflows/requirements-agentrx.txt"
       "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src/run.py" --help >/dev/null
 safe-outputs:
   mentions: false
@@ -103,7 +108,7 @@ Focus on:
      **`logs` precondition rules (follow strictly):**
      - Always include `workflow_name` — never call `logs` without it; an unfiltered scan will time out.
      - Query at most **3 workflows**, with `count: 10` and `start_date: "-1d"` for each. Cap retries at **2 attempts** per workflow; if both return empty or time out, stop retrying and fall back to `audit` using any known `run_id` (from `status` or prior context). Never widen the time window or run count.
-     - If `logs` returns `total_runs=0` for a workflow with confirmed completed runs, treat this as a tool-health failure. Surface it via `missing_tool` and proceed with `audit`-only data; do not vary parameters and retry further.
+     - If `logs` returns `total_runs=0` for a workflow with confirmed completed runs, treat this as a tool-health failure. Surface it via `report_missing_tool` and proceed with `audit`-only data; do not vary parameters and retry further.
      ```json
      {
        "workflow_name": "<workflow-id>",
@@ -118,7 +123,7 @@ Focus on:
 4. AgentRx is already installed by a setup step; do not install it yourself.
    - Interpreter: `/tmp/gh-aw/python/agentrx/.venv/bin/python`
    - AgentRx checkout (contains `run.py`): `/tmp/gh-aw/python/agentrx/src`
-   - **Do NOT run `pip install`, `python -m venv`, or any other AgentRx installation command.** The sandbox has no compatible CPython for building those dependencies. If the interpreter is missing, report it with `missing_tool` and continue with the available evidence.
+   - **Do NOT run `pip install`, `python -m venv`, or any other AgentRx installation command.** The sandbox has no compatible CPython for building those dependencies. If the interpreter is missing, report it with `report_missing_tool` and continue with the available evidence.
 
 ## Analysis Procedure
 

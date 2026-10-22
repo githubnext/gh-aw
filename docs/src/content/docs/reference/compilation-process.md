@@ -11,7 +11,7 @@ This guide documents the internal compilation process that transforms markdown w
 
 The `gh aw compile` command transforms a markdown workflow file into a complete GitHub Actions `.lock.yml` by embedding frontmatter and setting up runtime loading of the markdown body. The process runs five compilation phases (parsing, validation, job construction, dependency resolution, and YAML generation) described below.
 
-When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
+When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for details.
 
 ## Repository Configuration (`aw.json`)
 
@@ -72,6 +72,34 @@ See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 | **4 Action Pinning** | Pins all actions to SHAs: check cache → GitHub API → embedded pins → add version comment (e.g., `actions/checkout@sha # v6`) |
 | **5 YAML Generation** | Assembles final `.lock.yml`: header with metadata, Mermaid dependency graph, alphabetical jobs, embedded original prompt |
 
+### Actions/AW AST Lint Rules
+
+`pkg/workflow/lint` provides an in-process rule registry independent of external scanners and Go source-code linters. A `lint.Rule` declares an ID, description, default severity, supported `Targets` (`AWAST`, `ActionsAST`, or both), and `Check(context.Context, lint.Input)`. Zero targets retain the Actions-only extension contract. Input contains an AW document, an Actions execution AST, or both. Rules consume parsed ASTs only: no file discovery, YAML parsing, workflow compilation, or fabricated execution graphs. They return structured diagnostics and errors without mutating either AST. The runner validates registrations, dispatches by available AST, sorts diagnostics deterministically, and continues other rules after a failure.
+
+Register new built-in checks in `lint.Default()`. Structural rules can inspect the AST directly. Data-flow rules can use `pkg/workflow/taint.Analyze` with a `taint.Rule` defining `IsSource`, `IsSink`, optional whole-expression `IsFilter`, and known action credential outputs. Taint results retain symbolic source provenance. The `secret-leak` lint rule adapts these results to common diagnostics and reports coverage gaps separately from findings.
+
+The CLI hides secret-leak coverage warnings unless `--debug` or explicit JavaScript analysis is enabled, in both text and JSON output. The AST runner retains these diagnostics; error findings, analysis failures, and other rules' warnings are unaffected. The registry-wide positive/negative contract suite requires fixtures for every rule and supported AST, checks strict/non-strict severity, and verifies repeatable, read-only behavior.
+
+`TestLintPerformanceBudget` also exercises every registered rule's safe and unsafe fixtures on every supported AST, expanding execution from 32 to 256 jobs. Workflow/frontmatter parsing and optional external JavaScript compilation are outside this measurement; shell and expression parsing performed inside a check remains part of its cost. The test logs time and allocations, enforces a generous 250 ms per-check ceiling, and limits the eight-fold workload increase to 12 times the allocations plus 1,000 and 24 times the runtime plus 5 ms. The margins tolerate shared-CI scheduling noise. Constant-time configuration rules need not scale with the number of jobs. These finite workloads are regression guards, not proofs of algorithmic complexity or limits on arbitrary user programs.
+
+`BenchmarkLintRules` tracks each rule/AST/fixture/size independently, reporting `ns/op`, `B/op`, and `allocs/op`. Comparable before/after samples use `go test ./pkg/workflow/lint -run '^$' -bench '^BenchmarkLintRules$' -benchmem -benchtime=100ms -count=5`. Add `-cpuprofile lint.cpu` or `-memprofile lint.mem` to locate costly Go computations; `go tool pprof` reads the profiles. `-trace lint.trace` captures the runner's per-rule regions. Live CLI timings use [`DEBUG=workflow:lint:perf`](/gh-aw/reference/workflow-linters/#linter-performance).
+
+Opt-in JavaScript analysis uses the Go TypeScript compiler through a pinned, upstream-exported native-preview AST client. Configure `taint.Rule.JavaScript` with a parser and optional repository source filesystem/runtime-path mapping; `IsJavaScriptFilter` supports whole-expression declassification while retaining child side effects. `taint.AnalyzeJavaScript` also accepts symbolic stdin, environment, arguments, and file bindings directly. Analyzed programs are never executed, and unresolved modules, calls, syntax, or control flow remain explicit coverage gaps.
+
+The CLI defaults configured JavaScript analysis to `fast`: native entry sources are batched across AW inputs, and APIs reached through operator-verified runtime mappings use source/dependency-hash-checked transfer summaries. Exact source resolution precedes summary verification; ordinary repository imports remain traversable regardless of their directory name. For paired documents, ordinary compiled checks remain active while JavaScript checks use authored sources. Unknown mapped runtime APIs retain coverage gaps instead of initiating deep traversal. Cache priming is best-effort, and parsed Actions graphs are loaded one file at a time. `deep` explicitly analyzes available runtime bodies and generated JavaScript. An unset Go API mode preserves deep behavior. `BenchmarkNativeJavaScriptBatch` and `BenchmarkJavaScriptFastSummary` measure configured analysis separately from the AST-only budgets above.
+
+`taint.AnalyzeDocument` checks an AW prompt and script hooks alongside an existing compiled Actions graph. `taint.AnalyzeAuthoredDocument` independently visits explicit execution nodes, prompt, and schema-aware hooks using `aw.ExecutionBlocks` and `taint.AnalyzeAuthoredScripts`. Hooks include MCP tools, safe-output handlers, graders, memory validators, and engine scripts, preserving their return, environment, sandbox, and payload-encoding contracts. Authored-only analysis reports missing generated execution coverage rather than interpreting frontmatter as a complete Actions workflow. File discovery and parsing belong to the CLI adapter. [`gh aw lint`](/gh-aw/setup/cli/#lint) accepts `.md`, `.yml`, and `.yaml`, including `.lock.yml`, without recompiling; actionlint runs only on YAML inputs. `--rules` selects AST checks without external actionlint. Compilation retains its existing behavior.
+
+The default registry also checks action pinning (`action-pin`, CTR-002), direct shell-template injection (`template-injection`, CTR-006), workflow-run trigger scope (`workflow-run-scope`, CTR-021), and specified job timeouts (`job-timeout`, CTR-026). These are observable subsets of the [compiler threat specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md#74-actions-ast-lint-coverage), not replacements for compiler or runtime conformance checks. Authorization, engine policy, guarded checkout provenance, and runtime publisher integrity require evidence beyond a standalone Actions AST.
+
+Additional checks cover explicit blanket write grants and invalid OIDC read permissions (`permission-scope`, CTR-001 subset), disabled AW version integrity checks (`version-check`, CTR-018), conditional configuration imports (`conditional-import`, CTR-020), AW private-to-public flow opt-outs (`private-to-public`, CTR-031), enabled Node install hooks (`install-scripts`, CTR-014), bare label-allowlist wildcards (`allowed-labels`, CTR-015), explicit bare network allowances (`network-scope`, CTR-011 subset), and unconstrained wildcard PR push targets (`push-target`, CTR-012 subset). AW-only checks use the authored AST directly or as a companion, not reconstructed Actions properties or recursively loaded imports, and skip native Actions without source evidence. Push-target defers missing-constraint findings when imports may supply constraints.
+
+Further AST-only rules check authored shell/proxy contradictions and cache isolation (`tool-scope`, CTR-003 subset), explicit sandbox bypasses and internal overrides (`sandbox-config`, CTR-004 subset), option-prefixed image operands (`image-argument`, CTR-013 subset), explicit checkout expansion and literal prerequisites (`checkout-mode`, CTR-033 subset), and fork author-association enum values (`fork-association`, CTR-034 subset). These do not infer engine capabilities, runtime selector trust, repository visibility, or generated admission guards.
+
+Three source-policy checks cover explicit `pull_request_target` admission through `read`/`all` roles (`pull-request-target-roles`, CTR-008 subset), blocked lexical expansions in authored safe-output run scripts (`safe-output-shell-expansion`, CTR-009), and URL-filter arguments without SSL inspection (`firewall-ssl-bump`, CTR-011 subset). The shell rule and compiler validation share `pkg/workflow/shellpattern` to prevent detector drift. The roles rule preserves strict rejection and scoped non-strict warning suppression; shell and firewall prerequisite violations are errors in either mode. The firewall rule checks authored `--allow-urls` and `--ssl-bump` tokens in `sandbox.agent.args`, an internal override accepted only in non-strict mode. Legacy `network.firewall` blocks are schema-invalid and reported as requiring migration, not as fixable by setting `ssl-bump: true`. These rules do not resolve imported settings or prove runtime firewall enforcement, generated checkout safety, or publishing provenance.
+
+The [Workflow Linters reference](/gh-aw/reference/workflow-linters/) lists each built-in rule's compiler threat ID and analysis boundaries. `Rule.ThreatRuleID` records the known mapping; the runner attaches it to every diagnostic, including coverage warnings. CLI text, JSON, and `--list-rules` preserve that reference. Extension rules can leave the field empty when unmapped.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:
@@ -91,7 +119,7 @@ The agent job runs: repository checkout and runtime setup (Node.js, Python, Go) 
 
 ### Safe Output Jobs
 
-Every safe output job follows the same pattern: download the agent artifact, parse its JSON, execute the corresponding GitHub API operation with the right permissions, and link to related items. Available types include `create_issue`, `create_discussion`, `add_comment`, `create_pull_request`, `create_pr_review_comment`, `create_code_scanning_alert`, `add_labels`, `assign_milestone`, `update_issue`, `update_release`, `push_to_pr_branch`, `upload_assets`, `update_project`, `missing_tool`, and `noop`.
+Every safe output job follows the same pattern: download the agent artifact, parse its JSON, execute the corresponding GitHub API operation with the right permissions, and link to related items. Available types include `create_issue`, `create_discussion`, `add_comment`, `create_pull_request`, `create_pr_review_comment`, `create_code_scanning_alert`, `add_labels`, `assign_milestone`, `update_issue`, `update_release`, `push_to_pr_branch`, `upload_assets`, `update_project`, `report_missing_tool`, and `noop`.
 
 ### Custom Jobs
 
@@ -201,7 +229,7 @@ Workflows generate several artifacts during execution:
 | **agent_usage.json** | `/tmp/gh-aw/` | Aggregated token counts: `{"input_tokens":…,"output_tokens":…,"cache_read_tokens":…,"cache_write_tokens":…}` | Bundled in the unified agent artifact when the firewall is enabled; accessible to third-party tools without parsing step summaries |
 | **prompt.txt** | `/tmp/gh-aw/aw-prompts/` | Generated prompt sent to AI agent (includes markdown instructions, imports, context variables) | Retained for debugging and reproduction |
 | **firewall-audit-logs** | See structure below | Dedicated artifact for AWF audit/observability logs (token usage, network policy, audit trail) | Uploaded by all firewall-enabled workflows; analyzed by `gh aw logs --artifacts firewall` |
-| **firewall-logs/** | `/tmp/gh-aw/sandbox/firewall/logs/` | Network access logs in Squid format (when `network.firewall:` enabled) | Analyzed by `gh aw logs` command |
+| **firewall-logs/** | `/tmp/gh-aw/sandbox/firewall/logs/` | Network access logs in Squid format (when the AWF agent sandbox is enabled) | Analyzed by `gh aw logs` command |
 | **cache-memory/** | `/tmp/gh-aw/cache-memory/` | Persistent agent memory across runs (when `tools.cache-memory:` configured) | Restored at start, saved at end via GitHub Actions cache |
 | **patches/**, **sarif/**, **metadata/** | Various | Safe output data (git patches, SARIF files, metadata JSON) | Temporary, cleaned after processing |
 
@@ -245,7 +273,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw compile my-workflow` | Compile specific workflow |
 | `gh aw compile --verbose` | Enable verbose output |
 | `gh aw compile --strict` | Enhanced security validation |
-| `gh aw compile my-workflow --dry-run` | Compile with staging and mandatory validation/shellcheck/model checks; gate added medium-or-higher scanner findings against pre-compilation locks; Docker scanners are opt-in |
+| `gh aw compile my-workflow --dry-run` | Compile with staging and mandatory validation/shellcheck/model checks; reject existing and added actionable scanner findings and unsupported host effects; Docker scanners are opt-in |
 | `gh aw compile my-workflow --environment gh-aw-debug` | Replace the environment on every generated job |
 | `gh aw compile --no-emit` | Validate without generating files |
 | `gh aw compile --actionlint --zizmor --poutine --grant` | Run security scanners |
@@ -261,14 +289,14 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw validate --strict` | Validate with strict mode enforced |
 
 > [!TIP]
-> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
+> Compilation is only required when changing **frontmatter configuration**. The **markdown body** (AI instructions) is loaded at runtime and can be edited without recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for details.
 
 > [!NOTE]
 > The `--actions-repo` flag overrides the default `github/gh-aw-actions` repository used when `--action-mode action` is set. Use it together with `--action-tag` to compile against a branch or fork during development.
 
 The optional `--actionlint`, `--zizmor`, and `--poutine` scanners prefer local
 binaries on `PATH` when their versions meet the pinned Docker image versions
-(actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6). Missing, older, or
+(actionlint ≥ 1.7.12, zizmor ≥ 1.31.1, poutine ≥ 1.1.6). Missing, older, or
 unrecognized versions fall back to Docker. Local actionlint uses shellcheck and
 pyflakes from `PATH` when those integrations are enabled; it does not install them.
 
@@ -279,9 +307,19 @@ and `--models`. These settings are
 forced regardless of frontmatter; explicitly disabling a required flag is rejected.
 Enabled scanners first scan the existing lock files before compilation, then scan
 the emitted diagnostic locks with the same scanner configuration and result filters.
-Only added medium-or-higher findings, or added findings with unknown severity,
+Existing and added medium-or-higher findings, or findings with unknown severity,
 fail the scanner gate. Matching uses finding identity and occurrence counts, not
-aggregate totals, and tolerates shifted YAML lines and steps with stable IDs/names.
+aggregate totals. Actions and AW ASTs anchor findings to field values and logical
+steps, tolerating line shifts, YAML quoting and comments, and reordered steps
+with stable IDs or unique names. Steps without an ID or unique name use a
+content fingerprint, so repeated names or action references do not conflate
+different steps. Ambiguous locations and unparseable workflows retain
+coordinates and a file fingerprint rather than guessing a matching field.
+Zizmor findings retain all primary and related symbolic scopes, including
+source/sink relationships across files. Finding identity includes the reported
+semantic scope, not just its step label. Incomplete diagnostics and
+operational errors joined with findings remain fatal; usable findings cannot
+hide partial scanner failures.
 Low-severity and informational findings remain visible but do not fail the gate.
 Zizmor's `secrets-outside-env` rule is excluded in dry-run mode because repository
 and organization secrets are common in agentic workflows; ordinary compilation
@@ -357,6 +395,11 @@ issue locking. `aw_info.json` records the boolean `dry_run` flag. Failure handli
 local diagnostics, step summaries, and run artifacts remain enabled. No new
 memory-tool fields are required; ordinary compilation preserves persistence.
 
+On GitHub.com, dry-run locks also set workflow-level `cache-mode: read`, allowing
+cache restores but preventing saves, including caches used by authored steps and
+setup actions. GHES compilation omits this setting because it is not supported
+there; compiler-managed caches remain restore-only.
+
 Dry-run compilation adds `workflow_dispatch`, preserves existing manual inputs,
 and copies reusable-workflow inputs when adding manual dispatch. Actor roles are
 restricted to `admin`/`maintainer` (including `maintain`); an existing narrower
@@ -375,17 +418,23 @@ Set `DEBUG=workflow:compiler_development,cli:compile_development` to log each
 dry-run configuration mutation, removed environment key, disabled job, and forced
 CLI flag to stderr. Logs identify changed fields/keys, never their values.
 
-Dry-run locks omit `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*` variables,
+Dry-run locks omit telemetry configuration under `OTEL_*`, `GH_AW_OTLP_*`, and `GITHUB_AW_OTEL_*`,
 W3C trace context (`TRACEPARENT`, `TRACESTATE`, `BAGGAGE`), and
 `CLAUDE_CODE_ENABLE_TELEMETRY` from workflow, job,
 step, container, and service environment mappings, including user-defined values.
 Workflow environment suppression occurs before job and header generation so
 telemetry-only masking steps and environment-source entries are also omitted.
 Engine environment overrides are filtered before native engine configuration is rendered.
+The emitted workflow environment sets `OTEL_SDK_DISABLED=true`,
+`GH_TELEMETRY=false`, `DO_NOT_TRACK=1`, `DISABLE_TELEMETRY=1`,
+`DISABLE_ERROR_REPORTING=1`, and `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`.
+These opt-outs are inherited by jobs and steps. Conflicting overrides in job,
+step, container, and service environment mappings are replaced.
 Automatic OTLP export configuration and telemetry authentication steps are also
 disabled. Existing network permissions, local diagnostics, summaries, and artifacts remain
-available; ordinary compilation preserves telemetry configuration. This does not
-rewrite custom scripts that configure their own exporters.
+available; ordinary compilation preserves telemetry configuration. Tools that
+ignore these variables can still emit telemetry. This does not rewrite custom
+scripts that configure their own exporters.
 
 The emitted lock's `gh-aw-metadata` header records `"dry_run":true`. Normal and
 older locks omit this optional field, which readers interpret as `false`.
@@ -395,9 +444,24 @@ does not disable its telemetry. Any permitted live test must review and execute
 the same emitted lock revision; dispatching an unchanged remote ref executes its
 existing lock instead.
 
-Custom scripts/jobs, agent shell commands, external MCP servers, and custom
-credentials remain unverified and are explicitly reported at runtime. Dry-run is
-not an execution sandbox or a guarantee that those extensions cannot mutate GitHub.
+Authored custom jobs, including reusable calls and custom safe-output jobs, become
+disabled placeholders with no original steps, permissions, environment, or inherited
+secrets. Output names are retained with empty values; dependent jobs may be skipped.
+Staging overrides in custom publishing steps cannot reactivate these jobs.
+Reusable output contracts and required self-hosted runner policies are preserved
+without retaining the original executable target or matrix-dependent runner.
+
+Dry-run rejects authored host steps (`steps`, `pre-steps`, `pre-agent-steps`,
+`post-steps`, `on.steps`, safe-output and threat-detection steps, secret-masking
+steps, and unsafe built-in job overrides), custom MCP servers, `mcp-scripts`,
+custom safe-output scripts/actions, enabled Bash graders, and authored
+`id-token: write` permissions, including safe-output and imported declarations.
+Compiler-generated pull-request stack gates remain available. Remove unsupported
+declarations in a separate diagnostic workflow; there is no unsafe override.
+
+Agent shell commands, custom engine execution, custom credentials, and
+compiler-managed OIDC integrations still require review. Dry-run is not an
+execution sandbox or a guarantee of side-effect-free hosted execution.
 
 `--dry-run` cannot be combined with `--no-emit`, `--watch`, `--approve`, or
 `--allow-action-refs`, because those options bypass required checks or the trusted
@@ -429,7 +493,7 @@ status and the entire result array, not only individual workflow `valid` fields.
 Preflight failures can stop compilation before this summary is emitted.
 `compile_only` is true and `execution_authorized` is false even when the gate
 passes. `unverified_effects` lists excluded surfaces, not a per-workflow effect
-inventory; custom code, hosted identity/approvals, live model availability, and
+inventory; agent code, hosted identity/approvals, live model availability, and
 diagnostic exports remain unverified. Ordinary compilation keeps its existing
 output shape.
 
@@ -453,7 +517,7 @@ Simple workflows compile in ~100ms; workflows with imports in ~500ms; workflows 
 
 ## Learn More
 
-- [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
+- [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) - When to recompile vs edit directly
 - [Frontmatter Reference](/gh-aw/reference/frontmatter/) - All configuration options
 - [Tools Reference](/gh-aw/reference/tools/) - Tool configuration guide
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Output processing

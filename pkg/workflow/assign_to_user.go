@@ -43,7 +43,7 @@ func (c *Compiler) parseAssignToUserConfig(outputMap map[string]any) *AssignToUs
 			// For backward compatibility, use defaults
 			assignToUserLog.Print("Using default configuration")
 			return &AssignToUserConfig{
-				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: defaultIntStr(1)},
+				Max: defaultIntStr(1),
 			}
 		},
 		func(config *AssignToUserConfig) {

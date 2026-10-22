@@ -228,7 +228,7 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 ### Outcome Efficiency
 
-A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/practices/measuring-impact/).
+A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/guides/measuring-impact/).
 
 ### Pwn Request
 
@@ -237,6 +237,10 @@ A critical security vulnerability that occurs when a `pull_request_target` workf
 ### Threat Detection
 
 Automated security analysis that scans agent output and code changes for potential security issues before application. When safe outputs are configured, a threat detection job automatically runs between the agent job and safe output processing to identify prompt injection attempts, secret leaks, and malicious code patches. See [Threat Detection Reference](/gh-aw/reference/threat-detection/).
+
+### Custom Job Detection Gate
+
+A compiler-enforced dependency and success guard on custom jobs that run after the agent job. When threat detection is enabled, every downstream custom job (including transitive dependents, reusable workflow calls, and jobs using `if: always()`) receives a direct `detection` dependency and blocks on failed, cancelled, skipped, missing, or warn-mode flagged detection results. Custom jobs cannot run between `agent` and `detection`. Disabling detection removes the gate. See [Custom job detection gates](/gh-aw/reference/workflow-linters/#custom-job-detection-gates).
 
 ### Threat Detection Max AI Credits (`safe-outputs.threat-detection.max-ai-credits`)
 
@@ -681,7 +685,7 @@ jobs:
 
 ### BYOK (Bring Your Own Key)
 
-A Copilot engine mode that routes AI requests to an external LLM provider (such as OpenAI, Anthropic, or a self-hosted Ollama/vLLM instance) instead of the default GitHub Copilot backend. Activated by setting `COPILOT_PROVIDER_BASE_URL` in `engine.env`. The three BYOK credential variables (`COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, `COPILOT_PROVIDER_BEARER_TOKEN`) accept `${{ secrets.* }}` references under strict mode and are never exposed to the agent container. gh-aw automatically adds the provider hostname to the AWF allow-list when it can resolve a literal BYOK URL, and otherwise reuses the concrete provider hostname from `network.allowed` for the threat-detection Copilot step. Use `COPILOT_MODEL` to specify the target model. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-bring-your-own-key-byok-mode).
+A Copilot engine mode that routes AI requests to an external LLM provider (such as OpenAI, Anthropic, or a self-hosted Ollama/vLLM instance) instead of the default GitHub Copilot backend. Activated by setting `COPILOT_PROVIDER_BASE_URL` in `engine.env`. The three BYOK credential variables (`COPILOT_PROVIDER_BASE_URL`, `COPILOT_PROVIDER_API_KEY`, `COPILOT_PROVIDER_BEARER_TOKEN`) accept `${{ secrets.* }}` references under strict mode and are never exposed to the agent container. gh-aw automatically adds the provider hostname to the AWF allow-list when it can resolve a literal BYOK URL, and otherwise reuses the concrete provider hostname from `network.allowed` for the threat-detection Copilot step. Use `COPILOT_MODEL` to specify the target model. See [AI Engines Reference](/gh-aw/reference/engines/copilot/#copilot-bring-your-own-key-byok-mode).
 
 ### Cron Schedule
 
@@ -693,7 +697,7 @@ Named shorthand references to predefined domain sets used in `network.allowed` a
 
 ### Copilot SDK (`engine.copilot-sdk`)
 
-An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate, or set `engine.driver` on the Copilot engine to enable SDK mode automatically while replacing the built-in driver. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. The built-in driver also supports the run-wide `max-tool-calls` budget. See [AI Engines Reference](/gh-aw/reference/engines/#copilot-sdk-support).
+An engine option that enables the Copilot engine to run in SDK mode, giving the workflow direct access to the Copilot SDK runtime for advanced integration patterns such as inline sub-agents. Set `engine.copilot-sdk: true` to activate, or set `engine.driver` on the Copilot engine to enable SDK mode automatically while replacing the built-in driver. Supports `max-tool-denials` to stop inference when tool requests are denied too frequently. The built-in driver also supports the run-wide `max-tool-calls` budget. See [AI Engines Reference](/gh-aw/reference/engines/copilot/#copilot-sdk-support).
 
 ```aw wrap
 engine:
@@ -717,7 +721,7 @@ engine:
 
 ### Unsupported Engine Samples
 
-Sample CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from `gh-aw`; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/engines/#unsupported-engine-samples).
+Sample CLI engine definitions bundled as reference patterns rather than officially supported engines. The repository ships **OpenCode**, **Aider**, **Crush**, **Cursor**, and **Kiro** as sample [engine behaviors](#engine-behaviors-enginebehaviors) definitions under `.github/workflows/shared/<id>.md`. These have no compatibility or maintenance commitment from `gh-aw`; copy or adapt them only under the support terms of their respective owners. See [AI Engines Reference](/gh-aw/reference/third-party-agent/#unsupported-engine-samples).
 
 See [AI Engines Reference](/gh-aw/reference/engines/#pinning-a-specific-engine-version).
 
@@ -727,7 +731,7 @@ A driver-level watchdog shared by all built-in harnesses that logs a warning whe
 
 ### Post-Result Watchdog (`engine.harness.watchdog-timeout`)
 
-A harness setting that terminates a quiet child process after the agent has already produced a terminal safe output, such as `noop` or an ordinary task output (comment, label, push, pull request creation). Diagnostic safe outputs like `missing_tool`, `missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog. The watchdog stays dormant until armed, and once armed, any stdout or stderr activity resets its inactivity clock — so a quiet process doing useful work can still be terminated, with the harness treating that termination as successful because the requested safe output already exists. Configure with `engine.harness.watchdog-timeout` (seconds) or the raw `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` environment variable (milliseconds, default `120000`, min `50`, max `600000`). See [Harness Retry and Post-result Watchdog Policy](/gh-aw/reference/engines/#harness-retry-and-post-result-watchdog-policy) and [Environment Variables Reference](/gh-aw/reference/environment-variables/#shared-post-result-watchdog).
+A harness setting that terminates a quiet child process after the agent has already produced a terminal safe output, such as `noop` or an ordinary task output (comment, label, push, pull request creation). Diagnostic safe outputs like `report_missing_tool`, `report_missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog. The watchdog stays dormant until armed, and once armed, any stdout or stderr activity resets its inactivity clock — so a quiet process doing useful work can still be terminated, with the harness treating that termination as successful because the requested safe output already exists. Configure with `engine.harness.watchdog-timeout` (seconds) or the raw `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` environment variable (milliseconds, default `120000`, min `50`, max `600000`). See [Harness Retry and Post-result Watchdog Policy](/gh-aw/reference/engines/#harness-retry-and-post-result-watchdog-policy) and [Environment Variables Reference](/gh-aw/reference/environment-variables/#shared-post-result-watchdog).
 
 ### Harness Retry Runner
 
@@ -761,7 +765,7 @@ engine:
 
 A first-class Claude engine setting that controls approval behavior. Accepts `default`, `dontAsk`, `acceptEdits`, `auto`, `plan`, or `bypassPermissions`. The default is `dontAsk`: actions requiring approval are denied unless pre-approved by `--allowed-tools`; built-in read-only actions remain available. `acceptEdits` automatically approves edits and some filesystem commands, `auto` uses a classifier to approve additional actions, `plan` uses Claude's plan-mode policy, and `bypassPermissions` skips approval checks except explicit deny rules. These modes are not OS-level isolation.
 
-`engine.permission-mode` takes precedence over legacy `--permission-mode` arguments. Unrestricted bash does not implicitly enable `bypassPermissions`. Disabled native tools are removed, and `tools.edit: false` denies repository editing while retaining separately scoped memory edits. The sandbox provides filesystem/network isolation, and the MCP gateway enforces its `allowed:` filter independently of permission mode. See [AI Engines Reference](/gh-aw/reference/engines/#claude-tool-enforcement-security-model).
+`engine.permission-mode` takes precedence over legacy `--permission-mode` arguments. Unrestricted bash does not implicitly enable `bypassPermissions`. Disabled native tools are removed, and `tools.edit: false` denies repository editing while retaining separately scoped memory edits. The sandbox provides filesystem/network isolation, and the MCP gateway enforces its `allowed:` filter independently of permission mode. See [AI Engines Reference](/gh-aw/reference/engines/claude/#claude-tool-enforcement-security-model).
 
 ```aw wrap
 engine:
@@ -981,7 +985,7 @@ Optional workflow metadata for categorization and organization. Enables filterin
 
 ### Model Alias
 
-A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves to the best available concrete model at compile time. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases can be defined in workflow frontmatter using the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
+A short human-friendly name (such as `sonnet` or `mini`) that gh-aw resolves at runtime, before the engine starts, to the newest matching model in the live model list. Aliases are defined as ordered lists of provider-scoped glob patterns; the first pattern that matches an available model wins. Meta-aliases reference other aliases and are resolved recursively. A provider prefix (`copilot/opus`) limits the lookup to that provider, and exact model ids are never rewritten. Built-in vendor aliases and meta-aliases are listed in the [Model Aliases & Multipliers Reference](/gh-aw/reference/model-tables/). Custom aliases are defined under `models:` in workflow frontmatter; see the [Model Alias Format Specification](/gh-aw/specs/model-alias-specification/).
 
 ### Model Policy (`models.allowed`, `models.blocked`)
 
@@ -1286,7 +1290,7 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 ### Codemod
 
-An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/guides/working-with-workflows/#upgrading-workflows).
+An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading Workflows](/gh-aw/setup/working-with-workflows/#upgrading-workflows).
 
 ### Doctor (`gh aw doctor`)
 
@@ -1303,6 +1307,10 @@ An interactive web-based editor for authoring, compiling, and previewing agentic
 ### Audit (`gh aw audit`)
 
 A CLI command that downloads workflow run artifacts and logs, analyzes MCP tool usage and network behavior, and generates a structured Markdown or JSON report. The report covers failure analysis, tool usage, MCP server status, firewall activity, token/cost metrics, behavior fingerprint, and safe-output summary. Accepts a numeric run ID or any GitHub Actions run or job URL. Both `gh aw audit` and `gh aw logs` accept a `--runtime` flag (for example, `--runtime cloud-hypervisor`) that filters results to runs whose [`sandbox.agent.runtime`](#sandboxagentruntime) matches the given value, using the value persisted in each run's `aw_info.json`. See [Audit Commands](/gh-aw/reference/audit/).
+
+### Audit Evidence Search (`gh aw audit --search`)
+
+A single-run mode of `gh aw audit` that retrieves relevant unified-session evidence for a query using a local, in-memory BM25 ranking, with no model calls, embeddings, or persistent index. Results are returned as up to `--search-limit` evidence groups (1 to 20, default 5); repeated events are grouped automatically without changing scores or ranking. Incompatible with `--group` and job or step URLs. See [Audit Commands](/gh-aw/reference/audit/).
 
 ### Audit Diff (multi-run mode)
 
@@ -1437,7 +1445,7 @@ Checking workflow files for errors, security issues, and best practices. Occurs 
 
 ### `gh aw lint`
 
-A CLI command that runs actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. Unlike `gh aw compile --actionlint`, it reads lock files directly from disk, skipping `zizmor` and `poutine`. Supports `--shellcheck` and `--pyflakes` flags to enable script integrations for shell and Python analysis. Useful for fast local feedback after manual lock-file edits. See [CLI Reference](/gh-aw/setup/cli/).
+A CLI command that runs all registered built-in Actions/AW AST rules and actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. `--rules secret-leak` selects the AST taint checker without external actionlint; `--list-rules` lists registered checks and `--json` emits structured AST diagnostics. The default mode supports actionlint's `--shellcheck` and `--pyflakes` integrations. Neither mode runs `zizmor` or `poutine`. See [CLI Reference](/gh-aw/setup/cli/).
 
 ### yamllint
 
@@ -1449,15 +1457,15 @@ A security auditing tool for GitHub Actions workflows that identifies vulnerabil
 
 ### Deterministic Lineage
 
-The causal graph of edges between workflow runs computed by `gh aw logs --json`. Each edge connects a source run to a target run and captures how one run triggered another — via `workflow_dispatch`, `workflow_call`, or `workflow_run` events — along with a confidence rating and the reasons the link was established. Available under `.edges[]` in the JSON output. Use lineage data to reconstruct orchestrator-to-worker relationships without manually correlating run IDs.
+The graph of recorded parent-child edges between selected workflow runs in `gh aw logs --json`. Each edge connects distinct GitHub run IDs with the same nonempty canonical `context.episode_id`, using the target's recorded caller run ID. Available under `.edges[]` with lineage confidence and evidence. Call IDs, matching revision metadata, and `workflow_run` events alone do not establish edges; reusable hops sharing one run do not create self-edges.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_aic`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For cost analysis, prefer `total_aic` (AI Credits).
+A rollup of selected workflow runs sharing a recorded canonical `context.episode_id`, available under `.episodes[]` in `gh aw logs --json`. Metrics such as `total_runs`, `total_tokens`, and `total_aic` cover selected canonical members only; uncorrelated runs remain in `.runs[]` and overall totals. `recorded_roots[]` preserves canonical root claims separately from `representative_run_id` and `representative_workflow`. Coverage is `unknown` or `partial`, never proof of completeness; lineage confidence is independent of coverage. For cost analysis, prefer `total_aic` (AI Credits).
 
 ```bash
-gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, aic: .total_aic}'
+gh aw logs --start-date -30d --count 1000 --json | \
+  jq '.episodes[] | {id: .episode_id, workflow: .representative_workflow, aic: .total_aic}'
 ```
 
 ### WebAssembly (Wasm)
@@ -1520,6 +1528,8 @@ An auto-generated slash command available when [centralized routing](#centralize
 ### `aw_context`
 
 A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
+
+`on.gateway-dispatch` and its nested GitHub notification, Projects, security, [external issue](/gh-aw/reference/provider-issue-triggers/), and command triggers are experimental. Custom webhooks are unsupported. Optional shared `repos` selects repository-aware sources; `orgs` selects GitHub organizations with case-insensitive names or `*` patterns. Neither grants access. No other trigger can coexist with this mapping. They use `aw_context.webhook.deliveries` for same-kind minimal notifications containing only canonical resource URLs, event types, and declared matching filter literals, and `aw_context.items` for URL-derived affected references, without selecting a single implicit item. Additional resource data requires provider-authenticated workflow reads. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
 
 ### Conclusion Job
 
@@ -1723,15 +1733,27 @@ An optional field under top-level `metadata:` frontmatter holding an absolute HT
 
 ### Graders (`graders:`)
 
-Deterministic, non-LLM checks that compute metrics from a workflow run's post-agent execution trace. Configured under the top-level `graders:` frontmatter field; an empty map (`graders: {}`) enables all built-in graders with default settings, and omitting the field disables grading entirely. Built-in graders cover tool success rate, retries, loop detection, trajectory efficiency, execution duration, and similar metrics. Custom inline graders run in a separate restricted Node.js process against the preprocessed `trace` object, without access to `process` or `require`. Graders are an experimental feature. See [Graders Reference](/gh-aw/experimental/trace-graders/).
+Non-LLM metrics over the redacted unified session. Ten fast built-ins run as pure computation in conclusion, even when `graders:` is omitted. Frontmatter can override thresholds, disable defaults, or opt into other built-ins. Custom JavaScript and repository-owned operational-value Bash run only in the separate graders job. Built-ins use the `usage` artifact; combined custom results use `graders`. See [Graders Reference](/gh-aw/experimental/trace-graders/).
 
 ### Operational Value Grader (`graders.operational-value`)
 
-A reserved grader that evaluates operational repository outcomes using inline Bash or a repository-relative Bash file, frozen at compile time with its SHA-256 digest recorded for reproducibility. It runs once with no arguments, reads the current run request from standard input, and writes an ordered array of `{id,value}` metrics. The first metric is primary and later metrics are diagnostics. Values are finite numbers or `null` and retain their native scale — gh-aw validates but does not normalize, clamp, or convert them to pass/fail; `unit` and `direction` describe each metric's meaning. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. See [Graders Reference](/gh-aw/experimental/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
+A repository-owned Bash evaluator configured with `graders.operational-value.run`. It runs only in the separate graders job, reads session JSONL from `$1` / `GH_AW_SESSION_FILE` and config JSON from `GH_AW_GRADER_CONFIG`, and emits legacy metric arrays. Detected file writes are rejected. Shell is trusted code, not yet microVM-isolated. Execution quality metrics alone do not establish operational value.
 
 ### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
 
-A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/experimental/trace-graders/) for built-in graders and grader configuration.
+A built-in Recurrence Quantification Analysis (RQA) grader measuring the mean
+length of vertical recurrence lines of at least two states. It estimates how
+long an agent remains in a stagnation episode; lower values are better. It is
+opt-in and reports `unavailable` when the unified session lacks state evidence.
+See [Graders Reference](/gh-aw/experimental/trace-graders/).
+
+### Unified Session (`usage/aw_session.jsonl`)
+
+The canonical, timestamp-ordered record of an agent run, built from Copilot-compatible event objects (`type`, `data`, and optional native metadata) produced by Claude, Copilot, Codex, Gemini, Pi, and custom engines. It begins with a numeric file-format version header, carries essential agent, MCP gateway, firewall, safe-output, experiment, grader, and eval payloads with source provenance, and is the input to [Graders](#graders-graders). See the [Unified Agent Session Specification](/gh-aw/specs/unified-agent-session-specification/).
+
+### Agent-Tainted Provenance (`agentTainted`)
+
+An optional flag on nodes of the issue publication AST indicating whether content originated from the agent (`true`) or from framework-owned structure and metadata (`false`). Missing provenance is treated as agent-tainted, only trusted builders can assign framework provenance, and secret redaction runs on complete text runs regardless of provenance. See the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
 
 ### Trajectory IR
 
@@ -1739,7 +1761,7 @@ The canonical, schema-defined intermediate representation of an agent run's exec
 
 ### Trajectory Graders (importable `graders:` fragments)
 
-A catalog of non-built-in, importable grader definitions under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
+A catalog of built-in configuration fragments under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
 
 ### Work Queue (`tools.work-queue`)
 

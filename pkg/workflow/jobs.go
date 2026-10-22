@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 )
 
 var jobLog = logger.New("workflow:jobs")
@@ -18,29 +19,31 @@ var jobLog = logger.New("workflow:jobs")
 const runtimeFeaturesEnvVarName = "GH_AW_RUNTIME_FEATURES"
 const runtimeFeaturesEnvVarExpression = "${{ vars.GH_AW_RUNTIME_FEATURES }}"
 
-const pushExperimentsStateJobName = "push_experiments_state"
-const pushEvalsStateJobName = "push_evals_state"
-const pushRepoMemoryJobName = "push_repo_memory"
-const pushLedgerChangesJobName = "push_ledger_changes"
-const updateCacheMemoryJobName = "update_cache_memory"
+const pushExperimentsStateJobName = string(constants.PushExperimentsStateJobName)
+const pushEvalsStateJobName = string(constants.PushEvalsStateJobName)
+const pushRepoMemoryJobName = string(constants.PushRepoMemoryJobName)
+const pushLedgerChangesJobName = string(constants.PushLedgerChangesJobName)
+const updateCacheMemoryJobName = string(constants.UpdateCacheMemoryJobName)
 
 var runtimeFeaturesBuiltInJobNames = map[string]struct{}{
-	string(constants.AgentJobName):              {},
-	string(constants.ActivationJobName):         {},
-	string(constants.PreActivationJobName):      {},
-	string(constants.DetectionJobName):          {},
-	string(constants.EvalsJobName):              {},
-	string(constants.SafeOutputsJobName):        {},
-	string(constants.UploadAssetsJobName):       {},
-	string(constants.UploadCodeScanningJobName): {},
-	string(constants.ConclusionJobName):         {},
-	string(constants.UnlockJobName):             {},
-	pushExperimentsStateJobName:                 {},
-	pushEvalsStateJobName:                       {},
-	pushRepoMemoryJobName:                       {},
-	pushLedgerChangesJobName:                    {},
-	updateCacheMemoryJobName:                    {},
-	updateDriveMemoryJobName:                    {},
+	string(constants.AgentJobName):               {},
+	string(constants.ActivationJobName):          {},
+	string(constants.PreActivationJobName):       {},
+	string(constants.DetectionJobName):           {},
+	string(constants.EvalsJobName):               {},
+	string(constants.SafeOutputsJobName):         {},
+	string(constants.UploadAssetsJobName):        {},
+	string(constants.UploadCodeScanningJobName):  {},
+	string(constants.ConclusionJobName):          {},
+	string(constants.ConclusionAdmissionJobName): {},
+	string(constants.GradersJobName):             {},
+	string(constants.UnlockJobName):              {},
+	pushExperimentsStateJobName:                  {},
+	pushEvalsStateJobName:                        {},
+	pushRepoMemoryJobName:                        {},
+	pushLedgerChangesJobName:                     {},
+	updateCacheMemoryJobName:                     {},
+	updateDriveMemoryJobName:                     {},
 }
 
 // Job represents a GitHub Actions job with all its properties
@@ -64,6 +67,11 @@ type Job struct {
 	Steps                      []string
 	Needs                      []string // Job dependencies (needs clause)
 	Outputs                    map[string]string
+	actionsCondition           bool
+	// Actions contributes typed steps after Steps, and typed conditions,
+	// environment values, and output bindings. It is lowered after all job
+	// augmentation so output references can derive dependencies centrally.
+	Actions *actions.Job
 
 	// Reusable workflow call properties
 	Uses           string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
@@ -252,8 +260,11 @@ func (jm *JobManager) renderJobTo(b *strings.Builder, job *Job) {
 			b.WriteString("    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation\n")
 		}
 
-		// Check if expression is multiline or longer than MaxExpressionLineLength characters
-		if hasNewlineInStringLiteral(job.If) {
+		if job.actionsCondition {
+			b.WriteString("    if: \"")
+			b.WriteString(escapeForYAMLDoubleQuoted(job.If))
+			b.WriteString("\"\n")
+		} else if hasNewlineInStringLiteral(job.If) {
 			// The condition contains a literal newline inside a GitHub Actions expression string literal
 			// (e.g. startsWith(body, '/command\n') for matching bot comments with attribution metadata).
 			// Use a YAML double-quoted scalar so the \n escape is preserved as a real newline after

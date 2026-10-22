@@ -106,6 +106,8 @@ imports:
 
 `shared/reporting-otlp.md` combines `shared/reporting.md` and `shared/otlp.md` for telemetry-enabled reporting workflows.
 
+Shared OTLP configuration can use whole-value `${{ github.aw.metadata.<key> }}` references in `observability.otlp.attributes` and `observability.otlp.resource-attributes`. These resolve at compile time against each importing root workflow's `metadata` map, so callers do not need to pass the values through import inputs. Only simple, existing metadata keys can be referenced, and only explicitly selected values are exported.
+
 ## Import Schema (`import-schema`)
 
 Use `import-schema` to declare a typed parameter contract. Callers pass values via `with`; the compiler validates them and substitutes them into the shared file's frontmatter and body before processing.
@@ -231,7 +233,7 @@ Use this form when workflows in different directories need the same stable impor
 
 ### Cross-repo imports
 
-Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix can be a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA to support offline compilation; local imports are never cached. See [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for installation flows.
+Paths matching `owner/repo/path@ref` are fetched from GitHub at compile time. The `@ref` suffix can be a semantic tag (`@v1.0.0`), branch (`@main`), or commit SHA. Remote imports are cached in `.github/aw/imports/` by commit SHA to support offline compilation; local imports are never cached. See [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for installation flows.
 
 ```aw wrap
 ---
@@ -396,7 +398,9 @@ Executable safe-output JSON/JSONL preserves public field names, aliases, and enu
 
 Custom hooks must tolerate absent optional files and files that disappear between discovery and reading (`ENOENT`). Earlier cleanup or redaction can remove files, including symbolic links and artifacts that could not be sanitized. Do not create empty placeholders for missing logs or outputs.
 
-Custom hooks run during the initial workspace redaction, before graders execute. The later grader-output redaction pass sanitizes newly generated results but does not rerun custom hooks, so it does not prepare unchanged files for them.
+Custom hooks run during workspace redaction in the agent job. Graders execute
+later in conclusion using the redacted in-memory unified session; they do not
+read source files or rerun custom hooks.
 
 Permission errors and other redaction failures are not equivalent to missing files. Report them explicitly and remove any unsanitized artifact source before upload; do not silently skip it or use `continue-on-error` as a workaround. For files outside the built-in scan, custom hooks are responsible for preparing writable files and avoiding symbolic links. Stop log writers before redaction so they cannot append sensitive content after sanitization.
 
@@ -587,7 +591,7 @@ gh aw compile my-workflow
 
 ## Learn More
 
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) - Installing workflows with `gh aw add`
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) - Installing workflows with `gh aw add`
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Safe output configuration details

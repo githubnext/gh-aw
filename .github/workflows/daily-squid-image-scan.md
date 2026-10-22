@@ -22,6 +22,7 @@ tools:
   cli-proxy: true
   bash:
     - "cat /tmp/gh-aw/agent/image-scan/compile-output.txt"
+    - "cat /tmp/gh-aw/agent/image-scan/candidate-output.txt"
 safe-outputs:
   create-issue:
     title-prefix: "[container-image-scan] "
@@ -53,6 +54,13 @@ steps:
       set -e
       make build
       "$GITHUB_WORKSPACE/gh-aw" --version
+  - name: Scan committed container image pins
+    continue-on-error: true
+    run: |
+      set -uo pipefail
+      output_dir="/tmp/gh-aw/agent/image-scan"
+      mkdir -p "$output_dir"
+      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee "$output_dir/compile-output.txt" || true
   - name: Install crane (digest resolution fallback)
     continue-on-error: true
     run: |
@@ -67,27 +75,26 @@ steps:
       output_dir="/tmp/gh-aw/agent/image-scan"
       mkdir -p "$output_dir"
       # A failure to resolve a digest for one image (e.g. an upstream registry
-      # returning 403/rate-limited) must not block the Syft/Grype/Grant scan
-      # below, so this step is intentionally decoupled and best-effort: any
-      # images that fail to refresh here simply keep their last-known pin.
-      "$GITHUB_WORKSPACE/gh-aw" compile --force-refresh-container-pins 2>&1 | tee "$output_dir/compile-output.txt"
+      # returning 403/rate-limited) must not replace the committed scan evidence.
+      # Candidate scans retain the last-known pin for images that cannot refresh.
+      "$GITHUB_WORKSPACE/gh-aw" compile --force-refresh-container-pins 2>&1 | tee "$output_dir/candidate-output.txt"
       # continue-on-error above keeps the job running even on failure; this
       # explicit check additionally surfaces a visible ::warning:: annotation
       # in the run summary so recurring resolution failures aren't missed.
       refresh_status="${PIPESTATUS[0]}"
       if [ "$refresh_status" -ne 0 ]; then
-        echo "::warning::Container pin refresh failed (exit $refresh_status) for one or more images; continuing with last-known pins. See $output_dir/compile-output.txt for details."
+        echo "::warning::Container pin refresh failed (exit $refresh_status) for one or more images; candidates may retain last-known pins. See $output_dir/candidate-output.txt for details."
       fi
-  - name: Run compile with vulnerability scanners
+  - name: Scan refreshed candidate container image pins
     continue-on-error: true
     run: |
       set -uo pipefail
       output_dir="/tmp/gh-aw/agent/image-scan"
       mkdir -p "$output_dir"
-      echo "" >> "$output_dir/compile-output.txt"
-      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee -a "$output_dir/compile-output.txt" || true
+      echo "" >> "$output_dir/candidate-output.txt"
+      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee -a "$output_dir/candidate-output.txt" || true
 post-steps:
-  - name: Enforce critical vulnerability and license gates
+  - name: Enforce vendored vulnerability and license gates
     if: always()
     run: |
       output="/tmp/gh-aw/agent/image-scan/compile-output.txt"
@@ -101,11 +108,15 @@ post-steps:
       # github-mcp-server, grafana) are tracked-only per the workflow's policy and
       # must not fail this daily scan; they are remediated via upstream pin refreshes.
       vendored_pattern='(^|[[:space:]])ghcr\.io/github/gh-aw-node(@|:)'
-      if grep -E "$vendored_pattern" "$output" | grep -qE ': error: \[Critical\]'; then
+      if grep -qE "$vendored_pattern.*: error: \[Critical\]" "$output"; then
         echo "::error::Critical vulnerabilities detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
-      if grep -E "$vendored_pattern" "$output" | grep -q ': error: license policy violation:'; then
+      if grep -qE "$vendored_pattern.*: (error|warning): \[High\].* \(fix: [^)]+\)" "$output"; then
+        echo "::error::High vulnerabilities with available fixes detected in the vendored ghcr.io/github/gh-aw-node container image."
+        exit 1
+      fi
+      if grep -qE "$vendored_pattern.*: error: license policy violation:" "$output"; then
         echo "::error::License policy violations detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
@@ -130,7 +141,41 @@ features:
 # Daily Container Image Security Scan
 
 Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
-`/tmp/gh-aw/agent/image-scan/compile-output.txt`.
+`/tmp/gh-aw/agent/image-scan/compile-output.txt`. This scan runs before any pin
+refresh and is the authoritative evidence for committed pins, security gates,
+finding counts, and legacy-issue closure.
+
+The separate `/tmp/gh-aw/agent/image-scan/candidate-output.txt` contains the
+best-effort refresh and candidate scan. Compare exact image digests and label
+any differences as candidate-only; never replace committed findings or infer
+adoption from candidate results, including a clean candidate scan.
+
+### Read the scan with permitted tools
+
+The log can exceed 500 KB. Use native `grep` with line numbers to locate
+`Running (syft|grype|grant)` and `syft scanned`, then native `view` with
+`view_range` to read successive ranges through the end of the scan. Read every
+finding, including lower severities, license results, and scanner errors; a
+truncated tool response or a severity summary is not the complete evidence.
+Keep using the absolute log path, without changing directories.
+Read the candidate log separately with the same native tools and pagination.
+
+These shell commands are supported by the existing allowlist: the first gives
+the line count for pagination, and the second counts findings per image
+reference and severity without discarding the image tag:
+
+```bash
+wc -l /tmp/gh-aw/agent/image-scan/compile-output.txt
+grep -oE '^[^[:space:]]+:1:1: (error|warning|info): \[[A-Za-z]+\]' /tmp/gh-aw/agent/image-scan/compile-output.txt | sort | uniq -c
+```
+
+Do not use `cd`, `cut`, `sed`, `awk`, `python`, `python3`, `jq`, or ad hoc
+scripts for analysis; they are not permitted. If a required read is unavailable
+or denied, stop analysis and report the operational failure with the configured
+safe outputs. Do not retry with another unapproved command, report a clean scan,
+or close legacy findings without complete scan evidence.
+
+### Analysis and reporting
 
 1. Read `compile-output.txt`.
 2. Treat [Container CVE burn-down](https://github.com/github/gh-aw/issues/52657)
@@ -151,6 +196,11 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
      - **Vendored**: the image's Dockerfile/build config lives in this
        repository (`github/gh-aw`), so a fix (code change, dependency bump,
        or config change) can land here directly.
+       `ghcr.io/github/gh-aw-node` is **vendored**: its Dockerfile is
+       `actions/setup/js/Dockerfile.safe-outputs-mcp`, published by
+       `.github/workflows/publish-safe-outputs-node.yml`. Do not classify it
+       as upstream merely because it is derived from `node:lts-alpine`;
+       the unmodified `node:lts-alpine` image itself is upstream.
      - **Upstream**: the image is built and owned by a different repository
        or a third party, e.g. `ghcr.io/github/gh-aw-firewall/*` (owned by
        `github/gh-aw-firewall`), `ghcr.io/github/gh-aw-mcpg` (owned by
@@ -160,9 +210,16 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
      pin/digest refresh to a newer upstream release is possible here.
 5. For every image family in the scan, maintain exactly one burn-down issue
      using the configured title prefix followed by `<Family> CVE burn-down`.
-     Search for that exact full title before writing: update the existing issue
-     if found (reopen it if needed), otherwise create it. Never create a
-     separate issue for an image tag, digest, component, or individual CVE.
+     Search all issues for that exact full title before writing: update the
+     existing issue if found (reopen it if needed), otherwise create it. If multiple issues have
+     the exact family title, use the matching tracker already linked in #52657;
+     otherwise use the lowest issue number. Read every duplicate's body and
+     comments, preserve unique unresolved findings and tracking links in the
+     canonical issue, and report the duplicate issue links there and in #52657
+     for maintainer review. Do not automatically close family duplicates:
+     close-issue is restricted to legacy `Container findings for ...` issues.
+     Never close the canonical tracker, #52657, or operational-failure issues.
+     Never create a separate issue for an image tag, digest, component, or individual CVE.
      Assign each family issue to `pelikhan` if it is unassigned. Put the current
      scan's family summary and collapsible details in that issue, including an
      explicit clean status when it has no findings:
@@ -199,11 +256,18 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
 10. In each family issue, state the remediation SLA cadence: Critical findings
      are remediated or explicitly risk-accepted within 7 days, High within 30
      days, and every scanned image is rebuilt on a refreshed base image at least
-     weekly (this workflow runs `gh aw compile --force-refresh-container-pins`
-     daily, so a pin refresh PR is the default remediation step). For findings
+     weekly. The daily `gh aw compile --force-refresh-container-pins` resolves
+     digests for the currently configured image tags in this scan's checkout;
+     it does not rebuild images, select newer release tags, or publish a pin
+     refresh PR. Do not report an upstream fix as adopted until the configured
+     tag/digest and compiler pin caches have been updated in a commit, affected
+     workflows regenerated and committed, and those committed pins rescanned.
+     A temporary checkout refresh or its regenerated candidate workflows is
+     not adoption. For findings
      on **upstream** images, do not request a local code-fix PR or task an
      agent to patch the vendored image directly — the daily pin-refresh
-     already picks up upstream fixes automatically once released. Instead,
+     can pick up same-tag rebuilds, but newer release tags require an explicit
+     version update. Instead,
      label the finding "Upstream — tracked only" and, when available, link to
      the corresponding issue/advisory in the owning repository so the fix is
      pursued there, not here.

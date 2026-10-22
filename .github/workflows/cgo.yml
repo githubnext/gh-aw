@@ -457,6 +457,48 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: make test-impacted-go BASE_REF=HEAD^ CI_COVERAGE_SOURCE_BRANCH=main
 
+  native-javascript-tests:
+    name: Native JavaScript analysis tests
+    needs: [checkout-cache]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-native-javascript-tests
+      cancel-in-progress: true
+    steps:
+    - name: Restore checkout
+      id: restore-checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-cgo-${{ github.run_id }}-${{ github.sha }}
+    - name: Checkout on cache miss
+      if: steps.restore-checkout.outputs.cache-hit != 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 2
+        persist-credentials: false
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+    - name: Set up Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v6
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: pkg/workflow/taint/javascript/package-lock.json
+    - name: Install pinned native JavaScript compiler
+      run: npm ci --prefix pkg/workflow/taint/javascript --ignore-scripts --no-audit --no-fund
+    - name: Run native JavaScript analysis regressions
+      run: |
+        go test -v -count=1 -timeout=5m ./pkg/workflow/taint
+        go test -v -count=1 -timeout=5m ./pkg/cli -run '^(TestJavaScriptLint|TestLintInputParseFailuresPreserveOtherAST)'
+
   build:
     needs: [checkout-cache]
     runs-on: ubuntu-latest
@@ -1480,7 +1522,7 @@ jobs:
       # Downloads pre-built binary from GitHub releases instead of using go install
     - name: Install golangci-lint
       run: |
-        GOLANGCI_LINT_VERSION="v2.13.2"
+        GOLANGCI_LINT_VERSION="v2.15.0"
         GOOS=$(go env GOOS)
         GOARCH=$(go env GOARCH)
         GOPATH=$(go env GOPATH)
@@ -1650,7 +1692,7 @@ jobs:
         done < /tmp/fprintf-lint.log
 
     - name: Run custom linters (wasm)
-      run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -httprespbodyclose -httpstatuscode -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -slicemakezerolength -sortslice -deferinloop -regexpdynamicpattern -generatedyamlheredoc -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
+      run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-errstringmatch -panicinlibrarycode -manualmutexunlock -osexitinlibrary -rawloginlib -logfatallibrary -regexpcompileinfunction -fprintlnsprintf -strconvparseignorederror -jsonmarshalignoredeerror -uncheckedtypeassertion -fmterrorfnoverbs -tolowerequalfold -httpnoctx -httprespbodyclose -httpstatuscode -timeafterleak -errortypeassertion -execcommandwithoutcontext -sprintfint -stringsindexcontains -stringscountcontains -bytesbufferstring -ioutildeprecated -mapclearloop -mapdeletecheck -sprintfbool -appendoneelement -timenowsub -stringsjoinone -writebytestring -lenstringsplit -stringreplaceminusone -osgetenvlibrary -ossetenvlibrary -stringsindexhasprefix -contextcancelnotdeferred -ctxbackground -wgdonenotdeferred -goroutinemissingrecover -trimleftright -walkfuncerrshadow -uncheckedflushreturn -bytescomparestring -nilctxpassed -stringbytesroundtrip -fileclosenotdeferred -timesleepnocontext -sprintferrorsnew -globwalkignorederror -appendbytestring -slicemakezerolength -sortslice -deferinloop -regexpdynamicpattern -generatedyamlheredoc -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
 
     - name: Check console stderr formatting (wasm)
       run: GOOS=js GOARCH=wasm make golint-custom LINTER_FLAGS="-consolestderr -test=false" LINTER_PACKAGES="./pkg/console ./pkg/parser ./pkg/styles ./pkg/tty ./pkg/workflow"
@@ -1790,6 +1832,7 @@ jobs:
         - group: Workflow-Core
           tests: >-
             FuzzExpressionParser:./pkg/workflow/
+            FuzzBashCommandParserModel:./pkg/workflow/
             FuzzMentionsFiltering:./pkg/workflow/
             FuzzSanitizeOutput:./pkg/workflow/
             FuzzSanitizeIncomingText:./pkg/workflow/
@@ -2856,6 +2899,7 @@ jobs:
     - test
     - canary-go
     - impacted-go-tests
+    - native-javascript-tests
     - build
     - build-wasm
     - validate-yaml

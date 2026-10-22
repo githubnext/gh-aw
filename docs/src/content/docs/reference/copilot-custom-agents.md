@@ -90,7 +90,7 @@ imports:
 
 # Security Review
 
-Perform comprehensive security review of this pull request.
+Review the changed code in this pull request for potential security issues.
 ```
 
 ## Combining Copilot Agent Files with Other Imports
@@ -126,5 +126,5 @@ Instead of (or alongside) importing agent files from `.github/agents/`, you can 
 
 - [Imports Reference](/gh-aw/reference/imports/) - Complete import system documentation
 - [Inline Sub-Agents](/gh-aw/reference/inline-sub-agents/) - Defining Copilot sub-agents inside a workflow file
-- [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) - Adding workflows from other repositories
+- [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) - Adding workflows from other repositories
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference

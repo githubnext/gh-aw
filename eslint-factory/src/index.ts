@@ -11,6 +11,7 @@ import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { preferGetErrorMessageOverStringRule } from "./rules/prefer-get-error-message-over-string";
 import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
+import { noMapParseIntCallbackRule } from "./rules/no-map-parseint-callback";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
 import { requireFsCloseSyncRule } from "./rules/require-fs-close-sync";
@@ -66,6 +67,7 @@ import { noSingleCharStringReplaceRule } from "./rules/no-single-char-string-rep
 import { noAsyncForEachCallbackRule } from "./rules/no-async-foreach-callback";
 import { noUnguardedAsyncTimerCallbackRule } from "./rules/no-unguarded-async-timer-callback";
 import { requireFiniteCheckBeforeDateToIsoStringRule } from "./rules/require-finite-check-before-date-toisostring";
+import { noSplitFilterTrimWithoutTrimMapRule } from "./rules/no-split-filter-trim-without-trim-map";
 
 const plugin = {
   meta: {
@@ -86,6 +88,7 @@ const plugin = {
     "prefer-get-error-message": preferGetErrorMessageRule,
     "prefer-get-error-message-over-string": preferGetErrorMessageOverStringRule,
     "prefer-number-isnan": preferNumberIsNanRule,
+    "no-map-parseint-callback": noMapParseIntCallbackRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
     "require-fs-close-sync": requireFsCloseSyncRule,
@@ -139,6 +142,7 @@ const plugin = {
     "no-single-char-string-replace": noSingleCharStringReplaceRule,
     "no-unguarded-async-timer-callback": noUnguardedAsyncTimerCallbackRule,
     "no-async-foreach-callback": noAsyncForEachCallbackRule,
+    "no-split-filter-trim-without-trim-map": noSplitFilterTrimWithoutTrimMapRule,
     "require-finite-check-before-date-toisostring": requireFiniteCheckBeforeDateToIsoStringRule,
   },
 };

@@ -140,7 +140,7 @@ These settings apply to the built-in Copilot, Claude, and Codex harnesses.
 
 `GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS` configures the post-result stdio inactivity watchdog used by the built-in Copilot, Claude, and Codex harnesses. It is measured in **milliseconds**. The default is `120000` ms (2 minutes), the minimum is `50` ms, and the maximum is `600000` ms (10 minutes). Unset, non-numeric, zero, and negative values use the default; positive values outside the supported range are clamped.
 
-The watchdog is dormant until the agent emits a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal. Diagnostic safe outputs such as `missing_tool`, `missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog by themselves.
+The watchdog is dormant until the agent emits a terminal safe output. `noop` and ordinary task outputs such as comments, labels, pushes, and pull request creation are terminal. Diagnostic safe outputs such as `report_missing_tool`, `report_missing_data`, and `report_incomplete` are not terminal and do not arm the watchdog by themselves.
 
 After the watchdog arms, any stdout or stderr activity resets the inactivity clock. A quiet child process can therefore be terminated even while it is doing useful CPU or I/O work, such as a monorepo scan, build, or test command that produces no logs. If the watchdog fires after a terminal safe output already exists, the harness may still treat the run as successful because the requested safe output was already produced.
 
@@ -186,7 +186,7 @@ The warning repeats on each interval while the silence continues, and a `stall w
 | `GH_AW_CLAUDE_ALLOW_FRESH_RESTART` | Claude harness | `false` | exact string `true` enables | Opts replay-safe workflows into restarting from the original prompt after partial execution cannot be resumed. Filesystem changes and staged outputs are retained, so work may be repeated. |
 | `CLAUDE_CODE_MAX_RETRIES` | Claude CLI | `0` for primary/evals execution | retry attempts | Native CLI transient-error retries. gh-aw disables these by default because its harness owns the retry loop. Explicit `engine.env` values override this setting; external detection retains the CLI default. |
 
-Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
+Copilot SDK driver settings such as `COPILOT_SDK_SEND_TIMEOUT_MS` are documented in [Copilot SDK Support](/gh-aw/reference/engines/copilot/#copilot-sdk-support) and the [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/).
 
 ### Internal runtime variables
 
@@ -314,7 +314,10 @@ these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
 | `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
-| `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+
+For both inline and external detection, an explicit `safe-outputs.threat-detection.engine.model` takes precedence over the inherited workflow model. If neither is configured, a compile-time `GH_AW_DEFAULT_DETECTION_MODEL` override takes precedence; otherwise detection uses `vars.GH_AW_MODEL_DETECTION_<ENGINE>`, then `vars.GH_AW_DEFAULT_MODEL_<ENGINE>`, then the engine's built-in detection default. These variables use the resolved detection engine, which can differ from the main workflow engine.
+
+Claude and Codex have no engine-specific detection default, so their fallback is the firewall's `detection` alias. Copilot's built-in detection fallback is cost-optimized (currently a mini model). The `detection` alias is resolved by the firewall at runtime and is not a pinned model. Use an explicit detection model or a model override variable to select a specific model. This does not change the [threat detection failure policy](/gh-aw/reference/threat-detection/).
 
 Set a model override as an organization variable:
 

@@ -27,7 +27,6 @@ engine:
     - openai/gpt-5.4
     - openai/gpt-5.4-mini
 imports:
-  - shared/gh.md
   - shared/reporting-otlp.md
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
@@ -42,6 +41,7 @@ network:
     - playwright
   hosted-web:
     allowed:
+      - github.com
       - microsoft.com
       - learn.microsoft.com
 tools:
@@ -50,7 +50,8 @@ tools:
   comment-memory: true
   web-search:
   github:
-    mode: gh-proxy
+    mode: local
+    toolsets: [repos, pull_requests]
   playwright:
   edit:
   bash:
@@ -58,7 +59,7 @@ tools:
   web-fetch:
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     add-comment:
@@ -101,6 +102,21 @@ features:
 sandbox:
   agent:
     id: awf
+post-steps:
+  - name: Assert unified-session contract
+    if: always()
+    uses: actions/github-script@v9.0.0
+    with:
+      script: |
+        const path = require("node:path");
+        const { sessionContractMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
+        await sessionContractMain({
+          core,
+          engine: "codex",
+          expectModelInventory: true,
+          copilotInventory: false,
+          resolutionRoles: [],
+        });
 ---
 
 # Smoke Test: Codex Engine Validation
@@ -112,7 +128,7 @@ sandbox:
    - Use the Serena MCP server tool `activate_project` to initialize the workspace at `${{ github.workspace }}` and verify it succeeds (do NOT use bash to run go commands)
    - After initialization, use the `find_symbol` tool to search for symbols and verify that at least 3 symbols are found in the results
 3. **Playwright CLI Testing**: Run `playwright-cli open https://github.com`, then run `playwright-cli snapshot` and verify the page title contains "GitHub".
-4. **Web Fetch Testing**: Use the web-fetch MCP tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch MCP tool directly)
+4. **Web Fetch Testing**: Use Codex's native web-fetch tool to fetch https://github.com and verify the response contains "GitHub" (do NOT use bash or playwright for this test - use the web-fetch tool directly)
 5. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-codex-${{ github.run_id }}.txt` with content "Smoke test passed for Codex at $(date)" (create the directory if it doesn't exist)
 6. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 7. **Build gh-aw**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project (both caches must be set under `/tmp/gh-aw/agent` because the default cache locations are not writable). If the command fails, mark this test as ❌ and report the failure.

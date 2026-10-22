@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "⚡"
-description: "Smoke test for MAI-Code-1-Flash (mai-code-1-flash-picker) — pricing: $0.75/M input, $0.075/M cached, $4.50/M output"
+description: "Smoke test for MAI-Code-1.1-Flash (mai-code-1.1-flash) — pricing: $0.20/M input, $0.02/M cached, $1.20/M output"
 on:
   schedule: every 2 days
   slash_command:
@@ -20,7 +20,7 @@ permissions:
   issues: read
   pull-requests: read
 name: Smoke Copilot MAI
-model: mai-code-1-flash-picker
+model: mai-code-1.1-flash
 engine:
   id: copilot
   bare: true
@@ -58,7 +58,7 @@ sandbox:
     id: awf
 ---
 
-# Smoke Test: MAI-Code-1-Flash Commit Summary
+# Smoke Test: MAI-Code-1.1-Flash Commit Summary
 
 ## Task
 
@@ -77,7 +77,7 @@ Retrieve and summarize commit messages from the last 24h in `${{ github.reposito
 
 ## Output
 
-**Create an issue** titled **"Smoke Test: MAI-Code-1-Flash - ${{ github.run_id }}"** with:
+**Create an issue** titled **"Smoke Test: MAI-Code-1.1-Flash - ${{ github.run_id }}"** with:
 - The commit list (or "No commits in the last 24h" if empty)
 - The summary
 - ✅ or ❌ for the bash tool test

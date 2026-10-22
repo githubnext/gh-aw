@@ -1973,10 +1973,13 @@ features:
   # (optional)
   dangerously-allow-roles-read-and-pull-request-target: true
 
-# Model policy and optional pricing configuration. The policy fields
-# (allowed/blocked) are experimental and merged as unions across imports. The
-# providers field is optional and supplies pricing data merged by provider/model
-# key.
+# Model policy, optional pricing configuration, and workflow-defined model
+# aliases. The policy fields (allowed/blocked) are experimental and merged as
+# unions across imports. The providers field is optional and supplies pricing data
+# merged by provider/model key. Any other key defines a model alias: an ordered
+# list of model identifiers, glob patterns (for example copilot/*opus*), or other
+# alias names. Aliases are resolved at runtime against the live model catalog; the
+# main workflow's aliases override imported and built-in aliases.
 # (optional)
 models:
   # Experimental allowlist of model names/patterns. Mapped to AWF
@@ -2741,8 +2744,10 @@ engine:
     # these profiles per task.
     mode: "economy"
 
-    # Optional exact Copilot model names that narrow the router's choice for the main
-    # agent only. This is not a request policy; put patterns such as gpt-* in
+    # Optional exact Copilot model names or gh-aw model aliases (such as small or
+    # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+    # to their GitHub Copilot model patterns, limited to the engine's model family for
+    # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
     # models.allowed or models.blocked. When omitted, the router chooses from the
     # models that policy allows (Claude and Codex only from their own model family).
     # Among workflows that enable routing for the same engine, if any omits
@@ -5434,6 +5439,9 @@ safe-outputs:
 
   # Format 2: Enable issue creation with default configuration
   create-issue: null
+
+  # Format 3: Disable issue creation, including the automatically injected tool and
+  # prompt
 
   # Enable creation of GitHub Copilot coding agent tasks from workflow output.
   # Allows workflows to spawn new agent sessions for follow-up work.
@@ -10259,6 +10267,12 @@ safe-outputs:
     # Format 2: object
     samples:
       {}
+
+    # Allow potentially unbounded history downloads to recover missing local git
+    # bundle prerequisites. Disabled by default. Prefer provisioning objects during
+    # authenticated checkout.
+    # (optional)
+    allow-full-history-fetch: true
 
     # When true, adds workflows: write to the GitHub App token permissions. Required
     # when allowed-files targets .github/workflows/ paths. Requires
@@ -17307,6 +17321,18 @@ safe-outputs:
     # format per caller.
     patch-format: "example-value"
 
+    # Allow potentially unbounded history downloads to recover missing local git
+    # bundle prerequisites. Disabled by default. Does not enable object downloads for
+    # optional validation baselines.
+    # (optional)
+    allow-full-history-fetch: true
+
+    # Allow bounded REST comparison discovery of older merged base ancestors for
+    # unsigned bundle size validation. Disabled by default; the exact pinned base tip
+    # remains recognized.
+    # (optional)
+    allow-merged-base-baseline: true
+
     # When true, adds workflows: write to the GitHub App token permissions. Required
     # when allowed-files targets .github/workflows/ paths. Requires
     # safe-outputs.github-app to be configured because the workflows permission is a
@@ -19317,7 +19343,7 @@ safe-outputs:
   # Accepted formats:
 
   # Format 1: Configuration for reporting missing tools from agentic workflow output
-  missing-tool:
+  report-missing-tool:
     # Maximum number of missing tool reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19584,11 +19610,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing tool reporting with default configuration
-  missing-tool: null
+  report-missing-tool: null
 
   # Format 3: Explicitly disable missing tool reporting (false). Missing tool
   # reporting is enabled by default when safe-outputs is configured.
-  missing-tool: true
+  report-missing-tool: true
 
   # Enable AI agents to report when required data or context is missing. Used for
   # workflow troubleshooting and data validation.
@@ -19598,7 +19624,7 @@ safe-outputs:
   # Format 1: Configuration for reporting missing data required to achieve workflow
   # goals. Encourages AI agents to be truthful about data gaps instead of
   # hallucinating information.
-  missing-data:
+  report-missing-data:
     # Maximum number of missing data reports (default: unlimited) Supports integer or
     # GitHub Actions expression (e.g. '${{ inputs.max }}').
     # (optional)
@@ -19865,11 +19891,11 @@ safe-outputs:
         workflows: "read"
 
   # Format 2: Enable missing data reporting with default configuration
-  missing-data: null
+  report-missing-data: null
 
   # Format 3: Explicitly disable missing data reporting (false). Missing data
   # reporting is enabled by default when safe-outputs is configured.
-  missing-data: true
+  report-missing-data: true
 
   # Enable AI agents to explicitly indicate no action is needed. Used for workflow
   # control flow and conditional logic.
@@ -21348,8 +21374,10 @@ safe-outputs:
         # these profiles per task.
         mode: "economy"
 
-        # Optional exact Copilot model names that narrow the router's choice for the main
-        # agent only. This is not a request policy; put patterns such as gpt-* in
+        # Optional exact Copilot model names or gh-aw model aliases (such as small or
+        # sonnet) that narrow the router's choice for the main agent only. Aliases expand
+        # to their GitHub Copilot model patterns, limited to the engine's model family for
+        # Claude and Codex. This is not a request policy; put patterns such as gpt-* in
         # models.allowed or models.blocked. When omitted, the router chooses from the
         # models that policy allows (Claude and Codex only from their own model family).
         # Among workflows that enable routing for the same engine, if any omits
@@ -22220,6 +22248,18 @@ safe-outputs:
     # GitHub Actions environment override for the detection job.
     # (optional)
     environment: "example-value"
+
+    # Absolute host path to an additional CA certificate for the detection job's API
+    # proxy upstream TLS verification. Defaults to sandbox.agent.ca-cert when unset or
+    # empty and the detection engine matches the agent engine; set to false to disable
+    # inheritance. The file must exist on the detection runner before engine
+    # execution; use threat-detection.steps to create it. Requires AWF v0.28.10 or
+    # later.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: string
+    ca-cert: "example-value"
 
     # Optional HTTPS base URL for a mirror of pinned threat-detect release assets. The
     # compiler appends the pinned release tag and asset name; compiler-supplied
@@ -23430,8 +23470,6 @@ safe-outputs:
 secret-masking:
   # Additional secret redaction steps to inject after the built-in secret redaction.
   # Use this to mask secrets in generated files using custom patterns.
-  # Redaction-gated uploads require every masking step to succeed. A failed or
-  # skipped step blocks those uploads, even with continue-on-error: true.
   # (optional)
   steps: []
 
@@ -24476,9 +24514,9 @@ import-schema:
 # (optional)
 model: "example-value"
 
-# ⚠️ Experimental. Deterministic graders for workflow-run observations. Built-in
-# graders use execution artifacts, custom graders use inline JavaScript, and the
-# operational-value grader uses either inline Bash or a repository Bash evaluator.
+# Graders over the unified session. Fast built-ins run in conclusion; custom
+# JavaScript and operational-value.run Bash evaluators run only in the separate
+# graders job.
 # (optional)
 graders:
   {}

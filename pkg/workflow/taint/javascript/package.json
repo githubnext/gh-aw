@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Explicit optional native TypeScript AST dependency for JavaScript taint analysis",
+  "dependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260707.2"
+  }
+}

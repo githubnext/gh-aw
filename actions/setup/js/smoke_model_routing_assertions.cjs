@@ -48,6 +48,30 @@ const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
  *   `ai_credits_limit_exceeded` routing failure, and agent execution
  *   succeeded; T4 every other check passed
  *
+ * - U1–U3 unified-session contract. `main` runs them only when the smoke opts
+ *   in; `sessionContractMain` always runs E2 and U1–U3 alone for unrouted
+ *   smokes. Session-contract fields:
+ *   - `expectModelInventory: true` opts in and enables U2
+ *   - `copilotInventory: true` opts in, enables U2 and also requires a
+ *     configured `copilot` endpoint with models
+ *   - `resolutionRoles` (any array, including `[]`) opts in and lists the
+ *     roles U3 requires; `[]` requires none
+ *   `false` or omitted booleans and an omitted `resolutionRoles` do not opt
+ *   in, so a smoke that sets only `false` values runs no U checks in `main`.
+ *   U1 no `session.collection_warning` events; U2 exactly one
+ *   agent-phase `model.inventory`, and with `copilotInventory` its `copilot`
+ *   endpoint is configured with a non-empty model list (when
+ *   `expectModelInventory` or `copilotInventory` is true; otherwise an info
+ *   line reports that U2 was not evaluated); U3 every role in `resolutionRoles` has
+ *   exactly one `model.resolution` with status exact or resolved and a
+ *   resolved model. U1–U3 are not evaluated when the session file is missing.
+ *   - `requiredSubAgents` (array of names) opts in and enables U4: each named
+ *     sub-agent has at least one `subagent.started`, every started invocation
+ *     has a `subagent.completed`, no `subagent.failed` is recorded for it, and
+ *     its events record a model that is not an unresolved `${{ ... }}`
+ *     expression or `__GH_AW_*__` placeholder. A sub-agent that never started
+ *     fails U4. Lifecycle events are correlated as in S1/S2.
+ *
  * Every check that iterates over requests fails when there are none to check.
  *
  * Threat-detection checks (`detectionMain`, run from
@@ -78,11 +102,18 @@ const AI_CREDITS_HARD_CAP = 10000;
 const AI_CREDITS_LIMIT_CODE = "ai_credits_limit_exceeded";
 const CREDIT_EPSILON = 1e-6;
 const ROUTING_PROFILES = ["economy", "balanced", "robust"];
+const RESOLVED_STATUSES = ["exact", "resolved"];
 
 /**
  * @typedef {{ name: string, model: string, endpoint: string | string[] }} SubAgentExpectation
  * @typedef {{ maxAiCredits: number }} SteeringExpectation
  * @typedef {{
+ *   expectModelInventory?: boolean,
+ *   copilotInventory?: boolean,
+ *   resolutionRoles?: string[],
+ *   requiredSubAgents?: string[],
+ * }} SessionContractExpectations
+ * @typedef {SessionContractExpectations & {
  *   allowedModels: string[],
  *   mainEndpoint?: string,
  *   routingMode?: string,
@@ -225,6 +256,37 @@ function supportedEfforts(model, reflect) {
   return efforts;
 }
 
+/** @param {any} event @returns {string} */
+function invocationKey(event) {
+  return idString(event?.data?.invocationId ?? event?.agentId ?? event?.data?.toolCallId);
+}
+
+/**
+ * Lifecycle events for one declared sub-agent: its `subagent.started` events
+ * (by agent name) and every `subagent.*` event correlated to them by
+ * invocation or agent ID (or tool call ID when no agent ID is recorded).
+ * @param {any[]} subagentEvents - All `subagent.*` events in the session.
+ * @param {string} name - Declared sub-agent name.
+ * @returns {{ started: any[], ids: Set<string>, activity: any[] }}
+ */
+function subAgentLifecycle(subagentEvents, name) {
+  const started = subagentEvents.filter(event => event.type === "subagent.started" && event.data?.agentName === name);
+  const ids = new Set(started.map(event => idString(event.data?.invocationId ?? event.agentId)).filter(Boolean));
+  const toolCallIds = new Set(
+    started
+      .filter(event => !idString(event.data?.invocationId ?? event.agentId))
+      .map(event => idString(event.data?.toolCallId))
+      .filter(Boolean)
+  );
+  const activity = subagentEvents.filter(event => ids.has(idString(event.data?.invocationId)) || ids.has(idString(event.agentId)) || toolCallIds.has(idString(event.data?.toolCallId)));
+  return { started, ids, activity };
+}
+
+/** @param {any[]} events @returns {any[]} */
+function subagentLifecycleEvents(events) {
+  return events.filter(event => typeof event?.type === "string" && event.type.startsWith("subagent."));
+}
+
 /**
  * Evaluate model-routing evidence against the smoke expectations.
  * @param {{ events: any[], requests: any[], reflect?: any, expectations: RoutingExpectations }} input
@@ -296,7 +358,7 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
   // agent made it.
   const agentTraffic = requests.filter(request => !isClassifierRequest(request));
 
-  const subagentEvents = events.filter(event => typeof event?.type === "string" && event.type.startsWith("subagent."));
+  const subagentEvents = subagentLifecycleEvents(events);
   const startedEvents = subagentEvents.filter(event => event.type === "subagent.started");
   const observedNames = [...new Set(startedEvents.map(event => event.data?.agentName ?? "<none>"))];
 
@@ -304,9 +366,7 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
   // (request IDs on sub-agent events, or sub-agent IDs on proxy records), and
   // fall back to the declared model.
   const subAgentEvidence = subAgents.map(agent => {
-    const started = startedEvents.filter(event => event.data?.agentName === agent.name);
-    const ids = new Set(started.map(event => idString(event.data?.invocationId ?? event.agentId)).filter(Boolean));
-    const activity = subagentEvents.filter(event => ids.has(idString(event.data?.invocationId)) || ids.has(idString(event.agentId)));
+    const { started, ids, activity } = subAgentLifecycle(subagentEvents, agent.name);
     const eventRequestIds = new Set(activity.map(eventRequestId).filter(Boolean));
     const correlated = agentTraffic.filter(request => eventRequestIds.has(requestId(request)) || ids.has(requestAgentId(request)));
     return { agent, model: servedModel(agent.model), started, activity, correlated };
@@ -556,13 +616,143 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
 }
 
 /**
+ * Whether the smoke opted in to the unified-session contract: a `true`
+ * inventory flag or an explicit `resolutionRoles` array. `false` does not opt in.
+ * @param {SessionContractExpectations} expectations
+ * @returns {boolean}
+ */
+function hasSessionContract(expectations) {
+  return expectations.expectModelInventory === true || expectations.copilotInventory === true || Array.isArray(expectations.resolutionRoles) || Array.isArray(expectations.requiredSubAgents);
+}
+
+/** @param {any} inventory @returns {string} */
+function describeInventoryEndpoints(inventory) {
+  const endpoints = Array.isArray(inventory?.data?.endpoints) ? inventory.data.endpoints : [];
+  if (!endpoints.length) return "none";
+  return endpoints.map(endpoint => `${endpoint?.provider ?? "<no provider>"} configured=${endpoint?.configured} models=${Array.isArray(endpoint?.models) ? endpoint.models.length : "<none>"}`).join(", ");
+}
+
+/** @param {any[]} resolutions @returns {string} */
+function describeResolutions(resolutions) {
+  if (!resolutions.length) return "none";
+  return resolutions.map(event => `${event.data?.role ?? "<no role>"}: ${event.data?.configured_model ?? "<none>"} -> ${event.data?.resolved_model || "<none>"} (${event.data?.status ?? "<no status>"})`).join(", ");
+}
+
+/**
+ * Evaluate the unified-session contract (U1–U3). Every expectation is explicit
+ * per smoke; nothing is inferred from sub-agent declarations.
+ * @param {{ events: any[], expectations: SessionContractExpectations }} input
+ * @returns {RoutingAssertionResults}
+ */
+function evaluateSessionContract({ events, expectations }) {
+  /** @type {RoutingAssertionResults} */
+  const results = { passes: [], failures: [], info: [] };
+  /** @param {string} id @param {string} message */
+  const pass = (id, message) => results.passes.push(`PASS ${id} ${message}`);
+  /** @param {string} id @param {string} message */
+  const fail = (id, message) => results.failures.push(`FAIL ${id} ${message}`);
+
+  // U1: the collector reported no data it had to drop.
+  const warnings = events.filter(event => event?.type === "session.collection_warning");
+  if (warnings.length) {
+    const groups = new Map();
+    for (const event of warnings) {
+      const code = event.data?.code ?? "<no code>";
+      const source = event.data?.path ?? "<no path>";
+      const key = JSON.stringify([code, source]);
+      const group = groups.get(key) ?? { code, source, count: 0, line: undefined };
+      group.count++;
+      group.line ??= event.data?.line;
+      groups.set(key, group);
+    }
+    const observed = [...groups.values()].map(group => `${group.code} in ${group.source} (${group.count} occurrence(s)${group.line === undefined ? "" : `, example line ${group.line}`})`);
+    fail("U1", `${warnings.length} session.collection_warning event(s): ${observed.join(", ")}`);
+  } else pass("U1", "no session.collection_warning events");
+
+  // U2: exactly one agent-phase model inventory (the collector can also add
+  // detection-phase inventories and one per candidate group).
+  if (expectations.expectModelInventory || expectations.copilotInventory) {
+    const inventories = events.filter(event => event?.type === "model.inventory");
+    const agentInventories = inventories.filter(event => event.provenance?.phase === "agent");
+    const observed = inventories.map(event => `${event.provenance?.phase ?? "<no phase>"} ${event.provenance?.path ?? "<no path>"}`).join(", ") || "none";
+    if (agentInventories.length !== 1) {
+      fail("U2", `expected exactly 1 agent-phase model.inventory, observed ${agentInventories.length}; model.inventory events: ${observed}`);
+    } else {
+      const inventory = agentInventories[0];
+      const source = inventory.provenance?.path ?? "<no path>";
+      const copilot = (Array.isArray(inventory.data?.endpoints) ? inventory.data.endpoints : []).find(endpoint => endpoint?.provider === "copilot");
+      const copilotModels = Array.isArray(copilot?.models) ? copilot.models.length : 0;
+      if (expectations.copilotInventory && (copilot?.configured !== true || !copilotModels)) {
+        fail("U2", `agent-phase model.inventory from ${source} has no configured copilot endpoint with models; observed endpoints: ${describeInventoryEndpoints(inventory)}`);
+      } else {
+        pass("U2", `one agent-phase model.inventory from ${source}${expectations.copilotInventory ? `; copilot endpoint configured with ${copilotModels} model(s)` : ""}`);
+      }
+    }
+  } else (results.info ??= []).push("U2 not evaluated: neither expectModelInventory nor copilotInventory is true");
+
+  // U3: each required role recorded exactly one successful model resolution.
+  const roles = expectations.resolutionRoles ?? [];
+  const resolutions = events.filter(event => event?.type === "model.resolution");
+  const u3Problems = [];
+  for (const role of roles) {
+    const forRole = resolutions.filter(event => event.data?.role === role);
+    if (!forRole.length) {
+      u3Problems.push(`no model.resolution for role ${role}`);
+      continue;
+    }
+    if (forRole.length > 1) {
+      u3Problems.push(`expected exactly 1 model.resolution for role ${role}, observed ${forRole.length}`);
+      continue;
+    }
+    const data = forRole[0].data ?? {};
+    if (!RESOLVED_STATUSES.includes(data.status)) u3Problems.push(`role ${role} status is ${data.status ?? "<none>"}${data.cause ? ` (cause ${data.cause})` : ""}, expected exact or resolved`);
+    else if (data.resolved_model === null || data.resolved_model === undefined || data.resolved_model === "") u3Problems.push(`role ${role} has no resolved_model`);
+  }
+  if (u3Problems.length) fail("U3", `${u3Problems.join("; ")}; observed model.resolution: ${describeResolutions(resolutions)}`);
+  else if (roles.length) pass("U3", `model.resolution recorded for ${describeResolutions(resolutions.filter(event => roles.includes(event.data?.role)))}`);
+  else pass("U3", `no model.resolution roles required; observed model.resolution: ${describeResolutions(resolutions)}`);
+
+  // U4: each required sub-agent was invoked, every invocation completed, none
+  // failed, and its recorded model is not an unresolved expression or placeholder.
+  const subagentEvents = subagentLifecycleEvents(events);
+  for (const name of expectations.requiredSubAgents ?? []) {
+    const label = `sub-agent ${name}`;
+    const { started, activity } = subAgentLifecycle(subagentEvents, name);
+    const failed = subagentEvents.filter(event => event.type === "subagent.failed" && (activity.includes(event) || event.data?.agentName === name));
+    const completedKeys = new Set(activity.filter(event => event.type === "subagent.completed" && event.data?.cancelled !== true).map(invocationKey));
+    const incomplete = started.filter(event => !completedKeys.has(invocationKey(event)));
+    const models = [
+      ...new Set([...activity, ...failed].flatMap(event => [event.data?.model, event.data?.selectedModel, event.data?.resolvedModel, event.data?.firstDispatchedModel]).filter(value => typeof value === "string" && value !== "")),
+    ];
+    const unresolved = models.filter(model => /\$\{\{|__GH_AW_/.test(model));
+    const u4Problems = [];
+    if (!started.length) u4Problems.push("never started (no subagent.started)");
+    if (failed.length) u4Problems.push(`${failed.length} subagent.failed event(s)${failed.map(event => (event.data?.error ? `: ${String(event.data.error).slice(0, 200)}` : "")).join("")}`);
+    if (started.length && incomplete.length) u4Problems.push(`${incomplete.length} of ${started.length} invocation(s) have no subagent.completed`);
+    if (started.length && !models.length) u4Problems.push("no model recorded on its lifecycle events");
+    if (unresolved.length) u4Problems.push(`unresolved model expression(s) [${unresolved.join(", ")}]`);
+    if (u4Problems.length) fail("U4", `${label}: ${u4Problems.join("; ")}; observed events: ${describeEvents(started.length ? [...new Set([...activity, ...failed])] : subagentEvents)}`);
+    else pass("U4", `${label} started ${started.length} time(s) and completed on model(s) [${models.join(", ")}]`);
+  }
+
+  return results;
+}
+
+/**
  * @param {string} file
  * @param {string[]} problems
  * @returns {any[]}
  */
 function readJsonl(file, problems) {
   const records = [];
-  for (const event of iterateJsonlEvents(fs.readFileSync(file, "utf8"))) {
+  let content;
+  try {
+    content = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    problems.push(`failed to read ${file}: ${getErrorMessage(error)}`);
+    return records;
+  }
+  for (const event of iterateJsonlEvents(content)) {
     if (event.type === "json") records.push(event.value);
     else if (event.reason !== "blank") problems.push(`${file}:${event.lineNumber} is not valid JSON: ${getErrorMessage(event.error)}`);
   }
@@ -572,10 +762,11 @@ function readJsonl(file, problems) {
 /**
  * Collect evidence from the gh-aw temp directory. Post-steps run before the
  * usage-artifact step writes aw_session.jsonl, so the unified session is built first.
- * @param {{ rootDir?: string, engine?: string, buildSession?: boolean, withRoutingRecords?: boolean }} [options]
- * @returns {{ events: any[], requests: any[], routingRecords: any[], reflect: any, problems: string[] }}
+ * With `sessionOnly`, only the unified session is read.
+ * @param {{ rootDir?: string, engine?: string, buildSession?: boolean, withRoutingRecords?: boolean, sessionOnly?: boolean }} [options]
+ * @returns {{ events: any[], requests: any[], routingRecords: any[], reflect: any, problems: string[], sessionFound: boolean }}
  */
-function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true, withRoutingRecords = false } = {}) {
+function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, buildSession = true, withRoutingRecords = false, sessionOnly = false } = {}) {
   /** @type {string[]} */
   const problems = [];
   if (buildSession) {
@@ -589,8 +780,10 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
 
   let events = [];
   const sessionFile = path.join(rootDir, SESSION_PATH);
-  if (fs.existsSync(sessionFile)) events = readJsonl(sessionFile, problems);
+  const sessionFound = fs.existsSync(sessionFile);
+  if (sessionFound) events = readJsonl(sessionFile, problems);
   else problems.push(`missing ${SESSION_PATH}`);
+  if (sessionOnly) return { events, requests: [], routingRecords: [], reflect: null, problems, sessionFound };
 
   let requests = [];
   const tokenFile = TOKEN_USAGE_PATHS.map(file => path.join(rootDir, file)).find(file => fs.existsSync(file));
@@ -615,7 +808,25 @@ function collectModelRoutingEvidence({ rootDir = DEFAULT_ROOT_DIR, engine, build
       problems.push(`${reflectFile} is not valid JSON: ${getErrorMessage(error)}`);
     }
   }
-  return { events, requests, routingRecords, reflect, problems };
+  return { events, requests, routingRecords, reflect, problems, sessionFound };
+}
+
+/**
+ * Append U1–U3 to `results`, or note that they were not evaluated when the
+ * session file is missing (E2 already reports that).
+ * @param {RoutingAssertionResults} results
+ * @param {{ events: any[], sessionFound: boolean }} evidence
+ * @param {SessionContractExpectations} expectations
+ */
+function appendSessionContract(results, evidence, expectations) {
+  if (!evidence.sessionFound) {
+    (results.info ??= []).push(`U1–U3 not evaluated: missing ${SESSION_PATH}`);
+    return;
+  }
+  const contract = evaluateSessionContract({ events: evidence.events, expectations });
+  results.passes.push(...contract.passes);
+  results.failures.push(...contract.failures);
+  (results.info ??= []).push(...(contract.info ?? []));
 }
 
 /**
@@ -629,6 +840,7 @@ function checkModelRoutingEvidence(options) {
   const results = evaluateModelRoutingEvidence({ events: evidence.events, requests: evidence.requests, reflect: evidence.reflect, expectations });
   if (evidence.problems.length) results.failures.unshift(...evidence.problems.map(problem => `FAIL E2 evidence: ${problem}`));
   else results.passes.unshift("PASS E2 evidence: unified session and api-proxy token usage present");
+  if (hasSessionContract(expectations)) appendSessionContract(results, evidence, expectations);
   if (expectations.steering) {
     // T4: the existing checks still pass alongside the steering checks.
     const failedIds = [...new Set(results.failures.map(line => line.split(" ")[1]))];
@@ -647,6 +859,22 @@ function checkModelRoutingEvidence(options) {
 }
 
 /**
+ * @param {any} actionsCore
+ * @param {RoutingAssertionResults} results
+ * @param {string} label
+ */
+function reportResults(actionsCore, results, label) {
+  for (const line of results.info ?? []) actionsCore.info(line);
+  for (const line of results.passes) actionsCore.info(line);
+  for (const line of results.failures) actionsCore.error(line);
+  if (results.failures.length) {
+    actionsCore.setFailed(`${label} smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
+  } else {
+    actionsCore.info(`All ${results.passes.length} ${label.toLowerCase()} smoke assertions passed`);
+  }
+}
+
+/**
  * Post-step entry point: logs every check and fails the step on any failure.
  * @param {RoutingExpectations & { rootDir?: string, engine?: string, buildSession?: boolean, core?: any }} options
  * @returns {Promise<RoutingAssertionResults>}
@@ -654,14 +882,37 @@ function checkModelRoutingEvidence(options) {
 async function main(options) {
   const { core: actionsCore = global.core, ...rest } = options;
   const results = checkModelRoutingEvidence(rest);
-  for (const line of results.info ?? []) actionsCore.info(line);
-  for (const line of results.passes) actionsCore.info(line);
-  for (const line of results.failures) actionsCore.error(line);
-  if (results.failures.length) {
-    actionsCore.setFailed(`Model-routing smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
-  } else {
-    actionsCore.info(`All ${results.passes.length} model-routing smoke assertions passed`);
-  }
+  reportResults(actionsCore, results, "Model-routing");
+  return results;
+}
+
+/**
+ * Collect the unified session and evaluate E2 (session presence) and U1–U3,
+ * without the routing checks.
+ * @param {SessionContractExpectations & { rootDir?: string, engine?: string, buildSession?: boolean }} options
+ * @returns {RoutingAssertionResults}
+ */
+function checkSessionContract(options) {
+  const { rootDir, engine, buildSession, ...expectations } = options;
+  const evidence = collectModelRoutingEvidence({ rootDir, engine, buildSession, sessionOnly: true });
+  /** @type {RoutingAssertionResults} */
+  const results = { passes: [], failures: [], info: [] };
+  if (evidence.problems.length) results.failures.push(...evidence.problems.map(problem => `FAIL E2 evidence: ${problem}`));
+  else results.passes.push("PASS E2 evidence: unified session present");
+  appendSessionContract(results, evidence, expectations);
+  return results;
+}
+
+/**
+ * Post-step entry point for unrouted smokes: logs E2 and U1–U3 and fails the
+ * step on any failure.
+ * @param {SessionContractExpectations & { rootDir?: string, engine?: string, buildSession?: boolean, core?: any }} options
+ * @returns {Promise<RoutingAssertionResults>}
+ */
+async function sessionContractMain(options) {
+  const { core: actionsCore = global.core, ...rest } = options;
+  const results = checkSessionContract(rest);
+  reportResults(actionsCore, results, "Unified-session");
   return results;
 }
 
@@ -845,6 +1096,9 @@ module.exports = {
   collectModelRoutingEvidence,
   checkModelRoutingEvidence,
   main,
+  evaluateSessionContract,
+  checkSessionContract,
+  sessionContractMain,
   evaluateDetectionEvidence,
   collectDetectionEvidence,
   checkDetectionEvidence,

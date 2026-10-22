@@ -33,7 +33,7 @@ const { testSplitOnPipelineOperators, testExtractCommandName, testExtractCommand
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Pipeline operators that should split segments */
-const OPERATORS = ["&&", "||", "|", ";"];
+const OPERATORS = ["&&", "||", "|", "|&", ";", "&"];
 
 /** Commands that should be recognised as safe (typically in the workflow allow-list) */
 const SAFE_COMMANDS = ["ls", "cat", "echo", "grep", "wc", "find", "jq", "printf", "pwd", "date", "head", "tail", "sort", "uniq", "yq", "safeoutputs", "gh", "git"];
@@ -215,7 +215,7 @@ describe("fuzz_bash_command_parser – correctness: extractCommandNamesFromPipel
       desc: "GEO optimizer command 1",
     },
     {
-      input: 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"',
+      input: 'safeoutputs report_missing_data --help 2>/dev/null || echo "unavailable"',
       expected: ["safeoutputs", "echo"],
       desc: "GEO optimizer command 2",
     },

@@ -282,7 +282,9 @@ async function finalizeWorkerResults(options = {}) {
         results[member.handle] = { state: work.barrier === "verified" ? "result" : "delivery_failed", effects: effects ?? "unknown" };
         continue;
       }
-      if (typeof options.verifyEffects !== "function") {
+      // Without a verifier, only an explicit expiry opt-in may settle this barrier.
+      if (typeof options.verifyEffects !== "function" && options.expireUnverified !== true) {
+        log.debug("delivery.verifier.unavailable");
         results[member.handle] = { state: "pending", effects: "unknown", reason: "verification_unavailable" };
         continue;
       }
@@ -292,10 +294,12 @@ async function finalizeWorkerResults(options = {}) {
         validateDeliveryContract(contract);
       } catch {
         contractSupported = false;
+        log.debug("delivery.contract.invalid");
       }
       const policy = latest.projection.policy.pools[assignment.pool].reconciliation;
-      const beforeVerification = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id), expected);
+      const beforeVerification = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id, 1, { sleepFn: configured.sleepFn }), expected);
       if (trustedContext.run_id !== dispatch.run.run_id && !beforeVerification.terminal) {
+        log.debug("delivery.verifier.terminal_evidence_required");
         results[member.handle] = { state: "pending", effects: "unknown", reason: "terminal_evidence_required" };
         continue;
       }
@@ -309,6 +313,19 @@ async function finalizeWorkerResults(options = {}) {
       const verificationStarted = Date.now();
       integer(work.completion_at, 0, Number.MAX_SAFE_INTEGER, "Completion timestamp");
       const remainingDeadline = policy.deadline_ms - Math.max(0, (options.now ?? verificationStarted) - work.completion_at);
+      log.debug("delivery.verifier.budget", {
+        max_attempts: policy.max_attempts,
+        remaining_ms: Math.max(0, remainingDeadline),
+        deadline_expired: remainingDeadline <= 0,
+        contract_supported: contractSupported,
+        verifier_available: typeof options.verifyEffects === "function",
+        terminal_before_verification: beforeVerification.terminal,
+      });
+      // An explicit expiry opt-in still waits for the Completion deadline before closing the barrier.
+      if (typeof options.verifyEffects !== "function" && remainingDeadline > 0) {
+        results[member.handle] = { state: "pending", effects: "unknown", reason: "verification_unavailable" };
+        continue;
+      }
       for (; attempts < policy.max_attempts && Date.now() - verificationStarted < remainingDeadline; attempts++) {
         log.debug("delivery.verifier.attempt", { attempt: attempts + 1 });
         try {
@@ -320,7 +337,14 @@ async function finalizeWorkerResults(options = {}) {
         const trustedDelivery = isTrustedClaimDelivery(verification, assignment, member.handle);
         if (verification?.verified === true && !trustedDelivery) verification = null;
         verified = contractSupported && trustedDelivery && verifiedClaimEffects(verification) ? verification : null;
-        log.debug("delivery.verifier.checked", { trusted: trustedDelivery, verified: !!verified });
+        log.debug("delivery.verifier.checked", {
+          attempt: attempts + 1,
+          response_present: !!verification,
+          trusted: trustedDelivery,
+          verified: !!verified,
+          contract_supported: contractSupported,
+          elapsed_ms: Math.max(0, Date.now() - verificationStarted),
+        });
         if (verified) {
           verifiedSnapshot = snapshotClaimDelivery(verified);
           break;
@@ -354,12 +378,15 @@ async function finalizeWorkerResults(options = {}) {
         results[member.handle] = { state: currentWork.barrier === "verified" ? "result" : "delivery_failed", effects: effects ?? "unknown" };
         continue;
       }
-      const native = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id), expected);
+      const native = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id, 1, { sleepFn: configured.sleepFn }), expected);
       const controls = claimControlReceipts(latest.projection, assignment, member.handle);
       const controlsDigest = digest(controls);
       const verifiedControlsDigest = verifiedSnapshot?.controls_digest;
       const verificationReceipt = typeof verification?.receipt === "string" && verification.receipt.length > 0 ? verification.receipt : undefined;
-      if (typeof verifiedControlsDigest !== "string" || !/^[0-9a-f]{64}$/.test(verifiedControlsDigest) || verifiedControlsDigest !== controlsDigest) verified = null;
+      if (typeof verifiedControlsDigest !== "string" || !/^[0-9a-f]{64}$/.test(verifiedControlsDigest) || verifiedControlsDigest !== controlsDigest) {
+        if (verified) log.debug("delivery.verifier.controls_mismatch", { proof_verified: true, digest_present: typeof verifiedControlsDigest === "string", controls: controls.length });
+        verified = null;
+      }
       const checkedAt = options.now ?? Date.now();
       const base = { repository: expected.repository, workflow: expected.workflow, ref: expected.ref, principal: expected.principal_id, checked_at: checkedAt, run_id: dispatch.run.run_id, run_attempt: 1 };
       if (verified && verifiedSnapshot) {
@@ -384,10 +411,12 @@ async function finalizeWorkerResults(options = {}) {
         if (controls.length && disposition === "none") disposition = "partial";
         if (disposition === "none" && (!verificationReceipt || !beforeVerification.terminal)) disposition = "unknown";
         if (!native.terminal) {
+          log.debug("delivery.settlement.native_run_pending", { attempts, contract_supported: contractSupported });
           results[member.handle] = { state: "pending", effects: disposition, reason: contractSupported ? "terminal_evidence_required" : "effect_contract_invalid" };
           continue;
         }
         if (attempts < policy.max_attempts && checkedAt - work.completion_at < policy.deadline_ms) {
+          log.debug("delivery.settlement.budget_remaining", { attempts, max_attempts: policy.max_attempts });
           results[member.handle] = { state: "pending", effects: disposition, reason: "verification_budget_not_exhausted" };
           continue;
         }
@@ -404,7 +433,19 @@ async function finalizeWorkerResults(options = {}) {
         const operation = { kind: "DeliveryFailure", work_id: member.work_id, claim_id: member.claim_id, completion_id: work.completion_id, reason: "verification_exhausted", disposition, evidence };
         await publishOperations(configured, trustedContext, ["delivery_failure", assignment.dispatch_id, member.handle, work.completion_id], "delivery_failure", [operation]);
         results[member.handle] = { state: "delivery_failed", effects: disposition };
-        log.debug("delivery.failure.persisted", { attempts, unknown_effects: disposition === "unknown" });
+        log.diagnostic(
+          "delivery.failure.persisted",
+          {
+            attempts,
+            max_attempts: policy.max_attempts,
+            deadline_exhausted: checkedAt - work.completion_at >= policy.deadline_ms,
+            contract_supported: contractSupported,
+            receipt_present: !!verificationReceipt,
+            controls: controls.length,
+            unknown_effects: disposition === "unknown",
+          },
+          "Delivery verification exhausted; enable DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery for failed checks. No effects were replayed."
+        );
       }
       latest = await loadQueue(configured);
       if (!["verified", "failed"].includes(latest.projection.claims.get(member.claim_id)?.barrier ?? latest.projection.works.get(member.work_id)?.barrier)) throw new Error("work_queue_result_not_durable");

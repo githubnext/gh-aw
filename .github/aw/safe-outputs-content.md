@@ -88,6 +88,15 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
 - `create-issue:` - Safe GitHub issue creation (bugs, features)
 
+  When no `safe-outputs:` section is present (or only system types — `noop`,
+  `report-missing-tool`, `report-missing-data` — are configured), `create-issue` is
+  auto-injected with conservative defaults (`max: 1`, labels/title-prefix from
+  the workflow ID). Set `create-issue: false` to disable the auto-injected tool
+  and its reporting instruction while leaving system outputs enabled; only the
+  literal `false` is accepted (schema-validated), and disablement is sticky
+  across imports — an imported `false` stays disabled unless the top-level
+  config sets an object or `null`.
+
   ```yaml
   safe-outputs:
     create-issue:

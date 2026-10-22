@@ -33,6 +33,11 @@ var policySchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	return compiler.Compile("QueuePolicy.json")
 })
 
+// ValidReason reports whether reason is a bounded sanitized queue reason code.
+func ValidReason(reason string) bool {
+	return reasonPattern.MatchString(reason)
+}
+
 func DefaultPolicy(principal, repository string) Policy {
 	return Policy{
 		Mode: "weighted-priority", ClassWeights: []int{8, 4, 2, 1, 1},
@@ -64,6 +69,10 @@ func DefaultPolicy(principal, repository string) Policy {
 // ValidatePolicy checks the closed contract and semantic limits, not caller
 // authentication or approval of the configured worker identities.
 func ValidatePolicy(policy Policy) error {
+	return validatePolicyForHost(policy, "")
+}
+
+func validatePolicyForHost(policy Policy, host string) error {
 	data, err := canonicalValue(policy)
 	if err != nil {
 		return queueError("policy_invalid", "policy is not canonical: %v", err)
@@ -82,17 +91,21 @@ func ValidatePolicy(policy Policy) error {
 	if err := validateContractIdentityBytes("QueuePolicy", value); err != nil {
 		return queueError("policy_invalid", "%v", err)
 	}
-	return validatePolicy(policy)
+	return validatePolicyWithHost(policy, host)
 }
 
 func validatePolicy(policy Policy) error {
+	return validatePolicyWithHost(policy, "")
+}
+
+func validatePolicyWithHost(policy Policy, host string) error {
 	if policy.Authorization != "" && policy.Authorization != "aw" {
 		return queueError("policy_invalid", "authorization must be aw or absent for historical policies")
 	}
 	if policy.Authorization == "aw" && len(policy.Producers) != 0 {
 		return queueError("policy_invalid", "AW-managed authorization does not use producer entitlements")
 	}
-	if err := validateProjectors(policy); err != nil {
+	if err := validateProjectors(policy, host); err != nil {
 		return err
 	}
 	if policy.Mode != "weighted-priority" && policy.Mode != "strict-priority" {
@@ -296,7 +309,7 @@ func validateRequest(commit QueueCommit) error {
 		}
 		if len(reason.Reason) > 0 {
 			var code string
-			if err := json.Unmarshal(reason.Reason, &code); err != nil || !reasonPattern.MatchString(code) {
+			if err := json.Unmarshal(reason.Reason, &code); err != nil || !ValidReason(code) {
 				return queueError("reason_invalid", "reason must be a bounded sanitized code")
 			}
 		}

@@ -60,6 +60,11 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 			constants.TmpGhAwDirSlash+"agent/model-endpoint-mismatch.json",
 		)
 	}
+	if engineRunsSharedModelResolution(engine.GetID()) {
+		// Configured and resolved model recorded by the shared "resolve configured model"
+		// step in resolve_model_alias.cjs; unified_session.cjs projects it into aw_session.jsonl.
+		paths = append(paths, constants.TmpGhAwDirSlash+modelResolutionRecordPath)
+	}
 
 	// Collect agent stdio logs path for unified upload
 	paths = append(paths, logFileFull)
@@ -78,11 +83,6 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 	if isOTLPEnabled(data) {
 		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtelJsonlFilename.String())
 		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtlpExportErrorsFilename.String())
-	}
-
-	// Collect grader manifest and results when graders are configured.
-	if data.Graders != nil && data.Graders.HasGraders() {
-		paths = append(paths, collectGraderArtifactPaths(data.Graders)...)
 	}
 
 	// Collect safe outputs and agent output paths for the unified artifact.
@@ -234,14 +234,6 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Emit all GITHUB_STEP_SUMMARY log-parsing steps.
 	c.generateSummarySteps(yaml, data, engine)
 
-	// Run deterministic graders after trace data is available.
-	c.generateGradersStep(yaml, data)
-
-	// Re-scan grader output files for leaked secrets when custom grader scripts
-	// are present. Custom scripts evaluate trace data that may contain
-	// credential-bearing strings written after the initial workspace redaction.
-	c.generateGraderRedactionStep(yaml, yaml.String(), data)
-
 	// Write a minimal agent_output.json placeholder when the engine fails before
 	// producing any safe outputs, so downstream safe_outputs and conclusion jobs
 	// receive a valid (empty) JSON file instead of an ENOENT error.
@@ -311,7 +303,7 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	agentArtifactPrefix := artifactPrefixExprForDownstreamJob(data)
 	compilerYamlLog.Printf("Emitting unified agent artifact upload with %d path(s)", len(artifactPaths))
 	c.generateAgentOutputFallbackUpload(yaml, data, agentArtifactPrefix)
-	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix, hasSafeJobArtifactPaths(data) || isWorkQueueEnabled(data), data)
+	c.generateUnifiedArtifactUpload(yaml, artifactPaths, agentArtifactPrefix, data)
 
 	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
 	// live in the workspace. When a checkout: entry targets an external repository without a path

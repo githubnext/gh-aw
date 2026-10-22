@@ -104,6 +104,8 @@ func TestAiderCompiledHarnesses(t *testing.T) {
 			"process.exitCode = result.exitCode",
 			"onStdoutLine: observeLine",
 			"Aider execution reported a LiteLLM error",
+			"base_coder.Coder.get_chat_files_messages = workflow_get_chat_files_messages",
+			"No editable files have been added yet. This is expected for this unattended workflow",
 		} {
 			if !strings.Contains(config, expected) {
 				t.Errorf("expected %s to preserve Aider failure detail %q", path, expected)

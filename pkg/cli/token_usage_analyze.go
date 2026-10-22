@@ -15,6 +15,13 @@ import (
 func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage in: %s", runDir)
 
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return analyzeEpisodeUsage(dirs, verbose, true)
+	}
+
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" {
 		fileInfo, _ := os.Stat(filePath)
@@ -61,44 +68,128 @@ func analyzeTokenUsage(runDir string, verbose bool) (*TokenUsageSummary, error) 
 func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
 
-	usageJSONLFiles := findUsageJSONLFiles(runDir)
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		return analyzeEpisodeUsage(dirs, verbose, false)
+	}
+
+	usageJSONLFiles, warnings := findUsageJSONLFiles(runDir)
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
-		totalAIC, found, warnings, err := sumAICFromUsageJSONLFilesWithWarnings(usageJSONLFiles)
+	}
+	phaseFiles := groupTokenUsageAICPhaseFiles(runDir, usageJSONLFiles)
+	phases := make(map[string]*TokenUsageSummary)
+	seenRequestIDs := make(map[string]struct{})
+	for _, phase := range []string{"agent", "detection", "evals"} {
+		files := phaseFiles[phase]
+		if len(files) == 0 {
+			continue
+		}
+		total, found, fileWarnings, err := sumAICFromUsageJSONLFilesWithSeen(files, seenRequestIDs)
 		if err != nil {
 			return nil, err
 		}
-		if found {
-			for _, warning := range warnings {
-				tokenUsageLog.Printf("AIC-only analysis warning: %s", warning)
+		if !found && len(fileWarnings) == 0 && !slices.ContainsFunc(files, func(path string) bool {
+			return strings.Contains(strings.ToLower(filepath.Base(path)), "usage")
+		}) {
+			continue
+		}
+		if phase == "detection" && !found && len(fileWarnings) == 0 {
+			continue // Collection creates an empty detection placeholder even when the phase was skipped.
+		}
+		phases[phase] = &TokenUsageSummary{TotalAIC: total, AICFound: found, Warnings: fileWarnings}
+	}
+	markTokenUsageExecutedPhases(runDir, phases)
+	if err := applyTokenUsageAICFallbacks(runDir, verbose, usageJSONLFiles, seenRequestIDs, phases); err != nil {
+		return nil, err
+	}
+	return combineTokenUsageAICPhases(phases, warnings), nil
+}
+
+func analyzeEpisodeUsage(dirs []string, verbose, details bool) (*TokenUsageSummary, error) {
+	summary := &TokenUsageSummary{ByModel: make(map[string]*ModelTokenUsage), agentModels: make(map[string]*ModelTokenUsage)}
+	seen := make(map[string]struct{})
+	for _, dir := range dirs {
+		files, warnings := findUsageJSONLFilesInDirs([]string{dir})
+		usage, hadAWFRecords, err := summarizeUsageJSONLFilesWithSeen(files, seen)
+		if err != nil {
+			return nil, err
+		}
+		usage.Warnings = append(warnings, usage.Warnings...)
+		if !hadAWFRecords && !usage.AICFound {
+			path := findAgentUsageFile(dir)
+			if path != "" {
+				fallback, err := parseAgentUsageFile(path)
+				if err != nil {
+					return nil, err
+				}
+				if fallback != nil {
+					mergeTokenUsageSummary(usage, fallback)
+				}
 			}
-			return &TokenUsageSummary{TotalAIC: totalAIC, Warnings: warnings}, nil
 		}
+		if details {
+			applyGatewaySteeringSummary(usage, dir)
+			applySteeringNotices(usage, dir)
+			augmentSubagentModelAttribution(dir, usage)
+		}
+		mergeTokenUsageSummary(summary, usage)
+		console.LogVerbose(verbose, fmt.Sprintf("  Analyzed %d compact usage streams", len(files)))
 	}
+	if summary.TotalRequests == 0 && !summary.AICFound && len(summary.Warnings) == 0 && summary.TotalSteeringEvents == 0 {
+		return nil, nil
+	}
+	return summary, nil
+}
 
+func applyTokenUsageAICFallbacks(runDir string, verbose bool, usageJSONLFiles []string, seenRequestIDs map[string]struct{}, phases map[string]*TokenUsageSummary) error {
+	agent := phases["agent"]
+	if agent == nil {
+		agent = &TokenUsageSummary{}
+	}
 	filePath := findTokenUsageFile(runDir)
-	if filePath != "" {
-		fileInfo, _ := os.Stat(filePath)
-		if fileInfo != nil {
-			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
-		}
-
-		summary, err := parseTokenUsageFile(filePath)
+	if filePath != "" && !slices.Contains(usageJSONLFiles, filePath) {
+		phases["agent"] = agent
+		fileAIC, fileFound, fileWarnings, err := sumAICFromUsageJSONLFilesWithSeen([]string{filePath}, seenRequestIDs)
 		if err != nil {
-			return nil, err
+			if !tokenUsageAICPhaseCostFound(phases) {
+				return err
+			}
+			addTokenUsageWarning(agent, fmt.Sprintf("Cannot inspect usage file %s; observed cost may be incomplete: %v", filepath.Base(filePath), err))
+		} else {
+			agent.Warnings = append(agent.Warnings, fileWarnings...)
+			// Usage artifacts remain authoritative; inspect other layouts for gaps
+			// without counting a mirrored proxy stream a second time.
+			if !agent.AICFound {
+				agent.TotalAIC, agent.AICFound = fileAIC, fileFound
+			}
 		}
-		if summary == nil || !summary.AICFound {
-			goto fallback
-		}
-		for _, warning := range summary.Warnings {
-			tokenUsageLog.Printf("AIC-only analysis warning: %s", warning)
-		}
-		return &TokenUsageSummary{TotalAIC: summary.TotalAIC, Warnings: summary.Warnings}, nil
 	}
+	if !agent.AICFound {
+		fallback, err := analyzeAgentUsageAICOnly(runDir, verbose, nil)
+		if err != nil {
+			if !tokenUsageAICPhaseCostFound(phases) {
+				return err
+			}
+			addTokenUsageWarning(agent, fmt.Sprintf("Cannot inspect agent usage; observed cost may be incomplete: %v", err))
+			phases["agent"] = agent
+		} else if fallback != nil {
+			agent.TotalAIC, agent.AICFound = fallback.TotalAIC, fallback.AICFound
+			agent.Warnings = append(agent.Warnings, fallback.Warnings...)
+			phases["agent"] = agent
+		}
+	}
+	return nil
+}
 
-fallback:
+func analyzeAgentUsageAICOnly(runDir string, verbose bool, warnings []string) (*TokenUsageSummary, error) {
 	agentUsagePath := findAgentUsageFile(runDir)
 	if agentUsagePath == "" {
+		if len(warnings) > 0 {
+			return &TokenUsageSummary{Warnings: warnings}, nil
+		}
 		return nil, nil
 	}
 	agentFileInfo, _ := os.Stat(agentUsagePath)
@@ -110,8 +201,13 @@ fallback:
 	if err != nil || summary == nil {
 		return summary, err
 	}
+	if !summary.AICFound {
+		addTokenUsageWarning(summary, filepath.Base(agentUsagePath)+": unpriced usage; observed cost may be incomplete")
+	}
 	return &TokenUsageSummary{
 		TotalAIC: summary.TotalAIC,
+		AICFound: summary.AICFound,
+		Warnings: append(warnings, summary.Warnings...),
 	}, nil
 }
 

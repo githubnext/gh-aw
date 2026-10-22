@@ -16,6 +16,7 @@ const { parseBoolTemplatable, parseIntTemplatable } = require("./templatable.cjs
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
+const { fitMarkdownBody } = require("./report_size.cjs");
 
 /**
  * Type constant for handler identification
@@ -178,19 +179,18 @@ async function main(config = {}) {
       // Inject CAUTION at top of body unconditionally if threat detection warning was raised
       let finalBody = sanitizeContent(body, { allowedAliases: allowedMentionAliases, maxMentions });
       const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-      if (detectionCaution) {
-        finalBody = detectionCaution + "\n\n" + finalBody;
-      }
+      let suffix = "";
 
       // Append footer with workflow information when enabled
       if (includeFooter) {
         const footer = generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, undefined, triggeringPRNumber, undefined, undefined, { skipDetectionCaution: true });
-        finalBody = finalBody.trimEnd() + "\n\n" + footer;
+        suffix += "\n\n" + footer;
       }
       const bodyFooter = getBodyFooterMessage(config.body_footer, { workflowName, runUrl });
       if (bodyFooter) {
-        finalBody = finalBody.trimEnd() + "\n\n" + bodyFooter.trimEnd();
+        suffix = suffix.trimEnd() + "\n\n" + bodyFooter.trimEnd();
       }
+      finalBody = fitMarkdownBody(includeFooter || bodyFooter ? finalBody.trimEnd() : finalBody, { prefix: detectionCaution ? detectionCaution + "\n\n" : "", suffix, allowedMentions: allowedMentionAliases });
 
       core.info(`Replying to review comment ${numericCommentId} on PR #${targetPRNumber} (${owner}/${repo})`);
 

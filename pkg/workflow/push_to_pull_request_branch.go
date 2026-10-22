@@ -36,6 +36,7 @@ type PushToPullRequestBranchConfig struct {
 	FallbackAsPullRequest          *bool            `yaml:"fallback-as-pull-request,omitempty"`            // When true (default), creates a fallback pull request if direct push fails due to diverged/non-fast-forward branch. When false, fallback is disabled and pull-requests: write is not requested.
 	SignedCommits                  *bool            `yaml:"signed-commits,omitempty"`                      // When false, skips GitHub GraphQL signed commits and pushes the local git history directly. Default is true.
 	AllowFullHistoryFetch          bool             `yaml:"allow-full-history-fetch,omitempty"`            // Explicit opt-in to unbounded bundle prerequisite downloads (default: false).
+	AllowMergedBaseBaseline        bool             `yaml:"allow-merged-base-baseline,omitempty"`          // Enables bounded discovery of older merged base ancestors for unsigned bundle size validation.
 	AllowWorkflows                 bool             `yaml:"allow-workflows,omitempty"`                     // When true, adds workflows: write to the GitHub App token. Requires safe-outputs.github-app to be configured.
 	CheckBranchProtection          *bool            `yaml:"check-branch-protection,omitempty"`             // When false, skips the branch protection API pre-flight check. Default is true (check enabled). Set to false to avoid needing administration: read permission.
 }
@@ -89,168 +90,121 @@ func buildCheckoutRepository(steps []string, c *Compiler, targetRepoSlug string,
 
 // parsePushToPullRequestBranchConfig handles push-to-pull-request-branch configuration
 func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) *PushToPullRequestBranchConfig {
-	if configData, exists := outputMap["push-to-pull-request-branch"]; exists {
-		pushToPullRequestBranchLog.Print("Parsing push-to-pull-request-branch configuration")
-		pushToBranchConfig := &PushToPullRequestBranchConfig{
-			IfNoChanges: "warn", // Default behavior: warn when no changes
-		}
-
-		// Handle the case where configData is nil (push-to-pull-request-branch: with no value)
-		if configData == nil {
-			return pushToBranchConfig
-		}
-
-		if configMap, ok := configData.(map[string]any); ok {
-			// Parse target (optional, similar to add-comment)
-			if targetStr := extractTargetFromMap(configMap, pushToPullRequestBranchLog); targetStr != "" {
-				pushToBranchConfig.Target = targetStr
-			}
-
-			// Parse if-no-changes (optional, defaults to "warn")
-			if ifNoChanges, exists := configMap["if-no-changes"]; exists {
-				if ifNoChangesStr, ok := ifNoChanges.(string); ok {
-					// Validate the value
-					switch ifNoChangesStr {
-					case "warn", "error", "ignore":
-						pushToBranchConfig.IfNoChanges = ifNoChangesStr
-					default:
-						// Invalid value, use default and log warning
-						if c.verbose {
-							fmt.Fprintf(os.Stderr, "Warning: invalid if-no-changes value '%s', using default 'warn'\n", ifNoChangesStr)
-						}
-						pushToBranchConfig.IfNoChanges = "warn"
-					}
-				}
-			}
-
-			// Parse ignore-missing-branch-failure (optional, defaults to false)
-			if ignoreMissingBranchFailure, exists := configMap["ignore-missing-branch-failure"]; exists {
-				if ignoreMissingBranchFailureBool, ok := ignoreMissingBranchFailure.(bool); ok {
-					pushToBranchConfig.IgnoreMissingBranchFailure = ignoreMissingBranchFailureBool
-				}
-			}
-
-			// Parse required-title-prefix (preferred) with fallback to deprecated title-prefix alias.
-			pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "required-title-prefix", pushToPullRequestBranchLog)
-			if pushToBranchConfig.TitlePrefix == "" {
-				pushToBranchConfig.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
-			}
-
-			// Parse required-labels (preferred) with fallback to deprecated labels.
-			pushToBranchConfig.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "required-labels", pushToPullRequestBranchLog)
-			if len(pushToBranchConfig.RequiredLabels) == 0 {
-				pushToBranchConfig.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
-			}
-
-			// Parse commit-title-suffix (optional)
-			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
-				if commitTitleSuffixStr, ok := commitTitleSuffix.(string); ok {
-					pushToBranchConfig.CommitTitleSuffix = commitTitleSuffixStr
-				}
-			}
-
-			// Parse github-token-for-extra-empty-commit (optional) - token for pushing empty commit to trigger CI
-			if emptyCommitToken, exists := configMap["github-token-for-extra-empty-commit"]; exists {
-				if emptyCommitTokenStr, ok := emptyCommitToken.(string); ok {
-					pushToBranchConfig.GithubTokenForExtraEmptyCommit = emptyCommitTokenStr
-					pushToPullRequestBranchLog.Printf("Extra empty commit token configured")
-				}
-			}
-
-			// Parse target-repo for cross-repository push
-			pushToBranchConfig.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
-			pushToBranchConfig.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)
-			pushToBranchConfig.HeadGitHubToken = extractStringFromMap(configMap, "head-github-token", pushToPullRequestBranchLog)
-
-			// Parse head-github-app manually so that the app-id alias is honoured
-			// (YAML unmarshal would silently ignore app-id since GitHubAppConfig only
-			// declares the canonical client-id tag).
-			if headAppData, exists := configMap["head-github-app"]; exists {
-				if headAppMap, ok := headAppData.(map[string]any); ok {
-					pushToPullRequestBranchLog.Print("Parsed head-github-app from config")
-					pushToBranchConfig.HeadGitHubApp = parseAppConfig(headAppMap)
-				}
-			}
-
-			// Parse base-branch for explicit override of the target repo's base branch.
-			// When unset, the safe-outputs MCP server resolves it at runtime from the local
-			// checkout metadata (origin/HEAD) or falls back to the repo's default branch.
-			pushToBranchConfig.BaseBranch = extractStringFromMap(configMap, "base-branch", pushToPullRequestBranchLog)
-
-			// Parse allowed-repos for cross-repository push (expression-aware)
-			pushToBranchConfig.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", pushToPullRequestBranchLog)
-
-			// Parse protected-files: supports string enum OR object form {policy, exclude}.
-			exclude := preprocessProtectedFilesField(configMap, pushToPullRequestBranchLog)
-			pushToBranchConfig.ProtectedFilesExclude = exclude
-			// Validate policy string (no-op if the field was replaced by preprocessor)
-			manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue", "request_review", "request-review"}
-			validateStringEnumField(configMap, "protected-files", manifestFilesEnums, pushToPullRequestBranchLog)
-			if strVal, ok := configMap["protected-files"].(string); ok {
-				normalised := normaliseProtectedFilesPolicy(strVal)
-				pushToBranchConfig.ManifestFilesPolicy = &normalised
-			}
-
-			// Parse allowed-files: list of glob patterns forming a strict allowlist of eligible files
-			pushToBranchConfig.AllowedFiles = ParseStringArrayFromConfig(configMap, "allowed-files", pushToPullRequestBranchLog)
-
-			// Parse excluded-files: list of glob patterns for files to exclude via git :(exclude) pathspecs
-			pushToBranchConfig.ExcludedFiles = ParseStringArrayFromConfig(configMap, "excluded-files", pushToPullRequestBranchLog)
-
-			// Parse max-patch-size override (optional, must be > 0)
-			if maxPatchSize, exists := configMap["max-patch-size"]; exists {
-				if maxPatchSizeInt, ok := typeutil.ParseIntValue(maxPatchSize); ok && maxPatchSizeInt > 0 {
-					pushToBranchConfig.MaxPatchSize = maxPatchSizeInt
-				}
-			}
-
-			// Parse patch-format: valid values are "bundle" (default) and "am"
-			patchFormatEnums := []string{"am", "bundle"}
-			validateStringEnumField(configMap, "patch-format", patchFormatEnums, pushToPullRequestBranchLog)
-			if patchFormat, exists := configMap["patch-format"]; exists {
-				if patchFormatStr, ok := patchFormat.(string); ok {
-					pushToBranchConfig.PatchFormat = patchFormatStr
-				}
-			}
-
-			// Parse fallback-as-pull-request (optional, defaults to true)
-			if fallbackAsPullRequest, exists := configMap["fallback-as-pull-request"]; exists {
-				if fallbackAsPullRequestBool, ok := fallbackAsPullRequest.(bool); ok {
-					pushToBranchConfig.FallbackAsPullRequest = &fallbackAsPullRequestBool
-				}
-			}
-
-			// Parse signed-commits (optional, defaults to true)
-			if signedCommits, exists := configMap["signed-commits"]; exists {
-				if signedCommitsBool, ok := signedCommits.(bool); ok {
-					pushToBranchConfig.SignedCommits = &signedCommitsBool
-				}
-			}
-
-			if allow, ok := configMap["allow-full-history-fetch"].(bool); ok {
-				pushToBranchConfig.AllowFullHistoryFetch = allow
-			}
-
-			// Parse allow-workflows: when true, adds workflows: write to the GitHub App token
-			if allowWorkflows, exists := configMap["allow-workflows"]; exists {
-				if allowWorkflowsBool, ok := allowWorkflows.(bool); ok {
-					pushToBranchConfig.AllowWorkflows = allowWorkflowsBool
-				}
-			}
-
-			// Parse check-branch-protection: when false, skips the branch protection API pre-flight check
-			if checkBranchProtection, exists := configMap["check-branch-protection"]; exists {
-				if checkBranchProtectionBool, ok := checkBranchProtection.(bool); ok {
-					pushToBranchConfig.CheckBranchProtection = &checkBranchProtectionBool
-				}
-			}
-
-			// Parse common base fields with default max of 0 (no limit)
-			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)
-		}
-
+	configData, exists := outputMap["push-to-pull-request-branch"]
+	if !exists {
+		return nil
+	}
+	pushToPullRequestBranchLog.Print("Parsing push-to-pull-request-branch configuration")
+	pushToBranchConfig := &PushToPullRequestBranchConfig{IfNoChanges: "warn"}
+	if configData == nil {
+		return pushToBranchConfig
+	}
+	configMap, ok := configData.(map[string]any)
+	if !ok {
 		return pushToBranchConfig
 	}
 
-	return nil
+	c.parsePushToPullRequestBranchConstraints(configMap, pushToBranchConfig)
+	c.parsePushToPullRequestBranchRepository(configMap, pushToBranchConfig)
+	c.parsePushToPullRequestBranchFilePolicies(configMap, pushToBranchConfig)
+	c.parsePushToPullRequestBranchTransport(configMap, pushToBranchConfig)
+	c.parsePushToPullRequestBranchOptions(configMap, pushToBranchConfig)
+	c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig, 0)
+	return pushToBranchConfig
+}
+
+func (c *Compiler) parsePushToPullRequestBranchConstraints(configMap map[string]any, config *PushToPullRequestBranchConfig) {
+	if targetStr := extractTargetFromMap(configMap, pushToPullRequestBranchLog); targetStr != "" {
+		config.Target = targetStr
+	}
+	if ifNoChanges, exists := configMap["if-no-changes"]; exists {
+		if value, ok := ifNoChanges.(string); ok {
+			switch value {
+			case "warn", "error", "ignore":
+				config.IfNoChanges = value
+			default:
+				if c.verbose {
+					fmt.Fprintf(os.Stderr, "Warning: invalid if-no-changes value '%s', using default 'warn'\n", value)
+				}
+			}
+		}
+	}
+	if value, ok := configMap["ignore-missing-branch-failure"].(bool); ok {
+		config.IgnoreMissingBranchFailure = value
+	}
+	config.TitlePrefix = extractStringFromMap(configMap, "required-title-prefix", pushToPullRequestBranchLog)
+	if config.TitlePrefix == "" {
+		config.TitlePrefix = extractStringFromMap(configMap, "title-prefix", pushToPullRequestBranchLog)
+	}
+	config.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "required-labels", pushToPullRequestBranchLog)
+	if len(config.RequiredLabels) == 0 {
+		config.RequiredLabels = ParseStringArrayOrExprFromConfig(configMap, "labels", pushToPullRequestBranchLog)
+	}
+}
+
+func (c *Compiler) parsePushToPullRequestBranchRepository(configMap map[string]any, config *PushToPullRequestBranchConfig) {
+	if value, ok := configMap["commit-title-suffix"].(string); ok {
+		config.CommitTitleSuffix = value
+	}
+	if value, ok := configMap["github-token-for-extra-empty-commit"].(string); ok {
+		config.GithubTokenForExtraEmptyCommit = value
+		pushToPullRequestBranchLog.Printf("Extra empty commit token configured")
+	}
+	config.TargetRepoSlug = extractStringFromMap(configMap, "target-repo", pushToPullRequestBranchLog)
+	config.HeadRepoSlug = extractStringFromMap(configMap, "head-repo", pushToPullRequestBranchLog)
+	config.HeadGitHubToken = extractStringFromMap(configMap, "head-github-token", pushToPullRequestBranchLog)
+	if headAppData, exists := configMap["head-github-app"]; exists {
+		if headAppMap, ok := headAppData.(map[string]any); ok {
+			pushToPullRequestBranchLog.Print("Parsed head-github-app from config")
+			config.HeadGitHubApp = parseAppConfig(headAppMap)
+		}
+	}
+	config.BaseBranch = extractStringFromMap(configMap, "base-branch", pushToPullRequestBranchLog)
+	config.AllowedRepos = ParseStringArrayOrExprFromConfig(configMap, "allowed-repos", pushToPullRequestBranchLog)
+}
+
+func (c *Compiler) parsePushToPullRequestBranchFilePolicies(configMap map[string]any, config *PushToPullRequestBranchConfig) {
+	config.ProtectedFilesExclude = preprocessProtectedFilesField(configMap, pushToPullRequestBranchLog)
+	manifestFilesEnums := []string{"blocked", "allowed", "fallback-to-issue", "request_review", "request-review"}
+	validateStringEnumField(configMap, "protected-files", manifestFilesEnums, pushToPullRequestBranchLog)
+	if value, ok := configMap["protected-files"].(string); ok {
+		normalised := normaliseProtectedFilesPolicy(value)
+		config.ManifestFilesPolicy = &normalised
+	}
+	config.AllowedFiles = ParseStringArrayFromConfig(configMap, "allowed-files", pushToPullRequestBranchLog)
+	config.ExcludedFiles = ParseStringArrayFromConfig(configMap, "excluded-files", pushToPullRequestBranchLog)
+}
+
+func (c *Compiler) parsePushToPullRequestBranchTransport(configMap map[string]any, config *PushToPullRequestBranchConfig) {
+	if maxPatchSize, exists := configMap["max-patch-size"]; exists {
+		if value, ok := typeutil.ParseIntValue(maxPatchSize); ok && value > 0 {
+			config.MaxPatchSize = value
+		}
+	}
+	patchFormatEnums := []string{"am", "bundle"}
+	validateStringEnumField(configMap, "patch-format", patchFormatEnums, pushToPullRequestBranchLog)
+	if value, ok := configMap["patch-format"].(string); ok {
+		config.PatchFormat = value
+	}
+}
+
+func (c *Compiler) parsePushToPullRequestBranchOptions(configMap map[string]any, config *PushToPullRequestBranchConfig) {
+	if value, ok := configMap["fallback-as-pull-request"].(bool); ok {
+		config.FallbackAsPullRequest = &value
+	}
+	if value, ok := configMap["signed-commits"].(bool); ok {
+		config.SignedCommits = &value
+	}
+	if value, ok := configMap["allow-full-history-fetch"].(bool); ok {
+		config.AllowFullHistoryFetch = value
+	}
+	if value, ok := configMap["allow-merged-base-baseline"].(bool); ok {
+		config.AllowMergedBaseBaseline = value
+	}
+	if value, ok := configMap["allow-workflows"].(bool); ok {
+		config.AllowWorkflows = value
+	}
+	if value, ok := configMap["check-branch-protection"].(bool); ok {
+		config.CheckBranchProtection = &value
+	}
 }

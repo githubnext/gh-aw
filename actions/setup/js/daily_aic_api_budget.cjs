@@ -14,6 +14,8 @@ const API_READ_OPERATIONS = Object.freeze({
 });
 const READ_OPERATIONS = new Set(Object.values(API_READ_OPERATIONS));
 const READ_FAILURES = new WeakMap();
+// A synthetic quota stop can also represent a secondary limit above the reserve.
+const RESERVE_STOPS = new WeakSet();
 
 function getAPIReadFailure(error) {
   // Artifact transport wrappers retain the original failure as their cause.
@@ -61,6 +63,38 @@ function isTransientError(error) {
 }
 
 /**
+ * Restart a complete read-only accounting phase, never just the failed page.
+ * Quota deferral is separate from transient read retries and grants no startup
+ * authorization. Allow at most one minute of timer scheduling tolerance.
+ */
+async function withQuotaResetRecovery(operation, { now = Date.now, sleep = delay => new Promise(resolve => setTimeout(resolve, delay)), runAttempt = process.env.GITHUB_RUN_ATTEMPT, maxWaitMs = 10 * 60 * 1000 } = {}) {
+  const startedAt = now();
+  try {
+    return await operation();
+  } catch (error) {
+    const diagnostic = getGitHubAPIDiagnostic(error, now());
+    if (!isQuotaError(error) || ["authentication_failed", "permission_denied"].includes(diagnostic?.classification || "")) throw error;
+    const retryAt = retryNotBefore(error?.response?.headers, now(), RESERVE_STOPS.has(error));
+    const retryAtMs = Date.parse(retryAt);
+    const delayMs = retryAtMs + 1000 - now();
+    const remainingMs = maxWaitMs - (now() - startedAt);
+    const reason = String(runAttempt) !== "1" ? "not_original_attempt" : !Number.isFinite(retryAtMs) || delayMs <= 0 ? "unknown_reset" : delayMs > remainingMs ? "reset_exceeds_budget" : "";
+    if (reason) {
+      core.info(`[daily-workflow-aic] Quota reset recovery unavailable: ${JSON.stringify({ reason, retryNotBefore: retryAt || null, maxWaitMs })}. Accounting remains unverified; agent startup is blocked.`);
+      throw error;
+    }
+    core.info(`[daily-workflow-aic] Deferring complete accounting phase until quota reset: ${JSON.stringify({ retryNotBefore: retryAt, delayMs, maxWaitMs })}`);
+    await sleep(delayMs);
+    if (!Number.isFinite(retryAtMs) || now() < retryAtMs || now() - startedAt > maxWaitMs + 60000) {
+      core.info("[daily-workflow-aic] Quota reset recovery missed its time budget. Accounting remains unverified; agent startup is blocked.");
+      throw error;
+    }
+    // Deliberately outside the catch: renewed exhaustion cannot defer again.
+    return operation();
+  }
+}
+
+/**
  * Observe business responses, including native-fetch artifact requests. Do not use
  * /rate_limit as the authority for a different request's quota or retry deadline.
  * Retry transient reads only; shared quota and server retry restrictions stop immediately.
@@ -73,10 +107,13 @@ function createAPIBudget(reserve = 100) {
       requests++;
       latest = safeResponseHeaders(response.headers);
       const remaining = latest["x-ratelimit-remaining"];
+      const quotaRemaining = getGitHubAPIQuota(latest).remaining;
+      const reserveStopped = quotaRemaining !== null && quotaRemaining <= reserve;
       const limited = response.status === 429 || (response.status === 403 && (remaining === "0" || latest["retry-after"] != null));
-      if (limited || (remaining != null && Number(remaining) <= reserve)) {
+      if (limited || reserveStopped) {
         const sanitizedCause = getSanitizedGitHubAPICause(cause);
         const error = Object.assign(apiError(response.status, latest, "Daily AIC inspection stopped to preserve GitHub API quota"), { code: "DAILY_AIC_QUOTA_STOP", ...(sanitizedCause ? { cause: sanitizedCause } : {}) });
+        if (reserveStopped) RESERVE_STOPS.add(error);
         const diagnostic = getGitHubAPIDiagnostic(error);
         if (diagnostic) error.message += `: ${diagnostic.message}`;
         throw error;
@@ -136,4 +173,4 @@ function createAPIBudget(reserve = 100) {
   return budget;
 }
 
-module.exports = { API_READ_OPERATIONS, safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError, getAPIReadFailure };
+module.exports = { API_READ_OPERATIONS, safeResponseHeaders, apiError, retryNotBefore, createAPIBudget, getErrorStatus, isQuotaError, isTransientError, getAPIReadFailure, withQuotaResetRecovery };

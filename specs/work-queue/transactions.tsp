@@ -112,6 +112,7 @@ model WorkOperation {
   @maxItems(64)
   depends_on: Dependency[];
   enqueued: Timestamp;
+  expires_at?: Timestamp;
   subject?: Resource;
   backing_issue?: Resource;
   replacement_of?: Replacement;
@@ -261,7 +262,7 @@ model CompletionOperation {
 }
 @jsonSchema
 model Evidence {
-  kind: "prelaunch" | "nonlaunch" | "terminal_run" | "delivery" | "reconciliation";
+  kind: "prelaunch" | "nonlaunch" | "terminal_run" | "worker_termination" | "delivery" | "reconciliation";
   source: "trusted_publisher" | "github_api" | "trusted_activation" | "verified_receipts";
   repository: Identity;
   workflow: Identity;

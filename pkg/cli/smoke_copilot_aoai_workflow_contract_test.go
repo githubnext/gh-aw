@@ -58,3 +58,22 @@ func TestSmokeCopilotAOAIEntraSetIssueTypeTarget(t *testing.T) {
 	assert.Contains(t, string(compiled), `\"set_issue_type\":{\"target\":\"*\"}`,
 		"Compiled safe-output handler must use the explicit issue target")
 }
+
+func TestSmokeCopilotAOAIApiKeyPricing(t *testing.T) {
+	t.Parallel()
+	repoRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		t.Skipf("Skipping test: not in a git repository: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "smoke-copilot-aoai-apikey.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "model: o4-mini-aw")
+	assert.Contains(t, string(content), "  - shared/default-ai-credits-pricing.md",
+		"Custom Azure deployment names must have fallback AI credits pricing")
+
+	compiled, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "smoke-copilot-aoai-apikey.lock.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(compiled), `\"defaultAiCreditsPricing\":{\"input\":5,\"output\":25}`,
+		"Compiled AWF API proxy must include fallback pricing for the custom Azure deployment")
+}

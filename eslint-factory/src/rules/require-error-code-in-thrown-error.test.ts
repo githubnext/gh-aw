@@ -10,6 +10,16 @@ const cjsRuleTester = new RuleTester({
 });
 
 describe("require-error-code-in-thrown-error", () => {
+  it("checks top-level const messages without trusting mutable bindings", () => {
+    cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
+      valid: [
+        'const { ERR_API } = require("./error_codes.cjs"); const msg = `${ERR_API}: failed`; function run() { throw new Error(msg); }',
+        'const { ERR_API } = require("./error_codes.cjs"); let msg = "failed"; function run() { throw new Error(msg); }',
+      ],
+      invalid: [{ code: 'const { ERR_API } = require("./error_codes.cjs"); const msg = "failed"; function run() { throw new Error(msg); }', errors: [{ messageId: "missingErrorCode" }] }],
+    });
+  });
+
   it("valid: files that do not import error_codes.cjs are not flagged", () => {
     cjsRuleTester.run("require-error-code-in-thrown-error", requireErrorCodeInThrownErrorRule, {
       valid: [`throw new Error("Something went wrong");`, `throw new Error(\`Missing field: \${name}\`);`],

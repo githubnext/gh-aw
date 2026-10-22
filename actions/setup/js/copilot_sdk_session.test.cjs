@@ -7,6 +7,11 @@ import os from "node:os";
 const require = createRequire(import.meta.url);
 const { runWithCopilotSDK, resolveCopilotSDKWorkingDirectory } = require("./copilot_sdk_session.cjs");
 const { normalizeCopilotSession } = require("./copilot_session.cjs");
+const { resolveMultiProviderFromReflect } = require("./awf_reflect.cjs");
+const { extractInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
+const { writeInlineSkills } = require("./extract_inline_skills.cjs");
+const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+const { parseDocument } = require("./work_queue_yaml.cjs");
 const models = [
   { id: "gpt-5.4", provider: "openai" },
   { id: "claude-sonnet-4.6", provider: "anthropic" },
@@ -31,6 +36,7 @@ describe("copilot_sdk_session runtime configuration", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     fs.rmSync(base, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
@@ -135,6 +141,8 @@ describe("copilot_sdk_session runtime configuration", () => {
     const app = path.join(base, "packages/app");
     fs.mkdirSync(path.join(app, ".github/agents"), { recursive: true });
     fs.writeFileSync(path.join(app, ".github/agents/local.agent.md"), "---\nmodel: small\n---\nApp agent.");
+    // The harness resolved `small` before the driver started.
+    vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify({ local: "claude-sonnet-4.6" }));
     vi.stubEnv("GITHUB_WORKSPACE", base);
     vi.spyOn(process, "cwd").mockReturnValue(app);
     const createSession = vi.fn().mockResolvedValue({
@@ -162,6 +170,103 @@ describe("copilot_sdk_session runtime configuration", () => {
         customAgents: [{ name: "local", displayName: "local", prompt: "App agent.", model: "anthropic/claude-sonnet-4.6" }],
       })
     );
+  });
+
+  it.each([false, true])("registers all four staged Copilot Opt skills without ambient discovery (bare=%s)", async bare => {
+    const workflow = fs.readFileSync(path.resolve(import.meta.dirname, "../../../.github/workflows/copilot-opt.md"), "utf8");
+    const staging = path.join(base, "staged");
+    vi.stubGlobal("core", { info: vi.fn(), warning: vi.fn() });
+    vi.stubEnv("GH_AW_SKILL_DIR", ".github/skills");
+    vi.stubEnv("GH_AW_SKILL_EXT", "/SKILL.md");
+    const prompt = writeInlineSkills(workflow, base, staging, "copilot");
+    const createSession = vi.fn().mockResolvedValue({
+      sessionId: "staged-skills",
+      on: () => {},
+      sendAndWait: async () => ({ data: { content: "done" } }),
+      disconnect: async () => {},
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt,
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: staging,
+      bare,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const config = createSession.mock.calls[0][0];
+    expect(config).toMatchObject({ skipCustomInstructions: bare, enableConfigDiscovery: false, enableSkills: true, skillDirectories: [path.join(staging, ".github/skills")] });
+    const names = ["opt-phase-performance", "opt-phase-pr-analysis", "opt-phase-recommendations", "opt-phase-issue-creation"];
+    expect(fs.readdirSync(config.skillDirectories[0]).sort()).toEqual([...names].sort());
+    for (const name of names) {
+      expect(fs.readFileSync(path.join(config.skillDirectories[0], name, "SKILL.md"), "utf8")).toContain("description:");
+      expect(prompt).toContain(`/tmp/gh-aw/.github/skills/${name}/SKILL.md`);
+      expect(prompt).not.toContain(`Invoke skill \`${name}\``);
+    }
+    expect(prompt).toContain("Do not use `cd`, `cut`, or `sed`");
+    const document = parseDocument(extractFrontmatterAndBody(workflow).frontmatterText).toJS();
+    expect(document["max-tool-denials"]).toBe(3);
+    for (const command of ["cd *", "cut *", "sed *", "*"]) expect(document.tools.bash).not.toContain(command);
+  });
+
+  it("does not discover repository skills when no workflow skills were staged", async () => {
+    fs.mkdirSync(path.join(base, ".github/skills/ambient"), { recursive: true });
+    fs.writeFileSync(path.join(base, ".github/skills/ambient/SKILL.md"), "---\ndescription: Ambient repository skill\n---\nNot staged.");
+    const createSession = vi.fn().mockResolvedValue({
+      sessionId: "no-staged-skills",
+      on: () => {},
+      sendAndWait: async () => ({ data: { content: "done" } }),
+      disconnect: async () => {},
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: path.join(base, "staged"),
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(createSession.mock.calls[0][0]).toMatchObject({ enableConfigDiscovery: false, skillDirectories: [] });
+    expect(createSession.mock.calls[0][0].enableSkills).toBeUndefined();
+  });
+
+  it.each(["file", "symlink", "dangling symlink"])("rejects a staged skills root that is a %s", async kind => {
+    const staging = path.join(base, "staged");
+    const skills = path.join(staging, ".github/skills");
+    fs.mkdirSync(path.dirname(skills), { recursive: true });
+    if (kind === "file") fs.writeFileSync(skills, "Not a directory.");
+    else fs.symlinkSync(kind === "dangling symlink" ? path.join(base, "does-not-exist") : base, skills, "dir");
+    const createSession = vi.fn();
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const logger = vi.fn();
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger,
+      workingDirectory: base,
+      agentsBaseDir: staging,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("Staged Copilot skills must be a directory:");
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("error: Staged Copilot skills must be a directory:"));
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   it.each(["{bad json", '{"args":["--no-custom-instructions"]}'])("warns and starts a session for invalid server args %s", serverArgs => {
@@ -240,6 +345,85 @@ describe("copilot_sdk_session runtime configuration", () => {
     expect(result.output).toMatch(/Cannot qualify session model "unavailable-session-model"/);
     expect(logger).toHaveBeenCalledWith(expect.stringMatching(/error: Cannot qualify session model/));
     expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("routes Contribution Check's GPT delegates through Responses under a Claude main without changing their models or prompts", async () => {
+    const root = path.resolve(import.meta.dirname, "../../..");
+    const workflow = fs.readFileSync(path.join(root, ".github/workflows/contribution-check.md"), "utf8");
+    const { frontmatterText } = extractFrontmatterAndBody(workflow);
+    const document = parseDocument(frontmatterText);
+    expect(document.errors).toEqual([]);
+    expect(document.toJS().engine).toMatchObject({ id: "copilot", "copilot-sdk": true, agent: "contribution-checker" });
+    const lock = parseDocument(fs.readFileSync(path.join(root, ".github/workflows/contribution-check.lock.yml"), "utf8"));
+    expect(lock.errors).toEqual([]);
+    const executionEnv = lock.toJS().jobs.agent.steps.find(step => step.id === "agentic_execution").env;
+    expect(String(executionEnv.GH_AW_COPILOT_SDK_DRIVER)).toBe("1");
+    expect(executionEnv.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+
+    const { agents } = extractInlineSubAgents(workflow);
+    expect(agents.map(agent => agent.name)).toEqual(["report-formatter", "comment-dispatcher"]);
+    fs.mkdirSync(path.join(base, ".github/agents"), { recursive: true });
+    for (const agent of agents) fs.writeFileSync(path.join(base, `.github/agents/${agent.name}.agent.md`), agent.content);
+
+    // Endpoint capabilities observed in Contribution Check run 39098581712.
+    const config = resolveMultiProviderFromReflect({
+      model: "claude-sonnet-5.5",
+      reflectData: {
+        endpoints: [
+          {
+            provider: "copilot",
+            configured: true,
+            port: 10002,
+            models: ["claude-sonnet-5.5", "claude-haiku-4.5", "gpt-6-luna"],
+            routing_models: [
+              { model_id: "claude-sonnet-5.5", supported_endpoints: ["/v1/messages", "/chat/completions"] },
+              { model_id: "claude-haiku-4.5", supported_endpoints: ["/chat/completions", "/v1/messages"] },
+              { model_id: "gpt-6-luna", supported_endpoints: ["/responses", "ws:/responses"] },
+            ],
+          },
+        ],
+      },
+    });
+    vi.stubEnv("GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON", JSON.stringify(config));
+    const createSession = vi.fn().mockResolvedValue({
+      sessionId: "contribution-check-endpoints",
+      on: () => {},
+      sendAndWait: async () => ({ data: { content: "done" } }),
+      disconnect: async () => {},
+    });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const logger = vi.fn();
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger,
+      workingDirectory: base,
+      agentsBaseDir: base,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const session = createSession.mock.calls[0][0];
+    expect(session.model).toBe("copilot-completions/claude-sonnet-5.5");
+    expect(session.providers).toEqual([
+      { name: "copilot-responses", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" },
+      { name: "copilot-completions", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "completions" },
+    ]);
+    expect(session.models).toContainEqual({ id: "claude-haiku-4.5", provider: "copilot-completions" });
+    expect(session.customAgents).toHaveLength(2);
+    for (const agent of agents) {
+      expect(session.customAgents).toContainEqual(
+        expect.objectContaining({
+          name: agent.name,
+          model: "copilot-responses/gpt-6-luna",
+          prompt: extractFrontmatterAndBody(agent.content).markdown.trim(),
+        })
+      );
+    }
+    expect(logger.mock.calls.flat().some(message => message.includes("warning: custom agent"))).toBe(false);
   });
 
   it("attributes SDK lifecycle and metrics to declared names instead of task display names", async () => {

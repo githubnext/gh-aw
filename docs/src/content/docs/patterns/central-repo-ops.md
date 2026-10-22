@@ -1,27 +1,48 @@
 ---
 title: CentralRepoOps
-description: Coordinate agentic workflows across multiple repositories using a central repository as a control plane for org-wide rollouts or as a shared tracker for aggregated visibility.
+description: Run automated workers from a central repository against one or more software repositories, optionally coordinate them with an orchestrator, or aggregate activity in a shared tracker.
 sidebar:
   badge: { text: 'Advanced', variant: 'caution' }
 ---
 
-CentralRepoOps uses a single central repository to coordinate or aggregate activity across many other repositories. It is a sub-pattern of [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) and covers two deployment models: a **central control plane** where one repo dispatches work to many target repos for org-wide rollouts, security patches, and policy enforcement; and a **central tracker repo** where component repos each push events into a shared tracker for aggregated visibility and cross-project dashboards.
+CentralRepoOps uses a **central automation repository** to host automation targeting software in one or more other repositories, or to aggregate their activity. It is a sub-pattern of [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/). The repository can run workers, with or without an orchestrator, or collect events from component repositories.
 
-## Using a Central Control Repository
+<span id="using-a-central-control-repository"></span>
 
-For large-scale operations — security patches, policy rollouts, configuration standardization — use a **single private repository as a control plane**. An orchestrator workflow filters and prioritizes targets, then dispatches per-repo worker workflows.
+## Using a Central Automation Repository
+
+A central automation repository holds the workflows, schedules, and credentials; the software being improved stays in the target repositories. Workers run in the automation repository and open issues or pull requests against those targets. An orchestrator is optional.
 
 ```mermaid
 flowchart LR
-    subgraph central["Central control repo"]
-        schedule([Schedule]) --> orch[Orchestrator\nfilter & prioritize]
+    subgraph central["Central automation repository"]
+        tests[Worker Workflow A]
+        perf[Worker Workflow B]
+        orch[Optional orchestrator] -. dispatch .-> tests
+        orch -. dispatch .-> perf
     end
-    orch --> w1[Repo A]
-    orch --> w2[Repo B]
-    orch --> w3[Repo N]
+    subgraph targets["Target software repositories (1..N)"]
+        r1[Repository 1]
+        r2[Repository 2]
+        rn[Repository N]
+    end
+    tests --> r1
+    tests --> rn
+    perf --> r2
+    perf --> rn
 ```
 
-This pattern supports phased adoption (pilot waves first), central governance, security-aware prioritization, and a complete decision trail — without pushing `main` changes to individual target repositories.
+### Self-Scheduling Workers
+
+The simplest deployment is a set of independent workers, each with its own schedule and target repositories. For example, a test improver periodically adds missing tests in one repository, while a performance improver benchmarks and proposes optimizations in one or more repositories. Neither needs an orchestrator or dispatch workflow.
+
+Each worker defines its own `on.schedule`, reads or checks out the target software, and uses cross-repository safe outputs to propose changes. The workflows remain in the central repository; they do not need to be installed in the software repositories.
+
+### Optional Orchestration
+
+Add an orchestrator when work needs shared prioritization, target selection, or phased rollout across repositories. It dispatches workers in the central repository with a target repository as input. Workers can be dispatch-only or also retain their own schedules.
+
+The following example shows the orchestrated variant. It supports pilot waves and a central decision trail without installing workflows in each target repository.
 
 **Orchestrator** (`dispatch-workflow` safe output + `max` limit):
 ```aw wrap
@@ -73,15 +94,17 @@ safe-outputs:
 Analyze ${{ github.event.inputs.target_repo }}, apply the required changes, and create a pull request explaining what was changed and why.
 ```
 
-Keep orchestrator permissions narrow; delegate repo-specific writes to workers. Add correlation IDs to dispatch inputs for tracking. See the [Dependabot Rollout example](/gh-aw/gallery/multi-repo/dependabot-rollout/) for a complete end-to-end walkthrough.
+When using an orchestrator, keep its permissions narrow and delegate repo-specific writes to workers. Add correlation IDs to dispatch inputs for tracking. See the [Dependabot Rollout example](/gh-aw/gallery/multi-repo/dependabot-rollout/) for a complete end-to-end walkthrough.
 
-## Using a Central Tracker Repository
+<span id="using-a-central-tracker-repository"></span>
 
-Each component repository runs its own workflow that forwards events to a central tracker repo via `target-repo`. The central repository accumulates a unified view without needing direct access to individual component repos.
+## Aggregating Events
+
+Each component repository runs its own workflow that forwards events to the central automation repository via `target-repo`. The central repository accumulates a unified view without needing direct access to individual component repos.
 
 ```mermaid
 flowchart LR
-    compA[Component repo A] -->|create-issue| central[Central tracker repo]
+    compA[Component repo A] -->|create-issue| central[Central automation repository]
     compB[Component repo B] -->|create-issue| central
     compC[Component repo C] -->|create-issue| central
 ```

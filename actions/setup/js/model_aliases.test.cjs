@@ -58,8 +58,8 @@ describe("reduceModelNameToIdentifier", () => {
   });
 
   it("strips the provider prefix before building the identifier", () => {
-    // "copilot/mai-code-1-flash-picker" must not collapse to the provider name ("cop10")
-    expect(reduceModelNameToIdentifier("copilot/mai-code-1-flash-picker")).toBe("mai10");
+    // "copilot/mai-code-1.1-flash" must not collapse to the provider name ("cop11")
+    expect(reduceModelNameToIdentifier("copilot/mai-code-1.1-flash")).toBe("mai11");
     expect(reduceModelNameToIdentifier("copilot/claude-sonnet-4.5")).toBe("sonnet45");
     expect(reduceModelNameToIdentifier("openai/gpt-5")).toBe("gpt50");
     expect(reduceModelNameToIdentifier("copilot/auto")).toBe("auto");

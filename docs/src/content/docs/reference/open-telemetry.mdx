@@ -40,6 +40,8 @@ OTLP header credentials of at least four characters are masked before setup expo
 
 If a credential was exposed in an earlier run, revoke or rotate it and remove the affected logs and artifacts. Updated redaction does not sanitize retained output from previous runs.
 
+HTTP 401 and 403 export failures are not retried with unchanged credentials. Check the affected collector's configured authorization header and telemetry-write permissions. Transient delivery failures retain bounded retries; a rejected endpoint does not block other configured endpoints or the local telemetry mirror, and export failure does not fail the functional workflow.
+
 ### Organization-wide defaults
 
 When a workflow does not configure `observability.otlp` (in its own frontmatter or through an import), the compiler falls back to a default OTLP configuration read from the GitHub Actions environment:
@@ -117,9 +119,12 @@ observability:
       deployment.environment: production
       langfuse.session.id: "{{ gh-aw.episode.id }}"
       langfuse.user.id: "{{ github.actor }}"
+      catalogue.version: "${{ github.aw.metadata.version }}"
 ```
 
 Values are plain strings. Template expressions such as `{{ gh-aw.episode.id }}` or `{{ github.actor }}` are resolved from attributes already computed for the span. Empty values are omitted. Values of at least 4 characters are masked in runner logs; shorter values are not masked.
+
+Whole-value references in the form `${{ github.aw.metadata.<key> }}` resolve at compile time from the root workflow's top-level `metadata` map. They work in either custom attribute map, including in shared imported OTLP configuration, and support simple metadata keys such as `version`, `category`, and `owner`. The reference must occupy the entire attribute value; embedded references, nested selectors, missing metadata keys, and metadata values containing GitHub Actions expression delimiters are compile-time errors. Metadata remains string-only, and only explicitly referenced values are exported.
 
 ## Custom resource attributes
 
@@ -132,6 +137,7 @@ observability:
     resource-attributes:
       service.namespace: platform-automation
       deployment.environment: ${{ github.ref_name }}
+      catalogue.category: "${{ github.aw.metadata.category }}"
 ```
 
 Use static strings or GitHub Actions expressions. Do **not** use `secrets.*` or `vars.*` values in `resource-attributes` because resource attributes are exported to external observability backends and are not treated as secret values.

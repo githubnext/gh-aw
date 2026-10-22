@@ -38,23 +38,16 @@ package workflow
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/goccy/go-yaml"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/checkoutpolicy"
 )
 
 var pullRequestTargetLog = logger.New("workflow:pull_request_target_validation")
-
-// [^{}]+? deliberately excludes brace characters so nested expression constructs
-// are never treated as a trusted literal allowlist match.
-var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^{}]+?)\s*\}\}$`)
-
-var pullRequestTargetLiteralRepositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
-var pullRequestTargetLiteralRefPattern = regexp.MustCompile(`^[^\s${}*?\[\\:~^]+$`)
 
 // validatePullRequestTargetTrigger validates security requirements for pull_request_target triggers.
 //
@@ -228,9 +221,7 @@ func isAllowedPullRequestTargetCheckout(cfg *CheckoutConfig, allowedCheckouts []
 	}
 	// Fail closed even when called without schema validation. Never allow expressions
 	// or PR refs merely because the same string appears in the policy.
-	if !pullRequestTargetLiteralRepositoryPattern.MatchString(cfg.Repository) ||
-		!pullRequestTargetLiteralRefPattern.MatchString(cfg.Ref) ||
-		strings.HasPrefix(cfg.Ref, "refs/pull/") {
+	if !checkoutpolicy.LiteralPair(cfg.Repository, cfg.Ref) {
 		return false
 	}
 	for _, entry := range allowedCheckouts {
@@ -252,33 +243,5 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 		return false
 	}
 
-	repository := strings.TrimSpace(cfg.Repository)
-	if repository != "" && !matchesGitHubExpression(repository, "github.repository") {
-		return false
-	}
-
-	ref := strings.TrimSpace(cfg.Ref)
-	return ref == "" || matchesAnyGitHubExpression(ref,
-		"github.event.pull_request.base.sha", // immutable commit SHA
-		"github.event.pull_request.base.ref", // mutable branch tip, still trusted base code
-	)
-}
-
-func matchesAnyGitHubExpression(value string, expectedExpressions ...string) bool {
-	for _, expected := range expectedExpressions {
-		if matchesGitHubExpression(value, expected) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchesGitHubExpression(value string, expectedExpression string) bool {
-	const expressionCaptureIndex = 1
-	trimmed := strings.TrimSpace(value)
-	matches := pullRequestTargetGitHubExpressionPattern.FindStringSubmatch(trimmed)
-	if len(matches) > expressionCaptureIndex {
-		return strings.TrimSpace(matches[expressionCaptureIndex]) == expectedExpression
-	}
-	return false
+	return checkoutpolicy.Base(cfg.Repository, cfg.Ref)
 }

@@ -43,6 +43,7 @@ type importAccumulator struct {
 	pluginObjects            []map[string]any
 	safeOutputs              []string
 	gradersBuilder           strings.Builder
+	graderRunSources         map[string]string
 	mcpScripts               []string
 	bots                     []string
 	botsSet                  map[string]bool
@@ -125,6 +126,7 @@ func newImportAccumulator() *importAccumulator {
 		sandboxAgentMountsSet:   make(map[string]bool),
 		excludedEnvSet:          make(map[string]bool),
 		actionPinSourceVersions: make(map[string]string),
+		graderRunSources:        make(map[string]string),
 	}
 }
 
@@ -457,6 +459,15 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.extractPlugins(fm)
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONBuilderField(fm, "graders", "{}", &acc.gradersBuilder)
+	if graders, ok := fm["graders"].(map[string]any); ok {
+		for id, value := range graders {
+			if definition, ok := value.(map[string]any); ok {
+				if _, hasRun := definition["run"]; hasRun {
+					acc.graderRunSources[id] = fullPath
+				}
+			}
+		}
+	}
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
 	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
@@ -1057,6 +1068,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedPluginObjects:           acc.pluginObjects,
 		MergedSafeOutputs:             acc.safeOutputs,
 		MergedGraders:                 acc.gradersBuilder.String(),
+		GraderRunSources:              acc.graderRunSources,
 		MergedMCPScripts:              acc.mcpScripts,
 		MergedMarkdown:                acc.markdownBuilder.String(),
 		ImportPaths:                   acc.importPaths,

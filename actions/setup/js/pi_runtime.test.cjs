@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const { parsePiConfig, preparePiRuntime, nativePiProvider, resolvePiPackageFile, verifyPiVersion } = await import("./pi_runtime.cjs");
+const { parsePiConfig, preparePiRuntime, nativePiProvider, resolvePiPackageFile, resolvePiModelWithoutAWF, verifyPiVersion } = await import("./pi_runtime.cjs");
 const { INLINE_SKILL_MANIFEST, readWorkflowSkillArgs } = await import("./pi_workflow_skills.cjs");
 let dir;
 
@@ -252,6 +252,19 @@ describe("Pi runtime configuration", () => {
     expect(fs.statSync(path.join(dir, "agent/mcp.json")).mode & 0o777).toBe(0o600);
   });
 
+  it("exposes smoke-test MCP tools directly without changing gateway authorization", () => {
+    const servers = {
+      safeoutputs: { url: "http://gateway/mcp/safeoutputs", headers: { Authorization: "scoped-test-token" } },
+      web_fetch: { url: "http://gateway/mcp/web_fetch", headers: { Authorization: "web-test-token" } },
+    };
+    fs.mkdirSync(path.join(dir, "gh-aw/mcp-config"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "gh-aw/mcp-config/mcp-servers.json"), JSON.stringify({ mcpServers: servers }));
+    preparePiRuntime({ mcp: { exposure: "direct" } });
+    const mcp = JSON.parse(fs.readFileSync(path.join(dir, "agent/mcp.json"), "utf8"));
+    expect(mcp.mcpServers).toEqual(Object.fromEntries(Object.entries(servers).map(([name, server]) => [name, { ...server, exposure: "direct" }])));
+    expect(fs.statSync(path.join(dir, "agent/mcp.json")).mode & 0o777).toBe(0o600);
+  });
+
   it("reports malformed settings instead of discarding installed packages", () => {
     fs.mkdirSync(path.join(dir, "agent"));
     fs.writeFileSync(path.join(dir, "agent/settings.json"), "invalid");
@@ -266,5 +279,32 @@ describe("Pi runtime configuration", () => {
     expect(nativePiProvider("google")).toBe("google");
     expect(nativePiProvider("openrouter")).toBe("openrouter");
     expect(nativePiProvider("codex")).toBe("openai");
+  });
+});
+
+// network.firewall: false (no AWF): no /reflect catalogue can exist on the run.
+describe("Pi main model without AWF", () => {
+  const builtinAliases = fs.readFileSync(path.join(import.meta.dirname, "../../../pkg/workflow/data/model_aliases.json"), "utf8");
+  const envFor = model => ({ GH_AW_PI_MODEL: model, GH_AW_PI_MODEL_ALIASES: JSON.stringify(JSON.parse(builtinAliases).aliases), GH_AW_TMP_DIR: dir });
+  const records = () => JSON.parse(fs.readFileSync(path.join(dir, "agent/model-resolution.json"), "utf8"));
+  beforeEach(() => vi.spyOn(process.stderr, "write").mockImplementation(() => true));
+
+  it.each(["copilot/gpt-5.4", "copilot/gpt-5-mini"])("runs %s as an exact id although an alias has the same name", async model => {
+    const result = await resolvePiModelWithoutAWF(envFor(model));
+    expect(result).toMatchObject({ engineModel: model, alias: false, status: "exact" });
+    expect(records().at(-1)).toEqual({ engine: "pi", role: "main", configured_model: model, resolved_model: model, provider: "copilot", status: "exact", cause: null });
+  });
+
+  it("fails a pure alias with catalog_unavailable", async () => {
+    await expect(resolvePiModelWithoutAWF(envFor("copilot/opus"))).rejects.toMatchObject({
+      name: "ModelAliasResolutionError",
+      reason: "catalog_unavailable",
+      message: "model-catalog retrieval prevented alias resolution for 'copilot/opus'",
+    });
+    expect(records().at(-1)).toMatchObject({ engine: "pi", configured_model: "copilot/opus", status: "failed", cause: "catalog_unavailable" });
+  });
+
+  it("does nothing when AWF is enabled", async () => {
+    expect(await resolvePiModelWithoutAWF({ ...envFor("copilot/opus"), AWF_REFLECT_ENABLED: "1" })).toBeNull();
   });
 });

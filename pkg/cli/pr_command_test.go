@@ -22,7 +22,7 @@ import (
 
 func TestTransferPRRejectsInvalidURL(t *testing.T) {
 	t.Parallel()
-	if err := transferPR("invalid", "", false); err == nil {
+	if err := transferPRWithMessage(context.Background(), "invalid", "", false, false, ""); err == nil {
 		t.Fatal("transfer must reject invalid source URLs before performing remote operations")
 	}
 }

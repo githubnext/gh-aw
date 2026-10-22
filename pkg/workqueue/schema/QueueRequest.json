@@ -429,6 +429,9 @@
               "const": "terminal_run"
             },
             {
+              "const": "worker_termination"
+            },
+            {
               "const": "delivery"
             },
             {
@@ -1323,6 +1326,9 @@
         },
         "execution_ref": {
           "$ref": "#/$defs/Revision"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
         },
         "fairness_key": {
           "maxLength": 128,

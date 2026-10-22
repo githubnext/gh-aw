@@ -388,6 +388,7 @@ async function main(config = {}) {
       return {
         success: true,
         workflow_name: workflowName,
+        repo: resolvedRepoSlug,
         inputs: inputs,
         run_id: runId,
       };

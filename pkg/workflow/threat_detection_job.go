@@ -16,7 +16,7 @@ import (
 // The job downloads the agent artifact to access output files, then runs all threat detection
 // steps. It outputs detection_success and detection_conclusion for downstream jobs.
 // Returns nil if threat detection is not configured.
-func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
+func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) { //nolint:largefunc // Keep detection job assembly and its ordered setup steps together.
 	threatLog.Print("Building separate detection job")
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		threatLog.Print("Threat detection not configured, skipping detection job")
@@ -64,7 +64,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 	steps = append(steps, c.buildWorkspaceCheckoutForDetectionStep(data)...)
 
 	// Add all threat detection steps
-	detectionStepsContent := c.buildDetectionJobSteps(data)
+	detectionStepsContent := c.buildDetectionJobSteps(data, steps...)
 	steps = append(steps, detectionStepsContent...)
 
 	// Build job outputs
@@ -72,6 +72,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		"detection_success":    "${{ steps.detection_conclusion.outputs.success }}",
 		"detection_conclusion": "${{ steps.detection_conclusion.outputs.conclusion }}",
 		"detection_reason":     "${{ steps.detection_conclusion.outputs.reason }}",
+		"run_detection":        "${{ steps.detection_guard.outputs.run_detection }}",
 		"aic":                  "${{ steps.parse_detection_token_usage.outputs.aic }}",
 	}
 

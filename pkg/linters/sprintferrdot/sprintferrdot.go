@@ -9,7 +9,6 @@ package sprintferrdot
 import (
 	"go/ast"
 	"go/types"
-	"strconv"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -57,7 +56,7 @@ func analyzeErrDotCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 		return
 	}
 
-	formatStr, ok := extractStringLit(call.Args[formatArgIdx])
+	formatStr, ok := astutil.StringLitValue(call.Args[formatArgIdx])
 	if !ok {
 		return
 	}
@@ -88,7 +87,7 @@ func analyzeErrDotCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 // fmtFormatCallInfo returns the format-string argument index and the
 // variadic-args start index for recognised fmt format functions.
 func fmtFormatCallInfo(pass *analysis.Pass, call *ast.CallExpr) (formatArgIdx, variadicStart int, ok bool) {
-	sel, isSel := call.Fun.(*ast.SelectorExpr)
+	sel, isSel := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !isSel {
 		return 0, 0, false
 	}
@@ -103,19 +102,6 @@ func fmtFormatCallInfo(pass *analysis.Pass, call *ast.CallExpr) (formatArgIdx, v
 	default:
 		return 0, 0, false
 	}
-}
-
-// extractStringLit returns the unquoted value of a string literal expression.
-func extractStringLit(expr ast.Expr) (string, bool) {
-	lit, ok := expr.(*ast.BasicLit)
-	if !ok {
-		return "", false
-	}
-	s, err := strconv.Unquote(lit.Value)
-	if err != nil {
-		return "", false
-	}
-	return s, true
 }
 
 // parseSimpleFormatVerbs returns the list of format verbs in sequential order.
@@ -175,11 +161,11 @@ func parseSimpleFormatVerbs(format string) []rune {
 // isErrorDotCall reports whether expr is a zero-argument .Error() call on a
 // value that implements the error interface.
 func isErrorDotCall(pass *analysis.Pass, expr ast.Expr) bool {
-	call, ok := expr.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(expr).(*ast.CallExpr)
 	if !ok || len(call.Args) != 0 {
 		return false
 	}
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Error" {
 		return false
 	}

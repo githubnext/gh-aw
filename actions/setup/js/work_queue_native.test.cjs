@@ -92,6 +92,87 @@ describe("authenticated native queue runs", () => {
     expect(githubClient.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
   });
 
+  it("recovers nested socket failures during publisher repository authentication with bounded GETs only", async () => {
+    const githubClient = nativeClient({ getWorkflowRun: vi.fn().mockResolvedValue({ status: 200, data: run }) });
+    const failure = Object.assign(new Error("other side closed"), { cause: { cause: { code: "UND_ERR_SOCKET" } } });
+    githubClient.rest.repos.get.mockRejectedValueOnce(failure).mockRejectedValueOnce(failure);
+    const sleepFn = vi.fn(async () => {});
+    const options = {
+      role: "reconciler",
+      context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, actorId: "11", sha: ref, eventName: "workflow_dispatch" },
+      workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+      githubClient,
+      sleepFn,
+    };
+    await expect(authenticatePublisher(options)).resolves.toMatchObject({ authenticated: true, run_id: run.id });
+    expect(githubClient.rest.repos.get).toHaveBeenCalledTimes(3);
+    expect(githubClient.rest.repos.get.mock.calls.every(([parameters]) => parameters.request.retries === 0 && parameters.request.retryCount === 0 && parameters.request.timeout === 15000)).toBe(true);
+    expect(githubClient.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+  });
+
+  it.each(["UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT"])("recovers nested %s failures during publisher run authentication with bounded GETs only", async code => {
+    const read = vi.fn().mockResolvedValue({ status: 200, data: run });
+    const failure = { cause: { cause: { code } } };
+    read.mockRejectedValueOnce(failure).mockRejectedValueOnce(failure);
+    const githubClient = nativeClient({ getWorkflowRun: read });
+    const sleepFn = vi.fn(async () => {});
+    await expect(
+      authenticatePublisher({
+        role: "reconciler",
+        context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, actorId: "11", sha: ref, eventName: "workflow_dispatch" },
+        workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+        githubClient,
+        sleepFn,
+      })
+    ).resolves.toMatchObject({ authenticated: true, run_id: run.id, principal: "11", ref });
+    expect(githubClient.rest.repos.get).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledTimes(3);
+    for (const [parameters] of read.mock.calls) expect(parameters).toEqual(read.mock.calls[0][0]);
+    expect(read.mock.calls[0][0]).toMatchObject({ run_id: run.id, request: { retries: 0, retryCount: 0, timeout: 15000 } });
+    expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+  });
+
+  it.each([{ id: "43" }, { run_attempt: 2 }, { repository: { full_name: "owner/repo", id: 8 } }, { head_sha: "b".repeat(40) }, { event: "push" }, { path: ".github/workflows/foreign.lock.yml" }, { actor: { id: 12 } }])(
+    "rejects recovered publisher metadata without retrying validation: %j",
+    async override => {
+      const read = vi
+        .fn()
+        .mockRejectedValueOnce({ status: 503 })
+        .mockResolvedValue({ status: 200, data: { ...run, ...override } });
+      const sleepFn = vi.fn(async () => {});
+      await expect(
+        authenticatePublisher({
+          role: "reconciler",
+          context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, actorId: "11", sha: ref, eventName: "workflow_dispatch" },
+          workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+          githubClient: nativeClient({ getWorkflowRun: read }),
+          sleepFn,
+        })
+      ).rejects.toThrow();
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1000);
+    }
+  );
+
+  it("still denies a foreign repository after transport recovery without reading the run", async () => {
+    const githubClient = nativeClient({ getWorkflowRun: vi.fn() }, { full_name: "foreign/repo", id: 7 });
+    githubClient.rest.repos.get.mockRejectedValueOnce({ status: 503 });
+    const sleepFn = vi.fn(async () => {});
+    await expect(
+      authenticatePublisher({
+        role: "reconciler",
+        context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, sha: ref, eventName: "workflow_dispatch" },
+        workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+        githubClient,
+        sleepFn,
+      })
+    ).rejects.toThrow("native_repository_identity_mismatch");
+    expect(githubClient.rest.repos.get).toHaveBeenCalledTimes(2);
+    expect(githubClient.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+    expect(sleepFn).toHaveBeenCalledTimes(1);
+  });
+
   it("reads an exact bounded dispatcher attempt without relaxing worker attempt-one validation", async () => {
     const getAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...run, run_attempt: 2 } });
     const githubClient = nativeClient({ getWorkflowRunAttempt: getAttempt });
@@ -104,13 +185,28 @@ describe("authenticated native queue runs", () => {
     expect(getAttempt).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["repository", "attempt"])("forwards the sleep hook for standalone %s recovery without changing the requested attempt", async endpoint => {
+    const getAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...run, run_attempt: 2 } });
+    const githubClient = nativeClient({ getWorkflowRunAttempt: getAttempt });
+    const read = endpoint === "repository" ? githubClient.rest.repos.get : getAttempt;
+    read.mockRejectedValueOnce({ cause: { code: "UND_ERR_SOCKET" } }).mockRejectedValueOnce({ status: 503 });
+    const sleepFn = vi.fn(async () => {});
+    const original = await fetchNativeRunAttempt(githubClient, expected.repository, run.id, 2, { sleepFn });
+    expect(original.run_attempt).toBe(2);
+    expect(() => validateNativeRun(original, expected)).toThrow("rerun_not_authorized");
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(getAttempt.mock.calls.every(([parameters]) => parameters.run_id === run.id && parameters.attempt_number === 2)).toBe(true);
+    expect(getAttempt.mock.calls[0][0]).toMatchObject({ request: { retries: 0, retryCount: 0, timeout: 15000 } });
+    expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+  });
+
   it("verifies immutable attempt one even when the latest run is a rerun", async () => {
     const getWorkflowRun = vi.fn().mockResolvedValue({ status: 200, data: { ...run, run_attempt: 2 } });
     const getWorkflowRunAttempt = vi.fn().mockResolvedValue({ status: 200, data: run });
     const githubClient = nativeClient({ getWorkflowRun, getWorkflowRunAttempt });
     expect(validateNativeRun(await fetchNativeRunAttempt(githubClient, expected.repository, run.id, 1), { ...expected, run_id: run.id })).toMatchObject({ run_id: run.id, run_attempt: 1 });
     expect(getWorkflowRun).not.toHaveBeenCalled();
-    expect(getWorkflowRunAttempt).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ run_id: run.id, attempt_number: 1, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } }));
+    expect(getWorkflowRunAttempt).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ run_id: run.id, attempt_number: 1, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0, timeout: 15000 } }));
   });
 
   it("classifies only the retryable native verification failures as transient", () => {
@@ -118,7 +214,10 @@ describe("authenticated native queue runs", () => {
       expect(isTransientVerificationError({ status })).toBe(true);
       expect(isTransientVerificationError({ response: { status } })).toBe(true);
     }
-    for (const code of ["ETIMEDOUT", "ECONNRESET"]) expect(isTransientVerificationError({ code })).toBe(true);
+    for (const code of ["ETIMEDOUT", "ECONNRESET", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]) {
+      expect(isTransientVerificationError({ code })).toBe(true);
+      expect(isTransientVerificationError({ cause: { cause: { code } } })).toBe(true);
+    }
     expect(isTransientVerificationError(new Error("run_correlation_mismatch"))).toBe(true);
     for (const error of [
       undefined,
@@ -132,6 +231,9 @@ describe("authenticated native queue runs", () => {
       new Error("run_workflow_mismatch"),
       new Error("run_principal_mismatch"),
       { code: "EACCES" },
+      { status: 503, cause: { code: "ERR_TRANSPORT_INTEGRITY" } },
+      { status: 503, response: { headers: { "retry-after": "1" } } },
+      { code: "ECONNRESET", cause: { status: 403 } },
       { status: 403, response: { status: 503 } },
       ...[200, 400, 401, 403, 422, 429, 499, 600].map(status => ({ status })),
       ...[403, 429, 600].map(status => ({ response: { status } })),

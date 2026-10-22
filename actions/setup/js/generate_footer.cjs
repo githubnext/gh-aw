@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason, getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 
 /**
@@ -130,11 +130,10 @@ function generateXMLMarker(workflowName, runUrl) {
  * @returns {string} Alert markdown or empty string
  */
 function getExpiredEntityCautionAlert(workflowName, runUrl) {
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-  if (detectionConclusion !== "warning") {
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+  if (getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, detectionReason) !== "warning") {
     return "";
   }
-  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const reasonText = getDetectionReasonText(detectionReason);
   const context = { threat_detected_marker: getThreatDetectedMarker(detectionReason), reason_text: reasonText, run_url: runUrl };
   if (isToolingFailureReason(detectionReason)) {

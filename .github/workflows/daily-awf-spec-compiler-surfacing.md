@@ -180,7 +180,7 @@ outcome. Do not edit ledger branches directly or invoke compaction.
 ## agent: `awf-change-detector`
 ---
 description: Extracts user-relevant feature candidates from schema/compiler diffs
-model: small
+model: gpt-5
 ---
 Input: schema/compiler diff context.
 
@@ -195,7 +195,7 @@ Rules:
 ## agent: `surfacing-gap-evaluator`
 ---
 description: Determines if a candidate feature is sufficiently surfaced in gh-aw
-model: small
+model: gpt-5
 ---
 Input: one candidate + relevant docs/CLI/context snippets.
 

@@ -22,6 +22,10 @@ profiles; those configurations do not override AW's singleton default.
 effect/admission authority, not AW enrollment or authentication implementation.
 `DispatchReservationRecovery` refines never-started reservations separately
 from the existing launch and worker models.
+`ClaimDeliveryHealth` isolates aggregate delivery reporting from independently
+verified Claim results and native reservation release.
+`ClaimDeliveryRecovery` refines released pending-delivery recovery, private
+receipt loss, authenticated cleanup and conditional maintenance progress.
 
 The original `WorkQueue.tla` is retained as historical model evidence for
 [issue #64852](https://github.com/github/gh-aw/issues/64852). Its best-effort
@@ -39,6 +43,42 @@ First-submit Policy bootstrap and later quiescent Policy updates are documented 
 This directory retains executable specifications and formal evidence, not a
 second current user guide. The historical material below is model provenance,
 not supported deployment guidance.
+
+## Unclaimed Work expiration model
+
+`WorkExpiration.tla` isolates optional immutable Work deadlines from Claim
+authority. Its finite universe has two Work nodes, timestamps 0–2, at most four
+committed events and one abstract checkpoint. Each event advances the maximum
+committed time and expires only available Work outside pending/failed delivery.
+It includes grant, finish, retained finish, Claim cancellation, verified
+delivery, exact terminal evidence and reservation release. Expiry before a
+grant and a grant before expiry are distinct causal outcomes.
+
+`ExpirationSafety` checks no expired grants, unchanged Claim history, immutable
+charges, completion/Result preservation, native release authority, monotonic
+committed time, full replay and checkpoint/suffix equivalence. Checkpoints retain
+the expiration watermark. Five mutation configurations require their exact
+named violations: expired grants, timeout-only native release, expired running
+Claims, timestamp rollback and checkpoint watermark loss. Two safety-guarded
+witnesses reach a running Claim past its deadline and a checkpoint with expired
+Work.
+
+Official TLC 2.19 (pinned jar SHA below), Java 21, exhausted **34,023 distinct
+states at depth 6** for `WorkExpiration.cfg`. All eight configurations produced
+their exact expected verdicts. Reproduce with:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=WorkExpiration bash specs/work-queue/check.sh
+```
+
+This is bounded safety evidence, not an unbounded proof, runtime refinement,
+JSON/checkpoint codec proof, or a wall-clock/GitHub timing guarantee. Identity,
+immutable deadlines and exact terminal observations are trusted premises.
+The model abstracts retry counts, DAG structure, publication contention and
+physical pruning. The native conformance tests cover those runtime boundaries
+separately. No liveness property promises service before a finite expiration;
+the existing `QueueService` result remains conditional on continuous eligibility.
 
 ## Retained Claim completion model
 
@@ -99,6 +139,143 @@ expected verdicts, including guarded witnesses and mutation controls. Prior
 `IssueExisting`, `IssueCreated`, `IssueDefaultOpen`, and `IssuePRStaysOpen`
 configurations also passed. Reports remain in the ignored local validation
 cache; these results apply only to the bounded models, not live execution.
+
+## Claim delivery health and native capacity
+
+`ClaimDeliveryHealth.tla` models two original Claims whose handler passes all
+succeed. Trusted per-Claim reconciliation can still return pending or failed
+delivery, a verified Result, or cancellation. The manager processes both siblings
+before reporting aggregate health: only Results/cancellations permit non-staged
+success. Failure preserves independently valid sibling Results; it neither
+creates new ledger facts nor permits effect replay. A pending or failed member
+maps to the existing aggregate `delivery_pending` outcome, not proof that its
+ledger barrier is still retryable.
+
+The staged configuration records previews only, with no Results, cancellations
+or native release. Non-staged native release requires separate abstract exact
+terminal evidence and cannot create Results. Receipt verification is an input
+premise, not inferred from handler success, elapsed time, or workflow conclusion.
+`QueueLifecycle.tla` also retains its independent terminal/release transitions;
+the new witness reaches released capacity while a completed Claim still lacks
+Result or DeliveryFailure.
+
+| Configuration | Expected result |
+|---|---|
+| `DeliveryHealth.cfg` | Exhaust `Safety` for non-staged aggregate reporting and independent release. |
+| `DeliveryHealthStaged.cfg` | Exhaust `Safety` without publishing terminal facts. |
+| `BrokenDeliveryFalseGreen.cfg` | `ReportTruth` rejects successful reporting with unverified delivery. |
+| `BrokenDeliveryEarlyStop.cfg` | `IndependentSiblings` rejects stopping before processing every sibling. |
+| `BrokenDeliveryReleaseResult.cfg` | `ResultAuthority` rejects a Release that fabricates Results. |
+| `BrokenDeliveryPrematureRelease.cfg` | `ReleaseAuthority` rejects release without terminal evidence. |
+| `DeliveryPendingWitness.cfg`, `DeliveryFailedWitness.cfg` | Reach failure with one unverified member and one successful Result. |
+| `DeliveryMixedWitness.cfg` | Reach successful mixed Result/cancellation without cancelling the Result. |
+| `DeliveryReleasedWitness.cfg` | Reach released capacity with pending delivery and a preserved sibling Result. |
+| `LifecycleReleasedPendingWitness.cfg` | Reach terminal release with a completed, unresolved Claim in `QueueLifecycle`. |
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=ClaimDeliveryHealth bash specs/work-queue/check.sh
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=QueueLifecycle TLC_CONFIG_FILTER=LifecycleReleasedPendingWitness \
+  bash specs/work-queue/check.sh
+```
+
+Official TLC 2.19 with Java 21 exhausted 73 non-staged states at depth 6 and
+6 staged states at depth 5. All four mutations produced their exact named
+invariant violations; all five witnesses (including the lifecycle witness)
+reached their guarded targets without a safety failure. Reports remain in the
+ignored repository-local validation cache. The runner regression checks exact
+verdicts and rejects safety/tool failures as witness evidence.
+
+This focused model does not check handler execution, native API identities,
+durable publication/CAS, delivery retry budgets, late receipt recovery, crashes
+or fairness. It adds no liveness guarantee and does not prove runtime refinement.
+`QueueLifecycle` retains broader launch/delivery transitions and its original
+safety configurations. Native tool permissions and preparation-path agreement
+are compiler/runtime regression obligations, not modeled capabilities.
+
+The hosted Refiner staged test
+[39051960708](https://github.com/github/gh-aw/actions/runs/39051960708) exercised
+history preparation and Claude startup, but failed at the conclusion after the
+agent reported the missing queue tools/assignment deliberately removed by
+dry-run. Neither this finite model nor that startup evidence establishes native
+Claim processing or successful delivery; no assignment guard was bypassed.
+
+## Released Claim delivery recovery
+
+`ClaimDeliveryRecovery.tla` starts after Completion and the original external
+effects, with two immutable Claims: one ordinary and one `keep_open`. Protected
+creation receipts may be available or lost; artifacts cannot recreate them.
+It explores eight PR transport classes, including enriched routing, a verified
+ancestor base, foreign routing, malformed/unrelated commits and unknown fields.
+Native observations distinguish unavailable, active, identity-mismatched, rerun
+and exact terminal evidence. These are semantic predicate abstractions, not
+implementations of SHA ancestry, GitHub reads or private WeakMap proofs.
+
+The model separates inline quiescence/release from native terminality and
+delivery. Cleanup uses the authenticated credential principal even though the
+logical profile has none. Maintenance rotates one Claim per step, includes
+released original pending barriers, and prepares failure proposals separately
+from checked publication. Results and retained re-grants can race with a stale
+proposal. Publication rechecks the original owner and pending exclusive barrier;
+expiry checks the durable deadline at publication, records unknown effects,
+and never reconstructs a Result or replays effects.
+
+`DeliveryRecovery.cfg` checks `Safety` over both Claims and deadline ticks
+0 through 2. `DeliveryRecoveryProgress.cfg` also checks `EventualSettlement`
+under `FairSpec`: weak fairness of clock advancement, rotating maintenance and
+each prepared failure publication, **conditional on eventually stable exact
+terminal observations**. Fair publication assumes eventual ledger writability
+and successful conflict retries. These assumptions do not follow from a
+schedule, timeout, successful workflow, or capacity release.
+
+The controls require exact named invariant violations for missing profile
+principal use, early expiry, foreign/active/unavailable terminal evidence,
+unknown-as-none effects, stale publication, artifact-derived proofs, rejected
+corroborated routing, accepted foreign metadata, effect replay and failed
+retained re-grants. `BrokenRecoveryReleased.cfg` must instead violate the
+temporal property when released candidates are omitted despite the same
+fairness assumptions. `BrokenRecoveryUnfair.cfg` demonstrates failure without
+the fairness assumptions. Four witnesses check `Safety` before their
+deliberately false reachability predicates: released recovery without private
+receipts, enriched native Result, an independently failed sibling plus verified
+retained re-grant, and released capacity still pending under unavailable reads.
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=ClaimDeliveryRecovery bash specs/work-queue/check.sh
+python3 -B specs/work-queue/verify_models_test.py
+```
+
+Official TLC 2.19 with Java 21 exhausted **36,660 distinct states at depth 16**
+for each positive configuration. All 18 configurations returned their expected
+verdicts: two positive checks, ten invariant mutations, two temporal controls,
+and four safety-guarded witnesses. The released-candidate counterexample reaches
+exact terminal evidence, capacity release and deadline exhaustion, then rotates
+maintenance forever without preparing a failure; the fixed model excludes that
+behavior under the stated fairness assumptions. Without fairness, even a
+prepared sibling failure can remain unpublished forever.
+
+The related regression run also exhausted both `ClaimDeliveryHealth` positives
+(73 and 6 states), both `QueueLifecycle` positives (496 and 207,612 states), and
+`FairKeepOpen` (83,865 states); every registered control/witness in those first
+two modules returned its exact expected verdict. The runner's 11 unit tests
+check verdict handling, not protocol correctness. The existing 16-case
+Go/JavaScript deadline-parity test separately confirms real replay checks for
+deadline/attempt exhaustion and unknown/none/partial evidence dispositions.
+
+This is bounded safety and conditional temporal evidence, not an unbounded
+proof or runtime refinement. It omits actual Git CAS, arbitrary wire records,
+native identity validation internals, API consistency, deadline timestamp
+encoding, retry/backoff arithmetic, scanner/redaction behavior and disabled
+maintenance. Its fixed two-Claim dispatch does not model changing candidate
+populations or the runtime run-number/rotation mapping. The ordinary Work
+barrier and retained Claim barrier are abstracted as separate Claim-indexed
+obligations; their runtime storage paths require regression coverage. The
+existing `QueueLifecycle` model separately checks the finite verification-attempt
+budget, and `ClaimDeliveryHealth` checks staged isolation and aggregate reporting.
+Existing historical verification counts elsewhere in this guide are not results
+for this new refinement.
 
 ## Abandoned dispatcher reservation recovery
 
@@ -560,6 +737,22 @@ an independent queue. Explicit migration requires quiescing all writers and old
 workflows, renaming the existing branch/log, and deploying recompiled workflows
 before resuming. Both branch names or both log filenames together are ambiguous
 and fail closed. Logs/audit retain read compatibility for historical artifacts.
+
+## Inline worker termination
+
+Normal cleanup runs in the existing compiled conclusion job after all other jobs.
+The authenticated original run may publish `worker_termination` evidence with a
+digest of a complete, quiescent original-attempt job inventory. This releases
+worker execution capacity while conclusion finishes; it does not claim the native
+run is completed or settle delivery barriers. Both native replayers reject this
+evidence from a different run, attempt, workflow or principal.
+
+Hard-cancelled workers use bounded reconciliation in the existing scheduled queue
+maintenance job, retaining the stricter exact native-terminal proof. There is no
+per-worker completion-triggered workflow. Upgrade closed-schema readers before
+publishing the new evidence variant. Cross-language worker-termination tests
+cover the new release boundary; existing native-terminal formal models continue
+to cover the recovery path, not the inline job-inventory receipt check.
 
 ## Current wire contract and schema checks
 
@@ -1267,7 +1460,7 @@ JAVA_BIN=/path/to/java \
 bash specs/work-queue/check.sh
 ```
 
-The runner checks every registered configuration across the nine models,
+The runner checks every registered configuration across the current and historical models,
 including the historical configurations below. Positive configurations require
 exhaustive successful termination; negative controls and guarded witnesses
 require their exact named diagnostic and exit status, not a parse/tooling failure.

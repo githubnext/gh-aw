@@ -40,7 +40,7 @@ func TestConclusionWorkQueueSummary(t *testing.T) {
 	}
 }
 
-func TestConclusionWorkQueueSummaryDoesNotBorrowWriterPermissions(t *testing.T) {
+func TestConclusionWorkQueueTerminationUsesOnlyQueuePermissions(t *testing.T) {
 	data := &WorkflowData{
 		Tools: map[string]any{"work-queue": map[string]any{"worker": true}},
 		SafeOutputs: &SafeOutputsConfig{
@@ -49,7 +49,9 @@ func TestConclusionWorkQueueSummaryDoesNotBorrowWriterPermissions(t *testing.T) 
 	}
 	level, ok := computeConclusionJobPermissions(data).Get(PermissionContents)
 	require.True(t, ok)
-	require.Equal(t, PermissionRead, level)
+	require.Equal(t, PermissionWrite, level)
+	_, hasPullRequests := computeConclusionJobPermissions(data).Get(PermissionPullRequests)
+	require.False(t, hasPullRequests)
 	actions, ok := computeConclusionJobPermissions(data).Get(PermissionActions)
 	require.True(t, ok)
 	require.Equal(t, PermissionRead, actions)
@@ -61,6 +63,29 @@ func TestConclusionWorkQueueSummaryDoesNotBorrowWriterPermissions(t *testing.T) 
 	level, ok = computeConclusionJobPermissions(data).Get(PermissionContents)
 	require.True(t, ok)
 	require.Equal(t, PermissionWrite, level)
+}
+
+func TestConclusionWorkerTerminationIsInlineAndAlwaysRuns(t *testing.T) {
+	for _, required := range []bool{true, false} {
+		data := &WorkflowData{
+			Tools:       map[string]any{"work-queue": map[string]any{"worker": required}},
+			SafeOutputs: &SafeOutputsConfig{},
+		}
+		compiler := NewCompiler()
+		job, err := compiler.buildConclusionJob(data, "agent", []string{"safe_outputs"})
+		require.NoError(t, err)
+		steps := strings.Join(job.Steps, "")
+		if !required {
+			require.NotContains(t, steps, "reconcile_work_queue_run.cjs")
+			continue
+		}
+		require.Equal(t, "always()", job.If)
+		require.Contains(t, job.Needs, "safe_outputs")
+		require.Contains(t, steps, "id: worker_termination\n        if: always()")
+		require.NotContains(t, steps, "worker_termination\n        if: always()\n        continue-on-error")
+		require.Contains(t, steps, "reconcile_work_queue_run.cjs")
+		require.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "work_queue_summary.cjs"))
+	}
 }
 
 func TestConclusionWorkQueueObserverPreservesOrdinaryPermissions(t *testing.T) {

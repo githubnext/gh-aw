@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ var objectiveMappingGHAPIGraphQL = ghAPIGraphQL
 // OutcomeReport is the result of evaluating one safe output item.
 type OutcomeReport struct {
 	OutcomeEvaluation
+	ItemID             string   `json:"item_id,omitempty" console:"-"`
 	Type               string   `json:"type" console:"header:Type"`
 	ObjectURL          string   `json:"object_url,omitempty" console:"header:URL,omitempty"`
 	ObjectNumber       int      `json:"object_number,omitempty" console:"header:#,omitempty"`
@@ -115,9 +117,10 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 	}
 
 	reports := make([]OutcomeReport, 0, len(items))
+	occurrences := make(map[[sha256.Size]byte]int)
 	skipped := 0
 	for _, item := range items {
-		if item.Type == "noop" || item.Type == "missing_tool" || item.Type == "missing_data" || item.Type == "report_incomplete" {
+		if item.Type == "noop" || item.Type == "report_missing_tool" || item.Type == "missing_tool" || item.Type == "report_missing_data" || item.Type == "missing_data" || item.Type == "report_incomplete" {
 			skipped++
 			continue
 		}
@@ -130,9 +133,11 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 			outcomeEvalLog.Printf("No evaluator registered for type %q, using generic sticky", item.Type)
 			eval = evalGenericSticky
 		}
+		itemID := outcomeItemID(item, occurrences)
 		report := eval(ctx, item, repo)
+		report.ItemID = itemID
 		report.CreatedAt = item.Timestamp
-		report.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+		report.CheckedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		report.OutcomeEvaluation = normalizeOutcomeEvaluation(report)
 
 		// Compute objective value from issue/PR labels
@@ -142,6 +147,18 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 	}
 	outcomeEvalLog.Printf("Outcome evaluation complete: reports=%d, skipped=%d", len(reports), skipped)
 	return reports
+}
+
+func outcomeItemID(item CreatedItemReport, occurrences map[[sha256.Size]byte]int) string {
+	source, err := json.Marshal(item)
+	if err != nil {
+		outcomeEvalLog.Printf("Cannot identify safe output item: %v", err)
+		return ""
+	}
+	digest := sha256.Sum256(source)
+	// Only indistinguishable source records need an occurrence number.
+	occurrences[digest]++
+	return fmt.Sprintf("item-sha256-%x-%d", digest, occurrences[digest])
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.
@@ -406,7 +423,7 @@ func enrichOutcomeWithObjectiveValue(ctx context.Context, report *OutcomeReport,
 	}
 
 	// Skip types that don't have associated labels on issues/PRs
-	if report.Type == "noop" || report.Type == "missing_tool" || report.Type == "missing_data" || report.Type == "report_incomplete" {
+	if report.Type == "noop" || report.Type == "report_missing_tool" || report.Type == "missing_tool" || report.Type == "report_missing_data" || report.Type == "missing_data" || report.Type == "report_incomplete" {
 		return
 	}
 

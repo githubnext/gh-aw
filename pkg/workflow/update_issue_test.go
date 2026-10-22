@@ -58,7 +58,7 @@ This workflow tests the update-issue configuration parsing.
 
 	// Check defaults
 	if templatableIntValue(workflowData.SafeOutputs.UpdateIssues.Max) != 1 {
-		t.Fatalf("Expected max to be 1, got %d", workflowData.SafeOutputs.UpdateIssues.Max)
+		t.Fatalf("Expected max to be 1, got %v", workflowData.SafeOutputs.UpdateIssues.Max)
 	}
 
 	if workflowData.SafeOutputs.UpdateIssues.Target != "" {
@@ -131,7 +131,7 @@ This workflow tests the update-issue configuration with all options.
 
 	// Check all options
 	if templatableIntValue(workflowData.SafeOutputs.UpdateIssues.Max) != 3 {
-		t.Fatalf("Expected max to be 3, got %d", workflowData.SafeOutputs.UpdateIssues.Max)
+		t.Fatalf("Expected max to be 3, got %v", workflowData.SafeOutputs.UpdateIssues.Max)
 	}
 
 	if workflowData.SafeOutputs.UpdateIssues.Target != "*" {

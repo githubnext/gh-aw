@@ -48,6 +48,7 @@ const trace = [
   event("agent.execution", { categories: ["agentic_engine_timeout"], errorCodes: [502], errorTypes: ["server_error"], exitCode: 0 }, "execution", 1),
   event("detection.result", { job_result: "success", conclusion: "warning", reason: "threat_detected", prompt_injection: true, secret_leak: false, malicious_patch: false, reasons: "PRIVATE_DETECTION_REASON" }, "detection", 0),
   event("workflow.info", { engine_id: "copilot", model: "fixture", run_id: 1 }, "workflow", 0),
+  event("guardrail.admission", { status: "admitted", maxAiCredits: 18372645, threatDetectionMaxAiCredits: 18372646, evalsMaxAiCredits: 18372647 }, "guardrail", 0),
   event("model_routing.outcome", { status: "selected", wireModel: "claude-sonnet-5", effectiveEndpoint: "/v1/messages", selectedEndpoint: "/chat/completions", appliedEffort: "medium" }, "agent", 6),
   event("vendor.progress", { private: "PRIVATE_EXTENSION" }, "agent", 5, undefined, "session-a.jsonl"),
   event("session.collection_warning", { path: "gateway.jsonl", line: 2, code: "malformed_jsonl" }, "collector", 1),
@@ -228,6 +229,14 @@ describe("unified session publication views", () => {
         "workflow.info",
         {
           run_id: "300",
+          run_attempt: "2",
+          workflow_id: "worker.yml",
+          workflow_call_id: "300-2:worker.yml",
+          caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+          ref: "refs/heads/main",
+          sha: "abc123",
+          actor: "octocat",
+          target_repo: "org/target",
           context: {
             episode_id: "100-1:root",
             hop_id: "200-1:caller",
@@ -237,6 +246,11 @@ describe("unified session publication views", () => {
             root_workflow_id: "root.yml",
             root_run_id: "100",
             workflow_call_id: "200-1:caller",
+            repo: "org/parent",
+            run_id: "200",
+            run_attempt: "1",
+            workflow_id: "caller.yml",
+            event_type: "workflow_dispatch",
             work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
           },
         },
@@ -249,6 +263,14 @@ describe("unified session publication views", () => {
     for (const records of [events, [header, ...normalized]]) {
       for (const output of [generatePlainTextSummary(records), generateCopilotCliStyleSummary(records)]) {
         expect(output).toContain("runId=300");
+        expect(output).toContain("runAttempt=2");
+        expect(output).toContain("workflowId=worker.yml");
+        expect(output).toContain("workflowCallId=300-2:worker.yml");
+        expect(output).toContain("callerWorkflowRef=org/parent/.github/workflows/caller.yml@refs/heads/main");
+        expect(output).toContain("ref=refs/heads/main");
+        expect(output).toContain("sha=abc123");
+        expect(output).toContain("actor=octocat");
+        expect(output).toContain("targetRepo=org/target");
         expect(output).toContain("episodeId=100-1:root");
         expect(output).toContain("hopId=200-1:caller");
         expect(output).toContain("parentHopId=");
@@ -256,6 +278,12 @@ describe("unified session publication views", () => {
         expect(output).toContain("rootRepo=org/repo");
         expect(output).toContain("rootWorkflowId=root.yml");
         expect(output).toContain("rootRunId=100");
+        expect(output).toContain("parentRepo=org/parent");
+        expect(output).toContain("parentRunId=200");
+        expect(output).toContain("parentRunAttempt=1");
+        expect(output).toContain("parentWorkflowId=caller.yml");
+        expect(output).toContain("parentWorkflowCallId=200-1:caller");
+        expect(output).toContain("parentEventType=workflow_dispatch");
         expect(output).toContain(`awContext=${JSON.stringify(normalized[0].data.awContext)}`);
       }
     }
@@ -333,6 +361,8 @@ describe("unified session publication views", () => {
       expect(output).toContain("jobResult=success conclusion=warning reason=threat_detected promptInjection=true secretLeak=false maliciousPatch=false");
       expect(output).toContain("untimedEvents=10");
       expect(output).toContain("malformed_jsonl");
+      expect(output).toContain("status=admitted (allowance values available in session JSONL)");
+      for (const amount of ["18372645", "18372646", "18372647"]) expect(output).not.toContain(amount);
       expect(output).not.toContain("PRIVATE_");
       expect(output.indexOf("mcp.rpc.request")).toBeLessThan(output.indexOf("firewall.http_access"));
       expect(output.indexOf("firewall.http_access")).toBeLessThan(output.indexOf("mcp.rpc.response"));
@@ -869,12 +899,19 @@ describe("unified session publication views", () => {
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {
     const summary = path.join(directory, "summary.md");
+    const previousSummary = global.core.summary;
+    global.core.summary = { addDetails: vi.fn(), write: vi.fn() };
     fs.writeFileSync(summary, "Earlier summary\n");
     process.env.GITHUB_STEP_SUMMARY = summary;
     fs.writeFileSync(path.join(directory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "done" } }) + "\n");
     fs.mkdirSync(path.join(directory, "mcp-logs"));
     fs.writeFileSync(path.join(directory, "mcp-logs", "gateway.jsonl"), JSON.stringify({ event: "tool_call", tool_name: "lookup" }) + "\n");
-    await main({ rootDir: directory });
+    try {
+      await main({ rootDir: directory });
+    } finally {
+      if (previousSummary === undefined) delete global.core.summary;
+      else global.core.summary = previousSummary;
+    }
     const artifact = fs.readFileSync(path.join(directory, "usage", "aw_session.jsonl"), "utf8");
     expect(JSON.parse(artifact.split("\n")[0]).data.version).toBe(1);
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("mcp.tool_call"));

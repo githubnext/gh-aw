@@ -1,9 +1,8 @@
 package cli
 
 import (
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var userRateLimitCodemodLog = logger.New("cli:codemod_user_rate_limit")
@@ -26,83 +25,21 @@ func getRateLimitToUserRateLimitCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, renameRateLimitToUserRateLimit)
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if err := f.Rename([]string{"rate-limit"}, "user-rate-limit"); err != nil {
+					return err
+				}
+				for _, old := range []string{"max-runs", "max"} {
+					if err := f.Rename([]string{"user-rate-limit", old}, "max-runs-per-window"); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
 			if applied {
 				userRateLimitCodemodLog.Print("Renamed 'rate-limit' to 'user-rate-limit' and migrated max field")
 			}
 			return newContent, applied, err
 		},
 	}
-}
-
-func renameRateLimitToUserRateLimit(lines []string) ([]string, bool) {
-	var result []string
-	modified := false
-
-	inUserRateLimit := false
-	userRateLimitIndent := ""
-	userRateLimitChildIndent := ""
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "" {
-			result = append(result, line)
-			continue
-		}
-
-		if !strings.HasPrefix(trimmed, "#") && inUserRateLimit && hasExitedBlock(line, userRateLimitIndent) {
-			inUserRateLimit = false
-			userRateLimitChildIndent = ""
-		}
-
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "rate-limit:") {
-			lineIndent := getIndentation(line)
-			newLine, replaced := findAndReplaceInLine(line, "rate-limit", "user-rate-limit")
-			if replaced {
-				result = append(result, newLine)
-				modified = true
-				inUserRateLimit = true
-				userRateLimitIndent = lineIndent
-				userRateLimitChildIndent = ""
-				userRateLimitCodemodLog.Printf("Renamed 'rate-limit' to 'user-rate-limit' on line %d", i+1)
-				continue
-			}
-		}
-
-		if isTopLevelKey(line) && strings.HasPrefix(trimmed, "user-rate-limit:") {
-			inUserRateLimit = true
-			userRateLimitIndent = getIndentation(line)
-			userRateLimitChildIndent = ""
-			result = append(result, line)
-			continue
-		}
-
-		if inUserRateLimit {
-			lineIndent := getIndentation(line)
-			if isDescendant(lineIndent, userRateLimitIndent) {
-				if trimmed != "" && !strings.HasPrefix(trimmed, "#") && userRateLimitChildIndent == "" {
-					userRateLimitChildIndent = lineIndent
-				}
-				if userRateLimitChildIndent != "" && lineIndent != userRateLimitChildIndent {
-					result = append(result, line)
-					continue
-				}
-				newLine, replaced := findAndReplaceInLine(line, "max-runs", "max-runs-per-window")
-				if !replaced {
-					newLine, replaced = findAndReplaceInLine(line, "max", "max-runs-per-window")
-				}
-				if replaced {
-					result = append(result, newLine)
-					modified = true
-					userRateLimitCodemodLog.Printf("Renamed max field to 'max-runs-per-window' on line %d", i+1)
-					continue
-				}
-			}
-		}
-
-		result = append(result, line)
-	}
-
-	return result, modified
 }

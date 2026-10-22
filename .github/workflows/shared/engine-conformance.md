@@ -14,7 +14,13 @@ tools:
   bash:
     - "*"
 safe-outputs:
-  staged: true
+  activation-comments: false
+  report-failure-as-issue: false
+  report-failed-jobs: false
+  missing-tool:
+    create-issue: false
+  noop:
+    report-as-issue: false
   threat-detection: false
 pre-agent-steps:
   - name: Prepare engine conformance fixtures
@@ -22,14 +28,33 @@ pre-agent-steps:
       CONFORMANCE_ENGINE: ${{ github.aw.import-inputs.engine-id }}
       CONFORMANCE_ROOT: /tmp/gh-aw/agent/engine-conformance
       CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
+      GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
     run: |
       set -euo pipefail
       node <<'JS'
+      const assert = require("node:assert/strict");
       const crypto = require("node:crypto");
       const fs = require("node:fs");
       const path = require("node:path");
+      const { normalizeAssignment } = require(path.join(process.env.GH_AW_ACTIONS_DIR, "work_queue_claim_scope.cjs"));
       const engine = process.env.CONFORMANCE_ENGINE;
       if (!/^[a-z][a-z0-9-]*$/.test(engine || "")) throw new Error("Invalid conformance engine ID");
+      const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+      const rawAssignment = event.inputs?.work_queue_assignment;
+      let claimHandle;
+      if (process.env.GH_AW_WORK_QUEUE_ENABLED === "true") {
+        assert.equal(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Conformance requires the compiler-provided worker role");
+        const assignment = normalizeAssignment(JSON.parse(rawAssignment));
+        assert.equal(assignment.claims.length, 1, "Conformance requires exactly one original Claim");
+        assert.equal(assignment.worker_profile, `engine-conformance-${engine}`);
+        const claim = assignment.claims[0];
+        assert.equal(claim.work.engine, engine);
+        assert.deepEqual(claim.work.effect_contract, { kind: "none" });
+        claimHandle = claim.handle;
+      } else {
+        assert.notEqual(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Queue workers cannot run standalone");
+        assert.ok(!rawAssignment, "Standalone conformance cannot accept a Claim assignment");
+      }
       const root = process.env.CONFORMANCE_ROOT;
       const host = process.env.CONFORMANCE_STATE;
       if (!root || !host) throw new Error("Conformance paths are missing");
@@ -42,6 +67,7 @@ pre-agent-steps:
       };
       const expected = {
         engine,
+        ...(claimHandle !== undefined && { claimHandle }),
         ...fixture,
         engineEnv: `conformance-${engine}`,
         shellDigest: crypto.createHash("sha256").update(fixture.fileNonce).digest("hex"),
@@ -156,6 +182,7 @@ post-steps:
         assert.ok(file, "Safe-output evidence path is required");
         assert.deepEqual(read(path.dirname(file), path.basename(file)), {
           type: "noop", message: "Conformance probes completed",
+          ...(expected.claimHandle !== undefined && { claim_handle: expected.claimHandle }),
         });
       });
       const passed = checks.every(item => item.status === "passed");
@@ -197,6 +224,10 @@ files, install dependencies, or publish GitHub resources. Do not edit fixtures,
 the shell probe, or the checker. Stop immediately if a required operation fails;
 do not claim success or substitute a guessed value.
 
+For queue workers, the host records the original singleton assignment's handle
+before agent execution and requires the staged noop to match that handle and
+exact content. Non-queue suites retain their exact unscoped noop.
+
 1. Read `/tmp/gh-aw/agent/engine-conformance/input.json` with your file-reading
    capability. Retain `fileNonce`, `left`, and `right`.
 2. Use your shell capability to execute exactly:
@@ -217,6 +248,9 @@ exactly one noop with message `"Conformance probes completed"`. Unless an import
 suite specifies a native MCP completion call, use
 `safeoutputs noop --message "Conformance probes completed"`.
 Use only the specified transport; do not emit a second noop through another tool.
-Safe outputs are staged; do not create an issue or comment. Your final reply
-should be one short line. The JavaScript post-step, not your reply, decides
-whether the suite passed.
+The noop is a probe-only output and does not create an issue or comment.
+Queue Claim settlement, backing Issue status projection and reservation release
+remain live; do not enable
+workflow-wide staged mode for these workers. Your final reply should be one
+short line. The JavaScript post-step, not your reply, decides whether the suite
+passed.

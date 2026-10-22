@@ -8,9 +8,11 @@ Each grader below is built once as a projection over the
 [canonical Trajectory IR](trajectory-ir.md) so adding a new grader never
 requires a new trace parser. Implemented graders are built-in: their code
 lives in `actions/setup/js/trajectory_graders.cjs`, their metadata in
-`pkg/workflow/graders_config.go`, and they run on every trace whenever the
-graders step runs. They are cheap (in-process, bounded to 5,000 items per IR
-collection) and make no API calls. `shared/graders/<id>.md` remains as an
+`pkg/workflow/graders_config.go`, and they run only when explicitly enabled.
+They consume projections of the redacted in-memory unified session in conclusion,
+make no API calls, and report unavailable when required evidence is missing.
+Potentially quadratic analyses are bounded to 5,000 items per IR collection.
+`shared/graders/<id>.md` remains as an
 optional import fragment that enables the built-in.
 
 Ranked by diagnostic value, novelty relative to existing built-in graders,

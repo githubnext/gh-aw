@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,11 +146,11 @@ func TestNewFieldRemovalCodemod_PostTransformInvoked(t *testing.T) {
 	var capturedFieldValue any
 
 	cfg := baseFieldRemovalConfig()
-	cfg.PostTransform = func(lines []string, frontmatter map[string]any, fieldValue any) []string {
+	cfg.PostEdit = func(f *codemod.Frontmatter, frontmatter map[string]any, fieldValue any) error {
 		postTransformCalled = true
 		capturedFieldValue = fieldValue
 		// Append a marker line so we can verify the hook ran
-		return append(lines, "# post-transform-marker")
+		return f.Comment([]string{"on"}, "post-transform-marker")
 	}
 
 	codemod := newFieldRemovalCodemod(cfg)
@@ -183,9 +184,9 @@ func TestNewFieldRemovalCodemod_PostTransformNotCalledWhenFieldAbsent(t *testing
 	var postTransformCalled bool
 
 	cfg := baseFieldRemovalConfig()
-	cfg.PostTransform = func(lines []string, frontmatter map[string]any, fieldValue any) []string {
+	cfg.PostEdit = func(f *codemod.Frontmatter, frontmatter map[string]any, fieldValue any) error {
 		postTransformCalled = true
-		return lines
+		return nil
 	}
 
 	codemod := newFieldRemovalCodemod(cfg)

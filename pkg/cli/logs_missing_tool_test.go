@@ -31,6 +31,13 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 		expectAlternatives string
 	}{
 		{
+			name:              "canonical_report_missing_tool",
+			safeOutputContent: `{"items":[{"type":"report_missing_tool","tool":"terraform","reason":"Infrastructure automation needed","alternatives":"Manual setup"}],"errors":[]}`,
+			expected:          1,
+			expectTool:        "terraform",
+			expectReason:      "Infrastructure automation needed",
+		},
+		{
 			name: "single_missing_tool_in_safe_output",
 			safeOutputContent: `{
 				"items": [

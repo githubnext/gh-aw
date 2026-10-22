@@ -135,6 +135,7 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 }
 
 func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext) map[PermissionScope]PermissionLevel {
+	// Admission OIDC is isolated in the endpoint-gated admission job.
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
 	}
@@ -145,7 +146,7 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 		permsMap[PermissionContents] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite
 	}
-	if isWorkQueueEnabled(ctx.data) || !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) || operationalValueGraderEnabled(ctx.data) {
+	if isWorkQueueEnabled(ctx.data) || !ctx.data.StaleCheckDisabled || hasMaxDailyAICGuardrail(ctx.data) {
 		permsMap[PermissionActions] = PermissionRead
 	}
 	if isSteeringIssueEnabled(ctx.data) {
@@ -165,12 +166,6 @@ func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext
 		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
 		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
 	})
-	// When observability.otlp.github-app is configured without app-id/private-key
-	// credentials, id-token: write is needed so the activation job can mint the OTLP
-	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
-	if hasOTLPGitHubOIDCAuth(ctx.data.ParsedFrontmatter, ctx.data.RawFrontmatter) {
-		permsMap[PermissionIdToken] = PermissionWrite
-	}
 	return permsMap
 }
 

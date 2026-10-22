@@ -64,7 +64,7 @@ The `gh-aw-metadata` line is always first so tools can parse it reliably. The `S
 
 ## Editing Workflows
 
-The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for when to recompile.
+The **markdown body** is loaded at runtime and can be edited directly on GitHub.com without recompilation. Only **frontmatter changes** require recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for when to recompile.
 
 ## Best Practices
 
@@ -72,4 +72,4 @@ Use descriptive kebab-case names such as `issue-responder.md` or `weekly-summary
 
 ## Learn More
 
-For related details, see [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows), [Frontmatter](/gh-aw/reference/frontmatter/), [Markdown](/gh-aw/reference/markdown/), [Imports](/gh-aw/reference/imports/), [CLI Commands](/gh-aw/setup/cli/), and [MCPs](/gh-aw/guides/mcps/).
+For related details, see [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows), [Frontmatter](/gh-aw/reference/frontmatter/), [Markdown](/gh-aw/reference/markdown/), [Imports](/gh-aw/reference/imports/), [CLI Commands](/gh-aw/setup/cli/), and [MCPs](/gh-aw/guides/mcps/).

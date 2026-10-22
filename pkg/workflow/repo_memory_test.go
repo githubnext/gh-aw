@@ -1410,6 +1410,43 @@ func TestRepoMemoryNonWikiPushNoAllowedRepos(t *testing.T) {
 		"Non-wiki push step should not set REPO_MEMORY_ALLOWED_REPOS")
 }
 
+func TestRepoMemoryDailyAICWriterFilterExemption(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		backend   string
+		credits   *string
+		memoryIDs []string
+		writerID  string
+	}{
+		{name: "ordinary memory", memoryIDs: []string{"default"}},
+		{name: "artifact backend", credits: strPtr("10000"), memoryIDs: []string{"default"}},
+		{name: "default selected", backend: maxDailyAICBackendRepoMemory, memoryIDs: []string{"other", "default"}, writerID: "default"},
+		{name: "first selected", backend: maxDailyAICBackendRepoMemory, memoryIDs: []string{"first", "other"}, writerID: "first"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := &WorkflowData{
+				MaxDailyAICBackend: tc.backend,
+				MaxDailyAICredits:  tc.credits,
+				RepoMemoryConfig:   &RepoMemoryConfig{},
+			}
+			for _, id := range tc.memoryIDs {
+				data.RepoMemoryConfig.Memories = append(data.RepoMemoryConfig.Memories, RepoMemoryEntry{ID: id})
+			}
+			compiler := NewCompiler()
+			for _, memory := range data.RepoMemoryConfig.Memories {
+				step := compiler.buildSinglePushRepoMemoryStep(data, memory, true, false)
+				if memory.ID == tc.writerID {
+					assert.Contains(t, step, "GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: ${{ steps.daily-aic-repo-memory-reset.outcome == 'success' }}",
+						"Only a successfully sanitized daily AIC writer may bypass persistence filters")
+				} else {
+					assert.NotContains(t, step, "GH_AW_DAILY_AIC_REPO_MEMORY_WRITER",
+						"Other memories must retain their configured persistence filters")
+				}
+			}
+		})
+	}
+}
+
 // TestPushRepoMemoryJobHasNoConcurrencyGroup verifies that the push_repo_memory job does not
 // declare a concurrency group. GitHub Actions only queues one pending job per group, so a
 // shared group silently cancels memory writes when many runs finish at once; the push script

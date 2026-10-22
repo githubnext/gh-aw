@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
@@ -84,7 +86,7 @@ async function main() {
       core.info("Added comment to existing issue #" + existingIssue.number);
     } else {
       // Create new issue
-      const { data: issue } = await github.rest.issues.create({
+      const { data: issue } = await createReportIssue(github, {
         owner,
         repo,
         title: issueTitle,

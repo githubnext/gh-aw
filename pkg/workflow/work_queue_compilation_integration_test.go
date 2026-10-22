@@ -187,7 +187,9 @@ Compile each work-queue workflow phase.
 	require.NotContains(t, safeOutputs[handlerStart:handlerStart+handlerEnd], gate)
 
 	conclusion := extractJobSection(compiled, "conclusion")
-	require.Contains(t, conclusion, "contents: read")
+	require.Contains(t, conclusion, "contents: write")
+	require.Contains(t, conclusion, "id: worker_termination\n        if: always()")
+	require.Contains(t, conclusion, "reconcile_work_queue_run.cjs")
 	require.Contains(t, conclusion, "Download activation artifact for work queue summary")
 	require.Contains(t, conclusion, "Summarize work queue activity\n        if: always()")
 	require.Contains(t, conclusion, "work_queue_summary.cjs")

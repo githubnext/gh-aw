@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/codemod"
 )
 
 var dependabotPermissionsCodemodLog = logger.New("cli:codemod_dependabot_permissions")
@@ -29,8 +29,20 @@ func getDependabotPermissionsCodemod() Codemod {
 				return content, false, nil
 			}
 
-			newContent, applied, err := applyFrontmatterLineTransform(content, func(lines []string) ([]string, bool) {
-				return ensureToolsetPermissions(lines, missingPermissions)
+			newContent, applied, err := codemod.Apply(content, func(f *codemod.Frontmatter) error {
+				if value, exists := f.Lookup("permissions"); exists {
+					if _, ok := value.(map[string]any); !ok {
+						if err := f.Set([]string{"permissions"}, map[string]any{}); err != nil {
+							return err
+						}
+					}
+				}
+				for _, key := range sortedMissingPermissionKeys(missingPermissions) {
+					if err := f.Set([]string{"permissions", key}, string(missingPermissions[workflow.PermissionScope(key)])); err != nil {
+						return err
+					}
+				}
+				return nil
 			})
 			if applied {
 				dependabotPermissionsCodemodLog.Printf("Added missing permissions for GitHub toolsets: %v", sortedMissingPermissionKeys(missingPermissions))
@@ -113,110 +125,15 @@ func findMissingToolsetPermissions(frontmatter map[string]any, toolsets []string
 	return missing
 }
 
-func ensureToolsetPermissions(lines []string, missing map[workflow.PermissionScope]workflow.PermissionLevel) ([]string, bool) {
-	if len(missing) == 0 {
-		return lines, false
-	}
-
-	permissionsIdx := -1
-	permissionsIndent := ""
-	permissionsEnd := len(lines)
-
-	for i, line := range lines {
-		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "permissions:") {
-			permissionsIdx = i
-			permissionsIndent = getIndentation(line)
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					permissionsEnd = j
-					break
-				}
-			}
-			break
-		}
-	}
-
-	if permissionsIdx == -1 {
-		insertAt := findPermissionsInsertIndex(lines)
-		block := []string{"permissions:"}
-		for _, key := range sortedMissingPermissionKeys(missing) {
-			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
-		}
-
-		result := make([]string, 0, len(lines)+len(block))
-		result = append(result, lines[:insertAt]...)
-		result = append(result, block...)
-		result = append(result, lines[insertAt:]...)
-		return result, true
-	}
-
-	trimmedPermissionsLine := strings.TrimSpace(lines[permissionsIdx])
-	inlineValue := strings.TrimSpace(strings.TrimPrefix(trimmedPermissionsLine, "permissions:"))
-	if inlineValue != "" && !strings.HasPrefix(inlineValue, "#") {
-		block := []string{"permissions:"}
-		for _, key := range sortedMissingPermissionKeys(missing) {
-			block = append(block, fmt.Sprintf("  %s: %s", key, missing[workflow.PermissionScope(key)]))
-		}
-		result := make([]string, 0, len(lines)+len(block))
-		result = append(result, lines[:permissionsIdx]...)
-		result = append(result, block...)
-		result = append(result, lines[permissionsIdx+1:]...)
-		return result, true
-	}
-
-	updated := make([]string, len(lines))
-	copy(updated, lines)
-	modified := false
-	remaining := make(map[string]workflow.PermissionLevel, len(missing))
-	for scope, level := range missing {
-		remaining[string(scope)] = level
-	}
-
-	for i := permissionsIdx + 1; i < permissionsEnd; i++ {
-		trimmed := strings.TrimSpace(updated[i])
-		key := parseYAMLMapKey(trimmed)
-		if key == "" {
-			continue
-		}
-		requiredLevel, needsUpdate := remaining[key]
-		if !needsUpdate {
-			continue
-		}
-		level := strings.TrimSpace(strings.TrimPrefix(trimmed, key+":"))
-		if level == string(requiredLevel) || level == string(workflow.PermissionWrite) {
-			delete(remaining, key)
-			continue
-		}
-		updated[i] = fmt.Sprintf("%s  %s: %s", permissionsIndent, key, requiredLevel)
-		delete(remaining, key)
-		modified = true
-	}
-
-	if len(remaining) == 0 {
-		return updated, modified
-	}
-
-	insertLines := make([]string, 0, len(remaining))
-	for _, key := range sliceutil.SortedKeys(remaining) {
-		insertLines = append(insertLines, fmt.Sprintf("%s  %s: %s", permissionsIndent, key, remaining[key]))
-	}
-
-	result := make([]string, 0, len(updated)+len(insertLines))
-	result = append(result, updated[:permissionsEnd]...)
-	result = append(result, insertLines...)
-	result = append(result, updated[permissionsEnd:]...)
-	return result, true
-}
-
 func findPermissionsInsertIndex(lines []string) int {
 	onIdx := -1
 	onEnd := len(lines)
 	for i, line := range lines {
 		if isTopLevelKey(line) && strings.HasPrefix(strings.TrimSpace(line), "on:") {
 			onIdx = i
-			for j := i + 1; j < len(lines); j++ {
-				if isTopLevelKey(lines[j]) {
-					onEnd = j
+			for j, next := range lines[i+1:] {
+				if isTopLevelKey(next) {
+					onEnd = i + 1 + j
 					break
 				}
 			}

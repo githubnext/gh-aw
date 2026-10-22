@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
+	"github.com/github/gh-aw/pkg/linters/formatintitoa"
 	"github.com/github/gh-aw/pkg/linters/fprintferrorunchecked"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/generatedyamlheredoc"
@@ -47,6 +48,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
+	"github.com/github/gh-aw/pkg/linters/osisnotexist"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
 	"github.com/github/gh-aw/pkg/linters/packagelevelmutableslicemap"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
@@ -119,6 +121,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	excessivefuncparams.Analyzer,
 	fileclosenotdeferred.Analyzer,
 	fmterrorfnoverbs.Analyzer,
+	formatintitoa.Analyzer,
 	fprintferrorunchecked.Analyzer,
 	generatedyamlheredoc.Analyzer,
 	globwalkignorederror.Analyzer,
@@ -138,6 +141,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	nilctxpassed.Analyzer,
 	osexitinlibrary.Analyzer,
 	osgetenvlibrary.Analyzer,
+	osisnotexist.Analyzer,
 	ossetenvlibrary.Analyzer,
 	packagelevelmutableslicemap.Analyzer,
 	panicinlibrarycode.Analyzer,

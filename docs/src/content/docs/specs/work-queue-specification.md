@@ -143,7 +143,8 @@ survives. Documentation can get another turn later, and the combined review
 continues to wait for it. With one task, the queue attaches outputs to that task
 automatically; with several, the worker must say which task each output belongs to.
 Each assigned task still counts as its own turn for fairness. A shared run keeps
-its worker reservation until the run has demonstrably stopped.
+its worker reservation until trusted finalization proves its task-producing
+jobs have stopped, or recovery independently observes the native run terminated.
 
 ### What happens when the day does not go to plan
 
@@ -632,6 +633,7 @@ Define one current version-3 `QueueCommit` transaction protocol with closed, typ
 | `subject` | Optional typed Issue/PR that this Work operates on, distinct from its dependency conditions |
 | `replacement_of` | Optional immutable failed-node reference with trusted remediation disposition; diagnostic lineage, not a dependency waiver |
 | `enqueued` | Required immutable nonnegative safe-integer Unix-millisecond timestamp for age diagnostics, not selection order |
+| `expires_at` | Optional immutable nonnegative safe-integer Unix-millisecond deadline for unclaimed Work; omission means no expiration |
 
 When explicit fairness grouping is configured, the accounting key SHOULD correspond to a project, authenticated tenant, or administrator-approved workflow family. It MUST NOT be generated per Work or per retry. Without that configuration or explicit trusted submission metadata, use the single default key; do not infer a group from a producer's identity.
 
@@ -649,6 +651,55 @@ Defaults apply only at new submission, not while reading an incomplete durable r
 
 ### 7.3 Scheduling eligibility and batch admissibility
 
+#### Unclaimed Work expiration
+
+At `time >= expires_at`, an available Work with no pending or failed delivery
+barrier becomes terminally cancelled with reason `work_expired`. The boundary
+is inclusive, including zero. Replay MUST preserve the Work definition, FIFO
+position, request identity, historical Claims, charges, completions and Results.
+Expiration MUST NOT fabricate a successful Result or satisfy a DAG dependency.
+Submission retries cannot extend or remove a deadline; a distinct deadline
+requires a new Work identity.
+
+Historical replay MUST NOT read the wall clock. Before and after each
+QueueCommit, replay advances a monotonic expiration watermark to the maximum
+of its previous value and `QueueCommit.at`, then applies expiration. This is a
+derived transition justified by the immutable deadline and causal committed
+time, not a synthetic `WorkCancellation` operation or a separate timer log.
+If an authorized explicit `WorkCancellation` repeats that outcome, replay MUST
+still retain the accepted operation in checkpoint state.
+The watermark MUST survive checkpoint compaction; the checkpoint envelope's
+own `at` also advances it. Backdated suffix commits cannot resurrect Work or
+grant a newly admitted node whose deadline has already elapsed at that watermark.
+Other timestamp-based rules keep their existing decision-time semantics.
+
+A live read MAY additionally apply an explicit trusted evaluation timestamp
+after validating all historical decisions. Activation snapshots use their
+immutable `captured_at`; historical request/Claim explanations use the original
+decision. Such evaluation views are disposable, not checkpoint authority or a
+durable cancellation record. A fresh historical replay without a newer commit
+need not reproduce a prior wall-clock view. Selection MUST exclude elapsed
+Work even when the caller has not materialized that view, and publication
+MUST recheck selected deadlines before writing its candidate.
+Admission checks MUST use the same trusted decision-time expiration view as
+candidate generation. Expiration-only publication retries MUST preserve the
+previously observed append-only history, just as contention retries do.
+
+Expiration applies only when Work is available. A running Claim can finish
+after its Work deadline; its authorization and native reservation are unchanged.
+A cancelled attempt returning Work to availability expires at the current
+watermark. `keep_open` Work retains its pending/failed delivery fence; after
+verified retained delivery it expires instead of receiving another Claim.
+Ordinary completed Work and verified Results remain terminal and preserved.
+Elapsed time alone MUST NOT close a Claim, refund a charge, prove quiescence,
+or release native capacity.
+
+These are trusted decision-time guarantees, not a hard UTC fence: clock skew,
+an uncommitted clock rollback, or a deadline crossed during Git publication can
+affect real-time observations. No timer publishes automatically without queue
+activity. Expiring running Claims would require a separate draining/fencing
+protocol and is not supported.
+
 Before applying shares, the scheduler MUST determine **scheduling eligibility**
 using fresh authoritative state. This defines the competition set, independently
 of the request's partially packed batch.
@@ -656,6 +707,7 @@ of the request's partially packed batch.
 A scheduling-eligible Work:
 
 - Exists and has state `available`.
+- Has no elapsed `expires_at` at the maximum of decision time and committed expiration watermark.
 - Belongs to the pool and can be executed by a compiler-allowed worker target.
 - Satisfies any trusted retry delay and admission restrictions.
 - Has an accounting key below its outstanding-Claim limit and an available logical Work slot.
@@ -1068,6 +1120,8 @@ stateDiagram-v2
     Unresolved --> Bound: Later authenticated run evidence
     Unresolved --> Released: Later definitive nonlaunch evidence
     Bound --> Terminal: Exact native run and attempt terminated
+    Bound --> Quiescent: Original worker finalizer verifies all other jobs completed
+    Quiescent --> Released: Close open Claims and release inline
     Terminal --> Released: Close open Claims and release once
     Released --> [*]
     note right of Unresolved
@@ -1081,7 +1135,52 @@ stateDiagram-v2
 
 A group's first Claim creates its native reservation; all its Claims reference one `dispatch_id`. Record `Dispatch(started)` once for that group before the single API call. Record `Dispatch(bound, run_id)` for the actual worker run, binding every immutable assigned Claim. Retries reconcile the group and must not split it or launch one copy per Claim.
 
-A native reservation remains outstanding while launch is uncertain or its run is queued/running, even after some Claims finish. Individual Completion or ClaimCancellation closes that Claim's logical slot, not the worker slot. Native release requires trusted run termination or definitive nonlaunch. A terminal worker cancels only still-open Claims; it must preserve previously completed Claims.
+A worker reservation remains outstanding while launch is uncertain or task-producing
+jobs may still execute, even after some Claims finish. Individual Completion or
+ClaimCancellation closes that Claim's logical slot, not the worker slot. Release
+requires verified inline worker quiescence, trusted native termination, or
+definitive nonlaunch. Termination cancels only still-open Claims and preserves
+previously completed Claims.
+
+Normal cleanup MUST be a trusted step in the worker's existing `conclusion` job
+inside its compiled lock file, not a per-worker `workflow_run` observer or an
+additional runner job. The compiler MUST make conclusion depend on all other
+jobs and run with `always()`. The finalizer MUST authenticate its own original
+attempt, repository identity, workflow, immutable revision, principal and
+dispatch correlation. It MUST read a bounded, complete original-attempt job
+inventory, uniquely identify its active conclusion job, and verify that all
+other jobs are completed with conclusions. Missing non-skipped dependencies,
+ambiguous identities, active jobs, pagination exhaustion and unavailable API
+evidence MUST retain the reservation.
+
+Cleanup evidence MUST use the principal returned by authenticated native-run
+validation. An AW-managed logical profile may omit `principal`; its absence
+MUST NOT replace the authenticated dispatch credential principal with an
+undefined or inferred identity. Canonical evidence encoding and replay retain
+their required-principal checks.
+
+The finalizer publishes `Release` with `kind: worker_termination`,
+`source: github_api`, the exact bound run/attempt and a receipt digest of the
+verified job inventory. This evidence MUST omit native `status` and
+`conclusion`; it does not assert that the enclosing run has completed. Both
+replayers MUST restrict its publisher to the same original bound run,
+workflow, repository and principal. It permits only reservation release and
+closure of still-open Claims, never Result, DeliveryFailure or replay of effects.
+No Claim-scoped effects or queue controls may execute afterward; conclusion
+diagnostics and observational Issue projection may finish.
+
+Capacity therefore bounds worker execution rather than native runs still
+finishing trusted conclusion work. This deliberate overlap avoids another
+Actions run per worker. Older closed-schema readers MUST be upgraded before
+this evidence variant is published; historical records remain unchanged.
+
+Hard cancellation, runner loss or failed finalizer setup may skip inline
+cleanup. The existing scheduled agentic maintenance queue-compaction job MUST
+first reconcile a bounded rotating batch using the normal native-terminal
+reconciler, with `actions: read` and `contents: write`. It MUST NOT request
+cancellation of active workers, infer termination from elapsed time, or replay
+uncertain effects. Existing dispatcher/operator reconciliation remains the
+fallback when scheduled maintenance is disabled.
 
 A dispatcher crash after reservation must leave a recoverable reservation.
 Recording `Dispatch(started)` atomically selects one trusted sender run/attempt
@@ -1158,7 +1257,8 @@ an administrative force-release shortcut while a run may still execute.
 | Reserved, no start marker | CAS-commit a start marker and send once, or commit definitive prelaunch cancellation and cancel still-open Claims/release atomically |
 | Reserved, exact originating publisher attempt terminal | Bounded automatic recovery may CAS-cancel prelaunch after a fresh no-marker check; retain on unavailable/mismatched origin evidence or a concurrent start |
 | Started/uncertain, no binding | Validate and bind an actual run; otherwise retain reservation and report unresolved/conflict |
-| Bound, queued/running | Observe or request cancellation; neither request nor lease expiry releases the slot |
+| Bound, queued/running | Retain unless the original trusted conclusion step proves job quiescence; cancellation requests and lease expiry never release |
+| Bound, worker jobs quiescent | Original worker conclusion step atomically closes still-open Claims and releases with job-inventory receipt evidence |
 | Bound, terminal | Cancel still-open Claims, reconcile completed members' result barriers, and release with exact run/attempt terminal evidence |
 | Definitive nonlaunch | Persist rejection evidence, cancel still-open Claims with backoff/attempt exhaustion handling, and release once; never refund grants |
 
@@ -1166,6 +1266,21 @@ Prelaunch cancellation must race through CAS with start-marker publication: it
 is valid only while no marker exists. Releases do not wait for delivery-barrier
 success, since a terminal native run consumes no slot; Result/DeliveryFailure
 recovery can continue afterward.
+
+The bounded rotating candidate set MUST also include **released** dispatches
+whose original completed Claims still own pending delivery barriers. Read the
+Work barrier for an ordinary Completion and the original Claim barrier for
+`keep_open`; neither native Release nor a later grant may hide or retarget the
+original obligation. Reconcile reservation state independently, then reconcile
+each remaining delivery barrier, even if no new Release is necessary.
+
+Worker capacity, Claim closure, delivery verification, and the Actions conclusion
+MUST remain separate health dimensions. Exact terminal or inline quiescence evidence permits Release
+even when completed members still have pending or failed delivery. Release MUST
+NOT create a Result, clear a DeliveryFailure, refund service debt, or authorize
+replaying effects. Conversely, a successful Actions conclusion or completed Claim
+MUST NOT release a reservation without native-terminal or trusted finalizer evidence. The operator view SHOULD
+report each dimension instead of reducing queue health to green workflow runs.
 
 When a timeout is observed and the log remains writable, record `Dispatch(uncertain)` with a sanitized reason code. A crash may leave only `started`: offline inspection must label it unbound/possibly in progress, not invent a precise failure cause. Both states retain the reservation until trusted reconciliation establishes binding or nonlaunch.
 
@@ -1363,6 +1478,19 @@ concurrent worker commits: the trusted apply step revalidates the plan against
 the current queue and defers after bounded contention. Disposable indexes and
 bounded operation are specified in section 7.17.
 
+Checkpoint `last_at` preserves the maximum committed expiration time, not merely
+the final prefix timestamp. Compaction MUST reject a checkpoint timestamp below
+that watermark. It MUST preserve optional Work deadlines and already-derived
+expiration cancellations; it MUST NOT checkpoint a speculative live-time view.
+An omitted compaction timestamp MUST default to at least that watermark.
+
+Readers MUST continue verifying supported pre-expiration checkpoints whose
+`last_at` recorded the final prefix timestamp. The legacy derivation applies
+only to history without deadline-bearing Work and MUST preserve exact snapshot,
+digest, and Git-ancestry verification rather than rewriting published state.
+Restoration still recovers the expiration watermark from retained committed
+timestamps. New writers MUST use the monotonic watermark rule.
+
 ### 7.11 Guarantees and non-guarantees
 
 **Required guarantees and evidence boundaries**
@@ -1370,7 +1498,7 @@ bounded operation are specified in section 7.17.
 | Layer | Required contract | Present evidence / release obligation |
 |---|---|---|
 | Algorithmic fairness | Deterministic unit-grant proportional service for fixed continuously eligible weighted competitors; conditional eventual service below | Exact examples and bounded independent sibling deviation/eventual-service checks pass; complete two-level/runtime refinement remains outstanding |
-| Protocol safety | Current-only mandatory scheduling, causal replay, fresh fair-prefix grants, one charge/Claim and native reservation/group, no fork/bypass, isolated one-shot effects | Bounded successor, Claim-scope and lifecycle models cover packing, Control, binding and DeliveryFailure subsets; actual credentials, writer provenance and full runtime refinement remain separate obligations |
+| Protocol safety | Current-only mandatory scheduling, causal replay, fresh fair-prefix grants, one charge/Claim and native reservation/group, no fork/bypass, isolated one-shot effects | Bounded successor, Claim-scope and lifecycle models cover packing, Control, binding and DeliveryFailure subsets; focused `WorkExpiration` checks unclaimed expiry, committed-time rollback and abstract checkpoint equivalence. Actual credentials, writer provenance and full runtime refinement remain separate obligations |
 | Implementation conformance | Runtime/operator codecs, selector, publisher, binder, and recovery enforce the same contract on real APIs | Native implementations and source-hashed exact conformance results exist; compiler/effects integration and supported-host evidence remain incomplete as tracked in section 9.1 |
 | Operational evidence | Reproducible source/tool identities and explicit passed/violation/incomplete verdicts | Exhausted finite cases are documented separately from two unfinished searches; artifact collection is not a proof |
 
@@ -1394,6 +1522,9 @@ eventually wins under strict priority. FIFO uses committed position, so producer
 backdating cannot overtake accepted Work. A DAG node additionally requires its
 predecessors to publish Results; scheduling fairness cannot make failed effects
 or external prerequisites succeed.
+
+Finite-deadline Work may leave the eligibility set before service. Conditional
+eventual-service results do not imply a Claim or completion before expiration.
 
 Without those assumptions, “no starvation” is not an unconditional liveness theorem. In strict mode, continuous higher-class demand is a direct starvation counterexample. An individual Work can also wait behind other same-key Work; a key's share alone is not a per-item latency bound.
 
@@ -1779,6 +1910,64 @@ creating Completion/ClaimCancellation; it does not require a Completion that
 has not yet been written. Read-only previews retain the canonical handle and
 `staged_preview` status without authorizing effects or publishing terminal facts.
 
+#### Worker tool and preparation readiness
+
+A declared worker-mode queue tool MUST be reachable through the engine's
+effective tool permissions and selected transport, including restricted-tool
+configurations. Declaring an MCP server without allowing its native tools is not
+worker readiness. Native structured MCP calls SHOULD be preferred over embedding
+JSON in shell arguments; do not broaden the shell allowlist to bypass a denied
+wrapper. Explicitly disabled queue tools MUST remain disabled. Neither transport
+nor successful startup supplies a missing immutable assignment or native binding.
+
+Preparation MUST place required historical input in an agent-visible mounted
+path and make the declared read path agree with the written path. For the ESLint
+Refiner this is `/tmp/gh-aw/agent/eslint-refiner-memory/history.json`, written
+read-only. An unreadable or missing expected file is a preparation failure, not
+an empty history; only a successfully restored empty history is empty input.
+The agent's observable failure signals are a non-zero read-command exit or
+invalid JSON. Native restoration and filesystem write errors fail preparation
+before the agent starts; an absent optional legacy history source may still
+restore successfully as empty arrays.
+History remains data, never Claim authority. Runtime/compilation regressions MUST
+cover the effective native-tool permission and the actual preparation script's
+write/read-path agreement, not just prompt wording.
+
+#### Aggregate delivery health
+
+After processing each original Claim independently, trusted safe-output
+processing MUST reconcile independently valid siblings before deciding its
+aggregate outcome. Successful handler returns alone MUST NOT make that pass
+successful: every non-staged member must finish in trusted `result` or
+`cancelled` state. Pending, failed, missing, or unrecognized delivery state MUST
+fail the pass and expose per-Claim evidence in `claim_results`. Such failure is
+an operational signal, not a new queue transaction or authorization to retry
+effects. It MUST NOT suppress a valid sibling's Result or roll it back.
+
+For otherwise valid messages and successful handlers, the outcome mapping is:
+
+| Trusted member states after reconciliation | `work_queue_outcome` | Aggregate pass |
+|---|---|---|
+| All `result` | `completed` | Successful |
+| All `cancelled` | `cancelled` | Successful |
+| Only `result`/`cancelled`, both present | `completed_with_cancellations` | Successful |
+| Any unresolved state, including delivery failure | `delivery_pending` | Failed |
+| Staged preview | `staged_preview` | No delivery-success assertion or terminal facts |
+
+Scope errors and handler failures still fail by their existing rules. The
+`delivery_pending` label includes terminal delivery failure in this aggregate
+interface; inspect per-Claim ledger facts to distinguish failure from pending
+verification. Do not rewrite historical failed/pending barriers to match a
+workflow conclusion.
+
+Compiled worker jobs MUST expose the fixed `work_queue_outcome` classification.
+Per-Claim diagnostics belong in a separate scoped `claim-delivery-errors.json`
+artifact, preserving the original `safe-output-errors.json` handler failures.
+Record delivery state, effect disposition, and bounded reconciliation/failure
+reason; apply the existing secret redaction and upload only the exact scoped
+filename after successful final redaction, with the configured short retention.
+Raw `claim_results` MUST NOT become a job output or delivery authority.
+
 Safe outputs are partitioned by resolved handle. Temporary-ID namespaces,
 prepared mutations, verification evidence, and Result descriptors retain that
 same scope; a handler cannot borrow another member's authorization or silently
@@ -2008,6 +2197,26 @@ may append the same immutable Result even after native release. Completion,
 agent statements, and an overall successful worker conclusion alone do not
 prove delivery.
 
+Built-in resource creation needs independent native readback, not just a
+successful handler response or an agent-supplied URL. Discussion delivery must
+verify the created discussion's immutable identity, permitted repository,
+category, and expected content. Pull-request delivery must additionally verify
+the permitted base/head repositories and refs, the expected head commit, and
+its independently read commit/tree evidence against trusted prepared mutation
+evidence. A PR number alone is not proof that the intended changes were
+published. Missing, mismatched, foreign, or unavailable evidence leaves delivery
+unverified; it must not be promoted to Result to make aggregate reporting pass.
+
+Native PR transport may include `head_repo`, `base_branch`, and `base_commit`.
+The closed supported-field set MUST accept these fields only with independent
+corroboration: the head repository matches the private creation receipt, the
+base branch matches the captured PR base, and the base commit is an exact SHA
+equal to or independently verified as an ancestor of the prepared base.
+Unrelated commits, malformed SHAs, conflicting routing, and unknown fields
+remain invalid. Canonical message binding and protected in-process creation/
+delivery proofs remain required; serialized artifacts, agent assertions, and
+public PR metadata cannot reconstruct those private proofs.
+
 After exact native-run/attempt terminal evidence and exhausted reconciliation,
 publish `DeliveryFailure` when delivery cannot be established. Record the
 Claim/Completion reference, terminal evidence, bounded sanitized failure reason,
@@ -2017,6 +2226,19 @@ failure is a decision to abandon this delivery barrier, not proof that no
 external mutations happened. Without terminal evidence, retain pending state
 and report the unresolved run instead.
 
+When no protected delivery verifier survives, automatic maintenance MAY
+explicitly enable deadline expiry. It MUST wait until the Completion's durable
+delivery deadline is exhausted at the **actual publication time**, authenticate
+the exact original native attempt against its frozen repository, workflow,
+revision, principal, and correlation, and publish only `DeliveryFailure` with
+effects `unknown`. Inline job quiescence permits capacity release, not this
+post-run delivery-expiry decision. Active, unavailable, mismatched, or rerun
+evidence, or a deadline that has not elapsed, MUST leave delivery pending and
+expose the corresponding unresolved reason. If exhausted reconciliation still
+cannot establish a terminal barrier, report `verification_unresolved`; a sweep
+MUST NOT report that as successful settlement. Missing verifier/receipt evidence
+never proves no effects.
+
 Result and DeliveryFailure are mutually exclusive, individually idempotent,
 terminal barrier decisions. Recheck the current prefix under CAS; concurrent
 verification/failure cannot install both. Neither operation grants a second
@@ -2024,6 +2246,15 @@ authorization, reopens completed Work, refunds service, or releases the native
 reservation. A verified Result wins only if committed before a terminal
 DeliveryFailure; late contradictory evidence is an explicit diagnostic, not a
 retrospective rewrite.
+
+The fresh publication check MUST preserve the original Work/Claim owner,
+Completion identity, and still-pending exclusive barrier, including for a
+retained Claim. A proposal prepared before a Result, failure, or retained
+re-grant MUST fail rather than settle a newer Claim or rewrite an old decision.
+Eventual settlement is conditional on an exhausted deadline, recurring fair
+maintenance, eventually stable exact terminal evidence, and successful
+checked publication; elapsed time or scheduled maintenance alone supplies no
+unconditional liveness guarantee.
 
 #### Replacement after delivery failure
 
@@ -2413,6 +2644,24 @@ There is no timeout-based escape hatch.
 | Exact worker run/attempt terminal, Claim still open | Publish ClaimCancellation with trusted retry/exhaustion handling and release the group's reservation once |
 | Completion exists, Result absent | Preserve ownership, inspect delivery without replaying effects, then publish Result or guarded DeliveryFailure |
 | Result exists | Preserve it and its declared dependency semantics; an incident does not roll back successful siblings |
+
+#### Worker health verification
+
+Test updated workflow Markdown and generated locks from a published reviewed
+branch, identifying the exact commit; a PR or merge is not required. Retain the
+separate live-effect authorization and native assignment/run-binding gates.
+Branch selection alone does not change an installed immutable worker revision.
+Never fabricate an assignment, replay uncertain effects, or modify production
+Policy merely to make a test proceed.
+
+A hosted strict-dry-run startup test is not an end-to-end queue test: dry-run
+removes queue tools/mutations and stages safe outputs. Successful history
+restoration and agent startup establish only those boundaries. If the worker
+then reports missing assignment/tools and the conclusion fails, record that
+failure; do not convert it into delivery success or weaken the assignment guard.
+Full queue-health verification additionally requires the approved native worker
+revision, trusted original Claim/run binding, per-Claim settlement evidence, and
+independent terminal-run evidence for capacity release.
 
 #### GitHub Actions outage
 
@@ -2810,6 +3059,40 @@ outcomes described in the [reproduction guide](https://github.com/github/gh-aw/b
 It does not model no-write task contracts or establish runtime handler coverage,
 schema/transport conformance, scheduler fairness, or an unbounded liveness proof.
 
+`ClaimDeliveryHealth.tla` separately checks aggregate health with two independently
+processed Claims, assuming successful handler passes. It distinguishes pending
+and failed delivery from trusted Results/cancellations, checks staged isolation,
+and requires sibling processing before a non-staged success/failure report.
+Its Release transition requires abstract exact terminal evidence and cannot
+manufacture Results. Two positive configurations exhaust 79 distinct states;
+four mutations detect false-green reporting, early sibling abandonment,
+release-created Results, and premature release. Four safety-guarded witnesses
+reach pending/failed members with successful siblings, mixed result/cancellation
+success, and released capacity with pending delivery.
+
+The additional `QueueLifecycle` witness reaches a completed member whose native
+reservation is released after terminal evidence while its Result/failure barrier
+remains unresolved. These are finite safety/reachability checks, not evidence of
+eventual reconciliation, actual API authentication, handler correctness, compiler
+tool wiring, or hosted delivery. See the
+[delivery-health reproduction guide](https://github.com/github/gh-aw/blob/main/specs/work-queue/README.md#claim-delivery-health-and-native-capacity).
+
+`ClaimDeliveryRecovery.tla` refines this boundary for one ordinary and one
+retained completed Claim. It checks released-candidate recovery, authenticated
+cleanup principal selection, private proof loss, corroborated PR transport,
+deadline-only expiry with unknown effects, independent barrier decisions, and
+stale proposal/retained re-grant fencing. Both positive configurations exhaust
+36,660 states at depth 16 with TLC 2.19/Java 21. A separate fair specification
+checks eventual settlement **conditional on eventually stable exact terminal reads**,
+weakly fair clock/rotating-maintenance actions, and weakly fair publication.
+An excluded-released-candidate control must violate this temporal property;
+ten invariant controls, a no-fairness temporal control and four safety-guarded
+witnesses distinguish validation defects from reachability. All 18 configurations
+return their exact expected verdicts. Native identity/readback predicates and atomic checked publication
+are abstractions, not proofs of real API correctness, Git CAS, JavaScript
+WeakMaps, SHA ancestry, or runtime refinement. See the
+[recovery model guide](https://github.com/github/gh-aw/blob/main/specs/work-queue/README.md#released-claim-delivery-recovery).
+
 #### Independent fairness release gate
 
 The independent release gate requires recurring unit-service opportunities,
@@ -2959,7 +3242,7 @@ limit, credential-free preparation, and the existing protected `git_tree`
 adapter. Preparation validates the original Claim selector and any body Work ID;
 memory remains output data, never a second ledger or authority. Publication still
 requires Completion and immutable resource scope, and Result still requires
-independent full-tree/blob/ref readback. The [factory example](/gh-aw/patterns/linter-factory/)
+independent full-tree/blob/ref readback. The [factory example](/gh-aw/gallery/linter-factory/)
 documents the schema subset and transport limits.
 
 Trusted JavaScript publication also appends bounded metadata-only Actions
@@ -2976,12 +3259,15 @@ unexecuted formal, supported-host, performance, or deployment-security gate.
 
 | Requirement | Implementation/evidence status |
 |---|---|
-| Git-authoritative backing Issue mirrors | AW-managed activation/conclusion hooks project own authenticated admissions/original Claims without enrollment; automatic projection stays in the queue repository/pool scope and keeps Issues open. Exact pre-existing Issue grants, cross-repository projection and closure require explicit trusted projector rules. Immutable bindings, coordination and conservative ambiguous recovery remain enforced. Local mocks/parity cover these paths; no live intended-token Issue writes or hosted workflow runs are claimed |
+| Git-authoritative backing Issue mirrors | AW-managed activation/conclusion hooks project own authenticated admissions/original Claims without enrollment. Maintenance additionally projects existing mirrors for exact terminal requests authored by its authenticated current run/attempt; maintain/admin operators may explicitly synchronize one committed terminal request. Neither path grants admission/Claim authority, creates/rebinds Issues or comments, closes Issues, scans global dirty Work, or steals ambiguous-write fences. Automatic projection stays in the queue repository/pool scope. Exact pre-existing Issue grants, cross-repository projection and closure retain explicit trusted projector rules. No ledger operation/field is added. Local mocks cover these paths; no live intended-token Issue writes or hosted workflow runs are claimed |
 | Current-only QueueCommit contract and native Go/JavaScript conformance | Implemented. An earlier combined-source local capture passed 286 independent cases with 136 dependency hashes unchanged during that capture. Safe-output changes invalidate its claim to match the current source; regenerate the capture before using it as current release evidence. Typed Go canonicalization rejects invalid Unicode before JSON encoding repairs it; checked operation-construction errors propagate through CLI and delivery consumers. Conformance does not prove arbitrary runtime/host refinement |
 | Exact fairness, FIFO defaults, deterministic fair-prefix packing and CAS recovery | Implemented in both engines, with exact integer passes, causal FIFO positions, literal shared expectations and mocked CAS/ambiguous-acknowledgment regressions. Charges are durable Claims, not CPU time or successful completions. Live Git/network contention remains unverified |
 | Work/Issue/PR DAG, observations, Result/DeliveryFailure and replacements | Implemented with atomic graph admission, typed bounded observations, immutable resource bindings and verified Result barriers. Native and runtime tests cover stale/error observations, mixed outcomes, delivery deadlines and safe replacements; actual external API availability/rate behavior is not established by injected clients |
 | Immutable arrays, actual run binding and conservative native recovery | Implemented with bounded arrays, attempt-1 authority, private authenticated evidence, one sender marker and conservative uncertain-launch retention. Local native/SDK recovery tests pass; hosted immutable-SHA dispatch compatibility remains a separate gate |
 | Abandoned prelaunch reservations | JavaScript reconciliation includes reserved groups, authenticates the exact originating publisher attempt, and uses fresh-prefix/CAS-guarded prelaunch cancellation. Mocked native regressions cover active/mismatched/unavailable evidence, later publisher attempts without worker rerun authority, automatic retry launch, and both start-marker race boundaries. `DispatchReservationRecovery` exhausts 11,665 states; four exact mutation controls and three safety-guarded witnesses cover evidence, CAS, no refund/resend, sibling recovery and new retry grants. API authentication, actual Git CAS, retry timing and hosted recovery remain outside this bounded evidence |
+| Aggregate delivery health and independent native release | Safe-output processing fails non-staged unsettled delivery even after successful handlers, after reconciling valid siblings. Local regressions cover pending/failed delivery, result/cancelled siblings, and staged compatibility. `ClaimDeliveryHealth` exhausts 79 positive states with four exact mutation controls and four guarded witnesses; `QueueLifecycle` adds a terminal-release/pending-delivery witness. These checks do not prove live effect delivery or eventual recovery |
+| Released pending-delivery recovery and authenticated cleanup | Released dispatches remain candidates while original ordinary/retained barriers are pending. Cleanup uses the validated native principal; opt-in missing-verifier expiry requires the durable deadline and exact terminal attempt, producing unknown-effects DeliveryFailure only. Scoped redacted diagnostics preserve handler failures. `ClaimDeliveryRecovery` checks bounded safety and conditional fair recovery, with negative controls and guarded witnesses; it does not prove live API availability or a runtime refinement |
+| Worker readiness and hosted startup scope | Claude grants declared native queue MCP access under restricted tools while preserving explicit disablement; Refiner history uses the agent-visible path and structured native calls. Permission/compiler integration tests and a mocked execution of the actual preparation script cover these fixes. Hosted staged diagnostic [39051960708](https://github.com/github/gh-aw/actions/runs/39051960708) at `c1bd9d7775b7f60df94a77303db8b0f91323ddde` restored history and started Claude, then failed its conclusion for missing queue assignment/tools deliberately suppressed by dry-run. Native queue execution and delivery were not verified |
 | Universal Claim-scoped outputs, independent outcomes and custom/deferred paths | Built-in, custom/raw, prepared code/tree, GraphQL/REST, native asset, persistent-memory and queue-control paths are wired through scoped authorization and independent native readback. The joined queue and safe-output regression suite passes 3,206 tests in 86 files with eight skips. Real single-/multi-Claim entrypoints cover private execution after ambient flag changes, selectors, per-member minimum/maximum counts, retained factory fences, preparation, artifact identities/receipts and independent finalization. This is local path coverage, not proof of arbitrary external effect atomicity or exactly-once delivery |
 | Disabled-queue safe-output compatibility | Modified legacy integration surfaces were reviewed against the PR base. Regression coverage preserves ordinary payloads, parsing, global counts, custom inputs, dispatch conversion, diagnostics and patch discovery; a collector differential matches 24 of 24 baseline cases. Stray role/assignment metadata cannot activate the queue, while an existing private Claim frame remains enforced. The joined suite above includes existing ordinary safe-output tests; finite cases do not prove equivalence for every possible input |
 | Compiler/MCP/operator/explain/trace and workflow examples | Implemented with current-only operator/snapshot/intent validation and credential-free observers/previews. Earlier native/probe/compiler/parser, operator and WASM checks pass. Main at `303b402810` is merged; all 328 workflows compile and isolated drift checking passes. Three generated lock conflicts were regenerated from merged sources, not hand-edited. Compiler DryRun disables queue tools and mutation jobs. The onboarding Policy is exercised by the real runtime validator and uses supported empty-key/size bounds. Closed Claim-adapter parsing preserves exact numbers; log writers surface original/short-write failures |

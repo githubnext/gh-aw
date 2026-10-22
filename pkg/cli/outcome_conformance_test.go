@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOutcomeCrossRuntimeConformance(t *testing.T) {
+func TestOutcomeConformance(t *testing.T) {
 	var cases []struct {
 		Name      string                     `json:"name"`
 		Item      CreatedItemReport          `json:"item"`
@@ -50,7 +50,10 @@ func TestOutcomeCrossRuntimeConformance(t *testing.T) {
 				}
 				return json.Unmarshal(raw, target)
 			}
-			get := func(_ context.Context, endpoint, _ string) (map[string]any, error) {
+			get := func(_ context.Context, endpoint, repo string) (map[string]any, error) {
+				if repo != "acme/repo" {
+					endpoint = "repos/" + repo + "/" + endpoint
+				}
 				var value map[string]any
 				err := read(endpoint, &value)
 				return value, err

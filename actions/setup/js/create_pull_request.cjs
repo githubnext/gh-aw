@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
@@ -35,6 +37,7 @@ const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getProm
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { preparePullRequestDelivery, capturePullRequestDelivery } = require("./work_queue_native_creation_delivery.cjs");
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { createOrUpdatePullRequest } = require("./create_or_update_pull_request.cjs");
@@ -387,7 +390,7 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
   const innerCreate = async () => {
     try {
       assertUnchanged();
-      const response = await githubClient.rest.issues.create(payload);
+      const response = await createReportIssue(githubClient, payload);
       assertUnchanged();
       return { ...response, issueRepoParts: { owner: payload.owner, repo: payload.repo } };
     } catch (error) {
@@ -2504,6 +2507,7 @@ ${issueSafeFallbackFooter}`;
           throw new Error(`Pull request body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
         }
         transport.assertUnchanged();
+        const preparedDelivery = await preparePullRequestDelivery(exec, baseBranch, defaultBaseBranch);
         const { data: pullRequest } = await createOrUpdatePullRequest({
           assertTransportUnchanged: transport.assertUnchanged,
           githubClient,
@@ -2740,18 +2744,38 @@ ${issueSafeFallbackFooter}`;
         }
 
         // Return success with PR details
-        return {
-          success: true,
-          number: pullRequest.number,
-          url: pullRequest.html_url,
-          id: pullRequest.id,
-          metadata: { node_id: pullRequest.node_id },
-          managedBody: body,
-          branch_name: branchName,
-          temporaryId: temporaryId,
-          repo: itemRepo,
-          head_repo: pushRepo,
-        };
+        return await capturePullRequestDelivery(
+          {
+            success: true,
+            number: pullRequest.number,
+            url: pullRequest.html_url,
+            id: pullRequest.id,
+            metadata: { node_id: pullRequest.node_id },
+            managedBody: body,
+            branch_name: branchName,
+            temporaryId: temporaryId,
+            repo: itemRepo,
+            head_repo: pushRepo,
+          },
+          message,
+          {
+            prepared: preparedDelivery,
+            id: String(pullRequest.id),
+            number: pullRequest.number,
+            url: pullRequest.html_url,
+            repository: itemRepo,
+            headRepository: pushRepo,
+            branch: branchName,
+            baseBranch,
+            transportBaseBranch: defaultBaseBranch,
+            title,
+            body,
+            draft,
+            labels,
+            assignees: configAssignees || [],
+          },
+          githubClient
+        );
       } catch (prError) {
         transport.assertUnchanged();
         const errorMessage = getErrorMessage(prError);

@@ -105,11 +105,6 @@ type piSubagentEventPayload struct {
 
 // Unified conclusion evidence precedes the canonical bootstrap trace. Neither
 // requires downloading the original engine logs to identify subagents.
-func readSessionSubagentModels(runDir string) ([]SubagentModelRequest, []SubagentModelActual, bool, error) {
-	requests, actuals, _, found, err := readSessionSubagentModelsDetailed(runDir)
-	return requests, actuals, found, err
-}
-
 func readSessionSubagentModelsDetailed(runDir string) ([]SubagentModelRequest, []SubagentModelActual, []AgentUsageBreakdown, bool, error) {
 	for _, relative := range []string{"usage/aw_session.jsonl", "aw_session.jsonl"} {
 		path := filepath.Join(runDir, filepath.FromSlash(relative))
@@ -419,6 +414,8 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 		Provider        string              `json:"provider"`
 		Model           string              `json:"model"`
 		Purpose         string              `json:"purpose"`
+		AgentName       json.RawMessage     `json:"agentName"`
+		CallerSource    json.RawMessage     `json:"callerSource"`
 		Path            string              `json:"path"`
 		XInitiator      string              `json:"xInitiator"`
 		XInitiatorSnake string              `json:"x_initiator"`
@@ -445,6 +442,7 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 	}
 	entry := TokenUsageEntry{
 		Provider: data.Provider, Model: data.Model, Purpose: data.Purpose, Path: data.Path,
+		AgentName: optionalJSONString(data.AgentName), CallerSource: optionalJSONString(data.CallerSource),
 		XInitiator: firstNonEmptyModel(data.XInitiator, data.XInitiatorSnake),
 		RequestID:  data.RequestID, Timestamp: timestamp.Format(time.RFC3339Nano), DurationMs: data.DurationMs,
 		TokenCoreMetrics: TokenCoreMetrics{
@@ -459,6 +457,16 @@ func unifiedTokenUsageEntry(event sessionSubagentEvent) (TokenUsageEntry, error)
 		entry.Steering = data.Steering
 	}
 	return entry, nil
+}
+
+// optionalJSONString decodes an optional string field, treating any other JSON
+// value as absent so a malformed caller field never rejects the usage record.
+func optionalJSONString(raw json.RawMessage) string {
+	var value string
+	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	return value
 }
 
 func validateSubagentSessionSource(path string) error {
@@ -888,8 +896,8 @@ func (models *subagentSessionModels) addAgentMetricModelUsage(agentID string, me
 			return errors.New("negative agent request count")
 		}
 		counts[model] = requestCount
-		actual := SubagentModelActual{Model: model, Requests: requestCount}
-		actual.TokenCoreMetrics = TokenCoreMetrics{
+		actual := SubagentModelActual{
+			Model: model, Requests: requestCount,
 			InputTokens: usage.Usage.InputTokens, OutputTokens: usage.Usage.OutputTokens,
 			CacheReadTokens: usage.Usage.CacheReadTokens, CacheWriteTokens: usage.Usage.CacheWriteTokens,
 			ReasoningTokens: usage.Usage.ReasoningTokens,

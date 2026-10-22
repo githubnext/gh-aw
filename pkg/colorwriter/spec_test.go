@@ -18,18 +18,20 @@ func TestSpec_PublicAPI_New(t *testing.T) {
 	tests := []struct {
 		name    string
 		environ []string
+		input   string
+		want    string
 	}{
-		{name: "NO_COLOR environment", environ: []string{"NO_COLOR=1"}},
-		{name: "color terminal environment", environ: []string{"TERM=xterm-256color", "COLORTERM=truecolor"}},
+		{name: "NO_COLOR strips ANSI", environ: []string{"NO_COLOR=1"}, input: "\x1b[31mdocumented output\x1b[0m", want: "documented output"},
+		{name: "color terminal environment", environ: []string{"TERM=xterm-256color", "COLORTERM=truecolor"}, input: "documented output", want: "documented output"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var destination bytes.Buffer
 			writer := colorwriter.New(&destination, tt.environ)
 			require.NotNil(t, writer, "New should return a usable io.Writer")
-			_, err := io.WriteString(writer, "documented output")
+			_, err := io.WriteString(writer, tt.input)
 			require.NoError(t, err, "the color-profile-aware writer should accept writes")
-			assert.Contains(t, destination.String(), "documented output", "writes should reach the wrapped writer")
+			assert.Equal(t, tt.want, destination.String(), "writes should adapt ANSI output according to the documented environment")
 		})
 	}
 }

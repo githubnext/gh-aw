@@ -4,6 +4,8 @@ import re
 import unittest
 from pathlib import Path
 
+from summarize_super_linter import summarize_log
+
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / ".github/workflows/super-linter.md"
@@ -27,13 +29,15 @@ class SuperLinterScopeTests(unittest.TestCase):
             ".github/workflows/go.mod",
             "pkg/linters/appendbytestring/testdata/src/appendbytestring/appendbytestring.go",
             "pkg/linters/bufioscannererunchecked/testdata/src/basic/bad.go",
+            "pkg/linters/internal/resourcetracker/testdata/src/resourcetracker/bad.go",
+            "pkg/linters/internal/analyzer/deep/testdata/src/basic/bad.go",
             "super-linter-output/report.go",
         ]
         for path in paths:
             for prefix in ("", "/github/workspace/"):
                 with self.subTest(path=prefix + path):
                     self.assertTrue(self.excluded(prefix + path))
-        fixtures = list((ROOT / "pkg/linters").glob("*/testdata/**/*.go"))
+        fixtures = list((ROOT / "pkg/linters").glob("**/testdata/**/*.go"))
         self.assertGreater(len(fixtures), 0)
         for fixture in fixtures:
             self.assertTrue(self.excluded(str(fixture.relative_to(ROOT))), fixture)
@@ -50,6 +54,8 @@ class SuperLinterScopeTests(unittest.TestCase):
             ".github/scripts/purelock/purity_scan.go",
             "scripts/lint_error_messages_test.go",
             "pkg/linters/example/testdata_helpers.go",
+            "pkg/linters/internal/resourcetracker/resourcetracker.go",
+            "pkg/linters/internal/resourcetracker/resourcetracker_test.go",
             ".github/workflows/go.mod.backup",
         ]
         for path in paths:
@@ -72,6 +78,88 @@ class SuperLinterScopeTests(unittest.TestCase):
         self.assertIn("twenty examples total", self.source)
         self.assertIn("does not establish an exploitable vulnerability", self.source)
         self.assertNotIn("[Include the full linter output here]", self.source)
+        self.assertIn("golangci-lint@v2.15.0", self.source)
+        self.assertIn("GOTOOLCHAIN=\"$(go env GOVERSION)\"", self.source)
+        self.assertIn("exec /action/lib/linter.sh", self.source)
+        self.assertIn("super-linter:v9.0.0@sha256:", self.source)
+        self.assertIn("max-retries: 1", self.source)
+        self.assertIn("COPILOT_MODEL: mai-code-1.1-flash", lock)
+        for text in (self.source, lock):
+            self.assertIn("/tmp/super-linter-summary.json", text)
+        self.assertIn("analysis incomplete", self.source)
+
+
+class SuperLinterSummaryTests(unittest.TestCase):
+    def test_counts_all_diagnostics_and_nested_fixtures_once(self):
+        typecheck = (
+            "pkg/console/render.go:7:2: could not import reflect "
+            "(export data version 5 is greater than maximum supported version 4) (typecheck)"
+        )
+        fixture = (
+            "pkg/linters/internal/resourcetracker/testdata/src/basic/bad.go:11:2: "
+            "Error return value is not checked (errcheck)"
+        )
+        source = "pkg/example/example.go:5:2: integer overflow conversion (gosec)"
+        summary = summarize_log("\n".join([typecheck, fixture, source, typecheck]), "failure")
+        self.assertEqual(summary["diagnostic_count"], 3)
+        self.assertEqual(summary["counts"], {"typecheck": 1, "fixtures": 1, "source": 1})
+        self.assertFalse(summary["coverage_complete"])
+        self.assertEqual(summary["title_suffix"], "analysis incomplete")
+
+    def test_uses_file_line_linter_message_identity_and_strips_ansi(self):
+        diagnostic = "pkg/example/example.go:5:2: unsafe conversion (gosec)"
+        summary = summarize_log(
+            "\x1b[31m" + diagnostic + "\x1b[0m\n" + diagnostic.replace(":5:2:", ":5:9:"),
+            "failure",
+        )
+        self.assertEqual(summary["diagnostic_count"], 1)
+        self.assertEqual(summary["counts"]["source"], 1)
+        self.assertFalse(summary["coverage_complete"])
+
+    def test_source_findings_do_not_hide_unrecognized_analyzer_failure(self):
+        summary = summarize_log(
+            "pkg/example/example.go:5:2: unsafe conversion (gosec)\n"
+            "[ERROR] can't run linter goanalysis_metalinter: unexpected analyzer failure",
+            "failure",
+        )
+        self.assertEqual(summary["counts"]["source"], 1)
+        self.assertFalse(summary["coverage_complete"])
+        self.assertEqual(summary["title_suffix"], "analysis incomplete")
+
+    def test_unknown_custom_linter_warning_prevents_clean_verdict(self):
+        summary = summarize_log(
+            'level=warning msg="Found unknown linters in //nolint directives: resourcetrackertest"',
+            "success",
+        )
+        self.assertEqual(summary["tooling_message_count"], 1)
+        self.assertFalse(summary["coverage_complete"])
+
+    def test_failed_run_without_diagnostics_is_not_clean(self):
+        summary = summarize_log("[ERROR] Super-linter failed before startup", "failure")
+        self.assertFalse(summary["coverage_complete"])
+        self.assertEqual(summary["title_suffix"], "analysis incomplete")
+
+    def test_clean_run_requires_success_and_complete_coverage(self):
+        summary = summarize_log("[INFO] All files linted successfully", "success")
+        self.assertTrue(summary["coverage_complete"])
+        self.assertEqual(summary["title_suffix"], "0 source findings")
+
+    def test_examples_are_bounded_without_losing_counts(self):
+        diagnostics = [
+            f"pkg/example/example.go:{line}:2: diagnostic (linter{linter})"
+            for linter in range(10)
+            for line in range(1, 6)
+        ]
+        summary = summarize_log("\n".join(diagnostics), "failure")
+        self.assertEqual(summary["diagnostic_count"], 50)
+        self.assertEqual(sum(len(group["examples"]) for group in summary["groups"]), 20)
+        self.assertTrue(all(len(group["examples"]) <= 3 for group in summary["groups"]))
+
+    def test_rejects_empty_log_and_unknown_outcome(self):
+        with self.assertRaisesRegex(ValueError, "must not be empty"):
+            summarize_log(" \n", "success")
+        with self.assertRaisesRegex(ValueError, "outcome"):
+            summarize_log("[INFO] starting", "cancelled")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,8 +113,8 @@ mcp-servers:
 	assert.NotContains(t, result, "    network:", "Should remove per-server network")
 	assert.Contains(t, result, "network:", "Should add top-level network")
 	assert.Contains(t, result, "  allowed:", "Should add allowed field")
-	assert.Contains(t, result, "    - example.com", "Should include domain")
-	assert.Contains(t, result, "    - api.example.com", "Should include domain")
+	assert.Contains(t, result, "- example.com", "Should include domain")
+	assert.Contains(t, result, "- api.example.com", "Should include domain")
 	assert.Contains(t, result, "container: my-image", "Should preserve container field")
 }
 
@@ -166,7 +167,7 @@ mcp-servers:
 	// Should only have one instance of example.com (deduplication)
 	occurrences := 0
 	for _, line := range splitLines(result) {
-		if line == "    - example.com" {
+		if strings.TrimSpace(line) == "- example.com" {
 			occurrences++
 		}
 	}
@@ -217,8 +218,8 @@ mcp-servers:
 	require.NoError(t, err)
 	assert.True(t, applied)
 	assert.Contains(t, result, "network:", "Should add top-level network")
-	assert.Contains(t, result, "    - example.com", "Should merge domain from server1")
-	assert.Contains(t, result, "    - api.github.com", "Should merge domain from server2")
+	assert.Contains(t, result, "- example.com", "Should merge domain from server1")
+	assert.Contains(t, result, "- api.github.com", "Should merge domain from server2")
 }
 
 func TestMCPNetworkCodemod_MergeWithExistingTopLevelNetwork(t *testing.T) {
@@ -315,7 +316,7 @@ mcp-servers:
 	assert.Contains(t, result, "      - tool1", "Should preserve tool")
 	assert.NotContains(t, result, "    network:", "Should remove network block")
 	assert.Contains(t, result, "network:", "Should add top-level network")
-	assert.Contains(t, result, "    - example.com", "Should add domain to top-level")
+	assert.Contains(t, result, "- example.com", "Should add domain to top-level")
 }
 
 func TestMCPNetworkCodemod_MixedServersWithAndWithoutNetwork(t *testing.T) {
@@ -368,8 +369,8 @@ mcp-servers:
 	assert.True(t, applied)
 	assert.Contains(t, result, "command: node server.js", "Should preserve server2")
 	assert.Contains(t, result, "network:", "Should add top-level network")
-	assert.Contains(t, result, "    - example.com", "Should include domain from server1")
-	assert.Contains(t, result, "    - api.com", "Should include domain from server3")
+	assert.Contains(t, result, "- example.com", "Should include domain from server1")
+	assert.Contains(t, result, "- api.com", "Should include domain from server3")
 }
 
 func TestMCPNetworkCodemod_PreservesMarkdown(t *testing.T) {

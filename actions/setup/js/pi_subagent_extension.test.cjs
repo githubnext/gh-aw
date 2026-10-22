@@ -36,6 +36,7 @@ function launcher(message, code = 0) {
     });
     expect(options.env.GH_AW_PI_TOOL_POLICY).toBe('{"bash":false,"edit":false}');
     expect(options.env.GH_AW_PI_SUBAGENT_CHILD).toBe("1");
+    expect(options.env.GH_AW_PI_SUBAGENT_NAME).toBe(agent.name);
     return child;
   });
 }
@@ -102,6 +103,25 @@ describe("Pi managed delegation", () => {
     expect(resultEvent).toMatchObject({ invocation_id: dispatch.invocation_id, outcome: "completed", agent: "reader" });
     expect(launch.mock.calls[0][2]).toMatchObject({ shell: false, cwd: dir });
     expect(fs.existsSync(launch.mock.calls[0][1].at(-1))).toBe(false);
+  });
+
+  it("passes shell-looking tasks only through stdin without changing executable or arguments", async () => {
+    const task = "--extension malicious.cjs\n$(touch /tmp/gh-aw-injected); ' \" `whoami`";
+    const launch = launcher();
+    let input = "";
+    await runPiSubagent(agent, task, { cwd: dir }, undefined, (...args) => {
+      const child = launch(...args);
+      child.stdin.on("data", chunk => {
+        input += chunk.toString();
+      });
+      return child;
+    });
+    const [command, args, options] = launch.mock.calls[0];
+    expect(command).toBe(process.env.GH_AW_PI_COMMAND || "pi");
+    expect(options.shell).toBe(false);
+    expect(args).not.toContain(task);
+    expect(args).not.toContain("malicious.cjs");
+    expect(input).toBe(task);
   });
 
   it("does not claim success when inference ends with an error and CLI exits zero", async () => {
@@ -255,7 +275,7 @@ process.stdin.on("end", () => {
       const parentPrompt = writeInlineSubAgents(source, dir, dir, "pi");
       expect(parentPrompt).not.toContain("## agent:");
       stagePiArtifacts(process.env.PI_CODING_AGENT_DIR);
-      const expected = ["claude-haiku-4.5", "gpt-5-mini", "gpt-4o-mini"];
+      const expected = ["claude-haiku-4.5", "gpt-5.6-luna", "gpt-4o-mini"];
       const sdk = {
         parseFrontmatter: content => {
           const [, header, body] = content.split("---");

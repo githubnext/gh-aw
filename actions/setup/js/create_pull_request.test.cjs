@@ -2359,7 +2359,7 @@ ${diffs}
     expect(createCall.body).toContain("/compare/main...");
     expect(createCall.body).not.toContain("gh run download");
     expect(createCall.body).not.toContain("git am --3way");
-    expect(createCall.body).toContain("Your pull request is ready to create! 🎉 ✅");
+    expect(createCall.body).toContain("Your pull request is ready to create\\! 🎉 ✅");
     expect(createCall.body).toContain("The original pull request description is below.");
     expect(createCall.body.indexOf("Your pull request is ready to create! 🎉 ✅")).toBeLessThan(createCall.body.indexOf("Test body"));
     expect(createCall.body.indexOf("Test body")).toBeLessThan(createCall.body.indexOf("Protected files"));

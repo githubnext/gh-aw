@@ -83,6 +83,68 @@ func TestDryRunWorkflowMutationControls(t *testing.T) {
 	assert.Same(t, data, compiler.dryRunWorkflowData(data))
 }
 
+func TestDryRunCompiledCacheMode(t *testing.T) {
+	const source = `---
+on: workflow_dispatch
+strict: false
+engine: copilot
+permissions:
+  contents: read
+tools:
+  github: false
+cache:
+  key: dependencies
+  path: node_modules
+jobs:
+  custom:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo custom
+---
+Test dry-run cache isolation.
+`
+	for _, host := range []string{"github.com", "ghes-cli", "ghes-config"} {
+		t.Run(host, func(t *testing.T) {
+			dir := t.TempDir()
+			if host == "ghes-config" {
+				writeAWJSON(t, dir, `{"ghes": true}`)
+			}
+			path := filepath.Join(dir, "cache.md")
+			require.NoError(t, os.WriteFile(path, []byte(source), 0600))
+			compiler := NewCompiler()
+			compiler.gitRoot = dir
+			compiler.SetSkipValidation(true)
+			compiler.SetGHESCompat(host == "ghes-cli")
+			for _, dryRun := range []bool{false, true, false} {
+				compiler.SetDryRun(dryRun)
+				require.NoError(t, compiler.CompileWorkflow(path))
+				content, err := os.ReadFile(filepath.Join(dir, "cache.lock.yml"))
+				require.NoError(t, err)
+				var compiled map[string]any
+				require.NoError(t, yaml.Unmarshal(content, &compiled))
+				require.NoError(t, compiler.validateGitHubActionsSchemaFromParsed(compiled))
+				if dryRun && host == "github.com" {
+					assert.Equal(t, "read", compiled["cache-mode"])
+				} else {
+					assert.NotContains(t, compiled, "cache-mode")
+				}
+				if dryRun {
+					assert.Contains(t, string(content), "actions/cache/restore@")
+					assert.NotContains(t, string(content), "actions/cache@")
+					jobs, ok := compiled["jobs"].(map[string]any)
+					require.True(t, ok)
+					custom, ok := jobs["custom"].(map[string]any)
+					require.True(t, ok)
+					assert.Equal(t, "${{ !always() }}", custom["if"])
+				} else {
+					assert.Contains(t, string(content), "actions/cache@")
+				}
+				assert.Contains(t, compiled["jobs"], "custom")
+			}
+		})
+	}
+}
+
 func TestDevelopmentConclusion(t *testing.T) {
 	for _, policy := range []string{"true", "${{ vars.REPORT_FAILURE }}"} {
 		t.Run(policy, func(t *testing.T) {
@@ -188,7 +250,9 @@ func TestDryRunWorkQueueAndCallWorkflow(t *testing.T) {
 	createWorker(t, dir, "worker", "")
 	path := filepath.Join(dir, "gateway.md")
 	queueSource := `---
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  admission: true
 engine: copilot
 tools:
   work-queue:
@@ -210,6 +274,7 @@ Debug generated delegated workflow jobs.
 		compiler := NewCompiler()
 		compiler.SetSkipValidation(true)
 		compiler.SetApprove(true)
+		compiler.gitRoot = dir
 		for _, enabled := range []bool{true, false} {
 			compiler.SetDryRun(enabled)
 			require.NoError(t, compiler.CompileWorkflow(path))
@@ -222,12 +287,16 @@ Debug generated delegated workflow jobs.
 			if source == delegatedSource {
 				require.Contains(t, compiled.Jobs, "call-worker")
 				if enabled {
-					assert.Equal(t, false, compiled.Jobs["call-worker"]["if"])
+					assert.Equal(t, "${{ !always() }}", compiled.Jobs["call-worker"]["if"])
 				} else {
-					assert.NotEqual(t, false, compiled.Jobs["call-worker"]["if"])
+					assert.NotEqual(t, "${{ !always() }}", compiled.Jobs["call-worker"]["if"])
 				}
 			} else {
-				assert.Empty(t, compiled.Jobs["conclusion"]["outputs"])
+				assert.Equal(t, map[string]any{
+					"admission_compact_session": "${{ steps.admission-conclusion-metadata.outputs.compact_session }}",
+					"usage_artifact_id":         "${{ steps.upload-usage-artifact.outputs.artifact-id }}",
+					"usage_artifact_retry_id":   "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}",
+				}, compiled.Jobs["conclusion"]["outputs"])
 				if !enabled {
 					assert.Contains(t, string(content), "Snapshot work queue state")
 					assert.Contains(t, string(content), "Reconcile work queue claim")

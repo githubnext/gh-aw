@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkDetectionEvidence, checkModelRoutingEvidence, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel } from "./smoke_model_routing_assertions.cjs";
+import { checkDetectionEvidence, checkModelRoutingEvidence, checkSessionContract, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel, sessionContractMain } from "./smoke_model_routing_assertions.cjs";
+import { piRoutedSession, postFixCopilotRoutedSession, postFixCopilotSession, preFixCopilotSession } from "./fixtures/session_contract_sessions.cjs";
 
 const TOKEN_USAGE = "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl";
 const ROUTED_ALLOWED = ["gpt-5.4-mini", "gpt-5.6-luna", "claude-haiku-4.5"];
@@ -953,6 +954,289 @@ describe("smoke_model_routing_assertions", () => {
       expect(core.setFailed).not.toHaveBeenCalled();
       expect(core.error).not.toHaveBeenCalled();
       expect(core.info).toHaveBeenLastCalledWith("All 5 model-routing smoke assertions passed");
+    });
+  });
+
+  // Sessions are cut from published usage/aw_session.jsonl files; see
+  // fixtures/session_contract_sessions.cjs for the source run of each.
+  describe("unified-session contract (U1–U3)", () => {
+    const unroutedCopilot = { engine: "copilot", expectModelInventory: true, copilotInventory: true, resolutionRoles: ["main"] };
+    const contract = (expectations = unroutedCopilot) => checkSessionContract({ rootDir: root, buildSession: false, ...expectations });
+    const withoutWarnings = events => events.filter(event => event.type !== "session.collection_warning");
+    const lineFor = (lines, id) => lines.find(line => line.split(" ")[1] === id);
+
+    it("fails U1 and U2 for the pre-fix Smoke Copilot session (run 39181772988)", () => {
+      write("usage/aw_session.jsonl", preFixCopilotSession());
+      const results = contract();
+      expect(results.failures).toEqual([
+        "FAIL U1 1 session.collection_warning event(s): invalid_model_inventory in sandbox/firewall/awf-reflect.json (1 occurrence(s))",
+        "FAIL U2 expected exactly 1 agent-phase model.inventory, observed 0; model.inventory events: none",
+      ]);
+      expect(checkIds(results.passes)).toEqual(["E2", "U3"]);
+    });
+
+    it("groups repeated U1 warnings by code and path with counts and an example line", () => {
+      const warning = (code, file, line) => ({ type: "session.collection_warning", data: { code, path: file, ...(line === undefined ? {} : { line }) } });
+      write("usage/aw_session.jsonl", [
+        ...postFixCopilotSession(),
+        warning("invalid_json", "agent/log.jsonl"),
+        ...Array.from({ length: 1000 }, (_, index) => warning("invalid_json", "agent/log.jsonl", index + 2)),
+        warning("invalid_record", "agent/log.jsonl", 0),
+        warning("invalid_json", "agent/other.jsonl", 9),
+      ]);
+      expect(lineFor(contract().failures, "U1")).toBe(
+        "FAIL U1 1003 session.collection_warning event(s): invalid_json in agent/log.jsonl (1001 occurrence(s), example line 2), invalid_record in agent/log.jsonl (1 occurrence(s), example line 0), invalid_json in agent/other.jsonl (1 occurrence(s), example line 9)"
+      );
+    });
+
+    it("passes U1–U3 for the post-fix Smoke Copilot session (run 39176941475)", () => {
+      write("usage/aw_session.jsonl", postFixCopilotSession());
+      const results = contract();
+      expect(results.failures).toEqual([]);
+      expect(results.passes).toEqual([
+        "PASS E2 evidence: unified session present",
+        "PASS U1 no session.collection_warning events",
+        "PASS U2 one agent-phase model.inventory from sandbox/firewall/awf-reflect.json; copilot endpoint configured with 40 model(s)",
+        "PASS U3 model.resolution recorded for main: auto -> claude-sonnet-5.5 (resolved)",
+      ]);
+    });
+
+    it("passes U1–U3 alongside R1–R4 for the post-fix routed session without a main model.resolution (run 39176939097)", () => {
+      fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
+      const results = check({ ...copilotExpectations, expectModelInventory: true, copilotInventory: true, resolutionRoles: [] });
+      expect(results.failures).toEqual([]);
+      expect(checkIds(results.passes)).toEqual(["E2", "R1", "R2", "R3", "R4", "U1", "U2", "U3"]);
+      expect(lineFor(results.passes, "U3")).toBe("PASS U3 no model.resolution roles required; observed model.resolution: none");
+    });
+
+    it("passes U3 for both Pi sub-agent roles and names a missing role (run 39178909557)", () => {
+      const piRoles = { engine: "pi", resolutionRoles: ["haiku-whoami", "mini-whoami"] };
+      write("usage/aw_session.jsonl", withoutWarnings(piRoutedSession()));
+      const results = contract(piRoles);
+      expect(results.failures).toEqual([]);
+      expect(lineFor(results.passes, "U3")).toBe("PASS U3 model.resolution recorded for haiku-whoami: copilot/claude-haiku-4.5 -> claude-haiku-4.5 (exact), mini-whoami: copilot/gpt-5.4-mini -> gpt-5.4-mini (exact)");
+
+      write(
+        "usage/aw_session.jsonl",
+        withoutWarnings(piRoutedSession()).filter(event => event.data?.role !== "mini-whoami")
+      );
+      expect(contract(piRoles).failures).toEqual(["FAIL U3 no model.resolution for role mini-whoami; observed model.resolution: haiku-whoami: copilot/claude-haiku-4.5 -> claude-haiku-4.5 (exact)"]);
+    });
+
+    it("fails U2 for two agent-phase inventories and for an unconfigured copilot endpoint", () => {
+      const session = postFixCopilotSession();
+      const inventory = session.find(event => event.type === "model.inventory");
+      write("usage/aw_session.jsonl", [...session, { ...inventory, provenance: { ...inventory.provenance, path: "sandbox/firewall/models.json" } }]);
+      expect(lineFor(contract().failures, "U2")).toBe("FAIL U2 expected exactly 1 agent-phase model.inventory, observed 2; model.inventory events: agent sandbox/firewall/awf-reflect.json, agent sandbox/firewall/models.json");
+
+      // Detection-phase inventories are not counted.
+      write("usage/aw_session.jsonl", [...session, { ...inventory, provenance: { ...inventory.provenance, phase: "detection", path: "threat-detection/sandbox/firewall/awf-reflect.json" } }]);
+      expect(contract().failures).toEqual([]);
+
+      const unconfigured = postFixCopilotSession().map(event =>
+        event.type === "model.inventory" ? { ...event, data: { ...event.data, endpoints: event.data.endpoints.map(endpoint => (endpoint.provider === "copilot" ? { provider: "copilot", configured: false } : endpoint)) } } : event
+      );
+      write("usage/aw_session.jsonl", unconfigured);
+      expect(contract().failures).toEqual([
+        "FAIL U2 agent-phase model.inventory from sandbox/firewall/awf-reflect.json has no configured copilot endpoint with models; observed endpoints: openai configured=false models=<none>, anthropic configured=false models=<none>, copilot configured=false models=<none>, gemini configured=false models=<none>, vertex configured=false models=<none>",
+      ]);
+      expect(contract({ ...unroutedCopilot, copilotInventory: false }).failures).toEqual([]);
+    });
+
+    it("fails U3 and prints the cause for a failed model.resolution", () => {
+      const failed = postFixCopilotSession().map(event => (event.type === "model.resolution" ? { ...event, data: { ...event.data, resolved_model: null, status: "failed", cause: "model_unavailable" } } : event));
+      write("usage/aw_session.jsonl", failed);
+      expect(contract().failures).toEqual(["FAIL U3 role main status is failed (cause model_unavailable), expected exact or resolved; observed model.resolution: main: auto -> <none> (failed)"]);
+    });
+
+    it("fails U3 for a duplicate role resolution", () => {
+      const session = postFixCopilotSession();
+      const resolution = session.find(event => event.type === "model.resolution");
+      write("usage/aw_session.jsonl", [...session, { ...resolution }]);
+      expect(lineFor(contract().failures, "U3")).toBe(
+        "FAIL U3 expected exactly 1 model.resolution for role main, observed 2; observed model.resolution: main: auto -> claude-sonnet-5.5 (resolved), main: auto -> claude-sonnet-5.5 (resolved)"
+      );
+    });
+
+    it.each(["", null, undefined])("fails U3 for resolved_model %s despite a successful status", resolvedModel => {
+      const session = postFixCopilotSession().map(event => (event.type === "model.resolution" ? { ...event, data: { ...event.data, resolved_model: resolvedModel } } : event));
+      write("usage/aw_session.jsonl", session);
+      expect(lineFor(contract().failures, "U3")).toBe("FAIL U3 role main has no resolved_model; observed model.resolution: main: auto -> <none> (resolved)");
+    });
+
+    it("fails U2 gracefully when the session has no inventory", async () => {
+      write(
+        "usage/aw_session.jsonl",
+        postFixCopilotSession().filter(event => event.type !== "model.inventory")
+      );
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(results.failures).toEqual(["FAIL U2 expected exactly 1 agent-phase model.inventory, observed 0; model.inventory events: none"]);
+      expect(core.setFailed).toHaveBeenCalledWith(`Unified-session smoke assertions failed (1):\n${results.failures[0]}`);
+    });
+
+    it.each([{ resolutionRoles: [] }, { copilotInventory: false, resolutionRoles: [] }, { expectModelInventory: false, copilotInventory: false, resolutionRoles: [] }])("logs when U2 is not requested: %j", async expectations => {
+      fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
+      for (const [entryPoint, extra] of [
+        [main, copilotExpectations],
+        [sessionContractMain, {}],
+      ]) {
+        const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+        const results = await entryPoint({ core, rootDir: root, buildSession: false, ...extra, ...expectations });
+        expect(results.failures).toEqual([]);
+        expect(core.info).toHaveBeenCalledWith("U2 not evaluated: neither expectModelInventory nor copilotInventory is true");
+        expect([...results.passes, ...results.failures].filter(line => /^(PASS|FAIL) U2 /.test(line))).toEqual([]);
+      }
+    });
+
+    it.each([
+      [{}, []],
+      [{ copilotInventory: false }, []],
+      [{ expectModelInventory: false, copilotInventory: false }, []],
+      [{ expectModelInventory: true }, ["U1", "U2", "U3"]],
+      [{ copilotInventory: true }, ["U1", "U2", "U3"]],
+      [{ resolutionRoles: [] }, ["U1", "U3"]],
+    ])("runs U1–U3 from main only when the smoke opts in: %j", async (expectations, expectedIds) => {
+      fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await main({ core, rootDir: root, buildSession: false, ...copilotExpectations, ...expectations });
+      expect(results.failures).toEqual([]);
+      expect(checkIds(results.passes).filter(id => /^U\d$/.test(id))).toEqual(expectedIds);
+    });
+
+    it("reports E2 without throwing when the evidence root is unavailable", async () => {
+      const unavailableRoot = path.join(root, "not-a-directory");
+      fs.writeFileSync(unavailableRoot, "");
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: unavailableRoot, ...unroutedCopilot });
+      expect(results.failures.some(line => line.startsWith("FAIL E2 evidence: failed to build the unified session:"))).toBe(true);
+      expect(results.failures).toContain("FAIL E2 evidence: missing usage/aw_session.jsonl");
+      expect(core.setFailed).toHaveBeenCalled();
+    });
+
+    it("reports E2 without throwing when the session path cannot be read", async () => {
+      fs.mkdirSync(path.join(root, "usage/aw_session.jsonl"), { recursive: true });
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(results.failures.some(line => line.startsWith("FAIL E2 evidence: failed to read ") && line.includes("aw_session.jsonl"))).toBe(true);
+      expect(core.setFailed).toHaveBeenCalled();
+    });
+
+    it("reports FAIL E2 without U checks when the session file is missing, for both entry points", async () => {
+      write(TOKEN_USAGE, copilotRequests());
+      const routedCore = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const routed = await main({ core: routedCore, rootDir: root, buildSession: false, ...copilotExpectations, expectModelInventory: true, copilotInventory: true, resolutionRoles: [] });
+      expect(routed.failures[0]).toBe("FAIL E2 evidence: missing usage/aw_session.jsonl");
+      expect([...routed.passes, ...routed.failures].filter(line => /^(PASS|FAIL) U/.test(line))).toEqual([]);
+      expect(routedCore.info).toHaveBeenCalledWith("U1–U3 not evaluated: missing usage/aw_session.jsonl");
+      expect(routedCore.setFailed).toHaveBeenCalled();
+
+      const unroutedCore = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const unrouted = await sessionContractMain({ core: unroutedCore, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(unrouted.failures).toEqual(["FAIL E2 evidence: missing usage/aw_session.jsonl"]);
+      expect(unrouted.passes).toEqual([]);
+      expect(unroutedCore.info).toHaveBeenCalledWith("U1–U3 not evaluated: missing usage/aw_session.jsonl");
+      expect(unroutedCore.setFailed).toHaveBeenCalledWith("Unified-session smoke assertions failed (1):\nFAIL E2 evidence: missing usage/aw_session.jsonl");
+    });
+
+    it("logs every check and passes the step from sessionContractMain", async () => {
+      write("usage/aw_session.jsonl", postFixCopilotSession());
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(core.setFailed).not.toHaveBeenCalled();
+      expect(core.info).toHaveBeenLastCalledWith("All 4 unified-session smoke assertions passed");
+    });
+
+    describe("required sub-agent lifecycle (U4)", () => {
+      // Copilot CLI lifecycle record shapes (copilot-cli-builtin-subagents golden
+      // and the failed start in run 39181772988).
+      const FS_ID = "6f1c9a52-3d0e-4c55-9a7e-0b2f6d1e8c41";
+      const cliEvent = (type, data, agentId = FS_ID) => ({
+        type,
+        agentId,
+        data: { toolCallId: "call_fs", ...data },
+        provenance: { component: "agent", phase: "agent", path: "sandbox/agent/logs/copilot-session-state/s/events.jsonl", index: 0 },
+      });
+      const started = (model = "claude-haiku-4.5", agentId = FS_ID) =>
+        cliEvent("subagent.started", { agentName: "file-summarizer", agentType: "file-summarizer", model, modelSelectionSource: "agent_definition_default", executionMode: "sync" }, agentId);
+      const completed = (model = "claude-haiku-4.5", agentId = FS_ID) => cliEvent("subagent.completed", { agentName: "file-summarizer", model, firstDispatchedModel: model, durationMs: 4100, totalToolCalls: 1 }, agentId);
+      const failed = (model, error) => cliEvent("subagent.failed", { agentName: "file-summarizer", durationMs: 280, totalToolCalls: 0, error: `400 Unsupported model selector "${model}" on copilot: no advertised display name matches.` });
+      const smokeCopilot = { ...unroutedCopilot, requiredSubAgents: ["file-summarizer"] };
+      const run = async session => {
+        write("usage/aw_session.jsonl", [...postFixCopilotSession(), ...session]);
+        const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+        const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...smokeCopilot });
+        return { results, core };
+      };
+
+      it("passes when file-summarizer starts and completes on a resolved model", async () => {
+        const { results, core } = await run([started(), cliEvent("subagent.configured", { model: "claude-haiku-4.5" }), completed()]);
+        expect(results.failures).toEqual([]);
+        expect(lineFor(results.passes, "U4")).toBe("PASS U4 sub-agent file-summarizer started 1 time(s) and completed on model(s) [claude-haiku-4.5]");
+        expect(checkIds(results.passes)).toEqual(["E2", "U1", "U2", "U3", "U4"]);
+        expect(core.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("smoke_fails_when_file_summarizer_fails_to_start", async () => {
+        const expression = "${{ experiments.subagent_model }}";
+        const { results, core } = await run([started(expression), failed(expression)]);
+        expect(results.failures).toEqual([
+          `FAIL U4 sub-agent file-summarizer: 1 subagent.failed event(s): 400 Unsupported model selector "${expression}" on copilot: no advertised display name matches.; 1 of 1 invocation(s) have no subagent.completed; unresolved model expression(s) [${expression}]; observed events: subagent.started(agentName=file-summarizer model=${expression}), subagent.failed(agentName=file-summarizer)`,
+        ]);
+        expect(core.setFailed).toHaveBeenCalled();
+
+        // A failed start on an unresolved alias fails as well, without the expression problem.
+        const alias = await run([started("small"), failed("small")]);
+        expect(lineFor(alias.results.failures, "U4")).toMatch(
+          /^FAIL U4 sub-agent file-summarizer: 1 subagent\.failed event\(s\): 400 Unsupported model selector "small".*; 1 of 1 invocation\(s\) have no subagent\.completed; observed events: /
+        );
+      });
+
+      it("fails when a later invocation fails or never completes", async () => {
+        const second = "9a0d7c11-5b2e-4f8a-8c3d-2e6f4b1a7d90";
+        const { results } = await run([started(), completed(), started("claude-haiku-4.5", second)]);
+        expect(lineFor(results.failures, "U4")).toMatch(/^FAIL U4 sub-agent file-summarizer: 1 of 2 invocation\(s\) have no subagent\.completed; /);
+      });
+
+      it("fails when completion is cancellation only", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 1 invocation\(s\) have no subagent\.completed/);
+        expect(core.setFailed).toHaveBeenCalled();
+      });
+
+      it("preserves a genuine completion followed by cleanup cancellation", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), completed(), cancelled]);
+        expect(results.failures).toEqual([]);
+        expect(lineFor(results.passes, "U4")).toContain("started 1 time(s) and completed");
+        expect(core.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("requires non-cancelled completion for each invocation", async () => {
+        const second = "second-invocation";
+        const cancelled = { ...completed("claude-haiku-4.5", second), data: { ...completed().data, cancelled: true } };
+        const { results } = await run([started(), completed(), started("claude-haiku-4.5", second), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 2 invocation\(s\) have no subagent\.completed/);
+      });
+
+      it("smoke_fails_when_file_summarizer_is_not_invoked", async () => {
+        const { results, core } = await run([]);
+        expect(results.failures).toEqual(["FAIL U4 sub-agent file-summarizer: never started (no subagent.started); observed events: none"]);
+        expect(checkIds(results.passes)).toEqual(["E2", "U1", "U2", "U3"]);
+        expect(core.setFailed).toHaveBeenCalled();
+
+        // Another sub-agent's successful lifecycle does not satisfy the requirement.
+        const other = await run([{ ...started(), data: { ...started().data, agentName: "explore" } }, completed()]);
+        expect(lineFor(other.results.failures, "U4")).toMatch(/^FAIL U4 sub-agent file-summarizer: never started \(no subagent\.started\); observed events: subagent\.started\(agentName=explore /);
+      });
+    });
+
+    it("counts U failures in T4 when steering is configured", () => {
+      write("usage/aw_session.jsonl", preFixCopilotSession());
+      write(TOKEN_USAGE, copilotRequests());
+      const { failures } = check({ ...copilotExpectations, steering: { maxAiCredits: 7 }, expectModelInventory: true, copilotInventory: true, resolutionRoles: [] });
+      expect(lineFor(failures, "T4")).toMatch(/^FAIL T4 existing check\(s\) failed: .*U1, U2$/);
     });
   });
 });

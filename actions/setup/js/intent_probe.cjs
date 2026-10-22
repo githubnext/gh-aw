@@ -1,5 +1,7 @@
 // @ts-check
 
+const { sanitizeTitle } = require("./sanitize_title.cjs");
+
 const TRIVIAL_PROBE_VALUES = new Set(["test", "testing", "test no base", "probe", "placeholder", "dummy", "temp", "temporary", "todo", "tbd", "wip", "example"]);
 
 /**
@@ -97,19 +99,19 @@ function validateCreatePullRequestIntent(entry) {
  * Detects obviously exploratory issue payloads so the agent can fail fast
  * instead of recording a stray real-world issue intent.
  * @param {{title?: unknown, body?: unknown}} entry
+ * @param {string} [titlePrefix]
  * @returns {string|null}
  */
-function validateCreateIssueIntent(entry) {
-  const rawResolvedTitle = resolveIssueTitleForValidation(entry);
-  const body = normalizeProbeValue(entry.body);
+function validateCreateIssueIntent(entry, titlePrefix = "") {
+  const title = normalizeProbeValue(sanitizeTitle(resolveIssueTitleForValidation(entry), titlePrefix));
   const titleField = typeof entry.title === "string" && entry.title.trim() ? "title" : "body";
-  const looksLikeProbeTitle = isTrivialProbeValue(rawResolvedTitle, titleField);
+  const looksLikeProbeTitle = isTrivialProbeValue(title, titleField) || [...TRIVIAL_PROBE_VALUES].some(word => title === `${word} title`);
 
-  if (looksLikeProbeTitle && (body === "" || isTrivialProbeValue(body, "body"))) {
+  if (looksLikeProbeTitle) {
     return (
       "Refusing to record an exploratory issue. " +
       "create_issue is for a real intended issue only and successful calls can lead to an externally visible issue. " +
-      "Do not use placeholder titles or bodies like 'test'. " +
+      "Replace the placeholder title with a descriptive title for the real issue before retrying. " +
       "If you are not ready to open the real issue, use noop or report_incomplete instead."
     );
   }

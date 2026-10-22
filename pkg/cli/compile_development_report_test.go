@@ -170,7 +170,8 @@ func TestDryRunCompileReportText(t *testing.T) {
 	})
 	assert.Contains(t, output, "shellcheck=passed")
 	assert.Contains(t, output, "zizmor=not_run")
-	assert.Contains(t, output, "Unverified: custom scripts/jobs")
+	assert.Contains(t, output, "Unverified: agent shell commands")
+	assert.Contains(t, output, "Existing and added medium-or-higher")
 }
 
 func TestDevelopmentCompileJSONReport(t *testing.T) {

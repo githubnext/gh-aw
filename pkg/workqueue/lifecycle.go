@@ -151,7 +151,7 @@ func authorizeWorkerQueueRequest(state Projection, actor Actor, request Request)
 			if err := json.Unmarshal(operation, &observation); err != nil {
 				return err
 			}
-			if err := validateResource(observation.Resource, state.Policy.Pools[parent.Pool]); err != nil {
+			if err := validateResourceForHost(observation.Resource, state.Policy.Pools[parent.Pool], state.resourceHost); err != nil {
 				return err
 			}
 		}
@@ -190,9 +190,20 @@ func terminalEvidence(state Projection, dispatch *DispatchState, evidence Eviden
 	return nil
 }
 
-func releaseEvidence(state Projection, dispatch *DispatchState, evidence Evidence, at int64) error {
+func releaseEvidence(state Projection, dispatch *DispatchState, evidence Evidence, at int64, actor Actor) error {
 	if err := evidenceFits(state, dispatch, evidence, at); err != nil {
 		return err
+	}
+	if evidence.Kind == "worker_termination" {
+		if dispatch.State != "bound" || dispatch.Run == nil || evidence.Source != "github_api" ||
+			evidence.RunID != dispatch.Run.RunID || evidence.RunAttempt != 1 || evidence.Receipt == "" ||
+			evidence.Status != "" || evidence.Conclusion != "" || actor.Role != "reconciler" ||
+			actor.RunID != dispatch.Run.RunID || actor.RunAttempt != 1 ||
+			actor.Repository != evidence.Repository || actor.Workflow != evidence.Workflow ||
+			actor.Principal != evidence.Principal {
+			return queueError("evidence_invalid", "worker termination requires the original worker's trusted finalizer and verified job quiescence")
+		}
+		return nil
 	}
 	if dispatch.State == "reserved" {
 		if evidence.Kind != "prelaunch" || evidence.Source != "trusted_publisher" {
@@ -337,7 +348,7 @@ func (state Projection) cancellationBackoffOrigin(claim *ClaimState, commit Queu
 				if release.DispatchID != claim.DispatchID {
 					continue
 				}
-				if err := releaseEvidence(state, state.Dispatches[claim.DispatchID], release.Evidence, commit.At); err != nil {
+				if err := releaseEvidence(state, state.Dispatches[claim.DispatchID], release.Evidence, commit.At, commit.Actor); err != nil {
 					return 0, err
 				}
 				return release.Evidence.CheckedAt, nil
@@ -570,7 +581,7 @@ func (state Projection) release(op Operation, commit QueueCommit) error {
 	if dispatch.Released {
 		return nil
 	}
-	if err := releaseEvidence(state, dispatch, release.Evidence, commit.At); err != nil {
+	if err := releaseEvidence(state, dispatch, release.Evidence, commit.At, commit.Actor); err != nil {
 		return err
 	}
 	for _, member := range dispatch.Claims {

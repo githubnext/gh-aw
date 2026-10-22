@@ -46,6 +46,8 @@ type queueAPI struct {
 	workerReads          int
 	workerRef            string
 	noAdmin              bool
+	maintain             bool
+	noPush               bool
 	settings             string
 	settingsStatus       int
 	sources              map[string]string
@@ -59,6 +61,7 @@ type queueAPI struct {
 	registrationReads    map[string]int
 	sourceStatuses       map[string]int
 	registrationStatuses map[string]int
+	projectionRefs       map[string]string
 }
 
 type queueTransport struct{ url string }
@@ -157,7 +160,8 @@ func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		}
 		respond(map[string]any{"id": id, "login": "operator"})
 	case r.Method == http.MethodGet && r.URL.Path == "/repos/"+testRepository:
-		respond(map[string]any{"id": 1, "full_name": testRepository, "default_branch": "main", "permissions": map[string]bool{"push": true, "admin": !mock.noAdmin}})
+		respond(map[string]any{"id": 1, "full_name": testRepository, "default_branch": "main",
+			"permissions": map[string]bool{"push": !mock.noPush, "admin": !mock.noAdmin, "maintain": mock.maintain}})
 	case r.Method == http.MethodGet && path == "issues/7":
 		mock.resourceReads++
 		if mock.resourceRead != nil {
@@ -272,6 +276,14 @@ func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		} else {
 			respond(map[string]any{"ref": "refs/heads/" + DefaultBranch, "object": map[string]string{"sha": mock.head}})
 		}
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "git/refs/heads/gh-aw-issue-projection/"):
+		name := strings.TrimPrefix(path, "git/refs/heads/")
+		if _, ok := mock.projectionRefs[name]; !ok {
+			fail(404)
+			return
+		}
+		delete(mock.projectionRefs, name)
+		w.WriteHeader(http.StatusNoContent)
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
 		commit := mock.commits[strings.TrimPrefix(path, "git/commits/")]
 		parents := make([]map[string]string, 0, len(commit.Parents))
@@ -314,12 +326,26 @@ func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		respond(map[string]string{"sha": sha})
 	case r.Method == http.MethodPost && path == "git/refs" ||
 		r.Method == http.MethodPatch && path == "git/refs/heads/"+DefaultBranch:
-		mock.refWrites++
 		var body struct {
 			SHA   string `json:"sha"`
 			Force bool   `json:"force"`
+			Ref   string `json:"ref"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
+		if strings.HasPrefix(body.Ref, "refs/heads/gh-aw-issue-projection/") {
+			name := strings.TrimPrefix(body.Ref, "refs/heads/")
+			if mock.projectionRefs == nil {
+				mock.projectionRefs = map[string]string{}
+			}
+			if _, exists := mock.projectionRefs[name]; exists {
+				fail(422)
+				return
+			}
+			mock.projectionRefs[name] = body.SHA
+			respond(map[string]any{"ref": body.Ref, "object": map[string]string{"sha": body.SHA}})
+			return
+		}
+		mock.refWrites++
 		if body.Force {
 			t.Error("force publication is prohibited")
 		}

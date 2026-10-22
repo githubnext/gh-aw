@@ -47,7 +47,7 @@ steps:
       mkdir -p /tmp/gh-aw/token-audit/charts /tmp/gh-aw/token-audit/site-packages
   - name: Install Python chart dependencies
     run: |
-      python3 -m pip install --quiet --target /tmp/gh-aw/token-audit/site-packages pandas matplotlib seaborn
+      python3 -m pip install --quiet --target /tmp/gh-aw/token-audit/site-packages pandas==3.0.6 matplotlib==3.11.2 seaborn==0.13.2
   - name: Download agentic workflow logs
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

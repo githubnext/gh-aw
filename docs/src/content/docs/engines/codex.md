@@ -1,174 +1,55 @@
 ---
 title: Using OpenAI Codex with GitHub Agentic Workflows
-description: Select and authenticate OpenAI Codex as the AI engine for GitHub Agentic Workflows, understand its capabilities and limitations, and start from an example.
+description: Authenticate OpenAI Codex and run your first GitHub Agentic Workflow.
 ---
 
-[OpenAI Codex](https://openai.com/codex/) is OpenAI's coding-focused agent runtime for repository work. GitHub Agentic Workflows runs Codex through GitHub Actions from a Markdown workflow and adds GitHub triggers, sandbox controls, and safe outputs for event-driven, reviewable automation.
+Run Codex on GitHub events using an OpenAI API key or GitHub Copilot inference. ChatGPT subscription login is not supported.
 
-The default CLI version is [Codex 0.163.0](https://github.com/openai/codex/releases/tag/rust-v0.163.0). Its `exec` arguments and JSONL event contract are unchanged from 0.162.1, so the existing harness and unified session parser remain compatible, including concurrent read-only tool calls. Recompile existing workflows to update their generated installation pin.
+## Connect your account
 
-An AWF `unknown_model_ai_credits` rejection stops harness retries and fails the run. Configure the model's pricing or an authorized fallback pricing policy before retrying; the harness does not invent pricing or bypass credit enforcement.
+Set `engine: codex`, choose an OpenAI model, and add a [`CODEX_API_KEY` or `OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) repository secret.
 
-> [!CAUTION]
-> Codex cannot enforce a per-command `tools.bash` allowlist. Configuring one does not restrict which shell commands can run. Set `tools.bash: false` to disable shell execution, or choose an engine that supports command allowlists.
+To use Copilot inference instead, select a Codex-compatible `copilot/` model and grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission). This requires no OpenAI key. See [provider configuration](/gh-aw/reference/engines/codex/#github-copilot-inference) for details.
 
-## Selecting Codex + OpenAI as the AI engine
+## Run a daily report
 
-To select Codex as the AI engine, with inference hosted and billed through the OpenAI API, add this to the workflow frontmatter:
-
-```yaml
-engine: codex
-model: openai/gpt-6.1-sol
-```
-
-To authenticate, provide a [`CODEX_API_KEY`](/gh-aw/reference/auth/#openai_api_key) or [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) as a GitHub Actions repository secret.
-
-ChatGPT subscription login is not configured by this integration.
-
-Recompile the workflow with `gh aw compile` and commit the changes to your repository. The workflow will now run with Codex as the AI engine.
-
-## Selecting Codex + GitHub as the AI engine
-
-To select Codex as the AI engine, with inference hosted and billed through a GitHub Copilot subscription, add a `copilot/` model declaration. This configures Codex's BYOK provider to use GitHub Copilot inference. Select a Codex-compatible model available to your Copilot account. For example:
-
-```yaml
-engine:
-  id: codex
-  model: copilot/gpt-6.1-sol
-```
-
-GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna, GPT-6 Astra, and GPT-5.6 Sol, Terra, and Luna support Codex through the Responses API without a `-codex` suffix. Check [Codex model support](https://developers.openai.com/codex/models), [API pricing](https://developers.openai.com/api/docs/pricing), and [API deprecations](https://developers.openai.com/api/docs/deprecations) before pinning a model; a cached pricing entry alone does not establish availability.
-
-Both `copilot/auto` and `auto` with `engine.model-provider: github` delegate model selection to the Copilot gateway through the Responses API. The bare spelling does not change Codex's default OpenAI provider; select GitHub explicitly to use Copilot inference.
-
-To authenticate:
-- For organization-billed usage, grant [`copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission).
-- Otherwise, provide a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) secret containing a fine-grained PAT with Copilot Requests access.
-
-GitHub inference requires the AWF sandbox. Do not set `sandbox.agent: false` for this provider. For a model supplied through an expression or repository variable, set `engine.model-provider: github` explicitly; runtime model prefixes do not change the selected credentials.
-
-GitHub inference disables Codex's native shell and JavaScript code-mode tools because the Copilot compatibility adapter does not support the custom `exec` tool. gh-aw generates a direct-tool model catalog from the installed Codex binary's bundled metadata, preserving the other model settings. This also disables code mode for models that select it independently of feature flags. MCP tools and the supported `apply_patch` tool remain available. The installed Codex command must support `debug models --bundled`; `engine.config` cannot re-enable these features or replace the managed catalog. OpenAI inference is unchanged.
-
-Recompile the workflow with `gh aw compile` and commit the changes to your repository. The workflow will now run with Codex as the AI engine.
-
-## Example: scheduled repository report
+After [setting up gh-aw](/gh-aw/setup/quick-start/), save this workflow:
 
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:
+  workflow_dispatch:
   schedule: daily
-
 permissions:
   contents: read
   issues: read
   pull-requests: read
-
 engine: codex
-
+model: openai/gpt-6.1-sol
+tools:
+  github:
+    toolsets: [issues, pull_requests]
 safe-outputs:
   create-issue:
     title-prefix: "[status] "
-    labels: [report]
-    close-older-issues: true
 ---
 
-# Daily Repository Status
+# Daily repository status
 
-Analyze the repository and create a concise daily status report covering:
-- Open issues and their priority
-- Recent PR activity
-- Upcoming work items
+Summarize open issues and recent pull request activity in one concise issue.
 ```
+
+Compile with `gh aw compile daily-status`, then commit and push both the Markdown and generated lock file. Run it from the repository's Actions tab or wait for its schedule.
 
 ## Capabilities and limitations
 
-Codex enables its shared native search/browsing tool when either `tools.web-search` or `tools.web-fetch` is enabled. Search and page fetching cannot be disabled independently; use `network.hosted-web` to restrict hosted retrieval. Codex can disable shell execution completely, but not restrict it to a per-command `tools.bash` allowlist.
+Codex cannot enforce per-command bash allowlists. Because a sandbox is used, bash restrictions are not normally required. If bash restrictions are required, use `tools.bash: false` to disable shell execution, or choose another engine when command-level restrictions are required.
 
-With OpenAI inference through the AWF sandbox, enabling `network.hosted-web` also enables Codex's standalone `web.run` search tool for Responses Lite models, which do not receive the hosted `web_search` tool. Without hosted web, this provider flag is not set. Codex standalone search does not support `network.hosted-web.max-uses`; omit that limit when using Codex with OpenAI inference.
+See the [Codex reference](/gh-aw/reference/engines/codex/) for provider differences, web tools, configuration, and runtime limits.
 
-`network.hosted-web` is not functional with Codex using GitHub Copilot inference. The compiler rejects this combination; use OpenAI inference to enable Codex standalone web search.
+## Next steps
 
-Codex does not support bare mode, Copilot-style `max-continuations`, or native `engine.agent` selection. `engine.harness.use` can select a replacement harness that has been provisioned in the setup-action directory before execution. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
-
-When a workflow does not declare any `plugins`, GitHub Agentic Workflows writes [`features.plugins=false`](https://developers.openai.com/codex/config-reference/#features) to Codex's generated `config.toml`. This prevents Codex from contacting the ChatGPT plugin catalog or synchronizing the curated plugin repository at startup. Codex does not provide a narrower setting that disables only startup synchronization, so workflows that declare Agent Plugins keep the plugin subsystem and its startup checks enabled. Directly configured MCP servers are unaffected.
-
-Plugins are registered after configuration generation in the same `CODEX_HOME` used for execution. Inline skills use `.codex/skills/<name>/SKILL.md`.
-
-## Custom Codex configuration
-
-`engine.config` accepts TOML that is parsed and structurally merged with the generated configuration. Root settings remain at the root, and table settings preserve unrelated defaults:
-
-```yaml wrap
-engine:
-  id: codex
-  config: |
-    model_reasoning_effort = "high"
-```
-
-Generated configuration disables the default metrics exporter and preserves native MCP timeouts and client headers. MCP connections and the AWF provider's connection settings remain gateway-managed; configure upstream servers through `mcp-servers` and inference endpoints through `engine.api-target` or `engine.env.OPENAI_BASE_URL`.
-
-Use `${ENV_VAR}` inside TOML strings to reference an environment value configured through `engine.env`. GitHub Actions expressions are not accepted directly inside `engine.config`. The native integration supports OpenAI Responses-compatible inference and GitHub inference; an Anthropic backend requires a Responses-compatible bridge configured as an OpenAI endpoint.
-
-For shell environment filtering, use either `[shell_environment_policy.filters]` or the legacy `include_only`/`exclude` arrays. Selecting one representation replaces inherited settings from the other; declaring both in the same custom configuration is a compile-time error.
-
-## Context-rebuild circuit breaker
-
-The Codex harness enables a context-rebuild circuit breaker by default to limit excessive repeated input processing, such as runaway context-rebuilding loops. It stops a run when **both** `rebuild_factor >= 25` and `cumulative_input_tokens >= 1,000,000`. The factor is cumulative input tokens divided by the largest single request's input tokens, calculated from token-usage records. It is not a count of actual context resets or compactions: a long run making steady progress can also cross the threshold. After this attempt emits `noop`, any non-diagnostic task output, or a `missing_data` or `report_incomplete` diagnostic, the breaker allows Codex to finish; `missing_tool` does not exempt the run. A separate post-result watchdog handles slow shutdown.
-
-Configure these harness controls through `engine.env`, not through Codex's TOML configuration:
-
-| Environment variable | Default | Behavior |
-| --- | --- | --- |
-| `GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER` | Enabled | Set to `false`, `0`, `off`, or `no` to disable (case-insensitive, surrounding whitespace ignored). |
-| `GH_AW_CODEX_MAX_REBUILD_FACTOR` | `25` | Factor threshold; accepts finite numbers greater than or equal to `1`. |
-| `GH_AW_CODEX_REBUILD_MIN_CUMULATIVE_INPUT_TOKENS` | `1000000` | Cumulative input floor; accepts finite numbers that round down to at least `1` token. |
-| `GH_AW_CODEX_REBUILD_GUARD_POLL_MS` | `15000` | Check interval in milliseconds; positive values round down and are clamped to a minimum of `1000`. |
-| `GH_AW_CODEX_REBUILD_GUARD_TERM_GRACE_MS` | `5000` | Grace period after SIGTERM before SIGKILL, in milliseconds; positive values round down and are clamped to a minimum of `250`. |
-
-Missing or invalid numeric values use the defaults. A guard stop is not retried. It emits `report_incomplete` with `reason: infrastructure_error`; its `details` start with `Codex run stopped by a runtime guard.` and include the measured factor, cumulative input, and thresholds for this breaker. Dashboards can use these details to distinguish a guard cutoff from a process crash.
-
-### Tuning for long runs that make progress
-
-Use successful runs of the same workload to establish a baseline and set the factor limit above their observed range with headroom. For workloads completing around factor `30`, `50` is a reasonable starting point, not a universal safe limit:
-
-```yaml wrap
-engine:
-  id: codex
-  env:
-    GH_AW_CODEX_MAX_REBUILD_FACTOR: "50"
-```
-
-Recompile and commit the generated workflow after changing `engine.env`. To disable this breaker instead, set `GH_AW_CODEX_CONTEXT_REBUILD_CIRCUIT_BREAKER: "false"`. Raising or disabling the limit permits more input processing and potentially higher cost; retain a workflow timeout and an appropriate [`max-ai-credits` budget](/gh-aw/reference/frontmatter/).
-
-Inspect per-request `input_tokens` in the `agent` artifact's `token-usage.jsonl` alongside tool activity in `agent-stdio.log` or `agent-session.jsonl`. Steadily growing or plateauing input with new edits, test results, or completed subtasks is consistent with useful progress. Repeated equivalent tool calls, repeated failed approaches, or repeated context drops and regrowth without new results warrant investigation. Input growth between consecutive requests alone cannot prove a loop or progress; the breaker does not evaluate these signals, and a high factor alone does not establish a runaway loop.
-
-## Session artifacts
-
-The `agent` artifact retains native `agent-stdio.log` and normalized `agent-session.jsonl`. The conclusion job projects essential fields into `usage/aw_session.jsonl`, following the [unified session contract](/gh-aw/specs/unified-agent-session-specification/).
-
-| Codex observation | Session mapping |
-| --- | --- |
-| Thread startup and recognized legacy headers | `session.init`, with observed model, working directory, reasoning effort, and available inventories. |
-| Agent text, reasoning, and user text | `assistant.message`, `assistant.reasoning`, and `user.message`, with exact content. Explicit provider refusal signals use `assistant.refusal`; natural-language disclaimers do not. |
-| Commands and MCP calls | Independent `tool.execution_start` and `tool.execution_complete` events, preserving native IDs, arguments, outputs, and explicit failures, including declined commands. |
-| File changes | An `apply_patch` tool completion with observed changes and status. A change summary does not supply executed patch arguments or a missing start. |
-| Web searches and collaboration calls | Standard tool events with observed queries/actions or receiver IDs/prompts, and available search results or agent states. Completing `spawn_agent` does not mean the child finished. |
-| Completed turns and session errors | `session.result`, with cumulative per-turn usage or separate error observations. A completed CLI turn does not establish task success. |
-
-Tool IDs remain scoped to their observed thread for correlation across retries. Unfinished tools remain dangling; orphan completions do not acquire invented inputs. Known message updates are snapshots, not text deltas: only the latest available content is exposed as a core message, while superseded snapshots remain native evidence. Todo-list snapshots and unknown native extensions remain available without fabricating tool executions.
-
-Reported totals and cache aliases are counted once. Later authoritative accounting snapshots replace corresponding totals rather than adding to them; unavailable counts, duration, and cost remain absent. Legacy message sections retain JSON-looking answers as text instead of interpreting them as execution or usage records.
-
-Regression fixtures include sanitized excerpts from [Smoke Codex](https://github.com/github/gh-aw/actions/runs/36909965579), [Daily Documentation Updater](https://github.com/github/gh-aw/actions/runs/36850958249), and an [unsupported-model failure](https://github.com/github/gh-aw/actions/runs/37100404405). Advanced tool, refusal, overflow, and mixed-format cases are synthetic protocol-shaped regressions, not claims that these features appeared in the sampled runs.
-
-## GitHub Agentic Workflows vs. running Codex directly in Actions
-
-Running coding agent CLIs such as `codex` directly in GitHub Actions without an adequate security architecture is not recommended. GitHub Agentic Workflows gives an appropriate security architecture and workflow portability across AI engines.
-
-## Learn More
-
-- [Quick start](/gh-aw/setup/quick-start/)
-- [Engine reference](/gh-aw/reference/engines/)
-- [Authentication](/gh-aw/reference/auth/)
-- [Security architecture](/gh-aw/introduction/architecture/)
-- [Gallery](/gh-aw/gallery/)
+- [OpenAI Codex technical reference](/gh-aw/reference/engines/codex/)
+- [Create a workflow](/gh-aw/setup/creating-workflows/)
+- [Workflow examples](/gh-aw/gallery/)
+- [Compare engines](/gh-aw/reference/engines/#engine-feature-comparison)

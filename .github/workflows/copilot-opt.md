@@ -137,6 +137,16 @@ These paths are populated by imported setup components:
 
 If data is incomplete, proceed with available evidence and clearly state data quality limitations.
 
+## Tool Discipline
+
+Use absolute paths with `view`, `find`, and `jq`; keep every shell command and pipeline stage within the configured allowlist. Do not use `cd`, `cut`, or `sed`; use `jq` for JSON selection, normalization, and truncation instead.
+
+Permitted analysis commands are `jq`, `python`, `grep`, `find`, `cat`, `head`, `tail`, `sort`, `uniq`, `wc`, `ls`, `pwd`, and `date`. Use `python` or `grep` for plain-text transcripts; `awk`, `xargs`, and `tr` are not permitted.
+
+Read the phase instructions below with `view` from their staged absolute paths. Do not depend on automatic repository skill discovery.
+
+After a permission denial, identify the unsupported command before proceeding. Use only an explicitly allowed alternative; do not retry variants of the denied command or probe permissions. If a required capability has no allowed alternative, report that specific limitation through the configured safe-output tools instead of exhausting the three-denial budget.
+
 ## Phase 0 — Setup
 
 1. Confirm required files exist.
@@ -167,19 +177,19 @@ Use UTC for all time filtering.
 
 ## Phase 2 — Performance Analysis
 
-Invoke skill `opt-phase-performance` for the full performance analysis procedure. Aggregate across all sessions to identify recurring systemic patterns.
+Read `/tmp/gh-aw/.github/skills/opt-phase-performance/SKILL.md` with `view` for the full performance analysis procedure. Aggregate across all sessions to identify recurring systemic patterns.
 
 ## Phase 3 — PR Cross-Analysis and Duplicate Pattern Detection
 
-This phase is **mandatory**. Invoke skill `opt-phase-pr-analysis` for the full PR cross-analysis and duplicate pattern detection procedure (including jq commands and the retry-blocked topics table).
+This phase is **mandatory**. Read `/tmp/gh-aw/.github/skills/opt-phase-pr-analysis/SKILL.md` with `view` for the full PR cross-analysis and duplicate pattern detection procedure (including jq commands and the retry-blocked topics table).
 
 ## Phase 4 — Recommendation Selection
 
-Produce exactly three recommendations ranked by impact. Invoke skill `opt-phase-recommendations` for the full selection rules, domains, and criteria.
+Produce exactly three recommendations ranked by impact. Read `/tmp/gh-aw/.github/skills/opt-phase-recommendations/SKILL.md` with `view` for the full selection rules, domains, and criteria.
 
 ## Phase 5 — Issue Creation (Exactly Three)
 
-Create exactly three GitHub issues. Invoke skill `opt-phase-issue-creation` for the full issue template, retry-blocked addendum format, and label rules.
+Create exactly three GitHub issues. Read `/tmp/gh-aw/.github/skills/opt-phase-issue-creation/SKILL.md` with `view` for the full issue template, retry-blocked addendum format, and label rules.
 
 ## Items That Should Not Be Addressed
 

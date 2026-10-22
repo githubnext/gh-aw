@@ -10,14 +10,18 @@ import (
 	"time"
 )
 
-func assertRecoveryReplayParity(t *testing.T, commits []QueueCommit, expectedError string) {
+func assertRecoveryReplayParity(t *testing.T, commits []QueueCommit, expectedError string, asOf ...int64) {
 	t.Helper()
 	node, err := exec.LookPath("node")
 	if err != nil {
 		t.Log("cross-engine recovery test tooling unavailable; native boundary assertions still run")
 		return
 	}
-	input, err := canonicalValue(map[string]any{"transactions": commits, "at": int64(4000)})
+	values := map[string]any{"transactions": commits, "at": int64(4000)}
+	if len(asOf) > 0 {
+		values["as_of"] = asOf[0]
+	}
+	input, err := canonicalValue(values)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +49,9 @@ func assertRecoveryReplayParity(t *testing.T, commits []QueueCommit, expectedErr
 		t.Fatal(err)
 	}
 	state, err := Replay(commits)
+	if len(asOf) > 0 {
+		state, err = ReplayAt(commits, asOf[0])
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

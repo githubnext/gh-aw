@@ -551,15 +551,6 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	return nil
 }
 
-// transferPR is the main function that orchestrates the PR transfer
-func transferPR(prURL, targetRepo string, verbose bool) error { //nolint:largefunc
-	return transferPRWithAutoMerge(context.Background(), prURL, targetRepo, verbose, false)
-}
-
-func transferPRWithAutoMerge(ctx context.Context, prURL, targetRepo string, verbose, autoMerge bool) error { //nolint:largefunc
-	return transferPRWithMessage(ctx, prURL, targetRepo, verbose, autoMerge, "")
-}
-
 func transferPRWithMessage(ctx context.Context, prURL, targetRepo string, verbose, autoMerge bool, message string) error { //nolint:largefunc
 	prLog.Printf("Starting PR transfer: url=%s, targetRepo=%s", prURL, targetRepo)
 

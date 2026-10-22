@@ -546,7 +546,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
           if (query.includes("WorkQueueTrackingLabel")) {
             creates++;
             label ||= { id: "label-queued", name, color: "808080" };
-            throw Object.assign(new Error("Name has already been taken"), { errors: [{ message: "Name has already been taken" }] });
+            throw Object.assign(new Error("Name has already been taken"), { data: { createLabel: null }, errors: [{ type: "UNPROCESSABLE", path: ["createLabel"], message: "Name has already been taken" }] });
           }
           if (query.includes("WorkQueueLabelColor")) {
             recolors++;
@@ -581,7 +581,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       m.options.githubClient.graphql = (query, variables) => (query.includes("WorkQueueStatusLabel") ? Promise.resolve({ node: null }) : original(query, variables));
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /status label target is inaccessible/);
+      assert.match(result.pending[0].reason, /projection_label_pending/);
       assert.equal(m.state().works.size, 1);
     });
     it("repairs labels only on owned Issues and preserves human-owned text and closure", async () => {
@@ -688,7 +688,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       const m = mock(f);
       const result = await main(m.options);
       assert.ok(result.pending);
-      assert.match(result.pending[0].reason, /installed projector/);
+      assert.match(result.pending[0].reason, /projection_unavailable/);
       assert.equal(m.calls.filter(call => call[0] === "mutation").length, 0);
     });
     it("rejects empty projector rules and noncanonical repository names", () => {
@@ -812,7 +812,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       };
       const batch = await mutateIssues(
         client,
-        [0, 1].map(key => ({ key, name: "createIssue", type: "CreateIssueInput", input: {}, selection: "issue { id }" }))
+        [0, 1].map(key => ({ key, name: "createIssue", type: "CreateIssueInput", input: { repositoryId: "repo", title: `Work ${key}`, body: "Work details" }, selection: "issue { id }" }))
       );
       assert.equal(batch.results[0].pending, false);
       assert.equal(batch.results[1].pending, true);

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { fetchAndLogRateLimit } = require("./github_rate_limit_logger.cjs");
@@ -260,7 +262,7 @@ async function main() {
     core.info(`Creating failed jobs issue: "${issueTitle}"`);
 
     try {
-      const newIssue = await github.rest.issues.create({
+      const newIssue = await createReportIssue(github, {
         owner,
         repo,
         title: issueTitle,

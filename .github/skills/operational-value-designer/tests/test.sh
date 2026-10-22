@@ -7,12 +7,20 @@ repo_root=$(CDPATH='' cd -- "$skill_dir/../../.." && pwd)
 work_dir=$(mktemp -d "$repo_root/.operational-value-designer-test.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
-grep -Fq 'Choose `script` for compact, workflow-specific Bash' "$skill_dir/SKILL.md"
-grep -Fq 'Choose `run` when the Bash is large enough to obscure the workflow' "$skill_dir/SKILL.md"
-grep -Fq '65,536 UTF-8 bytes, inclusive' "$skill_dir/SKILL.md"
-grep -Fq '4,096 Unicode characters, inclusive' "$skill_dir/SKILL.md"
-grep -Fq '`run` does not reduce the generated workflow size' "$skill_dir/SKILL.md"
-grep -Fq 'comment the workflow intent and the meaning of every emitted metric' "$skill_dir/SKILL.md"
+grep -Fq 'graders.<distinct-id>.script' "$skill_dir/SKILL.md"
+grep -Fq '256 KiB (262,144 UTF-8 bytes, inclusive)' "$skill_dir/SKILL.md"
+grep -Fq 'helpers.createSessionLookups(session)' "$skill_dir/SKILL.md"
+grep -Fq 'Return a finite number, `null`, or an object with `value`' "$skill_dir/SKILL.md"
+grep -Fq 'ordered array of metric objects' "$skill_dir/SKILL.md"
+grep -Fq 'in an isolated downstream `graders` job' "$skill_dir/SKILL.md"
+grep -Fq 'graders.operational-value.run' "$skill_dir/SKILL.md"
+grep -Fq 'GH_AW_SESSION_FILE' "$skill_dir/SKILL.md"
+grep -Fq 'GH_AW_GRADER_CONFIG' "$skill_dir/SKILL.md"
+grep -Fq 'grader-shell-file-write' "$skill_dir/SKILL.md"
+if grep -Fq 'Bash, `run`, file-backed scripts,' "$skill_dir/SKILL.md"; then
+    printf 'obsolete grader prohibition remains in skill guidance\n' >&2
+    exit 1
+fi
 grep -Fq 'ultimate operational condition' "$skill_dir/SKILL.md"
 grep -Fq 'Select the furthest downstream rung that satisfies all three' "$skill_dir/SKILL.md"
 grep -Fq 'observable at grading time, attributable to this run or its exact subject, and independently verifiable' "$skill_dir/SKILL.md"
@@ -20,6 +28,54 @@ grep -Fq 'why stronger downstream effects are unavailable' "$skill_dir/SKILL.md"
 grep -Fq 'Never reward output merely for existing' "$skill_dir/SKILL.md"
 grep -Fq 'Missing evidence for the selected rung returns `null`; it never causes runtime fallback to a weaker rung' "$skill_dir/SKILL.md"
 
+for guidance in \
+    AGENTS.md \
+    .github/aw/instructions.md \
+    .github/aw/intent.md \
+    .github/aw/create-agentic-workflow.md \
+    .github/aw/update-agentic-workflow.md \
+    .github/skills/developer-internals/SKILL.md
+do
+    grep -Fq 'graders.<distinct-id>.script' "$repo_root/$guidance"
+done
+
+node - "$repo_root" <<'NODE'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.argv[2];
+const text = fs.readFileSync(path.join(root, ".github/skills/operational-value-designer/SKILL.md"), "utf8");
+const scripts = [...text.matchAll(/^    script: \|\n((?:      [^\n]*\n|\n)+)/gm)];
+assert.equal(scripts.length, 1, "the documented custom grader must remain executable");
+const script = scripts[0][1].replace(/^      /gm, "");
+const { runCustomGraders } = require(path.join(root, "actions/setup/js/custom_graders.cjs"));
+const { executeOperationalValueEvaluator } = require(path.join(root, "actions/setup/js/operational_value_grader.cjs"));
+const shell = [...text.matchAll(/```bash\n(#![\s\S]*?)```/g)][0][1];
+const config = { repository: "OWNER/REPO", issueNumber: 123 };
+const event = data => ({ type: "safe_output.result", data, provenance: { source: "safe_output", job: "safe_outputs" } });
+const result = { type: "add_comment", repo: "OWNER/REPO", number: 123, url: "https://github.com/OWNER/REPO/issues/123#issuecomment-1" };
+for (const [name, session, value, configuration = config] of [
+  ["attained", [event(result)], 1],
+  ["missed", [event({ ...result, number: 456 })], 0],
+  ["unavailable", [], null],
+  ["malformed", [event({ ...result, number: "123" })], null],
+  ["empty-repository", [event({ ...result, repo: "" })], null],
+  ["invalid-issue", [event({ ...result, number: 0 })], null],
+  ["invalid-target", [event(result)], null, { ...config, repository: "" }],
+]) {
+  const graders = [{ id: "comment-target-match", source: "inline", direction: "higher_is_better", threshold: 1, config: configuration, script }];
+  const first = runCustomGraders(session, graders).output.results[0];
+  const second = runCustomGraders(session, graders).output.results[0];
+  assert.equal(first.value, value, name);
+  assert.equal(first.status, value === null ? "unavailable" : value === 1 ? "pass" : "fail", name);
+  assert.deepEqual(first, second, `${name} must be deterministic`);
+  const shellResult = executeOperationalValueEvaluator(shell, session, configuration);
+  assert.deepEqual(shellResult, [{ id: "comment-target-match", value }], `${name}: documented Bash predicate`);
+  assert.deepEqual(executeOperationalValueEvaluator(shell, session, configuration), shellResult, `${name}: deterministic Bash`);
+}
+NODE
+
+# Keep workflow/evaluator pairing and session-file compatibility under regression.
 evaluator_path=$("$skill_dir/scripts/operational-value-evaluator-path.sh" daily-file-diet)
 [[ $evaluator_path == .github/graders/daily-file-diet-operational-value.sh ]]
 if "$skill_dir/scripts/operational-value-evaluator-path.sh" ../escape >/dev/null 2>&1; then
@@ -33,23 +89,10 @@ cat > "$valid_evaluator" <<'EOF'
 
 set -euo pipefail
 
-[[ $# -eq 0 ]]
-request=$(cat)
-printf '%s\n' "$request" | jq -e '
-    .schemaVersion == 1
-    and .run.id == "1"
-    and .run.attempt == 1
-    and .run.repository == "owner/repo"
-    and .run.workflow == "Verification workflow"
-    and .run.ref == "refs/heads/main"
-    and .run.sha == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    and .run.eventName == "workflow_dispatch"
-    and (.event | type == "object")
-    and (.outputs | type == "array")
-    and .config.verification == true
-' >/dev/null
+[[ $# -eq 1 && "$1" == "$GH_AW_SESSION_FILE" && -f "$1" ]]
+jq -s -e 'type == "array"' "$1" >/dev/null
 printf 'verification diagnostic\n' >&2
-case_name=$(printf '%s\n' "$request" | jq -r '.config.case // "attained"')
+case_name=$(printf '%s\n' "$GH_AW_GRADER_CONFIG" | jq -r '.case // "attained"')
 case "$case_name" in
     attained)
         printf '%s\n' '[{"id":"triaged-issues","value":2.5},{"id":"net-cost","value":-3.25}]'
@@ -71,26 +114,14 @@ chmod +x "$valid_evaluator"
 
 fixtures="$work_dir/fixtures.json"
 jq -n '
-    def request($case): {
-        schemaVersion: 1,
-        run: {
-            id: "1",
-            attempt: 1,
-            repository: "owner/repo",
-            workflow: "Verification workflow",
-            ref: "refs/heads/main",
-            sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            eventName: "workflow_dispatch"
-        },
-        event: {},
-        outputs: [],
-        config: {verification: true, case: $case}
+    def fixture($name; $expected): {
+        name: $name, session: [], config: {case: $name}, expected: $expected
     };
     [
-        {name: "attained", request: request("attained"), expected: [{id: "triaged-issues", value: 2.5}, {id: "net-cost", value: -3.25}]},
-        {name: "missed", request: request("missed"), expected: [{id: "triaged-issues", value: 0.5}, {id: "net-cost", value: -7.75}]},
-        {name: "unavailable", request: request("unavailable"), expected: [{id: "triaged-issues", value: null}, {id: "net-cost", value: null}]},
-        {name: "malformed", request: request("malformed"), expected: [{id: "triaged-issues", value: null}, {id: "net-cost", value: null}]}
+        fixture("attained"; [{id: "triaged-issues", value: 2.5}, {id: "net-cost", value: -3.25}]),
+        fixture("missed"; [{id: "triaged-issues", value: 0.5}, {id: "net-cost", value: -7.75}]),
+        fixture("unavailable"; [{id: "triaged-issues", value: null}, {id: "net-cost", value: null}]),
+        fixture("malformed"; [{id: "triaged-issues", value: null}, {id: "net-cost", value: null}])
     ]
 ' > "$fixtures"
 "$skill_dir/scripts/verify-operational-value-evaluator.sh" "$valid_evaluator" "$fixtures" >/dev/null
@@ -114,8 +145,8 @@ assert_fixtures_rejected mismatched-output "$mismatched_fixture"
 
 reversed_fixture="$work_dir/reversed-fixture.json"
 jq 'map(
-    if .name == "attained" then .request.config.case = "missed" | .expected[0].value = 0
-    elif .name == "missed" then .request.config.case = "attained" | .expected[0].value = 1
+    if .name == "attained" then .config.case = "missed" | .expected[0].value = 0
+    elif .name == "missed" then .config.case = "attained" | .expected[0].value = 1
     else . end
 )' "$fixtures" > "$reversed_fixture"
 assert_fixtures_rejected reversed-semantics "$reversed_fixture"

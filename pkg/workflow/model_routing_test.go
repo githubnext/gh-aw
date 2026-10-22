@@ -59,7 +59,8 @@ func TestBuildAWFConfigJSON_ModelRouting(t *testing.T) {
 		require.True(t, found, role)
 		require.Equal(t, pin.PinnedImage, images[role], role)
 	}
-	routerPin, found := getEmbeddedContainerPin("ghcr.io/githubnext/gh-aw-router:" + string(constants.DefaultRouterVersion))
+	routerImage := defaultAWFImageForRole(awfImageRoleRouter, expectedTag)
+	routerPin, found := getEmbeddedContainerPin(routerImage)
 	require.True(t, found)
 	require.Equal(t, routerPin.PinnedImage, images[awfImageRoleRouter])
 	assertModelRoutingImagesInManifest(t, data, images)
@@ -402,6 +403,10 @@ func TestBuildAWFConfigJSON_ModelRoutingUsesEffectiveAWFVersion(t *testing.T) {
 		require.True(t, found, role)
 		require.Equal(t, pin.PinnedImage, images[role], role)
 	}
+	routerImage := constants.DefaultRouterRegistry + ":" + string(constants.DefaultRouterVersion)
+	routerPin, found := getEmbeddedContainerPin(routerImage)
+	require.True(t, found)
+	require.Equal(t, routerPin.PinnedImage, images[awfImageRoleRouter])
 	assertModelRoutingImagesInManifest(t, data, images)
 }
 

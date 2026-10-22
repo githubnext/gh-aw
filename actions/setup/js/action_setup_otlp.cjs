@@ -31,11 +31,11 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
-const { maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { maskSecret, getOTLPRunnerMaskValues } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
- * if the file path is set.
+ * if the file path is set. Reject line breaks without logging the rejected data.
  * @param {string | undefined} filePath - Path to the output/env file
  * @param {string} key - The variable name
  * @param {string} value - The value to write
@@ -43,6 +43,10 @@ const { maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cj
  * @param {string} fileLabel - Human-readable file name for the log (e.g. "GITHUB_OUTPUT")
  */
 function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
+  if (/[\r\n]/.test(key) || /[\r\n]/.test(value)) {
+    core.warning("[otlp] refusing to write a key or value containing line breaks");
+    return;
+  }
   if (!filePath) return;
   try {
     appendFileSync(filePath, `${key}=${value}\n`);
@@ -149,7 +153,9 @@ async function run() {
   }
 
   const inputOTLPOIDCToken = getActionInput("OTLP_OIDC_TOKEN");
-  if (inputOTLPOIDCToken) {
+  if (/[\r\n]/.test(inputOTLPOIDCToken)) {
+    core.warning("[otlp] ignoring OTLP OIDC token containing line breaks");
+  } else if (inputOTLPOIDCToken) {
     maskSecret(inputOTLPOIDCToken);
     const existingHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS || "";
     const mergedHeaders = mergeAuthorizationHeader(existingHeaders, inputOTLPOIDCToken);
@@ -167,7 +173,7 @@ async function run() {
 
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
-  for (const secret of getOTLPSecretValues()) maskSecret(secret);
+  for (const secret of getOTLPRunnerMaskValues()) maskSecret(secret);
   if (endpoints) {
     const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
     const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
@@ -228,7 +234,7 @@ async function run() {
   }
 }
 
-module.exports = { run };
+module.exports = { run, writeEnvLine };
 
 // When invoked directly (node action_setup_otlp.cjs) from setup.sh,
 // run immediately.  Non-fatal: errors are silently swallowed.

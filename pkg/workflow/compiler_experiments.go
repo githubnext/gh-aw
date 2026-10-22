@@ -918,7 +918,17 @@ func regexpSubmatchSpans(match []int) (byteSpan, byteSpan, bool) {
 // per name) additionally avoids one declared name corrupting the occurrence of another name it
 // happens to be a prefix of.
 func rewriteDeclaredExperimentNames(s string, experiments map[string][]string, re *regexp.Regexp, replacementPrefix string) string {
-	if len(experiments) == 0 || !strings.Contains(s, "${{") {
+	if len(experiments) == 0 {
+		return s
+	}
+	return rewriteExpressionReferences(s, re, func(name string) (string, bool) {
+		_, declared := experiments[name]
+		return replacementPrefix + name, declared
+	})
+}
+
+func rewriteExpressionReferences(s string, re *regexp.Regexp, replace func(string) (string, bool)) string {
+	if !strings.Contains(s, "${{") {
 		return s
 	}
 	var b strings.Builder
@@ -942,7 +952,8 @@ func rewriteDeclaredExperimentNames(s string, experiments map[string][]string, r
 					continue
 				}
 				name := s[nameStart:nameEnd]
-				if _, ok := experiments[name]; !ok {
+				replacement, ok := replace(name)
+				if !ok {
 					continue
 				}
 				if start > 0 && strings.HasSuffix(s[:start], ".") {
@@ -952,8 +963,7 @@ func rewriteDeclaredExperimentNames(s string, experiments map[string][]string, r
 					continue // property of the variant value, e.g. experiments.model.foo
 				}
 				b.WriteString(s[last:start])
-				b.WriteString(replacementPrefix)
-				b.WriteString(name)
+				b.WriteString(replacement)
 				last = end
 				rewritten = true
 			}
@@ -1094,7 +1104,7 @@ func (c *Compiler) buildPushExperimentsStateSetupSteps(data *WorkflowData) []str
 func buildPushExperimentsStateCheckoutStep() string {
 	var checkoutStep strings.Builder
 	checkoutStep.WriteString("      - name: Checkout repository\n")
-	fmt.Fprintf(&checkoutStep, "        uses: %s\n", getActionPin("actions/checkout"))
+	checkoutStep.WriteString("        uses: " + getActionPin("actions/checkout") + "\n")
 	checkoutStep.WriteString("        with:\n")
 	checkoutStep.WriteString("          persist-credentials: false\n")
 	checkoutStep.WriteString("          sparse-checkout: .\n")
@@ -1106,13 +1116,13 @@ func (c *Compiler) buildPushExperimentsStateDownloadStep(data *WorkflowData) str
 	downloadAction := c.getActionPin("actions/download-artifact")
 	var downloadStep strings.Builder
 	downloadStep.WriteString("      - name: Download experiment artifact\n")
-	fmt.Fprintf(&downloadStep, "        uses: %s\n", downloadAction)
+	downloadStep.WriteString("        uses: " + downloadAction + "\n")
 	downloadStep.WriteString("        continue-on-error: true\n")
 	downloadStep.WriteString("        with:\n")
 	for _, line := range downloadArtifactInputLines(artifactName, downloadAction) {
 		downloadStep.WriteString(line)
 	}
-	fmt.Fprintf(&downloadStep, "          path: %s\n", experimentsCacheDir)
+	downloadStep.WriteString("          path: " + experimentsCacheDir + "\n")
 	return downloadStep.String()
 }
 
@@ -1122,13 +1132,13 @@ func buildPushExperimentsStateScriptStep(data *WorkflowData) string {
 	pushStep.WriteString("      - name: Push experiment state to git\n")
 	pushStep.WriteString("        id: push_experiments_state\n")
 	pushStep.WriteString("        if: always()\n")
-	fmt.Fprintf(&pushStep, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	pushStep.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	pushStep.WriteString("        env:\n")
 	pushStep.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 	pushStep.WriteString("          GITHUB_RUN_ID: ${{ github.run_id }}\n")
 	pushStep.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
-	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_STATE_DIR: %s\n", experimentsCacheDir)
-	fmt.Fprintf(&pushStep, "          GH_AW_EXPERIMENT_BRANCH: %s\n", branchName)
+	pushStep.WriteString("          GH_AW_EXPERIMENT_STATE_DIR: " + experimentsCacheDir + "\n")
+	pushStep.WriteString("          GH_AW_EXPERIMENT_BRANCH: " + branchName + "\n")
 	pushStep.WriteString("        with:\n")
 	pushStep.WriteString("          script: |\n")
 	pushStep.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")

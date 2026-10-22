@@ -107,6 +107,7 @@ describe("setup.sh isolated redaction dependencies", () => {
     const dependencies = collectTransitiveDeps(roots);
     expect(dependencies.has("otlp_header_helpers.cjs")).toBe(true);
     expect(dependencies.has("actions_secret_masking.cjs")).toBe(false);
+    expect(dependencies.has("detection_mask_state.cjs")).toBe(false);
     expect(dependencies.has("send_otlp_span.cjs")).toBe(false);
   });
 });
@@ -127,9 +128,21 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
           "-e",
           `
             const assert = require("node:assert/strict");
+            const { createServer } = require("./mcp_server_core.cjs");
+            const { normalizeSafeOutputName } = require("./safe_output_names.cjs");
+            assert.equal(createServer({ name: "mcpscripts", version: "test" }).serverInfo.name, "mcpscripts");
+            assert.equal(normalizeSafeOutputName("missing_tool"), "report_missing_tool");
             const manifest = require("./safe_output_manifest.cjs");
             const summary = require("./work_queue_summary_renderer.cjs");
+            const native = require("./work_queue_native.cjs");
+            const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof summary.renderWorkQueue, "function");
+            assert.equal(typeof native.authenticatePublisher, "function");
+            assert.equal(typeof provisioning.verifiedDefaultReference, "function");
             const token = "ghp_" + "a".repeat(36);
             assert.equal(
               manifest.redactManifestValue(token + " fixture-custom-secret", ["fixture-custom-secret"]),
@@ -167,6 +180,52 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
 });
 
 describe("setup.sh SAFE_OUTPUTS_FILES", () => {
+  it("renders Claim-scoped footers from the deployed bundle without source-directory dependencies", () => {
+    const runnerRoot = resolve(__dirname, `.setup-safeoutputs-bundle-${process.pid}`);
+    mkdirSync(runnerRoot);
+    try {
+      const deploymentBlock = setupShContent.slice(setupShContent.indexOf("# Copy safe-outputs files"), setupShContent.indexOf("# Copy configure_git_credentials.sh"));
+      execFileSync("bash", ["-ec", `create_dir() { mkdir -p "$1"; }\ndebug_log() { :; }\n${deploymentBlock}`], {
+        env: { ...process.env, GH_AW_ROOT: runnerRoot, JS_SOURCE_DIR: __dirname },
+      });
+      execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `
+            const assert = require("node:assert/strict");
+            const { createServer, registerTool } = require("./mcp_server_core.cjs");
+            const server = createServer({ name: "safeoutputs", version: "test" });
+            registerTool(server, { name: "missing_tool", description: "", inputSchema: { type: "object", properties: {} } });
+            assert.deepEqual(Object.keys(server.tools), ["report_missing_tool"]);
+            const { getFooterMessage } = require("./messages_footer.cjs");
+            const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
+            const native = require("./work_queue_native.cjs");
+            const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
+            assert.equal(typeof native.authenticatePublisher, "function");
+            assert.equal(typeof provisioning.verifiedDefaultReference, "function");
+            const assignment = {
+              version: 3, dispatch_id: "dispatch", request_id: "request", commit_id: "commit",
+              policy_epoch: "policy", pool: "default", worker_profile: "default",
+              claims: [{ handle: "h1", claim_id: "claim-one", work_id: "work-one", work: {}, result_refs: [] }],
+            };
+            const context = { workflowName: "Worker", runUrl: "https://github.com/owner/repo/actions/runs/123" };
+            const footer = withClaimExecution({ assignment, claim_handle: "h1" }, () => getFooterMessage(context));
+            assert.ok(footer.includes("> Work \`work-one\` · Claim \`claim-one\`"));
+            assert.ok(!getFooterMessage(context).includes("> Work "));
+          `,
+        ],
+        { cwd: resolve(runnerRoot, "safeoutputs") }
+      );
+    } finally {
+      rmSync(runnerRoot, { recursive: true, force: true });
+    }
+  });
+
   it("deploys the queue workflow-dispatch transport", () => {
     expect(safeOutputsFiles).toContain("dispatch_workflow_transport.cjs");
   });

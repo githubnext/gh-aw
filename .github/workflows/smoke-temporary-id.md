@@ -22,7 +22,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: pi
-model: copilot/gpt-5.4-mini
+model: copilot/gpt-5
 strict: true
 network:
   allowed:
@@ -40,6 +40,7 @@ safe-outputs:
   link-sub-issue:
     max: 3
   add-comment:
+    target: "*"
     max: 2
     hide-older-comments: true
   messages:
@@ -177,7 +178,7 @@ Regardless of strategy, add a comment to the parent issue summarizing test resul
 ```json
 {
   "type": "add_comment",
-  "issue_number": "aw_test01",
+  "item_number": "aw_test01",
   "body": "## Test Results\n\n✅ Parent issue created with temporary ID `aw_test01`\n✅ Sub-issue 1 created with temporary ID `aw_test02` and linked to parent\n✅ Sub-issue 2 created with temporary ID `aw_test03` and linked to parent\n✅ Cross-references resolved correctly\n\n**Validation**: Check that:\n1. All temporary ID references (#aw_*) in issue bodies are replaced with actual issue numbers (#123)\n2. Sub-issues show parent relationship in GitHub UI\n3. Parent issue shows sub-issues in task list\n\nTemporary ID format validated: `aw_[A-Za-z0-9]{3,8}`"
 }
 ```

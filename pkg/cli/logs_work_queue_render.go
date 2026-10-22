@@ -33,6 +33,7 @@ func renderWorkQueueToWriter(w io.Writer, report *WorkQueueReport) error {
 			}
 			fmt.Fprintf(&output, "    queue_tip: %s policy_epoch=%s\n", escapeWorkQueueDisplay(current.Tip), escapeWorkQueueDisplay(current.PolicyEpoch)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 			fmt.Fprintf(&output, "    control: admission_paused=%t grants_paused=%t (not preemption)\n", current.Paused, current.GrantsPaused)            //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+			output.WriteString(workQueueDiagnosticsText(current.Diagnostics))
 			if assignment := current.Assignment; assignment != nil {
 				fmt.Fprintf(&output, "    assignment: %s request=%s commit=%s native=%s released=%t\n", //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 					escapeWorkQueueDisplay(assignment.DispatchID), escapeWorkQueueDisplay(assignment.RequestID),

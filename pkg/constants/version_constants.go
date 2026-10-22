@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.98"
+//	const DefaultCopilotVersion Version = "1.0.101"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -32,14 +32,18 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.296"
+const DefaultClaudeCodeVersion Version = "2.1.300"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.98"
+const DefaultCopilotVersion Version = "1.0.101"
+
+// CopilotSessionIDMinVersion is the minimum Copilot CLI version that supports
+// the exact session selector injected by the model-verification harness.
+const CopilotSessionIDMinVersion Version = "1.0.35"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.16"
@@ -68,12 +72,13 @@ const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.59"
+const DefaultFirewallVersion Version = "v0.28.70"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
 
-// DefaultRouterVersion is the default version of the gh-aw model router image.
+// DefaultRouterVersion is the legacy gh-aw model router image version used with
+// AWF releases that predate the router image being published by gh-aw-firewall.
 const DefaultRouterVersion Version = "0.1.3"
 
 // AWFModelRoutingMinVersion is the first AWF version that exposes task routing
@@ -177,6 +182,10 @@ const AWFContainerImagesMinVersion Version = "v0.28.4"
 // unknown role.
 const AWFRouterImageRoleMinVersion Version = "v0.28.21"
 
+// AWFRouterReleaseImageMinVersion is the first AWF release that publishes and
+// defaults the router image in the gh-aw-firewall registry.
+const AWFRouterReleaseImageMinVersion Version = "v0.28.62"
+
 // AWFFilesystemAllowWriteMinVersion is the minimum AWF version that added
 // filesystem.allowWrite to the AWF config file schema.
 //
@@ -248,7 +257,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.33"
+const DefaultMCPGatewayVersion Version = "v0.4.36"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
@@ -340,7 +349,7 @@ const DefaultJavaVersion Version = "21"
 const DefaultElixirVersion Version = "1.17"
 
 // DefaultGoVersion is the default version of Go for runtime setup
-const DefaultGoVersion Version = "1.26"
+const DefaultGoVersion Version = "1.27.3"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion Version = "9.10"

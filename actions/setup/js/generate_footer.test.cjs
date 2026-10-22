@@ -531,13 +531,24 @@ describe("generate_footer.cjs", () => {
         const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
         expect(result).toContain("> [!WARNING]");
-        expect(result).toContain("**Threat Detection Engine Failure**");
+        expect(result).toContain("> threat detection engine error");
         expect(result).toContain("What happened");
         expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
         expect(result).not.toContain("<!-- gh-aw-threat-detected -->");
         expect(result).not.toContain("> [!CAUTION]");
         expect(result).not.toContain("agentic threat detected");
         expect(result).toContain("failed to produce results");
+      });
+
+      it.each(["agent_failure", "parse_error"])("should return warning alert for a warn-mode detection engine failure (failure/%s)", reason => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "failure";
+        process.env.GH_AW_DETECTION_REASON = reason;
+
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toContain("> [!WARNING]");
+        expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
+        expect(result).not.toContain("> [!CAUTION]");
       });
 
       it("should return warning alert for parse_error (tooling failure, not security finding)", () => {
@@ -547,7 +558,7 @@ describe("generate_footer.cjs", () => {
         const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
         expect(result).toContain("> [!WARNING]");
-        expect(result).toContain("**Threat Detection Engine Failure**");
+        expect(result).toContain("> threat detection engine error");
         expect(result).toContain("What happened");
         expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
         expect(result).not.toContain("<!-- gh-aw-threat-detected -->");

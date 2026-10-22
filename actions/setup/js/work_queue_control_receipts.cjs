@@ -73,7 +73,7 @@ async function readClaimQueueControls(options) {
   const caller = await authenticatePublisher({ ...configured, role: "reconciler" });
   if (caller.run_id === dispatch.run.run_id && caller.run_attempt !== 1) throw new Error("rerun_not_authorized");
   const expected = { ...expectedWorkerRun(assignment, profile, configured.context, caller.repository, dispatchPrincipal(dispatch)), run_id: dispatch.run.run_id };
-  const run = await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id);
+  const run = await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id, 1, { sleepFn: configured.sleepFn });
   const proof = validateNativeRun(run, expected);
   if (canonical(dispatch.run) !== canonical(bindingForRun(proof, expected))) throw new Error("run_binding_conflict");
   const claim = latest.projection.claims.get(member.claim_id);

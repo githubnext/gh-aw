@@ -256,7 +256,7 @@ func TestParseAndDisplayRunnerGuardOutput(t *testing.T) {
 
 			// Use a temp dir as gitRoot (no actual files — context display is skipped gracefully)
 			tmpDir := t.TempDir()
-			count, err := parseAndDisplayRunnerGuardOutput(tt.stdout, tt.verbose, tmpDir)
+			count, err := parseAndDisplayRunnerGuardOutputWithFindings(tt.stdout, tt.verbose, tmpDir, nil)
 
 			// Restore stderr
 			w.Close()
@@ -324,7 +324,7 @@ func TestRunnerGuardPathTraversalGuard(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			count, err := parseAndDisplayRunnerGuardOutput(stdout, false, tmpDir)
+			count, err := parseAndDisplayRunnerGuardOutputWithFindings(stdout, false, tmpDir, nil)
 
 			w.Close()
 			os.Stderr = oldStderr
@@ -425,4 +425,13 @@ func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
 	err := runRunnerGuardOnDirectory(outsideDir, false, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "must stay within git root")
+}
+
+func TestRunnerGuardFindingsKeepUnknownColumn(t *testing.T) {
+	shared := runnerGuardFindingsToShared([]runnerGuardFinding{
+		{RuleID: "rule", Severity: "warning", File: "workflow.yml", Line: 5},
+	}, nil)
+	if len(shared) != 1 || shared[0].Column != 0 {
+		t.Fatalf("expected unknown column 0, got %#v", shared)
+	}
 }

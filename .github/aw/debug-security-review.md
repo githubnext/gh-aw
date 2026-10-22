@@ -36,6 +36,13 @@ An incomplete reviewer response is missing review evidence, not a confirmed
 vulnerability or a reason to ask the user to inspect code. Gather the missing
 evidence with the same reviewer; never turn UNKNOWN into PASS.
 
+For workflow changes, notify the user before requesting live-effect authorization
+that a published feature branch containing the reviewed Markdown and generated
+lock is required to live test. Name the branch and exact reviewed commit; reuse
+an existing suitable branch or PR. A draft PR is recommended, not required,
+and a merge is not required. The agent owns branch preparation and publication;
+neither publication nor a PR grants execution permission.
+
 The agent also prepares exact revisions, hashes, credential-source/destination
 metadata, permissions, protections and run bounds for any required human
 validation. Ask only for decisions or authorization the agent cannot supply,

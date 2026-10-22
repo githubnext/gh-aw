@@ -2,7 +2,7 @@
 name: Daily Discussion Report Dispatcher
 description: Admits a bounded discussion-report cohort with daily rotation and weekly report slots, then requests native queue grants
 on:
-  schedule: daily around 10:00
+  schedule: daily around 12:00
 if: github.run_attempt == 1
 imports:
   - shared/work-queue-staged-plan.md
@@ -92,6 +92,11 @@ revisions, singleton assignments and resource scope. AW handles authorization
 and binds the actual native run to each Claim. Scheduling overrides, including
 the `daily-reports` pool and equal-weight report keys, live in the shared
 `.github/workflows/aw.json` `work_queue` section.
+
+This workflow runs daily around 12:00 UTC, away from the observed 10:00 UTC
+shared API quota exhaustion. This timing reduces contention but does not
+guarantee quota availability; daily credit accounting must still fail closed
+when it cannot verify usage.
 
 This workflow has one daily schedule and no manual-dispatch trigger. Whole-run
 reruns cannot admit another cohort. At most three native launches are permitted

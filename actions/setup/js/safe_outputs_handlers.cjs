@@ -15,7 +15,7 @@ const { lookupCheckout } = require("./checkout_manifest.cjs");
 const { generateGitPatch } = require("./generate_git_patch.cjs");
 const { generateGitBundle } = require("./generate_git_bundle.cjs");
 const { hasMergeCommitsInRange, execGitSync, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
-const { enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { enforceCommentLimits, MAX_COMMENT_INPUT_LENGTH } = require("./comment_limit_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
@@ -2185,7 +2185,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (createIssueConfig.require_temporary_id === true && !entry.temporary_id) {
       return buildIntentErrorResponse(buildMissingTemporaryIdError("create_issue", "create-issue"));
     }
-    const intentValidationError = validateCreateIssueIntent(entry);
+    const intentValidationError = validateCreateIssueIntent(entry, createIssueTitlePrefix);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
     }
@@ -2400,7 +2400,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // This provides early feedback per Requirement MCE1 (Early Validation)
     try {
       const body = (args && args.body) || "";
-      enforceCommentLimits(body, { maxLinks: addCommentConfig.max_links ?? addCommentConfig["max-links"] });
+      enforceCommentLimits(body, { maxLinks: addCommentConfig.max_links ?? addCommentConfig["max-links"], maxLength: MAX_COMMENT_INPUT_LENGTH });
     } catch (error) {
       // Return validation error with specific constraint violation details
       // Per Requirement MCE3 (Actionable Error Responses)

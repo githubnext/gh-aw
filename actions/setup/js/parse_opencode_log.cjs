@@ -1,7 +1,7 @@
 // @ts-check
 
 const { createEngineLogParser, parseLogEntries, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
-const { createSessionEvent, isSessionEvent, accumulateSessionUsage, reconcileSessionUsage, normalizeSessionUsage, isMetric, sessionToolSuccess } = require("./agent_session.cjs");
+const { createSessionEvent, isSessionEvent, accumulateSessionUsage, reconcileSessionUsage, normalizeSessionUsage, isMetric, isTokenCount, sessionToolSuccess } = require("./agent_session.cjs");
 const { getMessageRefusal } = require("./provider_refusal.cjs");
 
 const main = createEngineLogParser({ parserName: "OpenCode", parseFunction: parseOpenCodeLog, supportsDirectories: false });
@@ -13,23 +13,88 @@ function isOpenCodeEvent(entry) {
   if (!part || typeof part !== "object" || Array.isArray(part)) return false;
   if (entry.type === "text" || entry.type === "reasoning") return typeof part.text === "string";
   if (entry.type === "tool_use") return typeof part.tool === "string" && !!part.state && typeof part.state === "object" && !Array.isArray(part.state);
-  return entry.type === "step_start" || entry.type === "step_finish";
+  return entry.type === "step_start" || entry.type === "step_finish" || entry.type === "opencode.compaction";
+}
+
+/** @param {any} part @returns {boolean} */
+function isV2Part(part) {
+  return typeof part?.partID === "string";
+}
+
+/** @param {any} tokens @returns {any} */
+function projectOpenCodeTokens(tokens) {
+  if (!tokens || typeof tokens !== "object" || Array.isArray(tokens)) return undefined;
+  const projected = {};
+  for (const key of ["input", "output", "reasoning"]) {
+    if (isTokenCount(tokens[key])) projected[key] = tokens[key];
+  }
+  // Native v2 output excludes reasoning; canonical output includes that subset.
+  if (isTokenCount(tokens.output) && isTokenCount(tokens.reasoning)) {
+    const output = tokens.output + tokens.reasoning;
+    if (isTokenCount(output)) projected.output = output;
+    else delete projected.output;
+  }
+  const cache = {};
+  for (const key of ["read", "write"]) {
+    if (isTokenCount(tokens.cache?.[key])) cache[key] = tokens.cache[key];
+  }
+  if (Object.keys(cache).length) projected.cache = cache;
+  return Object.keys(projected).length ? projected : undefined;
+}
+
+/**
+ * Recover settled accounting omitted by the v2 CLI's projected-part reconciliation.
+ * Never return user messages, prompts, or provider state from the native export.
+ * @param {any} session
+ * @param {string} sessionID
+ * @returns {any[]}
+ */
+function getOpenCodeSessionSteps(session, sessionID) {
+  if (session?.info?.id !== sessionID || !Array.isArray(session.messages)) throw new Error("OpenCode session export must contain the requested session and messages");
+  return session.messages.flatMap(message => {
+    const compaction = message?.type === "compaction" && (message.status === "completed" || message.status === "failed");
+    if (!compaction && (message?.type !== "assistant" || message.time?.completed === undefined)) return [];
+    const time = compaction ? message.time?.created : message.time.completed;
+    const timestamp = typeof time === "number" ? time : Date.parse(time);
+    if (typeof message.id !== "string" || !Number.isSafeInteger(timestamp) || timestamp < 0) throw new Error("OpenCode session export contains an invalid settled message");
+    const tokens = projectOpenCodeTokens(message.tokens);
+    return [
+      {
+        type: compaction ? "opencode.compaction" : "step_finish",
+        timestamp,
+        sessionID,
+        part: {
+          id: `gh_aw_export_${message.id}`,
+          sessionID,
+          messageID: message.id,
+          ...(compaction ? {} : { type: "step-finish", ...(typeof message.finish === "string" ? { reason: message.finish } : {}) }),
+          ...(tokens !== undefined ? { tokens } : {}),
+          ...(isMetric(message.cost) ? { cost: message.cost } : {}),
+        },
+      },
+    ];
+  });
 }
 
 /** @param {string} content @returns {string[]} */
 function getOpenCodeMCPFailures(content) {
   const failures = new Set();
   for (const line of content.split(/\r?\n/)) {
-    if (!/^timestamp=\S+ level=(?:WARN|ERROR)\b/.test(line) || !/\bmessage="server unavailable"(?:\s|$)/.test(line) || !/\btype=(?:remote|local)\b/.test(line) || !/\bstatus=failed\b/.test(line)) continue;
-    const match = line.match(/\bkey=("(?:\\.|[^"\\])*"|[^\s]+)(?:\s|$)/);
-    if (!match) continue;
-    if (match[1].startsWith('"')) {
+    if (!/^timestamp=\S+ level=(?:WARN|ERROR)\b/.test(line)) continue;
+    const fields = parseOpenCodeLogfmt(line);
+    if (!fields) continue;
+    const v2 = fields.message === "mcp connect failed";
+    let status = v2 ? (fields["status.status"] ?? fields.status) : fields.status;
+    if (v2 && status !== "failed") {
       try {
-        failures.add(JSON.parse(match[1]));
+        status = JSON.parse(status)?.status;
       } catch {
-        /* malformed logfmt field */
+        continue;
       }
-    } else failures.add(match[1]);
+    }
+    if (status !== "failed" || (!v2 && (fields.message !== "server unavailable" || !["remote", "local"].includes(fields.type)))) continue;
+    const server = v2 ? fields.server : fields.key;
+    if (server) failures.add(server);
   }
   return [...failures];
 }
@@ -37,19 +102,17 @@ function getOpenCodeMCPFailures(content) {
 /** @param {any} raw @returns {any} */
 function sourceMetadata(raw) {
   const source = { ...raw };
-  if (!Object.hasOwn(raw, "id") && typeof raw.part?.id === "string") source.id = raw.part.id;
+  const partID = isV2Part(raw.part) ? raw.part.partID : raw.part?.id;
+  if (!Object.hasOwn(raw, "id") && typeof partID === "string") source.id = partID;
   if (!Object.hasOwn(raw, "parentId") && typeof raw.part?.messageID === "string") source.parentId = raw.part.messageID;
   return source;
 }
 
 /**
- * The CLI can report a retried stream error only on stderr, without a JSON error.
- * Retain the diagnostic, not an inferred terminal outcome or model usage.
  * @param {string} line
- * @returns {import("./types/agent_session").SessionEvent | undefined}
+ * @returns {Record<string, string> | undefined}
  */
-function parseOpenCodeStreamError(line) {
-  if (!/^timestamp=\S+ level=ERROR\b/.test(line)) return undefined;
+function parseOpenCodeLogfmt(line) {
   /** @type {Record<string, string>} */
   const fields = Object.create(null);
   const pattern = /([^\s=]+)=("(?:\\.|[^"\\])*"|[^\s"]+)(?:\s+|$)/gy;
@@ -64,6 +127,19 @@ function parseOpenCodeStreamError(line) {
       }
     } else fields[match[1]] = match[2];
   }
+  return fields;
+}
+
+/**
+ * The CLI can report a retried stream error only on stderr, without a JSON error.
+ * Retain the diagnostic, not an inferred terminal outcome or model usage.
+ * @param {string} line
+ * @returns {import("./types/agent_session").SessionEvent | undefined}
+ */
+function parseOpenCodeStreamError(line) {
+  if (!/^timestamp=\S+ level=ERROR\b/.test(line)) return undefined;
+  const fields = parseOpenCodeLogfmt(line);
+  if (!fields) return undefined;
   if (fields.message !== "stream error" || !fields["session.id"] || !Object.hasOwn(fields, "error.error")) return undefined;
   return createSessionEvent({ ...fields, nativeLogfmt: line }, "session.error", { ...fields, sessionId: fields["session.id"], error: fields["error.error"] });
 }
@@ -138,6 +214,7 @@ function parseOpenCodeLog(content) {
   const toolStarts = new Map();
   const toolCompletions = new Map();
   const stepReports = new Map();
+  const compactionReports = new Map();
   const finishRefusals = new Map();
   const messageParts = new Map();
   /** @type {Record<string, any>} */
@@ -164,15 +241,16 @@ function parseOpenCodeLog(content) {
       emit("session.init", { sourceEngine: "opencode", sessionId: raw.sessionID });
     }
     const part = raw.part;
+    const partID = isV2Part(part) ? part.partID : part?.id;
     // Equal snapshots are repeated evidence; changed parts retain their payloads.
-    if (typeof part?.id === "string") {
-      const identity = JSON.stringify([raw.sessionID, raw.type, part.id, raw]);
+    if (typeof partID === "string") {
+      const identity = JSON.stringify([raw.sessionID, raw.type, partID, raw]);
       if (parts.has(identity)) continue;
       parts.add(identity);
     }
     if (raw.type === "text" || raw.type === "reasoning") {
       if (typeof part.text === "string") {
-        const identity = openCodeMessageIdentity(raw.sessionID, raw.type, part.messageID, part.id);
+        const identity = openCodeMessageIdentity(raw.sessionID, raw.type, part.messageID, partID);
         const previous = identity !== undefined ? messageParts.get(identity) : undefined;
         const finishRefusalIdentity = raw.type === "text" && typeof part.messageID === "string" ? openCodeMessageIdentity(raw.sessionID, "text", part.messageID) : undefined;
         const finishRefusal = finishRefusalIdentity !== undefined ? finishRefusals.get(finishRefusalIdentity) : undefined;
@@ -194,8 +272,9 @@ function parseOpenCodeLog(content) {
     } else if (raw.type === "tool_use") {
       const state = part.state;
       if (!state || typeof state !== "object") continue;
-      const data = { toolCallId: part.callID, toolName: part.tool, input: state.input };
-      const callIdentity = typeof part.callID === "string" ? JSON.stringify([raw.sessionID, part.callID]) : typeof part.id === "string" ? JSON.stringify([raw.sessionID, "part", part.id]) : undefined;
+      const callID = part.callID ?? (isV2Part(part) ? part.id : undefined);
+      const data = { toolCallId: callID, toolName: part.tool, input: state.input };
+      const callIdentity = typeof callID === "string" ? JSON.stringify([raw.sessionID, callID]) : typeof partID === "string" ? JSON.stringify([raw.sessionID, "part", partID]) : undefined;
       if (callIdentity === undefined || !toolStarts.has(callIdentity)) {
         emit("tool.execution_start", data);
         if (callIdentity !== undefined) toolStarts.set(callIdentity, logEntries.at(-1));
@@ -207,14 +286,15 @@ function parseOpenCodeLog(content) {
         const previous = identity !== undefined ? toolCompletions.get(identity) : undefined;
         const start = state.time?.start;
         const end = state.time?.end;
+        const exitCode = isV2Part(part) ? state.metadata?.metadata?.exit : state.metadata?.exit;
         const completion = {
-          toolCallId: part.callID,
+          toolCallId: callID,
           toolName: part.tool,
           status: state.status,
           ...(Object.hasOwn(state, "output") ? { output: state.output } : {}),
           ...(Object.hasOwn(state, "result") ? { result: state.result } : {}),
           ...(state.metadata !== undefined ? { metadata: state.metadata } : {}),
-          ...(Number.isSafeInteger(state.metadata?.exit) ? { exitCode: state.metadata.exit } : {}),
+          ...(Number.isSafeInteger(exitCode) ? { exitCode } : {}),
           ...(state.error !== undefined ? { error: state.error } : {}),
           ...(isMetric(start) && isMetric(end) && end >= start ? { durationMs: end - start } : {}),
         };
@@ -224,7 +304,7 @@ function parseOpenCodeLog(content) {
         if (previous && state.metadata === undefined) {
           delete previousData.metadata;
           delete previousData.exitCode;
-        } else if (previous && !Number.isSafeInteger(state.metadata?.exit)) delete previousData.exitCode;
+        } else if (previous && !Number.isSafeInteger(exitCode)) delete previousData.exitCode;
         const data = { ...previousData, ...raw.data, ...completion, status: success ? "completed" : "error", success };
         if (previous) updatePartSnapshot(previous, raw, createSessionEvent(sourceMetadata(raw), "tool.execution_complete", data));
         else {
@@ -233,11 +313,13 @@ function parseOpenCodeLog(content) {
         }
       }
     } else if (raw.type === "step_start") {
-      emit("opencode.step_start", { sessionId: raw.sessionID, partId: part.id });
-    } else if (raw.type === "step_finish") {
+      emit("opencode.step_start", { sessionId: raw.sessionID, partId: partID });
+    } else if (raw.type === "step_finish" || raw.type === "opencode.compaction") {
+      const compaction = raw.type === "opencode.compaction";
+      const reports = compaction ? compactionReports : stepReports;
       const tokens = part.tokens;
-      const identity = typeof part.id === "string" ? JSON.stringify([raw.sessionID, part.id]) : Symbol();
-      const report = stepReports.get(identity) ?? {};
+      const identity = openCodeMessageIdentity(raw.sessionID, raw.type, part.messageID, partID) ?? Symbol();
+      const report = reports.get(identity) ?? {};
       if (tokens && typeof tokens === "object" && !Array.isArray(tokens)) {
         const snapshot = normalizeSessionUsage({
           total_tokens: tokens.total,
@@ -250,12 +332,17 @@ function parseOpenCodeLog(content) {
         report.usage = reconcileSessionUsage(report.usage, snapshot);
       }
       if (isMetric(part.cost)) report.cost = part.cost;
-      stepReports.set(identity, report);
+      reports.set(identity, report);
+      if (compaction) {
+        emit("opencode.compaction", { sessionId: raw.sessionID, partId: partID });
+        resultSource = raw;
+        continue;
+      }
       if (part.reason === "content-filter" || part.reason === "refusal") {
         const reason = part.reason === "content-filter" ? "content_filter" : "refusal";
         const messageIdentity = openCodeMessageIdentity(raw.sessionID, "text", part.messageID);
         const messages = messageIdentity !== undefined && messageParts.has(messageIdentity) ? [messageParts.get(messageIdentity)] : [];
-        const refusalIdentity = messageIdentity ?? (typeof part.id === "string" ? JSON.stringify([raw.sessionID, "finish", part.id]) : undefined);
+        const refusalIdentity = messageIdentity ?? (typeof partID === "string" ? JSON.stringify([raw.sessionID, "finish", partID]) : undefined);
         if (!messages.length) {
           const previous = refusalIdentity !== undefined ? finishRefusals.get(refusalIdentity) : undefined;
           if (previous) updatePartSnapshot(previous, raw, createSessionEvent(sourceMetadata(raw), "assistant.refusal", { reason }));
@@ -269,7 +356,7 @@ function parseOpenCodeLog(content) {
           previous.event.data.reason = reason;
         }
       }
-      emit("opencode.step_finish", { sessionId: raw.sessionID, partId: part.id, reason: part.reason });
+      emit("opencode.step_finish", { sessionId: raw.sessionID, partId: partID, reason: part.reason });
       resultSource = raw;
     } else if (raw.type === "error") {
       errors.push(structuredClone(raw.error));
@@ -278,7 +365,7 @@ function parseOpenCodeLog(content) {
     }
   }
   if (resultSource) {
-    for (const report of stepReports.values()) {
+    for (const report of [...stepReports.values(), ...compactionReports.values()]) {
       accumulateSessionUsage(usage, report.usage);
       if (!costOverflowed && isMetric(report.cost)) {
         const sum = (totalCostUsd ?? 0) + report.cost;
@@ -311,4 +398,4 @@ function parseOpenCodeLog(content) {
   };
 }
 
-module.exports = { main, parseOpenCodeLog, isOpenCodeEvent, getOpenCodeMCPFailures };
+module.exports = { main, parseOpenCodeLog, isOpenCodeEvent, getOpenCodeMCPFailures, getOpenCodeSessionSteps };

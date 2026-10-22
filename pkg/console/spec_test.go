@@ -30,6 +30,9 @@ func TestSpec_PublicAPI_FormatMessagePrefixes(t *testing.T) {
 		{name: "prompt", format: console.FormatPromptMessage, input: "continue", marker: "?"},
 		{name: "success", format: console.FormatSuccessMessage, input: "complete", marker: "✓"},
 		{name: "verbose", format: console.FormatVerboseMessage, input: "trace", marker: "»"},
+		{name: "warning", format: console.FormatWarningMessage, input: "careful", marker: "⚠"},
+		{name: "error", format: console.FormatErrorMessage, input: "failed", marker: "✗"},
+		{name: "list item", format: console.FormatListItem, input: "entry", marker: "•"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -37,6 +40,28 @@ func TestSpec_PublicAPI_FormatMessagePrefixes(t *testing.T) {
 			assert.Contains(t, got, tt.marker, "formatted message should contain its documented prefix")
 			assert.Contains(t, got, tt.input, "formatted message should retain its input")
 		})
+	}
+}
+
+func TestSpec_PublicAPI_FormatError(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	got := console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{File: "workflow.md", Line: 12, Column: 3},
+		Type:     "error",
+		Message:  "invalid workflow",
+		Context:  []string{"on: invalid"},
+		Hint:     "use a supported trigger",
+	})
+	for _, expected := range []string{"workflow.md", "12", "3", "error", "invalid workflow", "on: invalid", "use a supported trigger"} {
+		assert.Contains(t, got, expected, "formatted compiler error should retain documented content %q", expected)
+	}
+}
+
+func TestSpec_PublicAPI_FormatErrorWithSuggestions(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	got := console.FormatErrorWithSuggestions("invalid configuration", []string{"check the schema", "review the example"})
+	for _, expected := range []string{"invalid configuration", "check the schema", "review the example"} {
+		assert.Contains(t, got, expected, "formatted suggestions should retain documented content %q", expected)
 	}
 }
 
@@ -87,12 +112,14 @@ func TestSpec_PublicAPI_ToRelativePath(t *testing.T) {
 }
 
 func TestSpec_Types_DocumentedTypesExist(t *testing.T) {
+	assert.Equal(t, 80, console.DefaultTableWidth, "DefaultTableWidth should match the documented display-column budget")
 	values := []any{
 		console.CompilerError{},
 		console.ErrorPosition{},
 		console.FormField{},
 		console.SelectOption{},
 		console.TableConfig{},
+		console.RenderOptions{},
 		console.TreeNode{},
 		console.NewListItem("title", "description", "value"),
 		console.NewProgressBar(1),

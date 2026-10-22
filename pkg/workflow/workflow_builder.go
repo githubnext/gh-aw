@@ -57,6 +57,7 @@ func (c *Compiler) buildInitialWorkflowData(
 
 	workflowData := &WorkflowData{
 		Name:                       toolsResult.workflowName,
+		AdmissionEnabled:           c.isAdmissionEnabled(result.Frontmatter),
 		FrontmatterName:            toolsResult.frontmatterName,
 		FrontmatterEmoji:           toolsResult.frontmatterEmoji,
 		FrontmatterYAML:            strings.Join(result.FrontmatterLines, "\n"),
@@ -85,6 +86,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		IncludedFiles:              toolsResult.allIncludedFiles,
 		ImportInputs:               importsResult.ImportInputs,
 		Tools:                      toolsResult.tools,
+		ExplicitlyDisabledTools:    toolsResult.explicitlyDisabledTools,
 		LSP:                        extractLSPConfig(toolsResult.parsedFrontmatter, result.Frontmatter),
 		ParsedTools:                NewTools(toolsResult.tools),
 		Runtimes:                   toolsResult.runtimes,
@@ -238,8 +240,8 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
-	// Populate model mappings: merge builtin aliases with any imported-workflow aliases.
-	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
+	// Populate model mappings: builtin, then imported, then main-workflow aliases (main wins).
+	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, extractMainModelAliases(result.Frontmatter))
 
 	mainModelCosts := extractMainModelCostsOverlay(toolsResult, result.Frontmatter)
 	mergedModelCosts := mergeModelCostOverlays(importsResult.MergedModelCosts, mainModelCosts)

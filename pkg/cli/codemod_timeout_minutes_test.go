@@ -245,7 +245,7 @@ custom_timeout_minutes: 60
 	assert.True(t, foundCustomTimeoutMinutes, "Should not replace custom_timeout_minutes")
 }
 
-func TestTimeoutMinutesCodemod_MultipleOccurrences(t *testing.T) {
+func TestTimeoutMinutesCodemod_DoesNotRenameNestedKeys(t *testing.T) {
 	t.Parallel()
 	codemod := getTimeoutMinutesCodemod()
 
@@ -273,6 +273,99 @@ jobs:
 
 	require.NoError(t, err, "Apply should not return an error")
 	assert.True(t, applied, "Codemod should report changes")
-	assert.Equal(t, 2, strings.Count(result, "timeout-minutes:"), "Codemod should replace all timeout_minutes occurrences in frontmatter")
-	assert.NotContains(t, result, "timeout_minutes:", "Result should not contain old field name")
+	assert.Equal(t, 1, strings.Count(result, "timeout-minutes:"), "Only the top-level workflow field should be renamed")
+	assert.Contains(t, result, "    timeout_minutes: 45", "Nested keys should remain unchanged")
+}
+
+func TestFrontmatterRenameCodemods_AWAST(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		codemod Codemod
+		input   string
+		want    string
+	}{
+		{getTimeoutMinutesCodemod(),
+			`{"timeout_minutes": 30, nested: {timeout_minutes: 45}} # keep`,
+			`{"timeout-minutes": 30, nested: {timeout_minutes: 45}} # keep`},
+		{getGitHubReposToAllowedReposCodemod(),
+			`tools: {"github": {'repos': [org/repo], nested: {repos: all}}} # keep`,
+			`tools: {"github": {'allowed-repos': [org/repo], nested: {repos: all}}} # keep`},
+		{getToolsetSingularToToolsetsCodemod(),
+			`tools: {'github': {"toolset": [issues], nested: {toolset: [pull_requests]}}} # keep`,
+			`tools: {'github': {"toolsets": [issues], nested: {toolset: [pull_requests]}}} # keep`},
+		{getEngineCopilotSDKDriverToDriverCodemod(),
+			`"engine": {'copilot-sdk-driver': sdk, nested: {copilot-sdk-driver: untouched}} # keep`,
+			`"engine": {'driver': sdk, nested: {copilot-sdk-driver: untouched}} # keep`},
+		{getMaxRunsToMaxTurnsCodemod(),
+			`{'max-runs': 20, nested: {max-runs: 30}} # keep`,
+			`{'max-turns': 20, nested: {max-runs: 30}} # keep`},
+		{getGitHubAppCodemod(),
+			`{"app": {app-id: 1}, "tools": {github: {'app': null, nested: {app: untouched}}}, safe-outputs: {app: {}}, checkout: {app: {}}} # keep`,
+			`{"github-app": {app-id: 1}, "tools": {github: {'github-app': null, nested: {app: untouched}}}, safe-outputs: {github-app: {}}, checkout: {github-app: {}}} # keep`},
+		{getGitHubAppClientIDCodemod(),
+			`"github-app": {'app-id': 1, nested: {app-id: untouched}} # keep`,
+			`"github-app": {'client-id': 1, nested: {app-id: untouched}} # keep`},
+		{getMCPModeToTypeCodemod(),
+			`mcp-servers: {"custom": {'mode': local, nested: {mode: untouched}}, other: {mode: remote}} # keep`,
+			`mcp-servers: {"custom": {'type': local, nested: {mode: untouched}}, other: {type: remote}} # keep`},
+		{getAssignToAgentDefaultAgentCodemod(),
+			`'safe-outputs': {"assign-to-agent": {'default-agent': copilot, nested: {default-agent: untouched}}} # keep`,
+			`'safe-outputs': {"assign-to-agent": {'name': copilot, nested: {default-agent: untouched}}} # keep`},
+		{getUploadAssetsCodemod(),
+			`"safe-outputs": {'upload-assets': {}, nested: {upload-assets: untouched}} # keep`,
+			`"safe-outputs": {'upload-asset': {}, nested: {upload-assets: untouched}} # keep`},
+		{getSafeInputsToMCPScriptsCodemod(),
+			`{'safe-inputs': {}, nested: {safe-inputs: untouched}} # keep`,
+			`{'mcp-scripts': {}, nested: {safe-inputs: untouched}} # keep`},
+		{getCommandToSlashCommandCodemod(),
+			`"on": {'command': test, nested: {command: untouched}} # keep`,
+			`"on": {'slash_command': test, nested: {command: untouched}} # keep`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.codemod.ID, func(t *testing.T) {
+			t.Parallel()
+			body := "\n---\n\n# Body\n\n```yaml\n" + tt.input + "\n```\n"
+			content := "---\n" + tt.input + body
+			// The authored AST, not a potentially stale caller map, is authoritative.
+			result, applied, err := tt.codemod.Apply(content, nil)
+			require.NoError(t, err)
+			require.True(t, applied)
+			assert.Equal(t, "---\n"+tt.want+body, result)
+
+			repeated, applied, err := tt.codemod.Apply(result, map[string]any{"stale": true})
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, result, repeated)
+		})
+	}
+}
+
+func TestFrontmatterRenameCodemods_ConservativeConflicts(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		codemod Codemod
+		input   string
+	}{
+		{getTimeoutMinutesCodemod(), `{timeout_minutes: 30, timeout-minutes: null}`},
+		{getGitHubReposToAllowedReposCodemod(), `tools: {github: {repos: all, allowed-repos: null}}`},
+		{getToolsetSingularToToolsetsCodemod(), `tools: {github: {toolset: [issues], toolsets: null}}`},
+		{getEngineCopilotSDKDriverToDriverCodemod(), `engine: {copilot-sdk-driver: sdk, driver: null}`},
+		{getGitHubAppCodemod(), `{app: {}, github-app: null, tools: {github: {app: {}, github-app: null}}, safe-outputs: {app: {}, github-app: null}, checkout: {app: {}, github-app: null}}`},
+		{getGitHubAppClientIDCodemod(), `github-app: {app-id: 1, client-id: null}`},
+		{getMCPModeToTypeCodemod(), `mcp-servers: {custom: {mode: local, type: null}}`},
+		{getAssignToAgentDefaultAgentCodemod(), `safe-outputs: {assign-to-agent: {default-agent: copilot, name: null}}`},
+		{getUploadAssetsCodemod(), `safe-outputs: {upload-assets: {}, upload-asset: null}`},
+		{getSafeInputsToMCPScriptsCodemod(), `{safe-inputs: {}, mcp-scripts: null}`},
+		{getCommandToSlashCommandCodemod(), `on: {command: test, slash_command: null}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.codemod.ID, func(t *testing.T) {
+			t.Parallel()
+			content := "---\n" + tt.input + "\n---\n\n# Body\n"
+			result, applied, err := tt.codemod.Apply(content, nil)
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, content, result)
+		})
+	}
 }

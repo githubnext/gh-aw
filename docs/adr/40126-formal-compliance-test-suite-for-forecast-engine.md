@@ -3,6 +3,13 @@
 **Date**: 2026-06-19
 **Status**: Draft
 
+> **Conformance update:** Forecast's yield output had already been removed in
+> [#34750](https://github.com/github/gh-aw/pull/34750). The historical P4 yield-formula
+> predicate described below did not exercise a supported forecast feature. P4 now checks
+> the run-level JSON output contract, including the absence of `yield` and
+> `episode_analysis` (T-FC-056), instead of requiring the retired formula.
+> This correction does not change this ADR's Draft status.
+
 ## Context
 
 The Monte Carlo forecast engine (`pkg/cli/forecast.go`, `forecast_montecarlo.go`) is governed by a formal specification under `specs/forecast-compliance-fixtures/README.md`, with numbered requirements (R-MC-*, R-FC-*, R-CLI-*) and acceptance tests T-FC-031–T-FC-040. The canonical fixture `run_summary_minimal.json` omitted `total_aic`; because `forecast.go:593` gates on `runAIC ≤ 0 → continue`, every fixture-backed run was silently skipped and produced no Monte Carlo input. This field-name gap between what the fixture published and what the engine reads (`TokenUsage.TotalAIC`) went undetected because no test bound the fixture schema to the engine's read path. The engine's numeric invariants (Bernoulli success collapse, observed-rate and yield formulas, the λ=15 Poisson crossover, the n≥10 reliability threshold, nil-on-degenerate-λ behavior) were likewise unguarded by executable tests mapped to the spec.

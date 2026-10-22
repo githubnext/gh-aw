@@ -35,6 +35,25 @@ describe("splitOnPipelineOperators", () => {
     expect(splitOnPipelineOperators("ls -la | grep pattern")).toEqual(["ls -la", "grep pattern"]);
   });
 
+  it.each([
+    ["echo ok & cat data.json", ["echo ok", "cat data.json"]],
+    ["echo ok&cat data.json&", ["echo ok", "cat data.json"]],
+    ["echo ok |& cat data.json", ["echo ok", "cat data.json"]],
+    ["echo ok 2>&1&cat data.json", ["echo ok 2>&1", "cat data.json"]],
+    ["echo ok 2<&0 & cat data.json", ["echo ok 2<&0", "cat data.json"]],
+    ["echo ok &>output & cat data.json", ["echo ok &>output", "cat data.json"]],
+    ["echo ok &>>output&cat data.json", ["echo ok &>>output", "cat data.json"]],
+    [String.raw`echo ok \>&cat data.json`, [String.raw`echo ok \>`, "cat data.json"]],
+  ])("separates background and stderr-pipe commands in %s", (script, segments) => {
+    expect(splitOnPipelineOperators(script)).toEqual(segments);
+    expect(extractCommandNamesFromPipeline(script)).toEqual(["echo", "cat"]);
+  });
+
+  it.each(["echo ok 2>&1", "echo ok 1>&2", "echo ok 2<&0", "echo ok &>output", "echo ok &>>output", "echo 'a & b |& c'", 'echo "a & b |& c"', String.raw`echo a\&b`])("preserves redirections and literal ampersands in %s", script => {
+    expect(splitOnPipelineOperators(script)).toEqual([script]);
+    expect(extractCommandNamesFromPipeline(script)).toEqual(["echo"]);
+  });
+
   it("splits on ; (sequential)", () => {
     expect(splitOnPipelineOperators("echo a; echo b")).toEqual(["echo a", "echo b"]);
   });
@@ -108,6 +127,35 @@ describe("splitOnPipelineOperators", () => {
   it("splits on newlines as sequential separators", () => {
     const segments = splitOnPipelineOperators("pwd\nls -la\nsafeoutputs --help");
     expect(segments).toEqual(["pwd", "ls -la", "safeoutputs --help"]);
+  });
+
+  it.each(["\n", "\r\n"])("ignores standalone comments with %j line endings", newline => {
+    const command = `# Check attribution data${newline}  # Ignore "quotes, && operators; and $(subshells)${newline}cat data.json${newline}# Done`;
+    expect(splitOnPipelineOperators(command)).toEqual(["cat data.json"]);
+  });
+
+  it("ignores inline comments without hiding the next command", () => {
+    expect(splitOnPipelineOperators('echo ready # Ignore "quotes && operators; too\ncat data.json')).toEqual(["echo ready", "cat data.json"]);
+  });
+
+  it("returns no segments for a comment-only script", () => {
+    expect(splitOnPipelineOperators("  # Nothing to execute\n\t# Still a comment")).toEqual([]);
+  });
+
+  it.each(["echo '# literal'", 'echo "# literal"', "echo value#literal", String.raw`echo \#literal`, String.raw`echo value\ #literal`, String.raw`echo \"#literal`])("preserves literal hashes in %s", command => {
+    expect(splitOnPipelineOperators(`${command} && cat data.json`)).toEqual([command, "cat data.json"]);
+  });
+
+  it("recognizes a comment after an escaped backslash and unescaped whitespace", () => {
+    expect(splitOnPipelineOperators(String.raw`echo \\ # Ignore this && command` + "\ncat data.json")).toEqual([String.raw`echo \\`, "cat data.json"]);
+  });
+
+  it.each(["echo ${value:- # literal}", "echo ${outer:-${inner:- # literal}}", "echo ${value:-'quoted }' # literal}"])("preserves literal hashes inside parameter expansions: %s", command => {
+    expect(splitOnPipelineOperators(`${command} && cat data.json`)).toEqual([command, "cat data.json"]);
+  });
+
+  it("does not continue a comment ending in a backslash", () => {
+    expect(splitOnPipelineOperators("# Comment \\\ncat data.json")).toEqual(["cat data.json"]);
   });
 
   it("does not split on escaped newline continuations", () => {
@@ -216,7 +264,7 @@ describe("extractCommandName", () => {
   });
 
   it("extracts safeoutputs (CLI proxy command)", () => {
-    expect(extractCommandName("safeoutputs missing_data --help 2>/dev/null")).toBe("safeoutputs");
+    expect(extractCommandName("safeoutputs report_missing_data --help 2>/dev/null")).toBe("safeoutputs");
   });
 
   it("extracts printf (built-in)", () => {
@@ -272,7 +320,7 @@ describe("extractCommandNamesFromPipeline", () => {
   });
 
   it("handles the GEO optimizer failed command 2 (safeoutputs || echo)", () => {
-    const cmd = 'safeoutputs missing_data --help 2>/dev/null || echo "unavailable"';
+    const cmd = 'safeoutputs report_missing_data --help 2>/dev/null || echo "unavailable"';
     expect(extractCommandNamesFromPipeline(cmd)).toEqual(["safeoutputs", "echo"]);
   });
 
@@ -287,6 +335,10 @@ describe("extractCommandNamesFromPipeline", () => {
 
   it("returns empty array for whitespace-only string", () => {
     expect(extractCommandNamesFromPipeline("   ")).toEqual([]);
+  });
+
+  it("extracts only executable commands from a commented script", () => {
+    expect(extractCommandNamesFromPipeline("# Check counts\njq length data.json # Count entries\n# Read the data\ncat data.json")).toEqual(["jq", "cat"]);
   });
 
   it("handles command with $() subshell — does not split inside subshell", () => {
@@ -412,7 +464,7 @@ describe("extractCommandName – extensive vectors", () => {
     { id: "BP-EC-003", segment: "{ jq '.a' data.json; }", expected: "jq" },
     { id: "BP-EC-004", segment: "2>&1", expected: null },
     { id: "BP-EC-005", segment: ">out.txt", expected: null },
-    { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs missing_data", expected: "safeoutputs" },
+    { id: "BP-EC-006", segment: "A=1 B=2 safeoutputs report_missing_data", expected: "safeoutputs" },
     { id: "BP-EC-007", segment: "then cat file", expected: "cat" },
     { id: "BP-EC-008", segment: "fi", expected: null },
     { id: "BP-EC-009", segment: "do", expected: null },
@@ -466,7 +518,7 @@ describe("extractCommandNamesFromPipeline – extensive vectors", () => {
     },
     {
       id: "BP-EP-008",
-      input: "safeoutputs --help || safeoutputs missing_data",
+      input: "safeoutputs --help || safeoutputs report_missing_data",
       expected: ["safeoutputs"],
     },
     {

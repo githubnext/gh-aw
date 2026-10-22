@@ -35,7 +35,7 @@ async function releaseAssignment(options, assignment, evidence) {
   if (validated.dispatch.released) return { state: "released", released: true };
   const trustedContext = await authenticatePublisher({ ...options, role: "reconciler" });
   const operations = [
-    ...cancellationOperations(latest.projection, assignment, evidence.checked_at, evidence.kind === "terminal_run" ? "native_run_terminal" : "definitive_nonlaunch"),
+    ...cancellationOperations(latest.projection, assignment, evidence.checked_at, evidence.kind === "terminal_run" ? "native_run_terminal" : evidence.kind === "worker_termination" ? "worker_termination" : "definitive_nonlaunch"),
     { kind: "Release", dispatch_id: assignment.dispatch_id, evidence },
   ];
   try {
@@ -82,7 +82,7 @@ async function discoverRuns(options, expected) {
         return { candidates: [...candidates.values()], conflict: true };
       }
       if (candidates.has(runId)) continue;
-      const original = await fetchNativeRunAttempt(options.githubClient, expected.repository, runId);
+      const original = await fetchNativeRunAttempt(options.githubClient, expected.repository, runId, 1, { retryMetadata: false });
       try {
         const proof = validateNativeRun(original, { ...expected, run_id: runId });
         candidates.set(proof.run_id, proof);
@@ -122,7 +122,7 @@ async function reconcileDispatch(options) {
     if (!origin?.workflow || !origin.run_id || !origin.run_attempt) return { state: "reserved", released: false };
     const repository = `${options.context.repo.owner}/${options.context.repo.repo}`;
     if (origin.repository.toLowerCase() !== repository.toLowerCase()) throw new Error("work_queue_dispatch_origin_mismatch");
-    const run = await fetchNativeRunAttempt(options.githubClient, repository, origin.run_id, origin.run_attempt);
+    const run = await fetchNativeRunAttempt(options.githubClient, repository, origin.run_id, origin.run_attempt, { sleepFn: options.sleepFn });
     if (
       nativeId(run.id) !== origin.run_id ||
       nativeAttempt(run.run_attempt) !== origin.run_attempt ||
@@ -140,7 +140,7 @@ async function reconcileDispatch(options) {
   const repository = trustedContext.repository;
   const expected = expectedWorkerRun(assignment, profile, options.context, repository, dispatchPrincipal(dispatch));
   if (dispatch.run) {
-    const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, dispatch.run.run_id), { ...expected, run_id: dispatch.run.run_id });
+    const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, dispatch.run.run_id, 1, { sleepFn: options.sleepFn }), { ...expected, run_id: dispatch.run.run_id });
     log.debug("dispatch.reconcile.native_checked", { terminal: proof.terminal });
     if (!proof.terminal) {
       if (options.requestCancellation === true) {
@@ -165,6 +165,7 @@ async function reconcileDispatch(options) {
   let hint = options.returnedRunId || returnedRunHint(initial.projection, assignment.dispatch_id);
   let conflict = false;
   for (; attempts < policy.max_attempts; attempts++) {
+    if (attempts > 0 && Date.now() - started >= policy.deadline_ms) break;
     log.debug("dispatch.reconcile.attempt", { attempt: attempts + 1, run_hint: !!hint });
     try {
       const current = await loadQueue(options);
@@ -172,7 +173,7 @@ async function reconcileDispatch(options) {
       if (observed?.released || observed?.run) return reconcileDispatch({ ...options, assignment });
       let candidates = [];
       if (hint) {
-        const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, hint), { ...expected, run_id: hint });
+        const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, hint, 1, { retryMetadata: false }), { ...expected, run_id: hint });
         candidates.push(proof);
       }
       const discovered = await discoverRuns(options, expected);
@@ -202,7 +203,7 @@ async function reconcileDispatch(options) {
       attempts++;
       break;
     }
-    if (attempts + 1 < policy.max_attempts) await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, 50 * 2 ** attempts));
+    if (attempts + 1 < policy.max_attempts) await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, 50 * 2 ** attempts, policy.deadline_ms - (Date.now() - started)));
   }
   if (attempts >= policy.max_attempts) {
     const evidence = lifecycleEvidence(assignment, profile, repository, "reconciliation", "github_api", options.now ?? Date.now(), { attempts, principal: dispatchPrincipal(dispatch) });
@@ -240,7 +241,18 @@ async function cancelBeforeLaunch(options) {
 
 function reconciliationCandidates(projection, pool, limit, runNumber) {
   const candidates = [...projection.dispatches.values()]
-    .filter(dispatch => !dispatch.released && (pool === undefined || dispatch.pool === pool))
+    .filter(
+      dispatch =>
+        (pool === undefined || dispatch.pool === pool) &&
+        (!dispatch.released ||
+          dispatch.claims?.some(member => {
+            const claim = projection.claims.get(member.claim_id);
+            const work = projection.works.get(member.work_id);
+            const ownsPendingBarrier = claim?.keep_open === true || work?.claim_id === member.claim_id;
+            const barrier = claim?.keep_open ? claim.barrier : work?.barrier;
+            return claim?.state === "completed" && ownsPendingBarrier && barrier === "pending";
+          }))
+    )
     .sort((left, right) => {
       const runPriority = Number(!!right.run) - Number(!!left.run);
       if (runPriority !== 0) return runPriority;
@@ -249,6 +261,23 @@ function reconciliationCandidates(projection, pool, limit, runNumber) {
   if (candidates.length <= limit) return candidates;
   const offset = Number.isSafeInteger(runNumber) && runNumber > 0 ? (runNumber - 1) % candidates.length : 0;
   return Array.from({ length: limit }, (_, index) => candidates[(offset + index) % candidates.length]);
+}
+
+function unresolvedDeliveryResults(assignment, projection) {
+  return Object.fromEntries(
+    assignment.claims.map(member => {
+      const claim = projection.claims.get(member.claim_id);
+      const work = projection.works.get(member.work_id);
+      if (claim?.state === "cancelled") return [member.handle, { state: "cancelled", effects: "unknown" }];
+      if (claim?.state === "completed") {
+        const barrier = claim.keep_open ? claim.barrier : work?.barrier;
+        const terminal = projection.terminalBarriers.get(claim.keep_open ? member.claim_id : member.work_id);
+        if (barrier === "verified") return [member.handle, { state: "result", effects: terminal?.evidence.effects ?? "unknown" }];
+        if (barrier === "failed") return [member.handle, { state: "delivery_failed", effects: terminal?.evidence.effects ?? work?.disposition ?? "unknown" }];
+      }
+      return [member.handle, { state: "pending", effects: "unknown", reason: "verification_unresolved" }];
+    })
+  );
 }
 
 async function reconcileQueue(options) {
@@ -262,13 +291,34 @@ async function reconcileQueue(options) {
   const results = [];
   for (const dispatch of candidates) {
     const assignment = assignmentForDispatch(latest.projection, dispatch.dispatch_id);
+    let reservation;
     try {
-      if (dispatch.state !== "reserved" && typeof options.verifyEffects === "function") await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
-      results.push({ dispatch_id: dispatch.dispatch_id, ...(await reconcileDispatch({ ...options, assignment })) });
+      reservation = await reconcileDispatch({ ...options, assignment });
     } catch (error) {
       log.failure("queue.reconcile.dispatch_failed", error);
       results.push({ dispatch_id: dispatch.dispatch_id, state: "launch_unresolved", released: false });
+      continue;
     }
+    let delivery;
+    if (dispatch.state !== "reserved" && dispatch.run && (typeof options.verifyEffects === "function" || options.expireUnverified === true)) {
+      try {
+        delivery = await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
+      } catch (error) {
+        log.failure("queue.reconcile.delivery_failed", error);
+        let projection = latest.projection;
+        try {
+          projection = (await loadQueue(options)).projection;
+        } catch (refreshError) {
+          log.failure("queue.reconcile.delivery_refresh_failed", refreshError);
+        }
+        delivery = {
+          version: 3,
+          dispatch_id: assignment.dispatch_id,
+          claims: unresolvedDeliveryResults(assignment, projection),
+        };
+      }
+    }
+    results.push({ dispatch_id: dispatch.dispatch_id, ...reservation, ...(delivery ? { delivery } : {}) });
   }
   log.debug("queue.reconcile.complete", { reconciled: results.length });
   return { version: 3, reconciled: results.length, results };

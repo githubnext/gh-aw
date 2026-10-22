@@ -134,13 +134,37 @@ func validatePiSessionConfig(raw json.RawMessage) error {
 	return nil
 }
 
-func (e *PiEngine) applyPiConfigEnv(env map[string]string, data *WorkflowData) {
-	env["GH_AW_PI_CONFIG"] = "{}"
-	aliases, err := json.Marshal(data.ModelMappings)
-	if err != nil {
-		panic(fmt.Sprintf("BUG: cannot encode Pi model aliases: %v", err))
+func piRuntimeConfigJSON(data *WorkflowData) string {
+	config := make(map[string]json.RawMessage)
+	if data.EngineConfig != nil && data.EngineConfig.Config != "" {
+		if err := json.Unmarshal([]byte(data.EngineConfig.Config), &config); err != nil || config == nil {
+			panic(fmt.Sprintf("BUG: invalid validated Pi configuration: %v", err))
+		}
 	}
-	env["GH_AW_PI_MODEL_ALIASES"] = string(aliases)
+	mcp := make(map[string]json.RawMessage)
+	if raw, ok := config["mcp"]; ok {
+		if err := json.Unmarshal(raw, &mcp); err != nil || mcp == nil {
+			panic(fmt.Sprintf("BUG: invalid validated Pi MCP configuration: %v", err))
+		}
+	}
+	if _, ok := mcp["exposure"]; !ok {
+		mcp["exposure"] = json.RawMessage(`"direct"`)
+	}
+	encodedMCP, err := json.Marshal(mcp)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: cannot encode Pi MCP configuration: %v", err))
+	}
+	config["mcp"] = encodedMCP
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: cannot encode Pi configuration: %v", err))
+	}
+	return string(encoded)
+}
+
+func (e *PiEngine) applyPiConfigEnv(env map[string]string, data *WorkflowData) {
+	env["GH_AW_PI_CONFIG"] = piRuntimeConfigJSON(data)
+	applyModelAliasOverridesEnv(env, "GH_AW_PI_MODEL_ALIASES", data)
 	childData := *data
 	if data.EngineConfig != nil {
 		childConfig := *data.EngineConfig
@@ -161,9 +185,6 @@ func (e *PiEngine) applyPiConfigEnv(env map[string]string, data *WorkflowData) {
 	env["GH_AW_PI_BARE"] = strconv.FormatBool(config.Bare)
 	if config.Command != "" {
 		env["GH_AW_PI_COMMAND"] = config.Command
-	}
-	if config.Config != "" {
-		env["GH_AW_PI_CONFIG"] = config.Config
 	}
 	if config.Driver == "pi_rpc_driver.cjs" {
 		encoded, err := json.Marshal(e.buildPiArgs(data))

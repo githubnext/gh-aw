@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const { buildGeneratedFooter } = require("./markdown_body_helpers.cjs");
 const { sanitizeTitle } = require("./sanitize_title.cjs");
@@ -30,7 +32,7 @@ async function main() {
   });
   const body = `${steeringBody}\n\n${footer}`;
 
-  const { data: issue } = await github.rest.issues.create({
+  const { data: issue } = await createReportIssue(github, {
     owner: context.repo.owner,
     repo: context.repo.repo,
     title,

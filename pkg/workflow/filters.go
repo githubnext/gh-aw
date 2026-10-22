@@ -246,7 +246,7 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 		// The step exits 1 if this PR is not in the top N layers, stopping all subsequent
 		// default-condition steps from running (they use if: success() by default).
 		stackGateStep := fmt.Sprintf(
-			"- name: Stack position gate (max-stack: %d)\n"+
+			"- name: \"Stack position gate (max-stack: %d)\"\n"+
 				"  if: (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') && github.event.pull_request.stack != null\n"+
 				"  env:\n"+
 				"    STACK_POSITION: ${{ github.event.pull_request.stack.position }}\n"+
@@ -261,10 +261,10 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 			maxStack, maxStack,
 		)
 
-		if data.PreSteps == "" {
-			data.PreSteps = "pre-steps:\n" + stackGateStep
+		if data.GeneratedPreSteps == "" {
+			data.GeneratedPreSteps = "pre-steps:\n" + stackGateStep
 		} else {
-			data.PreSteps = strings.TrimRight(data.PreSteps, "\n") + "\n" + stackGateStep
+			data.GeneratedPreSteps = strings.TrimRight(data.GeneratedPreSteps, "\n") + "\n" + stackGateStep
 		}
 	}
 }

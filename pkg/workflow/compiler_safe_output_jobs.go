@@ -1,9 +1,11 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 )
 
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
@@ -15,6 +17,9 @@ var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
 // (one per allowed worker workflow) that run after safe_outputs.
 func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
 	if data.SafeOutputs == nil {
+		if len(data.Graders.CustomGraderIDs()) > 0 {
+			return errors.New("custom graders require a conclusion job publishing the unified session")
+		}
 		compilerSafeOutputJobsLog.Print("No safe outputs configured, skipping safe outputs jobs")
 		return nil
 	}
@@ -208,6 +213,24 @@ func (c *Compiler) addSafeOutputConclusionJobs(data *WorkflowData, jobName strin
 		if err := c.jobManager.AddJob(conclusionJob); err != nil {
 			return fmt.Errorf("failed to add conclusion job: %w", err)
 		}
+		if data.AdmissionEnabled {
+			conclusionAdmissionJob, err := c.buildConclusionAdmissionJob(data)
+			if err != nil {
+				return fmt.Errorf("failed to build conclusion admission job: %w", err)
+			}
+			if err := c.jobManager.AddJob(conclusionAdmissionJob); err != nil {
+				return fmt.Errorf("failed to add conclusion admission job: %w", err)
+			}
+		}
+		customGradersJob, err := c.buildCustomGradersJob(data)
+		if err != nil {
+			return err
+		}
+		if customGradersJob != nil {
+			if err := c.jobManager.AddJob(customGradersJob); err != nil {
+				return fmt.Errorf("failed to add custom graders job: %w", err)
+			}
+		}
 	}
 
 	return nil
@@ -275,14 +298,28 @@ func (c *Compiler) buildCallWorkflowJob(data *WorkflowData, workflowName, markdo
 	// input; GitHub Actions rejects a `uses:` step that passes an input the
 	// called workflow does not declare, so it must not be added unconditionally.
 	callJob := &Job{
-		Name:  jobName,
-		Needs: []string{"safe_outputs"},
-		If:    fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
-		Uses:  workflowPath,
-		With:  buildCallWorkflowInputs(workflowName, markdownPath, jobName),
+		Name: jobName,
+		Actions: &actions.Job{
+			If: actions.Binary{
+				Left: actions.OutputRef{
+					Job:  "safe_outputs",
+					Name: "call_workflow_name",
+				},
+				Operator: "==",
+				Right:    actions.Literal(workflowName),
+			},
+		},
+		Uses: workflowPath,
+		With: buildCallWorkflowInputs(workflowName, markdownPath, jobName),
 	}
 	if c.dryRun {
-		callJob.If = "false"
+		callJob.Needs = []string{"safe_outputs"}
+		// Preserve dependency/output metadata before stripping the call. An inert
+		// job invokes no worker, so importing its secrets or permissions is unsafe
+		// and unnecessary; placeholders need neither credential postprocessing.
+		callJob.Outputs = dryRunReferencedOutputs(data.On, data.Jobs, c.jobManager.GetAllJobs())[jobName]
+		makeDryRunJobInert(callJob, c.dryRunPlaceholderRunsOn(data, callJob))
+		return callJob
 	}
 	addCallWorkflowSecrets(callJob, workflowName, markdownPath)
 	addCallWorkflowPermissions(callJob, data, workflowName, markdownPath)

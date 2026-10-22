@@ -298,6 +298,9 @@ func cachedJSONDownloadResult(run WorkflowRun, cachedRuns cachedLogsRuns, filter
 		return DownloadResult{}, false
 	}
 	cachedAudit := cachedRuns[run.DatabaseID].Audit
+	if cachedAudit != nil && cachedAudit.SchemaVersion != auditSchemaVersion {
+		return DownloadResult{}, false
+	}
 	logsOrchestratorLog.Printf("Cache hit for run %d from cached JSONL; skipping artifact download and processing", run.DatabaseID)
 	return DownloadResult{
 		RunAnalysis: RunAnalysis{Run: run},
@@ -866,7 +869,7 @@ func applyRunUsageMetrics(result *DownloadResult, metrics *LogMetrics, runOutput
 // RunSummary struct, and writes it to disk.  It also sets the agentic-analysis fields on
 // result directly so they are available to the caller.
 func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
-	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, runOutputDir, verbose)
+	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, runOutputDir, verbose, result.Run.Attempt)
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
 	}

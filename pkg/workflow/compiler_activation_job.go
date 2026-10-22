@@ -24,6 +24,7 @@ const (
 const pullRequestBaseSHAExpression = "(github.event_name == 'pull_request' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment') && github.event.pull_request != null && github.event.pull_request.base.sha"
 
 var activationMetadataTriggerFields = map[string]struct{}{
+	"admission":      {},
 	"reaction":       {},
 	"status-comment": {},
 	"command":        {},
@@ -45,6 +46,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
 	}
 
+	addActivationAdmissionOutputs(ctx)
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
 		return nil, fmt.Errorf("failed to add activation feedback and validation steps: %w", err)
 	}
@@ -59,7 +61,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
-	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)
+	if err := c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation, ctx.outputs); err != nil {
+		return nil, err
+	}
 	c.addWorkQueueSnapshotStep(ctx)
 	c.addActivationArtifactUploadStep(ctx)
 	if len(ctx.steps) == 0 {
@@ -75,6 +79,13 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		return nil, fmt.Errorf("failed to build activation permissions: %w", err)
 	}
 
+	env := buildDailyAICActivationJobEnv(data)
+	if env == nil {
+		env = map[string]string{}
+	}
+	if data.AdmissionEnabled {
+		env["GH_AW_ADMISSION_RESULT"] = "${{ needs.admission.outputs.result }}"
+	}
 	return &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,
@@ -82,7 +93,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		RunsOn:                     c.formatFrameworkJobRunsOn(data),
 		Permissions:                permissions,
 		Environment:                c.buildActivationEnvironment(ctx),
-		Env:                        buildDailyAICActivationJobEnv(data),
+		Env:                        env,
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
 		Needs:                      ctx.activationNeeds,
@@ -328,7 +339,7 @@ func buildCentralizedCommandOnSection(commandEvents []string) string {
 // beforeActivationJobs is the list of custom job names that run before (i.e., are dependencies of) activation.
 // Passing nil or an empty slice means no custom jobs run before activation; expressions referencing any
 // custom job will be filtered out of the substitution step to avoid actionlint errors.
-func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string, outputs map[string]string) error {
 	compilerActivationJobLog.Print("Generating prompt steps in activation job")
 
 	// Use a string builder to collect the YAML
@@ -338,10 +349,14 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 	c.generatePrompt(&yaml, data, preActivationJobCreated, beforeActivationJobs)
 
 	// Append the generated YAML content as a single string to steps
-	yamlContent := yaml.String()
+	yamlContent, err := rewriteActivationPromptOutputs(yaml.String(), outputs)
+	if err != nil {
+		return err
+	}
 	*steps = append(*steps, yamlContent)
 
 	compilerActivationJobLog.Print("Prompt generation steps added to activation job")
+	return nil
 }
 
 // generateResolveHostRepoStep generates a step that resolves the platform (host) repository
@@ -361,7 +376,7 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
-	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	step.WriteString("        env:\n")
 	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
 	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")

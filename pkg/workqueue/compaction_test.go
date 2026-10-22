@@ -187,3 +187,19 @@ func TestBranchCompactionNeverInitializesOrAdoptsInvalidAuthority(t *testing.T) 
 		})
 	}
 }
+
+func TestBranchCompactionPreservesFutureCommittedWatermark(t *testing.T) {
+	branch, mock := newQueueAPI(t)
+	commits := testGenesis(t, nil)
+	commits = testSubmit(t, commits, "future-watermark", testNode(t, commits, "future-watermark"))
+	commits[0].At = MaxTimestamp
+	installMockLog(t, mock, commits)
+	result, err := branch.Compact(context.Background())
+	if err != nil || !result.Changed {
+		t.Fatalf("automatic compaction rejected a valid future watermark: %+v %v", result, err)
+	}
+	checkpoint, err := branch.Read(context.Background())
+	if err != nil || len(checkpoint) != 1 || checkpoint[0].At != MaxTimestamp {
+		t.Fatalf("automatic compaction did not preserve the committed watermark: %v %v", checkpoint, err)
+	}
+}

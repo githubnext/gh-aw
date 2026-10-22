@@ -7,7 +7,7 @@ const { canonical, digest, parseStrictJSON } = require("./work_queue_codec.cjs")
 const { canonicalResourceTarget, nativeDecimalIdentity, resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
 const { expectedGitHubHost, isTrustedGitHubApiUrl } = require("./work_queue_host.cjs");
 
-const READ_METHODS = new Set(["get", "list", "getSarif", "getAnalysis", "getComment", "getCommit", "getRef", "getTree", "getBlob", "getArtifact", "getBranch", "getByUsername", "getWorkflowRun", "getWorkflowRunAttempt"]);
+const READ_METHODS = new Set(["get", "list", "getSarif", "getAnalysis", "getComment", "getCommit", "getRef", "getTree", "getBlob", "getArtifact", "getBranch", "getByUsername", "getWorkflowRun", "getWorkflowRunAttempt", "compareCommits"]);
 /** @type {WeakMap<object, {identity: ReturnType<typeof claimIdentity>, options: Record<string, unknown>}>} */
 const claimClients = new WeakMap();
 const NODE_QUERY = `query WorkQueueEffectTargets($ids: [ID!]!) {
@@ -20,6 +20,7 @@ const NODE_QUERY = `query WorkQueueEffectTargets($ids: [ID!]!) {
     ... on PullRequest { databaseId number repository { nameWithOwner databaseId } }
     ... on Discussion { number repository { nameWithOwner databaseId } }
     ... on DiscussionCategory { repository { nameWithOwner databaseId } }
+    ... on Label { repository { nameWithOwner databaseId } }
     ... on IssueComment { databaseId issue { __typename databaseId number repository { nameWithOwner databaseId } } }
     ... on PullRequestReview { pullRequest { __typename databaseId number repository { nameWithOwner databaseId } } }
     ... on PullRequestReviewComment { databaseId pullRequest { __typename databaseId number repository { nameWithOwner databaseId } } }
@@ -580,6 +581,8 @@ function wrapClaimEffectClient(client, options) {
               if (effect) {
                 effect.id = graphEffectIdentity(query, immutableVariables, response);
                 effect.outcome = "succeeded";
+                const mutations = mutationArguments(query, immutableVariables);
+                if (mutations.length === 1 && mutations[0].field === "createCommitOnBranch" && typeof response?.createCommitOnBranch?.commit?.oid === "string") effect.commit = response.createCommitOnBranch.commit.oid;
               }
               log.debug("effect.mutate.complete", { recorded: !!effect });
               return response;

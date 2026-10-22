@@ -100,8 +100,14 @@ function stagePlanIntents(filename, plan) {
   integer(plan.dispatch.max_claims, 1, 256, "max_claims");
   integer(plan.dispatch.max_dispatches, 1, 256, "max_dispatches");
   for (const node of plan.nodes) {
-    closed(node, ["payload"], ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "depends_on", "subject", "backing_issue", "replacement_of"], "planned Work");
+    closed(
+      node,
+      ["payload"],
+      ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "expires_at", "depends_on", "subject", "backing_issue", "replacement_of"],
+      "planned Work"
+    );
     if (!node.payload || typeof node.payload !== "object" || Array.isArray(node.payload)) throw new Error("work_queue_plan_payload_invalid");
+    if (Object.hasOwn(node, "expires_at")) integer(node.expires_at, 0, Number.MAX_SAFE_INTEGER, "Work expiration timestamp");
     canonical(node.payload);
     if (identity(node.pool, "pool") !== plan.dispatch.pool) throw new Error("work_queue_plan_pool_mismatch");
   }
@@ -161,7 +167,13 @@ function normalizeSubmitParameters(parameters, policy, at, state) {
   integer(at, 0, Number.MAX_SAFE_INTEGER, "submission timestamp");
   return {
     nodes: parameters.nodes.map(node => {
-      closed(node, ["payload"], ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "depends_on", "subject", "backing_issue", "replacement_of"], "submitted Work");
+      closed(
+        node,
+        ["payload"],
+        ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "expires_at", "depends_on", "subject", "backing_issue", "replacement_of"],
+        "submitted Work"
+      );
+      if (Object.hasOwn(node, "expires_at")) integer(node.expires_at, 0, Number.MAX_SAFE_INTEGER, "Work expiration timestamp");
       const graphId = Object.hasOwn(node, "graph_id") ? identity(node.graph_id, "graph ID") : digest(node.payload);
       const nodeKey = Object.hasOwn(node, "node_key") ? identity(node.node_key, "node key") : "root";
       const poolName = node.pool === undefined ? "default" : node.pool;
@@ -171,6 +183,7 @@ function normalizeSubmitParameters(parameters, policy, at, state) {
       if (!profile) throw new Error("work_queue_profile_not_approved");
       const workId = nodeId(graphId, nodeKey);
       const existing = state?.works.get(workId);
+      const expiresAt = node.expires_at ?? existing?.expires_at;
       const revision = node.execution_ref === undefined || node.execution_ref === profile.ref ? profile : state?.deployments?.get(poolName)?.get(profileName)?.revisions[node.execution_ref]?.profile;
       if (!revision) throw new Error("work_queue_execution_pin_not_registered");
       const contract = node.logical_contract ?? existing?.logical_contract ?? revision.logical_contract;
@@ -190,6 +203,7 @@ function normalizeSubmitParameters(parameters, policy, at, state) {
         payload: node.payload,
         depends_on: node.depends_on === undefined ? [] : node.depends_on,
         enqueued: state?.works.get(workId)?.enqueued ?? at,
+        ...(expiresAt === undefined ? {} : { expires_at: expiresAt }),
         ...(node.subject === undefined ? {} : { subject: node.subject }),
         ...(node.backing_issue === undefined ? {} : { backing_issue: node.backing_issue }),
         ...(node.replacement_of === undefined ? {} : { replacement_of: node.replacement_of }),

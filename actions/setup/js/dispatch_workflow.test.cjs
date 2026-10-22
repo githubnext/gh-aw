@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { main } from "./dispatch_workflow.cjs";
 import { dispatchWorkflow } from "./dispatch_workflow_transport.cjs";
+import { extractCreatedItemFromResult } from "./safe_output_manifest.cjs";
 import { withClaimExecution } from "./work_queue_claim_scope.cjs";
 import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
 import { fakeGitHub } from "./work_queue_store_checks.cjs";
@@ -333,6 +334,7 @@ describe("dispatch_workflow handler factory", () => {
 
     expect(result.success).toBe(true);
     expect(result.workflow_name).toBe("test-workflow");
+    expect(result.repo).toBe("test-owner/test-repo");
     expect(result.run_id).toBe(123456);
     // Should use the extension from config
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
@@ -1249,6 +1251,7 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
 
     expect(result.success).toBe(true);
+    expect(result.repo).toBe("test-owner/test-repo");
     expect(result.run_id).toBeUndefined();
   });
 
@@ -1330,6 +1333,12 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler({ type: "dispatch_workflow", workflow_name: "platform-worker", inputs: {} }, {});
 
     expect(result.success).toBe(true);
+    expect(result.repo).toBe("platform-org/platform-repo");
+    expect(extractCreatedItemFromResult("dispatch_workflow", result)).toMatchObject({
+      repo: "platform-org/platform-repo",
+      target: { provider: "github", repository: "platform-org/platform-repo" },
+      metadata: { run_id: 123456 },
+    });
     // Must dispatch to the configured target-repo, NOT context.repo
     expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1418,6 +1427,7 @@ describe("dispatch_workflow handler factory", () => {
     const result = await handler({ type: "dispatch_workflow", workflow_name: "test-workflow", inputs: {} }, {});
 
     expect(result.success).toBe(true);
+    expect(result.repo).toBe("test-owner/test-repo");
     // Must emit a warning about the invalid slug including the bad value and the fallback
     expect(core.warning).toHaveBeenCalledWith(expect.stringMatching(/Invalid 'target-repo' configuration value 'not-a-valid-slug'.*falling back.*test-owner\/test-repo/));
     // Must fall back to context.repo

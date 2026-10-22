@@ -70,7 +70,7 @@ func workReplayArtifact(cmd *cobra.Command, runID int64, file string) error {
 		data, err = readBoundedWorkQueueArtifact(file, workQueueReplayArtifactBytes)
 	} else {
 		if repository == "" {
-			repository, err = GetCurrentRepoSlug()
+			repository, err = getWorkQueueRepoSlug()
 			if err != nil {
 				return err
 			}
@@ -132,14 +132,8 @@ func printWorkQueueArtifactReplay(cmd *cobra.Command, envelope currentWorkQueueE
 		if err != nil {
 			return fmt.Errorf("artifact replay could not predict scheduling; use a pool and budgets allowed by the captured queue policy: %w", currentWorkQueueDiagnosticError("prediction", err))
 		}
-		result.Prediction = &workQueueReplayPrediction{Reason: decision.Reason, Assignments: []workQueueReplayAssignment{}}
-		for _, assignment := range decision.Assignments {
-			prediction := workQueueReplayAssignment{WorkerProfile: assignment.WorkerProfile, WorkIDs: []string{}}
-			for _, claim := range assignment.Claims {
-				prediction.WorkIDs = append(prediction.WorkIDs, claim.WorkID)
-			}
-			result.Prediction.Assignments = append(result.Prediction.Assignments, prediction)
-		}
+		prediction := workQueueCompactPrediction(decision)
+		result.Prediction = &prediction
 		human += fmt.Sprintf("\nCaptured scheduling prediction: %s, %d assignments; no live dependency refresh, credential validation, or grant",
 			decision.Reason, len(decision.Assignments))
 	}
@@ -300,10 +294,6 @@ func readWorkQueueReplayBytes(reader io.Reader, limit int64) ([]byte, error) {
 		return nil, errors.New("artifact_replay_invalid: the artifact or metadata exceeds its bounded input limit. Use --file with the original snapshot if the activation archive is too large; snapshots should be no larger than 162 MiB")
 	}
 	return data, nil
-}
-
-func workQueueReplaySnapshotFromZIP(data []byte) (snapshot []byte, err error) {
-	return workQueueReplaySnapshotFromZIPLimit(data, workQueueReplayArtifactBytes)
 }
 
 func workQueueReplaySnapshotFromZIPLimit(data []byte, limit int64) (snapshot []byte, err error) {

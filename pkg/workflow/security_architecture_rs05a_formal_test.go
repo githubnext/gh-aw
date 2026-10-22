@@ -462,7 +462,12 @@ global.exec = {
     });
     return 0;
   },
-  async getExecOutput() {
+  async getExecOutput(command, args) {
+    records.exec.push({
+      command: String(command),
+      args: Array.isArray(args) ? args.map(String) : [String(args)],
+      argsIsArray: Array.isArray(args),
+    });
     return { stdout: "true\n", stderr: "", exitCode: 0 };
   },
 };

@@ -144,10 +144,34 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantExpressions: []string{"github.event.issue.number || (fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').item_type == 'issue' && fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').item_number)"},
 		},
 		{
+			name:            "webhook batch items serialize from normalized context",
+			markdown:        "Items: ${{ toJSON(github.aw.context.items) }}",
+			wantCount:       1,
+			wantExpressions: []string{"toJSON(fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').items)"},
+		},
+		{
+			name:            "nested webhook batch event uses normalized context",
+			markdown:        "Event: ${{ github.aw.context.webhook.event }}",
+			wantCount:       1,
+			wantExpressions: []string{"fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.event"},
+		},
+		{
 			name:            "aw context syntax sugar with hyphenated field does not transform",
 			markdown:        "Issue: ${{ github.aw.context.item-number }}",
 			wantCount:       1,
 			wantExpressions: []string{"github.aw.context.item-number"},
+		},
+		{
+			name:            "gateway events indexed matching literal",
+			markdown:        "${{ gateway.events[0].payload.filters['closed-states'][0] }}",
+			wantCount:       1,
+			wantExpressions: []string{"fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries[0].payload.filters['closed-states'][0]"},
+		},
+		{
+			name:            "gateway events transform leaves string literals alone",
+			markdown:        "${{ gateway.events[0].payload.url == 'gateway.events' }}",
+			wantCount:       1,
+			wantExpressions: []string{"fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries[0].payload.url == 'gateway.events'"},
 		},
 		// Parenthesised compound expressions
 		{

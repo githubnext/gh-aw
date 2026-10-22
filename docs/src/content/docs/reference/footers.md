@@ -26,6 +26,16 @@ When `footer: false` is set, visible attribution text is omitted from item bodie
 
 Applies to all output types: create-issue, create-pull-request, create-discussion, update-issue, update-pull-request, update-discussion, and update-release.
 
+### Work Queue Attribution
+
+Safe outputs published under a work queue Claim include the full Work and Claim IDs on a separate blockquote line in the generated footer:
+
+```markdown
+> Work `work-id` · Claim `claim-id`
+```
+
+The IDs come from the trusted per-Claim execution context, not agent-supplied content. In multi-Claim runs, each output references only its own Claim. This line is also appended to custom `messages.footer` templates; `footer: false` hides it along with the rest of the visible footer. Runs without a Claim retain their existing footer.
+
 ### Execution Provenance
 
 Issue, pull request, comment, and discussion bodies also contain an always-on `<!-- gh-aw-execution: JSON -->` marker. Disabling the visible footer or customizing `messages.footer` and `body-footer` does not remove this marker or the existing combined metadata marker. Reserved execution markers in supplied content are replaced with trusted runtime metadata. Publishing fails explicitly if required runtime metadata is missing or invalid.

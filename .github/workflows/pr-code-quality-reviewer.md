@@ -18,7 +18,7 @@ on:
 engine:
   id: copilot
   copilot-sdk: true
-model: copilot/gpt-5.4
+model: copilot/gpt-5
 permissions:
   contents: read
   issues: read
@@ -167,6 +167,8 @@ printf '%s' '{"path":"FILE","line":42,"pull_request_number":123,"body":"COMMENT"
 Each comment must contain one visible sentence stating the issue and its impact, then a `<details><summary>💡 …</summary>` block with explanation, fix snippet, and rationale.
 
 Keep publication commands stdout-only: construct JSON inline with `printf '%s'` and pipe it directly to `safeoutputs`. Do not write temporary payload files, use shell redirection or heredocs, or invoke `jq`, `python`, or `node`; they are not authorized by this workflow. JSON-escape content and shell-quote it correctly without shell expansion. Send each safe-output command separately from analysis commands. Invoke the documented pipeline directly; do not prepend availability probes or other commands.
+
+Encode every apostrophe in JSON string values as `\u0027` before shell single-quoting (for example, `The caller's input` becomes `"body":"The caller\u0027s input"`); never use shell double quotes. Escape control characters as `\n`, `\t`, `\r`, or `\u00XX` for other U+0000-U+001F characters; for example, a two-line body becomes `"body":"First line\nSecond line"` (no raw newline).
 
 **Prioritization** (use your 10-comment budget aggressively):
 1. Correctness, concurrency, and security-adjacent bugs (highest priority, up to 6 comments)

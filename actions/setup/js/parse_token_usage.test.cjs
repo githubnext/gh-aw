@@ -405,13 +405,14 @@ describe("parse_token_usage", () => {
       process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
       process.env.GH_AW_ENGINE_ID = "copilot";
       process.env.GH_AW_ENGINE_MODEL = "gemini-3.8-flash";
-      const selection = { status, configured_model: "gemini-3.8-flash?effort=high", effective_model: effectiveModel };
+      const selection = { status, configured_model: "gemini-3.8-flash", resolved_model: status === "unavailable" ? "" : "gemini-3.8-flash", effective_model: effectiveModel };
+      const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+      fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+      fs.writeFileSync(selectionPath, JSON.stringify(selection));
       fs.writeFileSync(
         path.join(tmpDir, "aw_info.json"),
         JSON.stringify({
-          model: effectiveModel,
-          requested_model: selection.configured_model,
-          model_selection: selection,
+          model: "gemini-3.8-flash",
           ...(fallbackModel ? { fallback_model: fallbackModel } : {}),
         })
       );
@@ -451,6 +452,107 @@ describe("parse_token_usage", () => {
           model_routing: { status: "selected", wire_model: "gemini-3.8-flash" },
         });
       }
+    });
+
+    test("persists Copilot observations without routing or usage telemetry before snapshotting runner metadata", async () => {
+      process.env.GH_AW_TMP_DIR = tmpDir;
+      const infoPath = path.join(tmpDir, "aw_info.json");
+      fs.writeFileSync(infoPath, JSON.stringify({ engine_id: "copilot", model: "auto", workflow_name: "runner-owned" }));
+      const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+      fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+      fs.writeFileSync(selectionPath, JSON.stringify({ status: "observed", configured_model: "auto", resolved_model: "auto", effective_model: "gpt-6.1-sol" }));
+
+      await main();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+        expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).toMatchObject({
+          model: "gpt-6.1-sol",
+          requested_model: "auto",
+          workflow_name: "runner-owned",
+          model_selection: { status: "observed", effective_model: "gpt-6.1-sol" },
+        });
+      }
+    });
+
+    describe("routed Copilot CLI run 39147795806", () => {
+      // Unmodified records from the run's agent artifact (JSON reformatted only).
+      const fixtureDir = path.join(__dirname, "fixtures", "copilot-routed-run-39147795806");
+      const realSelection = fs.readFileSync(path.join(fixtureDir, "copilot-model-selection.json"), "utf8");
+
+      function setupRoutedRun(selectionContent) {
+        process.env.GH_AW_TMP_DIR = tmpDir;
+        process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
+        process.env.GH_AW_ENGINE_ID = "copilot";
+        process.env.GITHUB_STEP_SUMMARY = path.join(tmpDir, "step-summary.md");
+        const proxyLogs = path.join(tmpDir, "sandbox/firewall/logs/api-proxy-logs");
+        fs.mkdirSync(proxyLogs, { recursive: true });
+        fs.mkdirSync(path.join(tmpDir, "agent"), { recursive: true });
+        fs.copyFileSync(path.join(fixtureDir, "aw_info.json"), path.join(tmpDir, "aw_info.json"));
+        fs.copyFileSync(path.join(fixtureDir, "awf-routing-outcome.json"), path.join(tmpDir, "agent/awf-routing-outcome.json"));
+        fs.copyFileSync(path.join(fixtureDir, "model-routing.jsonl"), path.join(proxyLogs, "model-routing.jsonl"));
+        fs.copyFileSync(path.join(fixtureDir, "token-usage.jsonl"), path.join(proxyLogs, "token-usage.jsonl"));
+        const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+        fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+        fs.writeFileSync(selectionPath, selectionContent);
+      }
+
+      function expectRoutingAndUsage() {
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).toMatchObject({
+            engine_id: "copilot",
+            model: "gpt-5.6-luna",
+            requested_model: "auto",
+            model_routing: { status: "selected", wire_model: "gpt-5.6-luna", effort: "max", endpoint: "/responses" },
+          });
+        }
+        const summaryText = originalReadFileSync(path.join(tmpDir, "step-summary.md"), "utf8");
+        expect(summaryText).toContain(DEFAULT_SUMMARY_TITLE);
+        expect(summaryText).toContain("| **Total** | | **95,891** | **1,299** |");
+        expect(JSON.parse(originalReadFileSync(path.join(tmpDir, "agent_usage.json"), "utf8"))).toMatchObject({
+          primary_model: "gpt-5.6-luna",
+          model_routing: { status: "selected", wire_model: "gpt-5.6-luna" },
+        });
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model", "gpt-5.6-luna");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "selected");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("primary_model", "gpt-5.6-luna");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("aic", expect.any(String));
+      }
+
+      test.each([
+        ["the real empty configured_model record", realSelection, "Invalid Copilot model selection"],
+        ["an empty file", "", "Unexpected end of JSON input"],
+        ["malformed JSON", "{", "JSON"],
+      ])("records routing and usage when Copilot model selection persistence fails (%s)", async (_name, selectionContent, diagnostic) => {
+        setupRoutedRun(selectionContent);
+
+        await main();
+
+        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/^ERR_PARSE: Cannot record Copilot model selection: /));
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(diagnostic));
+        expectRoutingAndUsage();
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).not.toHaveProperty("model_selection");
+        }
+      });
+
+      test("persists the corrected routed selection with routing and usage", async () => {
+        setupRoutedRun(JSON.stringify({ ...JSON.parse(realSelection), configured_model: "auto" }));
+
+        await main();
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expectRoutingAndUsage();
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8")).model_selection).toEqual({
+            status: "observed",
+            configured_model: "auto",
+            resolved_model: "gpt-5.6-luna",
+            effective_model: "gpt-5.6-luna",
+          });
+        }
+      });
     });
 
     test("does not trust selected routing from sandbox-writable reflect data", async () => {
@@ -1105,6 +1207,58 @@ describe("parse_token_usage", () => {
       expect(agentUsage.ai_credits).toBe(0);
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "0");
       expect(mockCore.setOutput).toHaveBeenCalledWith("aic", "0");
+    });
+
+    test.each([undefined, 0])("preserves unknown versus reported zero cost through parsing and OTLP export: %s", async reportedAIC => {
+      process.env.GH_AW_TMP_DIR = tmpDir;
+      const tokenUsagePath = path.join(tmpDir, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl");
+      fs.mkdirSync(path.dirname(tokenUsagePath), { recursive: true });
+      fs.writeFileSync(
+        tokenUsagePath,
+        JSON.stringify({
+          model: "unpriced-regression-model",
+          provider: "unknown-provider",
+          input_tokens: 1000,
+          output_tokens: 100,
+          ai_credits_this_response: reportedAIC,
+          ai_credits_total: reportedAIC,
+        })
+      );
+
+      await main(path.join(tmpDir, "missing-session-state"));
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const usageJSON = originalReadFileSync(path.join(tmpDir, "agent_usage.json"), "utf8");
+      const usage = JSON.parse(usageJSON);
+      expect(usage.input_tokens).toBe(1000);
+      if (reportedAIC === undefined) {
+        expect(usage).not.toHaveProperty("ai_credits");
+        expect(mockCore.exportVariable).not.toHaveBeenCalledWith("GH_AW_AIC", expect.anything());
+      } else {
+        expect(usage.ai_credits).toBe(0);
+        expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AIC", "0");
+      }
+
+      const { sendJobConclusionSpan } = require("./send_otlp_span.cjs");
+      vi.stubEnv("INPUT_JOB_NAME", "agent");
+      vi.stubEnv("GH_AW_AIC", "");
+      vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "");
+      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+      const appendSpy = vi.spyOn(fs, "appendFileSync").mockImplementation(() => {});
+      fs.readFileSync = vi.fn(p => {
+        if (p === "/tmp/gh-aw/agent_usage.json") return usageJSON;
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+      try {
+        await sendJobConclusionSpan("gh-aw.agent.conclusion", { startMs: 1_700_000_000_000 });
+        const spans = appendSpy.mock.calls.flatMap(([, content]) => JSON.parse(content).resourceSpans[0].scopeSpans[0].spans);
+        const aicAttributes = spans.flatMap(span => span.attributes).filter(attribute => attribute.key === "gh-aw.aic");
+        expect(aicAttributes).toEqual(reportedAIC === undefined ? [] : [{ key: "gh-aw.aic", value: { doubleValue: 0 } }]);
+      } finally {
+        mkdirSpy.mockRestore();
+        appendSpy.mockRestore();
+        vi.unstubAllEnvs();
+      }
     });
 
     test("surfaces fallback accounting warnings", async () => {

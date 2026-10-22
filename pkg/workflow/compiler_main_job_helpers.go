@@ -11,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 )
 
 // buildMainJobCondition computes the if-condition string for the main agent job.
@@ -51,20 +52,20 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 		depends = []string{string(constants.ActivationJobName)} // Depend on the activation job only if it exists
 	}
 
-	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent
+	// Add custom jobs as dependencies only if they don't depend on pre_activation or agent.
 	// Custom jobs that depend on pre_activation are now dependencies of activation,
 	// so the agent job gets them transitively through activation
 	// Custom jobs that depend on agent should run AFTER the agent job, not before it
-	if data.Jobs != nil {
-		for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
-			// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-			if isBuiltinJobName(jobName) {
-				continue
-			}
-			if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
-				if !jobDependsOnPreActivation(configMap) && !jobDependsOnAgent(configMap) {
-					depends = append(depends, jobName)
-				}
+	graph := aw.AuthoredJobDependencies(data.Jobs)
+	for _, jobName := range sliceutil.SortedKeys(data.Jobs) {
+		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
+		if isBuiltinJobName(jobName) {
+			continue
+		}
+		if configMap, ok := data.Jobs[jobName].(map[string]any); ok {
+			beforeActivation := jobDependsOnPreActivation(configMap) && !jobDependsOnActivation(configMap)
+			if !beforeActivation && !graph.DependsOn(jobName, string(constants.AgentJobName)) {
+				depends = append(depends, jobName)
 			}
 		}
 	}
@@ -95,8 +96,8 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
-		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-		if isBuiltinJobName(jobName) {
+		// References cannot make post-agent jobs available before the agent.
+		if isBuiltinJobName(jobName) || graph.DependsOn(jobName, string(constants.AgentJobName)) {
 			continue
 		}
 		if !slices.Contains(depends, jobName) {
@@ -251,6 +252,7 @@ func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 	// The checkout-pr step is only generated when the workflow has contents read permission
 	if ShouldGeneratePRCheckoutStep(data) {
 		outputs["checkout_pr_success"] = "${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}"
+		outputs["checkout_pr_invalidated"] = "${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}"
 		compilerMainJobLog.Print("Added checkout_pr_success output (workflow has contents read access)")
 	} else {
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
@@ -431,14 +433,6 @@ func augmentPermissionsForLedger(data *WorkflowData, permissions string) string 
 		return filterJobLevelPermissions(parsed.RenderToYAML())
 	}
 	return permissions
-}
-
-func operationalValueGraderEnabled(data *WorkflowData) bool {
-	if data == nil || data.Graders == nil {
-		return false
-	}
-	grader, ok := data.Graders.Graders["operational-value"]
-	return ok && (grader.Enabled == nil || *grader.Enabled)
 }
 
 // augmentPermissionsForDevMode adds contents: read to permissions when the compiler is in

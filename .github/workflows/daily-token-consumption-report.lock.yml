@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"0ccfded6808f33c8308b2697dc2c77cfbc6f0375d4706652aba79797c5e78f36","body_hash":"7bc979c612dec3cd18ab6f71397c40755d81781b925073d45fa8edeba005f3f5","strict":true,"agent_id":"goose","agent_model":"copilot/claude-sonnet-5","engine_versions":{"goose":"1.54.0"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","GRAFANA_SERVICE_ACCOUNT_TOKEN","GRAFANA_URL","SENTRY_ACCESS_TOKEN","SENTRY_OPENAI_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.59","digest":"sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.59@sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59","digest":"sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59@sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.59","digest":"sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.59@sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.33","digest":"sha256:2b278f891b4566d27494658b37f628810f93da4caf510e266892ca344e55f8e0","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.33@sha256:2b278f891b4566d27494658b37f628810f93da4caf510e266892ca344e55f8e0"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"},{"image":"grafana/mcp-grafana:1.1.0-alpine","digest":"sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4","pinned_image":"grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4"},{"image":"node:lts-alpine","digest":"sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1","pinned_image":"node:lts-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"grafana","tools":["get_datasource","list_datasources","tempo_docs-traceql","tempo_get-attribute-names","tempo_get-attribute-values","tempo_get-trace","tempo_traceql-search"]},{"name":"safeoutputs","tools":["create_discussion","missing_data","missing_tool","noop","report_incomplete"]},{"name":"sentry","tools":["analyze_issue_with_seer","find_dsns","find_organizations","find_projects","find_releases","find_teams","get_doc","get_event_attachment","get_issue_details","get_trace_details","list_events","list_issue_events","search_docs","search_events","search_issues","whoami"]},{"name":"work-queue","tools":["work_queue_claim_finish","work_queue_dispatch_next","work_queue_explain","work_queue_read","work_queue_submit"]}],"threat_detection":{"mode":"enabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"690873af2c0d3fae44241eb1981c1e927323a78bc9b9cd681b02d9cb497cbcfb","body_hash":"a477d21f047a73cf490c97aa8abbf687574d4d404d2f3256174b8225b0af7c53","strict":true,"agent_id":"goose","agent_model":"copilot/claude-sonnet-5","engine_versions":{"goose":"1.54.0"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","GRAFANA_SERVICE_ACCOUNT_TOKEN","GRAFANA_URL","SENTRY_ACCESS_TOKEN","SENTRY_OPENAI_API_KEY"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.70","digest":"sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70","digest":"sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.70","digest":"sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.36","digest":"sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382","pinned_image":"ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"},{"image":"grafana/mcp-grafana:1.1.0-alpine","digest":"sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4","pinned_image":"grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4"},{"image":"node:lts-alpine","digest":"sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1","pinned_image":"node:lts-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"grafana","tools":["get_datasource","list_datasources","tempo_docs-traceql","tempo_get-attribute-names","tempo_get-attribute-values","tempo_get-trace","tempo_traceql-search"]},{"name":"safeoutputs","tools":["create_discussion","noop","report_incomplete","report_missing_data","report_missing_tool"]},{"name":"sentry","tools":["analyze_issue_with_seer","find_dsns","find_organizations","find_projects","find_releases","find_teams","get_doc","get_event_attachment","get_issue_details","get_trace_details","list_events","list_issue_events","search_docs","search_events","search_issues","whoami"]},{"name":"work-queue","tools":["work_queue_claim_finish","work_queue_dispatch_next","work_queue_explain","work_queue_read","work_queue_submit"]}],"threat_detection":{"mode":"enabled"},"admission":true}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -57,11 +57,11 @@
 #   - actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
 #
 # Container images used:
-#   - ghcr.io/github/gh-aw-firewall/agent:0.28.59@sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291
-#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59@sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2
-#   - ghcr.io/github/gh-aw-firewall/squid:0.28.59@sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0
-#   - ghcr.io/github/gh-aw-mcpg:v0.4.33@sha256:2b278f891b4566d27494658b37f628810f93da4caf510e266892ca344e55f8e0
-#   - ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f
+#   - ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34
+#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a
+#   - ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917
+#   - ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2
+#   - ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382
 #   - ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796
 #   - grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4
 #   - node:lts-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
@@ -101,6 +101,8 @@ env:
 jobs:
   activation:
     name: activation
+    needs: admission
+    if: (!cancelled()) && (needs.admission.result == 'success' || needs.admission.result == 'skipped')
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
@@ -108,9 +110,14 @@ jobs:
       contents: write
       issues: write
     env:
+      GH_AW_ADMISSION_RESULT: ${{ needs.admission.outputs.result }}
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
+      admission-max-ai-credits: ${{ needs.admission.outputs.max-ai-credits }}
+      admission-max-ai-credits-evals: ${{ needs.admission.outputs.max-ai-credits-evals }}
+      admission-max-ai-credits-threat-detection: ${{ needs.admission.outputs.max-ai-credits-threat-detection }}
+      admission-result: ${{ needs.admission.outputs.result }}
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
       comment_id: ""
       comment_repo: ""
@@ -145,6 +152,7 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
+          trace-id: ${{ needs.admission.outputs.trace-id }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
@@ -163,6 +171,7 @@ jobs:
           GH_AW_INFO_VERSION: "1.54.0"
           GH_AW_INFO_AGENT_VERSION: "1.54.0"
           GH_AW_INFO_WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GH_AW_INFO_EXPERIMENTAL: "true"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -172,6 +181,8 @@ jobs:
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
+          GH_AW_INFO_MODEL_CONFIG: '{"routing":{"enabled":false},"models":{"allowed":[],"blocked":[]},"max_ai_credits_source":"default"}'
+          GH_AW_INFO_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_INFO_FRONTMATTER_EMOJI: "📊"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_MODEL_COSTS: '{"providers":{"github-copilot":{"models":{"claude-sonnet-5":{"cost":{"cache_read":"2e-07","cache_write":"2.5e-06","input":"2e-06","output":"1e-05"}}}}}}'
@@ -187,7 +198,7 @@ jobs:
             await main(core, context);
       - name: Restore daily AIC scan observations
         id: restore-daily-aic-cache-fallback
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_HAS_SLASH_COMMAND: "false"
@@ -203,7 +214,7 @@ jobs:
             await main();
       - name: Check daily workflow token guardrail
         id: daily-ai-credits-workflow-guardrail
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
@@ -225,7 +236,7 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_daily_aic_workflow_guardrail.cjs'));
             await main();
       - name: Publish daily AIC scan observations
-        if: always() && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
+        if: always() && env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -294,7 +305,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_discussion, missing_tool, missing_data, noop(max:2)\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_discussion, report_missing_tool, report_missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_7C248226__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_C19C384F__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_76DF9333__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_77C1A4D2__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
@@ -443,10 +454,60 @@ jobs:
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '1' }}
 
+  admission:
+    name: admission
+    if: vars.GH_AW_DEFAULT_ADMISSION_URL != ''
+    runs-on: ubuntu-slim
+    # Permissions for the admission job (workflow permissions default to none).
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 5
+    outputs:
+      max-ai-credits: ${{ steps.admission.outputs.max-ai-credits }}
+      max-ai-credits-evals: ${{ steps.admission.outputs.max-ai-credits-evals }}
+      max-ai-credits-threat-detection: ${{ steps.admission.outputs.max-ai-credits-threat-detection }}
+      result: ${{ steps.admission.outputs.result }}
+      trace-id: ${{ steps.admission.outputs.trace-id }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          fetch-depth: 1
+          clean: false
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/unknown.lock.yml@${{ github.ref }}
+      - name: Check workflow admission
+        id: admission
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "690873af2c0d3fae44241eb1981c1e927323a78bc9b9cd681b02d9cb497cbcfb:a477d21f047a73cf490c97aa8abbf687574d4d404d2f3256174b8225b0af7c53"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
+
   agent:
     name: agent
     needs: activation
-    if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
+    if: >
+      ((!cancelled()) && needs.activation.result == 'success') && (needs.activation.outputs.daily_ai_credits_exceeded != 'true')
     runs-on: ubuntu-latest
     # Permissions for the agent job (workflow permissions default to none).
     permissions:
@@ -480,6 +541,7 @@ jobs:
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-token-usage.outputs.aic }}
       ambient_context: ${{ steps.parse-token-usage.outputs.ambient_context }}
+      checkout_pr_invalidated: ${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ needs.activation.outputs.model }}
@@ -594,7 +656,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.59 --rootless
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.70 --rootless
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -623,7 +685,7 @@ jobs:
           GH_AW_SKILL_DIR: ".goose/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.59@sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59@sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2 ghcr.io/github/gh-aw-firewall/squid:0.28.59@sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0 ghcr.io/github/gh-aw-mcpg:v0.4.33@sha256:2b278f891b4566d27494658b37f628810f93da4caf510e266892ca344e55f8e0 ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796 grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4 node:lts-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917 ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2 ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382 ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796 grafana/mcp-grafana:1.1.0-alpine@sha256:e0eb29cdf8effbbebf115ea99a5f654a44681dfd293661b0991498d651ca6cb4 node:lts-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
       - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -634,7 +696,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[token-consumption] \"},\"create_report_incomplete_issue\":{},\"mentions\":{\"enabled\":false},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[token-consumption] \"},\"create_report_incomplete_issue\":{},\"mentions\":{\"enabled\":false},\"noop\":{\"max\":2,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{}}"
         with:
           script: |
             const path = require('path');
@@ -675,6 +737,10 @@ jobs:
                     "type": "string",
                     "maxLength": 256
                   },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
                   "title": {
                     "required": true,
                     "type": "string",
@@ -685,52 +751,6 @@ jobs:
               },
               "mentions": {
                 "enabled": false
-              },
-              "missing_data": {
-                "defaultMax": 20,
-                "fields": {
-                  "alternatives": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "context": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "data_type": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128
-                  },
-                  "reason": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  }
-                }
-              },
-              "missing_tool": {
-                "defaultMax": 20,
-                "fields": {
-                  "alternatives": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 512
-                  },
-                  "reason": {
-                    "required": true,
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 256
-                  },
-                  "tool": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128
-                  }
-                }
               },
               "noop": {
                 "defaultMax": 2,
@@ -756,6 +776,52 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
+                  }
+                }
+              },
+              "report_missing_data": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "context": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "data_type": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  },
+                  "reason": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  }
+                }
+              },
+              "report_missing_tool": {
+                "defaultMax": 20,
+                "fields": {
+                  "alternatives": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 512
+                  },
+                  "reason": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "tool": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
                   }
                 }
               }
@@ -839,10 +905,10 @@ jobs:
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_TARGET_REPO_SLUG -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e GRAFANA_SERVICE_ACCOUNT_TOKEN -e GRAFANA_URL -e SENTRY_ACCESS_TOKEN -e SENTRY_HOST -e SENTRY_OPENAI_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.33@sha256:2b278f891b4566d27494658b37f628810f93da4caf510e266892ca344e55f8e0'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_TARGET_REPO_SLUG -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e GRAFANA_SERVICE_ACCOUNT_TOKEN -e GRAFANA_URL -e SENTRY_ACCESS_TOKEN -e SENTRY_HOST -e SENTRY_OPENAI_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2'
 
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_1a467fced1a71376_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_9fcb73520504e272_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -892,7 +958,7 @@ jobs:
                 }
               },
               "safeoutputs": {
-                "container": "ghcr.io/github/gh-aw-node",
+                "container": "ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382",
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro"],
                 "args": ["-w", "\${GITHUB_WORKSPACE}"],
                 "entrypoint": "sh",
@@ -974,7 +1040,7 @@ jobs:
                 }
               },
               "work-queue": {
-                "container": "ghcr.io/github/gh-aw-node",
+                "container": "ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382",
                 "mounts": ["${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro", "/tmp/gh-aw/work-queue.snapshot.json:/tmp/gh-aw/work-queue.snapshot.json:ro", "${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:${RUNNER_TEMP}/gh-aw/safeoutputs/work-queue:rw"],
                 "env": {
                   "RUNNER_TEMP": "\${RUNNER_TEMP}",
@@ -998,7 +1064,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_1a467fced1a71376_EOF
+          GH_AW_MCP_CONFIG_9fcb73520504e272_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1202,7 +1268,23 @@ jobs:
           if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
             GH_AW_MAX_AI_CREDITS="1000"
           fi
-          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.59/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"*.githubusercontent.com\",\"*.grafana.net\",\"*.sentry.io\",\"api.github.com\",\"api.githubcopilot.com\",\"api.npms.io\",\"api.snapcraft.io\",\"archive.ubuntu.com\",\"azure.archive.ubuntu.com\",\"bun.sh\",\"cdn.jsdelivr.net\",\"codeload.github.com\",\"crl.geotrust.com\",\"crl.globalsign.com\",\"crl.identrust.com\",\"crl.sectigo.com\",\"crl.thawte.com\",\"crl.usertrust.com\",\"crl.verisign.com\",\"crl3.digicert.com\",\"crl4.digicert.com\",\"crls.ssl.com\",\"deb.nodesource.com\",\"deno.land\",\"docs.github.com\",\"esm.sh\",\"get.pnpm.io\",\"github-cloud.githubusercontent.com\",\"github-cloud.s3.amazonaws.com\",\"github.blog\",\"github.com\",\"github.githubassets.com\",\"googleapis.deno.dev\",\"googlechromelabs.github.io\",\"host.docker.internal\",\"json-schema.org\",\"json.schemastore.org\",\"jsr.io\",\"keyserver.ubuntu.com\",\"lfs.github.com\",\"nodejs.org\",\"npm.pkg.github.com\",\"npmjs.com\",\"npmjs.org\",\"objects.githubusercontent.com\",\"ocsp.digicert.com\",\"ocsp.geotrust.com\",\"ocsp.globalsign.com\",\"ocsp.identrust.com\",\"ocsp.sectigo.com\",\"ocsp.ssl.com\",\"ocsp.thawte.com\",\"ocsp.usertrust.com\",\"ocsp.verisign.com\",\"packagecloud.io\",\"packages.cloud.google.com\",\"packages.microsoft.com\",\"patch-diff.githubusercontent.com\",\"patchdiff.githubusercontent.com\",\"ppa.launchpad.net\",\"raw.githubusercontent.com\",\"registry.bower.io\",\"registry.npmjs.com\",\"registry.npmjs.org\",\"registry.yarnpkg.com\",\"repo.yarnpkg.com\",\"s.symcb.com\",\"s.symcd.com\",\"security.ubuntu.com\",\"skimdb.npmjs.com\",\"storage.googleapis.com\",\"telemetry.vercel.com\",\"ts-crl.ws.symantec.com\",\"ts-ocsp.ws.symantec.com\",\"www.googleapis.com\",\"www.npmjs.com\",\"www.npmjs.org\",\"yarnpkg.com\"],\"isolation\":true,\"topologyAttach\":[\"awmg-mcpg\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mai-code-1-flash-picker\":[\"copilot/MAI-Code-1-Flash-picker*\",\"copilot/mai-code-1-flash-picker*\",\"openai/MAI-Code-1-Flash-picker*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.59,squid=sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0,agent=sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291,api-proxy=sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2,cli-proxy=sha256:c95928680eb65a5257b45370af0b79c04224d2a37a508b6401d552914aaf8dbe\",\"agentTimeout\":30},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -z "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            echo "ERR_ADMISSION: Missing required runtime admission allowance." >&2
+            exit 1
+          fi
+
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+              echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+              exit 1
+            fi
+            GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+            echo "Admission allowance applied (value withheld)."
+          else
+            echo "No component admission allowance; retaining existing budget policy (value withheld)."
+          fi
+          unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.70/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"*.githubusercontent.com\",\"*.grafana.net\",\"*.sentry.io\",\"api.github.com\",\"api.githubcopilot.com\",\"api.npms.io\",\"api.snapcraft.io\",\"archive.ubuntu.com\",\"azure.archive.ubuntu.com\",\"bun.sh\",\"cdn.jsdelivr.net\",\"codeload.github.com\",\"crl.geotrust.com\",\"crl.globalsign.com\",\"crl.identrust.com\",\"crl.sectigo.com\",\"crl.thawte.com\",\"crl.usertrust.com\",\"crl.verisign.com\",\"crl3.digicert.com\",\"crl4.digicert.com\",\"crls.ssl.com\",\"deb.nodesource.com\",\"deno.land\",\"docs.github.com\",\"esm.sh\",\"get.pnpm.io\",\"github-cloud.githubusercontent.com\",\"github-cloud.s3.amazonaws.com\",\"github.blog\",\"github.com\",\"github.githubassets.com\",\"googleapis.deno.dev\",\"googlechromelabs.github.io\",\"host.docker.internal\",\"json-schema.org\",\"json.schemastore.org\",\"jsr.io\",\"keyserver.ubuntu.com\",\"lfs.github.com\",\"nodejs.org\",\"npm.pkg.github.com\",\"npmjs.com\",\"npmjs.org\",\"objects.githubusercontent.com\",\"ocsp.digicert.com\",\"ocsp.geotrust.com\",\"ocsp.globalsign.com\",\"ocsp.identrust.com\",\"ocsp.sectigo.com\",\"ocsp.ssl.com\",\"ocsp.thawte.com\",\"ocsp.usertrust.com\",\"ocsp.verisign.com\",\"packagecloud.io\",\"packages.cloud.google.com\",\"packages.microsoft.com\",\"patch-diff.githubusercontent.com\",\"patchdiff.githubusercontent.com\",\"ppa.launchpad.net\",\"raw.githubusercontent.com\",\"registry.bower.io\",\"registry.npmjs.com\",\"registry.npmjs.org\",\"registry.yarnpkg.com\",\"release-assets.githubusercontent.com\",\"repo.yarnpkg.com\",\"s.symcb.com\",\"s.symcd.com\",\"security.ubuntu.com\",\"skimdb.npmjs.com\",\"storage.googleapis.com\",\"telemetry.vercel.com\",\"ts-crl.ws.symantec.com\",\"ts-ocsp.ws.symantec.com\",\"www.googleapis.com\",\"www.npmjs.com\",\"www.npmjs.org\",\"yarnpkg.com\"],\"isolation\":true,\"topologyAttach\":[\"awmg-mcpg\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.70,squid=sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917,agent=sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34,api-proxy=sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a,cli-proxy=sha256:372ac51a5cccffdfe484f3f7be427d2d1c566e8ae550d55bd45d9fd166a154b4\",\"agentTimeout\":30},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1225,6 +1307,8 @@ jobs:
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
           GH_AW_ENGINE_VERSION: 1.54.0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
@@ -1489,6 +1573,7 @@ jobs:
     name: conclusion
     needs:
       - activation
+      - admission
       - agent
       - detection
       - evals
@@ -1506,15 +1591,18 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"evals\":\"evals\",\"push_evals_state\":\"push_evals_state\",\"safe_outputs\":\"safe_outputs\"}"
-      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"evals\":{\"result\":\"${{ needs.evals.result }}\"},\"push_evals_state\":{\"result\":\"${{ needs.push_evals_state.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"evals\":true,\"push_evals_state\":true,\"safe_outputs\":true}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"admission\":\"admission\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"conclusion_admission\":\"conclusion_admission\",\"detection\":\"detection\",\"evals\":\"evals\",\"push_evals_state\":\"push_evals_state\",\"safe_outputs\":\"safe_outputs\"}"
+      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"admission\":{\"result\":\"${{ needs.admission.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"evals\":{\"result\":\"${{ needs.evals.result }}\"},\"push_evals_state\":{\"result\":\"${{ needs.push_evals_state.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"}}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"admission\":true,\"agent\":true,\"conclusion\":true,\"conclusion_admission\":true,\"detection\":true,\"evals\":true,\"push_evals_state\":true,\"safe_outputs\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
+      admission_compact_session: ${{ steps.admission-conclusion-metadata.outputs.compact_session }}
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
       noop_message: ${{ steps.noop.outputs.noop_message }}
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
+      usage_artifact_id: ${{ steps.upload-usage-artifact.outputs.artifact-id }}
+      usage_artifact_retry_id: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1584,6 +1672,22 @@ jobs:
           pattern: evals
           merge-multiple: true
           path: /tmp/gh-aw/evals/
+      - name: Terminate work queue worker
+        id: worker_termination
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_WORK_QUEUE_ENABLED: "true"
+          GH_AW_WORK_QUEUE_ROLE: "worker"
+          GH_AW_WORK_QUEUE_ISSUES: "{\"label\":\"work\"}"
+          GH_AW_WORK_QUEUE_CHECKED_TRANSPORT: "graphql"
+          GH_AW_WORK_QUEUE_CONTRACT: "9dd049e2aee21f810fa7be4da3abee1a659f5b063a23416f1da344df7766a6a2"
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { main } = require(path.join(actionsDir, 'reconcile_work_queue_run.cjs'));
+            await main({ core, githubClient: github, context });
       - name: Project this run's work queue Issues
         id: work_queue_issues
         if: always()
@@ -1601,7 +1705,8 @@ jobs:
             const path = require('path');
             const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
             const { main } = require(path.join(actionsDir, 'work_queue_issues.cjs'));
-            await main({ core, githubClient: github, context });
+            const result = await main({ core, githubClient: github, context });
+            if (result.pending?.length) core.setFailed('Work queue is committed; Issue synchronization remains pending. Inspect the exact terminal request before using work-queue sync-issues --request-id.');
       - name: Download activation artifact for work queue summary
         if: always()
         continue-on-error: true
@@ -1621,6 +1726,7 @@ jobs:
             await main({ core, githubClient: github, context, snapshotPath: '${{ runner.temp }}/gh-aw-activation/work-queue.snapshot.json' });
       - name: Log detection run
         id: detection_runs
+        if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
@@ -1639,6 +1745,169 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'handle_detection_runs.cjs'));
             await main();
+      - name: Collect usage artifact files
+        if: always()
+        continue-on-error: true
+        env:
+          GH_AW_DETECTION_JOB_RESULT: ${{ needs.detection.result }}
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
+          GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/collect_usage_artifact_files.sh"
+      - name: Generate usage activity summary and unified session
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}
+          GH_AW_GRADER_MANIFEST_0: '{"version":2,"graders":[]}'
+          GH_AW_GRADER_MANIFEST_CHUNKS: '1'
+          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}
+          GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}
+          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}
+          GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}
+          GH_AW_DAILY_AI_CREDITS_ESTIMATED: ${{ needs.activation.outputs.daily_ai_credits_estimated }}
+          GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'generate_usage_artifacts.cjs'));
+            await main();
+      - name: Prepare admission conclusion metadata
+        id: admission-conclusion-metadata
+        if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('node:path');
+            const { readCompactUnifiedSession } = require(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'compact_unified_session.cjs'));
+            const compact = readCompactUnifiedSession('/tmp/gh-aw/usage/aw_session.jsonl');
+            core.setOutput('compact_session', JSON.stringify({ version: compact.version, session: compact.session, included_events: compact.includedEvents, omitted_events: compact.omittedEvents, oversized_lines: compact.oversizedLines, scan_truncated: compact.scanTruncated, truncated: compact.truncated }));
+      - name: Upload usage artifact
+        id: upload-usage-artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: usage
+          path: |
+            /tmp/gh-aw/usage/aw_session.jsonl
+            /tmp/gh-aw/usage/aw_info.json
+            /tmp/gh-aw/usage/aw-info.jsonl
+            /tmp/gh-aw/usage/agent_usage.json
+            /tmp/gh-aw/usage/agent_usage.jsonl
+            /tmp/gh-aw/usage/detection_usage.jsonl
+            /tmp/gh-aw/usage/evals.jsonl
+            /tmp/gh-aw/usage/graders/grader_manifest.json
+            /tmp/gh-aw/usage/graders/grader_results.json
+            /tmp/gh-aw/usage/github_rate_limits.jsonl
+            /tmp/gh-aw/usage/agent/token_usage.jsonl
+            /tmp/gh-aw/usage/agent/model-routing.jsonl
+            /tmp/gh-aw/usage/agent/execution.json
+            /tmp/gh-aw/usage/detection/token_usage.jsonl
+            /tmp/gh-aw/usage/detection/execution.json
+            /tmp/gh-aw/usage/detection/detection_result.json
+            /tmp/gh-aw/usage/evals/token_usage.jsonl
+            /tmp/gh-aw/usage/evals/execution.json
+            /tmp/gh-aw/usage/experiment/state.jsonl
+            /tmp/gh-aw/usage/experiment/state.json
+            /tmp/gh-aw/usage/experiment/assignments.json
+            /tmp/gh-aw/usage/activity/summary.json
+          if-no-files-found: ignore
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+      - name: Wait before retrying usage artifact upload
+        if: always() && steps.upload-usage-artifact.outcome == 'failure'
+        run: sleep 10
+      - name: Retry upload usage artifact
+        id: upload-usage-artifact-retry
+        if: always() && steps.upload-usage-artifact.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: usage
+          path: |
+            /tmp/gh-aw/usage/aw_session.jsonl
+            /tmp/gh-aw/usage/aw_info.json
+            /tmp/gh-aw/usage/aw-info.jsonl
+            /tmp/gh-aw/usage/agent_usage.json
+            /tmp/gh-aw/usage/agent_usage.jsonl
+            /tmp/gh-aw/usage/detection_usage.jsonl
+            /tmp/gh-aw/usage/evals.jsonl
+            /tmp/gh-aw/usage/graders/grader_manifest.json
+            /tmp/gh-aw/usage/graders/grader_results.json
+            /tmp/gh-aw/usage/github_rate_limits.jsonl
+            /tmp/gh-aw/usage/agent/token_usage.jsonl
+            /tmp/gh-aw/usage/agent/model-routing.jsonl
+            /tmp/gh-aw/usage/agent/execution.json
+            /tmp/gh-aw/usage/detection/token_usage.jsonl
+            /tmp/gh-aw/usage/detection/execution.json
+            /tmp/gh-aw/usage/detection/detection_result.json
+            /tmp/gh-aw/usage/evals/token_usage.jsonl
+            /tmp/gh-aw/usage/evals/execution.json
+            /tmp/gh-aw/usage/experiment/state.jsonl
+            /tmp/gh-aw/usage/experiment/state.json
+            /tmp/gh-aw/usage/experiment/assignments.json
+            /tmp/gh-aw/usage/activity/summary.json
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+
+  conclusion_admission:
+    name: conclusion_admission
+    needs: conclusion
+    if: always() && needs.conclusion.result != 'skipped' && vars.GH_AW_DEFAULT_ADMISSION_URL != ''
+    runs-on: ubuntu-slim
+    # Permissions for the conclusion_admission job (workflow permissions default to none).
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 5
+    env:
+      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          fetch-depth: 1
+          clean: false
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/unknown.lock.yml@${{ github.ref }}
+      - name: Report admission conclusion
+        if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "690873af2c0d3fae44241eb1981c1e927323a78bc9b9cd681b02d9cb497cbcfb:a477d21f047a73cf490c97aa8abbf687574d4d404d2f3256174b8225b0af7c53"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          GH_AW_ADMISSION_COMPACT_SESSION: ${{ needs.conclusion.outputs.admission_compact_session }}
+          GH_AW_USAGE_ARTIFACT_ID: ${{ needs.conclusion.outputs.usage_artifact_id }}
+          GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ needs.conclusion.outputs.usage_artifact_retry_id }}
+        with:
+          script: |
+            const { setupGlobals } = require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'conclusion_admission.cjs')).main(core);
 
   detection:
     name: detection
@@ -1659,6 +1928,7 @@ jobs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
+      run_detection: ${{ steps.detection_guard.outputs.run_detection }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1725,7 +1995,7 @@ jobs:
           rm -rf /tmp/gh-aw/sandbox/firewall/logs
           rm -rf /tmp/gh-aw/sandbox/firewall/audit
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.59@sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59@sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2 ghcr.io/github/gh-aw-firewall/squid:0.28.59@sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917
       - name: Check if detection needed
         id: detection_guard
         if: always()
@@ -1774,7 +2044,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.59 --rootless
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.70 --rootless
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -1785,6 +2055,7 @@ jobs:
         env:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
+          GH_AW_COPILOT_MIN_VERSION: 1.0.35
       - name: Install threat-detect binary
         id: threat_detect_install
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
@@ -1801,11 +2072,14 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
-          COPILOT_MODEL: detection
+          COPILOT_MODEL: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'detection' }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
           GH_AW_HARNESS_MAX_RETRIES: 0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
+          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'auto' }}
           GH_AW_PHASE: detection
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_TIMEOUT_MINUTES: 10
@@ -1856,7 +2130,19 @@ jobs:
           if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
             GH_AW_MAX_AI_CREDITS="400"
           fi
-          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.59/awf-config.schema.json\",\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mai-code-1-flash-picker\":[\"copilot/MAI-Code-1-Flash-picker*\",\"copilot/mai-code-1-flash-picker*\",\"openai/MAI-Code-1-Flash-picker*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.59,squid=sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0,agent=sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291,api-proxy=sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2,cli-proxy=sha256:c95928680eb65a5257b45370af0b79c04224d2a37a508b6401d552914aaf8dbe\",\"agentTimeout\":10},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+              echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+              exit 1
+            fi
+            GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+            echo "Admission allowance applied (value withheld)."
+          else
+            echo "No component admission allowance; retaining existing budget policy (value withheld)."
+          fi
+          unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.70/awf-config.schema.json\",\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.70,squid=sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917,agent=sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34,api-proxy=sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a,cli-proxy=sha256:372ac51a5cccffdfe484f3f7be427d2d1c566e8ae550d55bd45d9fd166a154b4\",\"agentTimeout\":10},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1877,18 +2163,6 @@ jobs:
           # shellcheck disable=SC1003,SC2016,SC2086
           awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GH_AW_OTLP_ALL_HEADERS --exclude-env GH_AW_OTLP_ENDPOINTS --exclude-env OTEL_EXPORTER_OTLP_ENDPOINT --exclude-env OTEL_EXPORTER_OTLP_HEADERS --mount /tmp/gh-aw:/tmp/gh-aw:rw --mount /tmp/gh-aw/threat-detection:/tmp/gh-aw/threat-detection:rw --log-level info --session-state-dir /tmp/gh-aw/sandbox/agent/session-state --skip-pull \
             -- /bin/bash -c 'set +o histexpand; export PATH="${RUNNER_TEMP}/gh-aw/bin:$PATH" && : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; GH_AW_TOOL_BINS="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr "\n" ":")"; GH_AW_TOOL_BINS="${GH_AW_TOOL_BINS%:}"; export PATH="$PATH${GH_AW_TOOL_BINS:+:}$GH_AW_TOOL_BINS"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && threat-detect --engine copilot --output /tmp/gh-aw/threat-detection/detection_result.json /tmp/gh-aw/threat-detection' 2>&1 | tee -a /tmp/gh-aw/threat-detection/detection.log
-      - name: Render detection log
-        if: always() && steps.detection_guard.outputs.run_detection == 'true'
-        continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'render_detection_log.cjs'));
-            await main();
       - name: Copy detection firewall logs
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         continue-on-error: true
@@ -1896,9 +2170,28 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall
           if [ -d /tmp/gh-aw/sandbox/firewall/logs ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/logs && cp -r /tmp/gh-aw/sandbox/firewall/logs/. /tmp/gh-aw/threat-detection/sandbox/firewall/logs/; fi
           if [ -d /tmp/gh-aw/sandbox/firewall/audit ]; then mkdir -p /tmp/gh-aw/threat-detection/sandbox/firewall/audit && cp -r /tmp/gh-aw/sandbox/firewall/audit/. /tmp/gh-aw/threat-detection/sandbox/firewall/audit/; fi
+      - name: Redact secrets in detection logs
+        id: redact_detection_logs
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_SECRET_NAMES: 'GH_AW_OTEL_GRAFANA_AUTHORIZATION,GH_AW_OTEL_GRAFANA_ENDPOINT,GH_AW_OTEL_SENTRY_AUTHORIZATION,GH_AW_OTEL_SENTRY_ENDPOINT'
+          SECRET_GH_AW_OTEL_GRAFANA_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+          SECRET_GH_AW_OTEL_GRAFANA_ENDPOINT: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
+          SECRET_GH_AW_OTEL_SENTRY_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+          SECRET_GH_AW_OTEL_SENTRY_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'redact_secrets.cjs'));
+            const { persistDetectionMasks } = require(path.join(actionsDir, 'detection_mask_state.cjs'));
+            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"], persistDetectionMasks });
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
-        if: always()
+        if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success'
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -1915,8 +2208,39 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'parse_token_usage.cjs'));
             await main();
+      - name: Redact secrets in detection artifacts
+        id: redact_detection_artifacts
+        if: always() && steps.detection_guard.outputs.run_detection == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_SECRET_NAMES: 'GH_AW_OTEL_GRAFANA_AUTHORIZATION,GH_AW_OTEL_GRAFANA_ENDPOINT,GH_AW_OTEL_SENTRY_AUTHORIZATION,GH_AW_OTEL_SENTRY_ENDPOINT'
+          SECRET_GH_AW_OTEL_GRAFANA_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+          SECRET_GH_AW_OTEL_GRAFANA_ENDPOINT: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
+          SECRET_GH_AW_OTEL_SENTRY_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+          SECRET_GH_AW_OTEL_SENTRY_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'redact_secrets.cjs'));
+            const { persistDetectionMasks } = require(path.join(actionsDir, 'detection_mask_state.cjs'));
+            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"], persistDetectionMasks });
+      - name: Render detection log
+        if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            const { main } = require(path.join(actionsDir, 'render_detection_log.cjs'));
+            await main();
       - name: Upload threat detection artifact
-        if: always()
+        if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: detection
@@ -1931,7 +2255,7 @@ jobs:
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
       - name: Conclude threat detection
         id: detection_conclusion
-        if: always()
+        if: always() && steps.detection_guard.outputs.run_detection == 'false' || (always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success')
         continue-on-error: true
         env:
           RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}
@@ -1940,6 +2264,14 @@ jobs:
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
+      - name: Upload skipped detection execution evidence
+        if: always() && steps.detection_guard.outputs.run_detection == 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: detection
+          path: /tmp/gh-aw/threat-detection/execution.json
+          if-no-files-found: ignore
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
 
   evals:
     name: evals
@@ -2011,7 +2343,7 @@ jobs:
           rm -rf /tmp/gh-aw/sandbox/firewall/logs
           rm -rf /tmp/gh-aw/sandbox/firewall/audit
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.59@sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.59@sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2 ghcr.io/github/gh-aw-firewall/squid:0.28.59@sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917
       - name: Prepare evals files
         run: |
           mkdir -p /tmp/gh-aw/evals
@@ -2043,7 +2375,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.59 --rootless
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.70 --rootless
       - name: Write Goose harness script
         if: always()
         continue-on-error: true
@@ -2216,7 +2548,19 @@ jobs:
           if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
             GH_AW_MAX_AI_CREDITS="400"
           fi
-          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.59/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"api.github.com\",\"api.githubcopilot.com\",\"github.com\",\"host.docker.internal\",\"objects.githubusercontent.com\",\"raw.githubusercontent.com\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mai-code-1-flash-picker\":[\"copilot/MAI-Code-1-Flash-picker*\",\"copilot/mai-code-1-flash-picker*\",\"openai/MAI-Code-1-Flash-picker*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.59,squid=sha256:e815a456d6050564666cb2a8bb04ff11a4babc2bfa746d611e895b87e59f9af0,agent=sha256:63a1cba05e97ede7fc08cc8abb91167045c998d4415433e9c87377e9266ec291,api-proxy=sha256:f3d7842f34ff1778ac024a8918519b12436d6437b82d6d1d8cee1d01b2ac87e2,cli-proxy=sha256:c95928680eb65a5257b45370af0b79c04224d2a37a508b6401d552914aaf8dbe\",\"agentTimeout\":30},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+              echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+              exit 1
+            fi
+            GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+            echo "Admission allowance applied (value withheld)."
+          else
+            echo "No component admission allowance; retaining existing budget policy (value withheld)."
+          fi
+          unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.70/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"api.github.com\",\"api.githubcopilot.com\",\"github.com\",\"host.docker.internal\",\"objects.githubusercontent.com\",\"raw.githubusercontent.com\",\"release-assets.githubusercontent.com\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"claude-sonnet-5\":{\"cost\":{\"cache_read\":\"2e-07\",\"cache_write\":\"2.5e-06\",\"input\":\"2e-06\",\"output\":\"1e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.70,squid=sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917,agent=sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34,api-proxy=sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a,cli-proxy=sha256:372ac51a5cccffdfe484f3f7be427d2d1c566e8ae550d55bd45d9fd166a154b4\",\"agentTimeout\":30},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -2239,6 +2583,8 @@ jobs:
         env:
           AWF_REFLECT_ENABLED: 1
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
           GH_AW_ENGINE_VERSION: 1.54.0
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS || '400' }}
@@ -2312,10 +2658,14 @@ jobs:
       - name: Collect evals token usage
         if: always()
         run: |
-          for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
-            source="$root/api-proxy-logs/token-usage.jsonl"
-            if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
-          done
+          if [ -n "${AWF_TOKEN_USAGE_LOG:-}" ] && [ -f "$AWF_TOKEN_USAGE_LOG" ]; then
+            cp "$AWF_TOKEN_USAGE_LOG" /tmp/gh-aw/evals_token_usage.jsonl
+          else
+            for root in "/tmp/gh-aw/sandbox/firewall/audit" "/tmp/gh-aw/sandbox/firewall/logs"; do
+              source="$root/api-proxy-logs/token-usage.jsonl"
+              if [ -s "$source" ]; then cp "$source" /tmp/gh-aw/evals_token_usage.jsonl; fi
+            done
+          fi
       - name: Upload evals results
         if: always() && steps.redact_evals_results.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -2462,6 +2812,7 @@ jobs:
       GH_AW_ENGINE_VERSION: "1.54.0"
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_RUN_DETECTION: ${{ needs.detection.outputs.run_detection }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "daily-token-consumption-report"
       GH_AW_WORKFLOW_EMOJI: "📊"
@@ -2486,6 +2837,7 @@ jobs:
       process_safe_outputs_items_warnings: ${{ steps.process_safe_outputs.outputs.items_warnings }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_status: ${{ steps.process_safe_outputs.outputs.status }}
+      work_queue_outcome: ${{ steps.process_safe_outputs.outputs.work_queue_outcome }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2596,7 +2948,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,*.grafana.net,*.sentry.io,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,cdn.jsdelivr.net,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,docs.github.com,esm.sh,get.pnpm.io,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,googleapis.deno.dev,googlechromelabs.github.io,json-schema.org,json.schemastore.org,jsr.io,keyserver.ubuntu.com,lfs.github.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.vercel.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[token-consumption] \"},\"create_report_incomplete_issue\":{},\"mentions\":{\"enabled\":false},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"true\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":24,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[token-consumption] \"},\"create_report_incomplete_issue\":{},\"mentions\":{\"enabled\":false},\"noop\":{\"max\":2,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"report_missing_data\":{},\"report_missing_tool\":{}}"
           GH_AW_GITHUB_TOKEN_SOURCE: ${{ secrets.GH_AW_GITHUB_TOKEN != '' && 'pat' || 'github_actions' }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -2635,5 +2987,6 @@ jobs:
             /tmp/gh-aw/claims/*/safe-output-items.jsonl
             /tmp/gh-aw/claims/*/temporary-id-map.json
             /tmp/gh-aw/claims/*/safe-output-errors.json
+            /tmp/gh-aw/claims/*/claim-delivery-errors.json
           if-no-files-found: ignore
-          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '1' }}
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || (job.status == 'failure' && 7 || 1) }}

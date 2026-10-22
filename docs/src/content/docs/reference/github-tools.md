@@ -141,6 +141,12 @@ tools:
     mode: gh-proxy
 ```
 
+### CLI proxy startup diagnostics
+
+The CLI proxy waits up to 30 seconds for readiness. Startup diagnostics are captured in a private temporary directory outside artifact upload roots, with a 1 MiB input limit. Before publishing the last 20 lines, the startup script redacts built-in credential patterns and supplied secret values, including a custom GitHub token passed as `GH_TOKEN`. Unrelated workflow secrets are not automatically forwarded to the startup step.
+
+If capture exceeds the limit or sanitization fails, the step withholds the diagnostics and reports a fixed error instead of printing raw output. Timeout diagnostics retain the readiness failure reason. Raw temporary diagnostics are removed on normal exit; a cleanup failure is reported and fails the step.
+
 ## Additional Authentication for GitHub Tools
 
 In some circumstances you must use a GitHub PAT or GitHub app to give the GitHub tools used by your workflow additional capabilities.

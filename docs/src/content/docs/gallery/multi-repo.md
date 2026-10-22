@@ -29,4 +29,4 @@ Rolls out a customized Dependabot configuration across many repositories using a
 
 ## Learn More
 
-See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for design patterns, [Cross-Repository Reference](/gh-aw/reference/cross-repository/) for checkout and target-repo configuration, [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for configuration options, [GitHub Tools](/gh-aw/reference/github-tools/) for API access, [Security Best Practices](/gh-aw/introduction/architecture/) for authentication guidance, and [Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) for sharing workflows.
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for design patterns, [Cross-Repository Reference](/gh-aw/reference/cross-repository/) for checkout and target-repo configuration, [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for configuration options, [GitHub Tools](/gh-aw/reference/github-tools/) for API access, [Security Best Practices](/gh-aw/introduction/architecture/) for authentication guidance, and [Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) for sharing workflows.

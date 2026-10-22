@@ -791,7 +791,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 			expectedKeys: []string{"unassign_from_user"},
 		},
 		{
-			name: "missing_tool config",
+			name: "report_missing_tool config",
 			safeOutputs: &SafeOutputsConfig{
 				MissingTool: &MissingToolConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -803,10 +803,10 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 			checkJSON:    true,
-			expectedKeys: []string{"missing_tool"},
+			expectedKeys: []string{"report_missing_tool"},
 		},
 		{
-			name: "missing_data config",
+			name: "report_missing_data config",
 			safeOutputs: &SafeOutputsConfig{
 				MissingData: &MissingDataConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{
@@ -818,7 +818,7 @@ func TestAddHandlerManagerConfigEnvVar(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 			},
 			checkJSON:    true,
-			expectedKeys: []string{"missing_data"},
+			expectedKeys: []string{"report_missing_data"},
 		},
 		{
 			name: "report_incomplete config",

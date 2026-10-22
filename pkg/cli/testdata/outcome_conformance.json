@@ -144,10 +144,60 @@
     "item": { "type": "assign_to_agent", "number": 1, "timestamp": "2026-01-01T00:00:00Z" },
     "responses": {
       "issues/1": { "state": "open" },
-      "issues/1/timeline": [{ "event": "cross-referenced", "created_at": "2026-01-02T00:00:00Z", "source": { "issue": { "number": 2, "pull_request": {}, "user": { "login": "copilot-swe-agent" } } } }],
+      "issues/1/timeline": [
+        { "event": "cross-referenced", "created_at": "2026-01-02T00:00:00Z", "source": { "issue": { "number": 2, "repository_url": "https://api.github.com/repos/acme/repo", "pull_request": {}, "user": { "login": "copilot-swe-agent" } } } }
+      ],
       "pulls/2": { "merged": true }
     },
     "expected": { "outcome_status": "accepted", "evidence_strength": "strong", "signal": "merged" }
+  },
+  {
+    "name": "cross repository agent PR is not confused with merged local PR",
+    "item": { "type": "assign_to_agent", "number": 1, "timestamp": "2026-01-01T00:00:00Z" },
+    "responses": {
+      "issues/1": { "state": "open" },
+      "issues/1/timeline": [
+        { "event": "cross-referenced", "created_at": "2026-01-02T00:00:00Z", "source": { "issue": { "number": 2, "repository_url": "https://api.github.com/repos/acme/other", "pull_request": {}, "user": { "login": "copilot-swe-agent" } } } }
+      ],
+      "pulls/2": { "merged": true },
+      "repos/acme/other/pulls/2": { "state": "open", "merged": false }
+    },
+    "expected": { "outcome_status": "pending", "evidence_strength": "medium", "signal": "open" }
+  },
+  {
+    "name": "cross repository agent PR merge is accepted",
+    "item": { "type": "assign_to_agent", "number": 1, "timestamp": "2026-01-01T00:00:00Z" },
+    "responses": {
+      "issues/1": { "state": "open" },
+      "issues/1/timeline": [
+        { "event": "cross-referenced", "created_at": "2026-01-02T00:00:00Z", "source": { "issue": { "number": 2, "repository_url": "https://api.github.com/repos/acme/other", "pull_request": {}, "user": { "login": "copilot-swe-agent" } } } }
+      ],
+      "pulls/2": { "state": "open" },
+      "repos/acme/other/pulls/2": { "merged": true }
+    },
+    "expected": { "outcome_status": "accepted", "evidence_strength": "strong", "signal": "merged" }
+  },
+  {
+    "name": "agent PR without repository evidence is unknown",
+    "item": { "type": "assign_to_agent", "number": 1, "timestamp": "2026-01-01T00:00:00Z" },
+    "responses": {
+      "issues/1": { "state": "open" },
+      "issues/1/timeline": [{ "event": "cross-referenced", "created_at": "2026-01-02T00:00:00Z", "source": { "issue": { "number": 2, "pull_request": {}, "user": { "login": "copilot-swe-agent" } } } }],
+      "pulls/2": { "merged": true }
+    },
+    "expected": { "outcome_status": "unknown", "evidence_strength": "none", "signal": "missing_execution_state" }
+  },
+  {
+    "name": "dispatch accepts captured string run ID",
+    "item": { "type": "dispatch_workflow", "metadata": { "run_id": "123456" } },
+    "responses": { "actions/runs/123456": { "status": "completed", "conclusion": "success" } },
+    "expected": { "outcome_status": "accepted", "evidence_strength": "strong", "signal": "workflow_success" }
+  },
+  {
+    "name": "dispatch does not accept malformed run ID",
+    "item": { "type": "dispatch_workflow", "metadata": { "run_id": "123456extra" } },
+    "responses": {},
+    "expected": { "outcome_status": "pending", "evidence_strength": "none", "signal": "missing_run_id" }
   },
   {
     "name": "old agent PR not attributed",

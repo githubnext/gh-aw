@@ -77,6 +77,9 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection { /
 		Content: tempFolderPromptFile,
 		IsFile:  true,
 	})
+	if section := webhookPromptSection(data); section != nil {
+		sections = append(sections, *section)
+	}
 
 	// 2. Markdown generation instructions (always included)
 	unifiedPromptLog.Print("Adding markdown section")
@@ -149,7 +152,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection { /
 	}
 
 	// 8. Safe outputs instructions (if enabled)
-	if HasSafeOutputsEnabled(data.SafeOutputs) || data.CommentMemoryConfig != nil {
+	if HasSafeOutputsEnabled(data.SafeOutputs) || data.CommentMemoryConfig != nil || data.LedgerConfig.Enabled() {
 		unifiedPromptLog.Print("Adding safe outputs section")
 		cliOnlySafeOutputs := !engineSupportsMCPToolCalls(c.engineCatalog, data) ||
 			slices.Contains(getMCPCLIExcludeFromAgentConfig(data), constants.SafeOutputsMCPServerID.String())
@@ -167,7 +170,7 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection { /
 			IsFile:  true,
 		})
 		// Per-tool sections: opening tag + tools list (inline), tool instruction files, closing tag
-		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs, data.CommentMemoryConfig)...)
+		sections = append(sections, buildSafeOutputsSections(data.SafeOutputs, data.CommentMemoryConfig, data.LedgerConfig)...)
 	}
 
 	// 8a. MCP CLI tools instructions (if any MCP servers are mounted as CLIs)
@@ -513,7 +516,7 @@ func sharedToolBudget(family string, names []string, max *string) string {
 //
 // The static intro (gh CLI warning, temporary ID rules, noop note) lives in
 // actions/setup/md/safe_outputs_prompt.md and is included by the caller before these sections.
-func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *CommentMemoryConfig) []PromptSection { //nolint:largefunc // Explicit tool checks keep the agent-facing list aligned with safe-output configuration.
+func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *CommentMemoryConfig, ledgerConfig *LedgerToolConfig) []PromptSection { //nolint:largefunc // Explicit tool checks keep the agent-facing list aligned with safe-output configuration.
 	if safeOutputs == nil {
 		safeOutputs = &SafeOutputsConfig{}
 	}
@@ -698,16 +701,31 @@ func buildSafeOutputsSections(safeOutputs *SafeOutputsConfig, commentMemory *Com
 		}
 	}
 	if safeOutputs.MissingTool != nil {
-		tools = append(tools, toolWithMaxBudget("missing_tool", safeOutputs.MissingTool.Max))
+		tools = append(tools, toolWithMaxBudget("report_missing_tool", safeOutputs.MissingTool.Max))
 	}
 	if safeOutputs.MissingData != nil {
-		tools = append(tools, toolWithMaxBudget("missing_data", safeOutputs.MissingData.Max))
+		tools = append(tools, toolWithMaxBudget("report_missing_data", safeOutputs.MissingData.Max))
 	}
 	// noop is always included: it is auto-injected by extractSafeOutputsConfig and
 	// must always appear in the tools list so agents can signal no-op completion.
 	if safeOutputs.NoOp != nil {
 		tools = append(tools, toolWithMaxBudget("noop", safeOutputs.NoOp.Max))
 	}
+
+	ledgerTools := computeEnabledToolNames(&WorkflowData{LedgerConfig: ledgerConfig})
+	if ledgerConfig.Enabled() {
+		for _, ledger := range ledgerConfig.Ledgers {
+			switch ledger.Type {
+			case "map":
+				ledgerTools["ledger_map_put"] = struct{}{}
+				ledgerTools["ledger_map_delete"] = struct{}{}
+			case "notes":
+				ledgerTools["ledger_note_add"] = struct{}{}
+				ledgerTools["ledger_note_vote"] = struct{}{}
+			}
+		}
+	}
+	tools = append(tools, sliceutil.SortedKeys(ledgerTools)...)
 
 	// Add custom job tools from SafeOutputs.Jobs (sorted for deterministic output).
 	if len(safeOutputs.Jobs) > 0 {

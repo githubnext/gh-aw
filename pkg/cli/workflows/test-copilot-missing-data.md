@@ -15,7 +15,7 @@ timeout-minutes: 5
 
 # Test Copilot Missing Data
 
-Test the `missing_data` safe output type with the Copilot engine.
+Test the `report_missing_data` safe output type with the Copilot engine.
 
 ## Task
 
@@ -24,4 +24,4 @@ Report missing data with transparency messages about the following:
 - "Expected pull request branch name but no PR was associated with this run"
 - "Configuration file 'config.json' not found in the repository root"
 
-Output results in JSONL format using the `missing_data` tool.
+Output results in JSONL format using the `report_missing_data` tool.

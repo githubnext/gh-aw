@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_SYSTEM } = require("./error_codes.cjs");
@@ -92,7 +94,7 @@ async function ensureDetectionRunsIssue() {
     expiresHours: 24 * 30, // 30 days
   });
 
-  const { data: newIssue } = await github.rest.issues.create({
+  const { data: newIssue } = await createReportIssue(github, {
     owner,
     repo,
     title: parentTitle,

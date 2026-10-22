@@ -36,10 +36,13 @@ for bounded in-scope debug iterations without repeated approval. Re-review every
 changed source/lock revision; any compiler security warning invalidates the grant
 and requires fresh authorization after resolution.
 
-For workflow updates, recommend publishing the reviewed Markdown and generated
-lock on a feature branch and opening a draft PR, then testing that explicit
-reviewed ref rather than requiring a merge or simply refusing because the
-changes are unpublished. Reuse an existing suitable branch or PR. The agent
+For workflow updates, notify the user before live-test authorization that a
+published feature branch containing the reviewed Markdown and generated lock is
+required to live test the changes. Name the branch and exact commit being tested;
+reuse an existing suitable branch or PR. A draft PR is recommended, not required,
+and a merge is not required. If the branch is unpublished, explain that the agent
+will publish it before testing rather than treating unpublished changes as a
+terminal blocker. The agent
 owns authorized preparation, compilation, publication and testing; the user
 owns the required live-effect authorization. Follow the shared
 [branch-testing path](../../aw/debug-agentic-workflow.md#test-workflow-changes-from-a-branch).
@@ -242,6 +245,25 @@ Match the first failing boundary and normalized error/tool/status signature
 across comparable workflows, revisions, triggers/inputs and configurations. Count each
 matching run once, report matching/inspectable runs and IDs, and keep missing
 evidence unknown. Repeated HTTP 403 alone does not establish one root cause.
+
+### Search and Cluster Session Evidence
+
+```bash
+gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --search-limit 5 --json
+```
+
+Use `evidence_search` to locate relevant events in the actual redacted unified
+session, with automatic repetition grouping, occurrence counts, source references,
+and neighboring context. This single-run CLI capability does not replace the
+full audit or `--group` recurrence checks. Drain3 needs no configuration: it
+activates only when repetitive top matches crowd the limit and grouping saves
+excerpt text. It never changes BM25 ranking; groups keep structured success and
+failure outcomes separate. Ungrouped results omit cluster/template/anomaly fields.
+Its stage/cluster IDs are run-local;
+BM25 relevance and Drain3 anomaly scores are not severity, confidence, or proof
+of safety. Missing sessions remain unavailable, and zero hits do not clear findings.
+Follow [the shared retrieval guidance](../../aw/analyzing-runs.md#retrieve-and-cluster-session-evidence)
+for bounds, provenance, and the distinction from fleet failure clustering.
 
 ### Audit Report Contents
 

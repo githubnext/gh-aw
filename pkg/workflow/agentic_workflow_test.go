@@ -102,7 +102,7 @@ func TestDailyCLIToolsTesterPolicy(t *testing.T) {
 	assert.Contains(t, prompt, "strict: true")
 	assert.Contains(t, prompt, "never list, search, or read that raw directory")
 	assert.Contains(t, prompt, "if session policy permits reading it")
-	assert.Contains(t, prompt, "never use the all-tools-success message after incomplete coverage")
+	assert.Contains(t, prompt, "A later `noop` must not override that incomplete status or claim success")
 	assert.NotContains(t, prompt, "find /tmp/gh-aw/aw-mcp/logs/")
 	assert.NotContains(t, prompt, "ls -R /tmp/gh-aw/aw-mcp/logs/")
 	assert.NotContains(t, prompt, "Trigger it")

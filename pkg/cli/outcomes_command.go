@@ -62,6 +62,7 @@ This answers the question: "Did this workflow's actions actually help?"`,
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	cmd.Flags().String("outcomes-dir", "", "Write outcome JSONL to this directory for OTLP export")
 	cmd.AddCommand(NewOutcomesHistorySubcommand())
+	cmd.AddCommand(NewOutcomesEpisodesSubcommand())
 
 	return cmd
 }
@@ -169,6 +170,14 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 	mapping := github.LoadObjectiveMapping()
 	reports := EvaluateOutcomes(ctx, items, repo, mapping)
 	outcomeSummary := ComputeOutcomeSummary(reports, mapping)
+	if outcomeSummary.Accepted > 0 {
+		aic, err := loadOutcomeAIC(runDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compute outcome AI Credits; cost per accepted outcome omitted: %v", err)))
+		} else {
+			outcomeSummary.addAIC(aic)
+		}
+	}
 
 	// Write outcome JSONL if requested (for OTLP export or downstream processing).
 	// The --outcomes-dir flag takes precedence over the GH_AW_OUTCOMES_DIR env var.
@@ -256,6 +265,9 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 
 	if outcomeSummary.MedianTimeToOutcome > 0 {
 		fmt.Fprintf(os.Stderr, "  Median time to outcome: %.1fh\n", outcomeSummary.MedianTimeToOutcome)
+	}
+	if outcomeSummary.CostPerAcceptedOutcome > 0 {
+		fmt.Fprintf(os.Stderr, "  AIC per accepted outcome: %.3f\n", outcomeSummary.CostPerAcceptedOutcome)
 	}
 
 	fmt.Fprintln(os.Stderr)

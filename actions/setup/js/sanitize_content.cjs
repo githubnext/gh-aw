@@ -24,7 +24,7 @@ const {
   neutralizeBotTriggers,
   neutralizeTemplateDelimiters,
   applyTruncation,
-  hardenUnicodeText,
+  canonicalizePublicationText,
 } = require("./sanitize_content_core.cjs");
 
 const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
@@ -36,6 +36,29 @@ const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
 const RUNTIME_TO_MENTION_ALIAS_MAP = {
   "copilot-swe-agent": ["copilot"],
 };
+
+/**
+ * Expand allowlisted runtime aliases into accepted mention aliases.
+ * @param {string[]} aliases
+ * @returns {string[]}
+ */
+function expandAllowedAliases(aliases) {
+  const expanded = new Set();
+  for (const alias of aliases) {
+    if (typeof alias !== "string" || alias.length === 0) {
+      continue;
+    }
+    const normalized = alias.toLowerCase();
+    expanded.add(normalized);
+    const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
+    if (Array.isArray(mentionAliases)) {
+      for (const mentionAlias of mentionAliases) {
+        expanded.add(mentionAlias.toLowerCase());
+      }
+    }
+  }
+  return [...expanded];
+}
 
 /**
  * @typedef {Object} SanitizeOptions
@@ -101,7 +124,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   let sanitized = content;
 
   // Apply Unicode hardening first to normalize text representation
-  sanitized = hardenUnicodeText(sanitized);
+  sanitized = canonicalizePublicationText(sanitized, { preserveImageAttributes: true });
 
   // Remove ANSI escape sequences and control characters early
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
@@ -172,29 +195,6 @@ function sanitizeContent(content, maxLengthOrOptions) {
   }
 
   /**
-   * Expand allowlisted runtime aliases into accepted mention aliases.
-   * @param {string[]} aliases
-   * @returns {string[]}
-   */
-  function expandAllowedAliases(aliases) {
-    const expanded = new Set();
-    for (const alias of aliases) {
-      if (typeof alias !== "string" || alias.length === 0) {
-        continue;
-      }
-      const normalized = alias.toLowerCase();
-      expanded.add(normalized);
-      const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
-      if (Array.isArray(mentionAliases)) {
-        for (const mentionAlias of mentionAliases) {
-          expanded.add(mentionAlias.toLowerCase());
-        }
-      }
-    }
-    return [...expanded];
-  }
-
-  /**
    * Neutralize @mentions with selective filtering
    * @param {string} s - The string to process
    * @param {string[]} allowedLowercase - List of allowed aliases (lowercase)
@@ -225,4 +225,4 @@ function sanitizeContent(content, maxLengthOrOptions) {
   }
 }
 
-module.exports = { sanitizeContent, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };
+module.exports = { sanitizeContent, expandAllowedAliases, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };

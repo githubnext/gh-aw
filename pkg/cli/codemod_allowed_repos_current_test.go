@@ -47,7 +47,7 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should have applied the codemod")
-		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}"`, "Should rewrite current to the github.repository expression")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
 		assert.NotContains(t, result, "allowed-repos: current", "Should not contain the old current value")
 	})
 
@@ -74,7 +74,7 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should have applied the codemod")
-		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}"`, "Should rewrite current to the github.repository expression")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
 	})
 
 	t.Run("rewrites single-quoted current value", func(t *testing.T) {
@@ -100,7 +100,7 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should have applied the codemod")
-		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}"`, "Should rewrite single-quoted current to the github.repository expression")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
 	})
 
 	t.Run("no-op when allowed-repos is already an expression", func(t *testing.T) {
@@ -205,7 +205,8 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should have applied the codemod")
-		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}" # legacy alias`, "Should preserve trailing comment")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
+		assert.Contains(t, result, "# legacy alias", "Should preserve trailing comment")
 	})
 
 	t.Run("only treats whitespace-preceded hash as a comment marker", func(t *testing.T) {
@@ -231,7 +232,8 @@ tools:
 		result, applied, err := codemod.Apply(content, frontmatter)
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should have applied the codemod")
-		assert.Contains(t, result, `allowed-repos: "${{ github.repository }}" # see docs on "#current" alias`, "Should preserve the full comment including embedded hash")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
+		assert.Contains(t, result, `# see docs on "#current" alias`, "Should preserve the full comment including embedded hash")
 	})
 
 	t.Run("does not rewrite nested non-top-level tools github allowed-repos", func(t *testing.T) {
@@ -269,7 +271,7 @@ tools:
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should rewrite direct top-level tools.github allowed-repos")
 		assert.Contains(t, result, "      allowed-repos: current", "Should preserve nested non-top-level tools.github value")
-		assert.Contains(t, result, `    allowed-repos: "${{ github.repository }}"`, "Should rewrite top-level tools.github value")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
 	})
 
 	t.Run("does not rewrite nested custom github allowed-repos", func(t *testing.T) {
@@ -304,6 +306,6 @@ tools:
 		require.NoError(t, err, "Should not error")
 		assert.True(t, applied, "Should rewrite direct tools.github allowed-repos")
 		assert.Contains(t, result, "      allowed-repos: current", "Should preserve nested custom github allowed-repos")
-		assert.Contains(t, result, `    allowed-repos: "${{ github.repository }}"`, "Should rewrite direct tools.github value")
+		assertPolicyCodemodValue(t, result, "${{ github.repository }}", "tools", "github", "allowed-repos")
 	})
 }

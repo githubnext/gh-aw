@@ -287,11 +287,20 @@ async function lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken
  * @param {string} [opts.pushRemoteUrl]
  * @param {string} [opts.pushToken]
  * @param {() => void} [opts.assertTransportUnchanged]
+ * @param {boolean} [opts.requireExistingBranch]
  * @returns {Promise<string>}
  */
-async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged }) {
-  const pushArgs = pushRemoteUrl ? ["push", pushRemoteUrl, branch] : ["push", "origin", branch];
+async function pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged, requireExistingBranch }) {
   const pushOnce = async () => {
+    const pushArgs = ["push"];
+    if (requireExistingBranch) {
+      const expectedHead = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
+      if (!expectedHead) throw new Error(`${ERR_API}: Branch ${branch} no longer exists; refusing to recreate it`);
+      const ancestor = await getGitExecOutput(["merge-base", "--is-ancestor", expectedHead, "HEAD"], { cwd, ignoreReturnCode: true });
+      if (ancestor.exitCode !== 0) throw new Error(`${ERR_API}: non-fast-forward update to ${branch} refused`);
+      pushArgs.push(`--force-with-lease=refs/heads/${branch}:${expectedHead}`);
+    }
+    pushArgs.push(pushRemoteUrl || "origin", branch);
     await require("./work_queue_git_effects.cjs").assertGitPushAuthorized({ remote: pushRemoteUrl || "origin", branch, cwd, gitAuthEnv });
     assertTransportUnchanged?.();
     const result = await getGitExecOutput(pushArgs, {
@@ -396,6 +405,7 @@ async function resolveLocalHeadSha(cwd) {
  * @param {boolean} [opts.signedCommits=true] - When false, skip GraphQL signed commits and use git push directly
  * @param {boolean} [opts.allowGitPushFallback=true] - When false, refuse any fallback path that would use direct git push
  * @param {boolean} [opts.requireBaseRefMatch=false] - Refuse a signed commit against a remote head other than baseRef
+ * @param {boolean} [opts.requireExistingBranch=false] - Never recreate a deleted target branch
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
@@ -416,6 +426,7 @@ async function pushSignedCommits({
   signedCommits = true,
   allowGitPushFallback = true,
   requireBaseRefMatch = false,
+  requireExistingBranch = false,
   resolvedTemporaryIds,
   currentRepo,
   validationConfig,
@@ -435,7 +446,7 @@ async function pushSignedCommits({
   if (signedCommits === false) {
     if (requireBaseRefMatch) throw new Error(`${ERR_VALIDATION}: signed commits are required for an atomic ledger transition`);
     core.info(`pushSignedCommits: signed-commits disabled (using direct git push) for branch ${branch}`);
-    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
+    const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged, requireExistingBranch });
     core.info(`pushSignedCommits: git push and HEAD resolution completed, HEAD=${headSha}`);
     return headSha;
   }
@@ -450,7 +461,7 @@ async function pushSignedCommits({
     }
     core.info(`pushSignedCommits: empty baseRef detected (orphan branch first push), using git push directly for branch ${branch}`);
     try {
-      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
+      const headSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged, requireExistingBranch });
       core.info(`pushSignedCommits: git push completed for orphan branch, HEAD=${headSha}`);
       return headSha;
     } catch (pushErr) {
@@ -807,6 +818,7 @@ async function pushSignedCommits({
         const oidResult = await lsRemoteHeadOid(branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken);
         expectedHeadOid = oidResult || "";
         if (!expectedHeadOid) {
+          if (requireExistingBranch) throw new Error(`${ERR_API}: Branch ${branch} no longer exists; refusing to recreate it`);
           // Branch does not exist on the remote yet.
           // createCommitOnBranch requires the branch to already exist – it does NOT auto-create branches.
           // Resolve the parent OID, create the branch on the remote via the REST API,
@@ -916,7 +928,7 @@ async function pushSignedCommits({
       throw new Error(`${ERR_API}: pushSignedCommits: signed commit push failed for branch '${branch}' and git push fallback is disabled: ${getErrorMessage(err)}`, { cause: err });
     }
     core.warning(`pushSignedCommits: GraphQL signed push failed, falling back to git push: ${getErrorMessage(err)}`);
-    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged });
+    const fallbackSha = await pushBranchAndResolveHead({ branch, cwd, gitAuthEnv, pushRemoteUrl, pushToken, assertTransportUnchanged, requireExistingBranch });
     core.info(`pushSignedCommits: git push fallback completed, using pushed SHA ${fallbackSha}`);
     return fallbackSha;
   }

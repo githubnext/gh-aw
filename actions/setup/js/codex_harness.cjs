@@ -39,7 +39,7 @@ const { DEFAULT_MCP_CALL_WATCHDOG_MS, MCP_CALL_TRANSPORT_GRACE_MS } = require(".
 const { loadCompiledConfig, mergeConfig } = require("./codex_config.cjs");
 const { parseJsonPrefix } = require("./parse_json_prefix.cjs");
 const { runProcess, formatDuration, sleep, MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS, MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS, resolvePostResultWatchdogIdleTimeoutMs } = require("./process_runner.cjs");
-const { runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs, stripExecutionEvidenceEnv } = require("./harness_retry_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -60,6 +60,8 @@ const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSi
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
 const { applyModelFallback, injectModelFlagAfterExec, normalizeCodexModel, normalizeCodexModelArgs } = require("./model_fallback.cjs");
+const { resolveEngineModel } = require("./resolve_model_alias.cjs");
+const { applyCodexSubagentModels, isDetectionPhase } = require("./engine_subagent_models.cjs");
 const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 const { resolveAWFModelRoutingSelection, mapAWFRoutingEffort, recordAWFModelRoutingOutcome, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
@@ -502,6 +504,31 @@ function applyCodexRoutingEffort(args, effort) {
 }
 
 /**
+ * Run the shared "resolve configured model" step for the Codex main model, then
+ * Codex's provider-prefix check. `auto` keeps its Copilot gateway meaning.
+ * @param {{ model: string, provider: string, reflectData?: any, refetchReflectData?: () => Promise<any>, env?: NodeJS.ProcessEnv, logger?: (message: string) => void }} options
+ * @returns {Promise<string>}
+ */
+async function resolveCodexConfiguredModel(options) {
+  const env = options.env || process.env;
+  const logger = options.logger || log;
+  if (!options.model) return "";
+  const result = await resolveEngineModel({
+    engine: "codex",
+    role: "main",
+    configuredModel: options.model,
+    provider: options.provider,
+    reflectData: options.reflectData,
+    refetchReflectData: options.refetchReflectData,
+    preserveAuto: true,
+    normalize: resolution => normalizeCodexModel(resolution.resolvedModel, options.provider, { env, logger }),
+    logger,
+    env,
+  });
+  return result.engineModel;
+}
+
+/**
  * Resolve and apply AWF's selection to a Codex invocation.
  * @param {any} reflectData
  * @param {string[]} args
@@ -554,7 +581,7 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
   if (openaiApiKey) {
     childEnv.OPENAI_API_KEY = openaiApiKey;
   }
-  return childEnv;
+  return stripExecutionEvidenceEnv(childEnv);
 }
 
 /**
@@ -836,6 +863,8 @@ function evaluateContextRebuildCircuitBreakerForAttempt(workingSet, config, opti
  * Eligible retries use Codex's native exact-session resume command.
  */
 async function main() {
+  const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
+  stripExecutionEvidenceEnv(process.env);
   const driverStartTime = Date.now();
   const [, , command, ...args] = process.argv;
 
@@ -852,7 +881,7 @@ async function main() {
   // would be wasteful and potentially harmful.  This check runs before API key validation so
   // that a noop can be honoured even when credentials are absent.
   const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     process.exit(0);
   }
 
@@ -912,13 +941,52 @@ async function main() {
     const endpointOverride = result.selection.selected_endpoint && result.selection.selected_endpoint !== result.selection.endpoint ? ` selected_endpoint=${result.selection.selected_endpoint}` : "";
     log(`inference routing: mode=awf-routed model=${resolvedModel} effort=${result.selection.effort || "(unset)"} endpoint=${result.selection.endpoint}${endpointOverride}`);
   } else {
-    resolvedModel = normalizeCodexModel(codexModelEnvVar ? applyModelFallback(process.env, codexModelEnvVar, log) : "", process.env.GH_AW_LLM_PROVIDER || "openai", modelOptions);
+    try {
+      resolvedModel = await resolveCodexConfiguredModel({
+        model: codexModelEnvVar ? applyModelFallback(process.env, codexModelEnvVar, log) : "",
+        provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+        reflectData,
+        refetchReflectData: async () => {
+          if (process.env.AWF_REFLECT_ENABLED !== "1") return null;
+          const refreshed = await fetchAWFReflect({ logger: log });
+          return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+        },
+        env: process.env,
+        logger: log,
+      });
+    } catch (err) {
+      log(`fatal: ${getErrorMessage(err)}`);
+      process.exit(1);
+      return;
+    }
     resolvedArgs = normalizeCodexModelArgs(resolvedArgs, process.env.GH_AW_LLM_PROVIDER || "openai", modelOptions);
     resolvedArgs = injectModelFlagAfterExec(resolvedArgs, resolvedModel);
   }
   if (codexModelEnvVar && resolvedModel) {
     process.env[codexModelEnvVar] = resolvedModel;
     codexChildEnv[codexModelEnvVar] = resolvedModel;
+  }
+
+  // Workflow-declared sub-agents become native Codex TOML roles in $CODEX_HOME/agents with
+  // their resolved models before Codex starts; any failure stops the run before spawn.
+  // Threat detection uses no sub-agents.
+  if (!isDetectionPhase(process.env.GH_AW_PHASE)) {
+    const subagents = await applyCodexSubagentModels({
+      reflectData,
+      refetchReflectData: async () => {
+        if (process.env.AWF_REFLECT_ENABLED !== "1") return null;
+        const refreshed = await fetchAWFReflect({ logger: log });
+        return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+      },
+      provider: process.env.GH_AW_LLM_PROVIDER || "openai",
+      codexHome: process.env.CODEX_HOME || "",
+      env: process.env,
+      logger: log,
+    });
+    if (subagents && subagents.ok === false) {
+      process.exit(1);
+      return;
+    }
   }
 
   // Prompts remain on stdin; use a placeholder in the argument diagnostic.
@@ -1283,6 +1351,7 @@ if (typeof module !== "undefined" && module.exports) {
     buildMissingToolPermissionIssuePayload,
     emitMissingToolPermissionIssue,
     buildCodexChildEnv,
+    resolveCodexConfiguredModel,
     hasCodexAzureOIDCProxy,
     extractPortFromURL,
     extractOpenAIProxyBaseURLFromToml,

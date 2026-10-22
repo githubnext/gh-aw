@@ -2,6 +2,9 @@
 
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 const { restoreESLintMemory } = require("./work_queue_restore_memory.cjs");
 
 const BASE = "46b68a61c366a01d86dc319b8e689d09a48bad04";
@@ -80,8 +83,88 @@ function fixture(count = 1) {
   return { github, state, calls, blobs, legacy, blob };
 }
 
+/** @param {{restore: () => Promise<unknown>, writeError?: Error}} options */
+function preparationFixture({ restore, writeError }) {
+  const source = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/eslint-refiner.md"), "utf8");
+  const script = source.match(/      script: \|\n([\s\S]*?)(?=\ntools:)/)?.[1];
+  assert.ok(script, "Refiner memory preparation script must exist");
+  const writes = [];
+  const directories = [];
+  const github = {};
+  const mocks = {
+    "node:fs": {
+      mkdirSync: (directory, options) => directories.push([directory, options.recursive]),
+      writeFileSync: (filename, contents, options) => {
+        if (writeError) throw writeError;
+        writes.push([filename, contents, options.mode]);
+      },
+    },
+    "node:path": path,
+    "/runner-temp/gh-aw/actions/work_queue_restore_memory.cjs": {
+      restoreESLintMemory: async client => {
+        assert.equal(client, github);
+        return restore();
+      },
+    },
+  };
+  const run = () =>
+    vm.runInNewContext(`(async () => {${script}\n})()`, {
+      require: name => {
+        assert.ok(Object.hasOwn(mocks, name), "Preparation requires only reviewed dependencies");
+        return mocks[name];
+      },
+      github,
+      process: { env: { RUNNER_TEMP: "/runner-temp" } },
+    });
+  return { run, source, writes, directories };
+}
+
 function registerTests({ describe, it }) {
   describe("read-only restore of persistent Claim and legacy ESLint memory", () => {
+    it("runs the Refiner preparation step and writes history at the exact agent-visible prompt path", async () => {
+      const history = { legacy: { files: [] }, snapshots: [] };
+      const { run, source, writes, directories } = preparationFixture({ restore: async () => history });
+      await run();
+      const filename = "/tmp/gh-aw/agent/eslint-refiner-memory/history.json";
+      assert.deepEqual(directories, [["/tmp/gh-aw/agent/eslint-refiner-memory", true]]);
+      assert.deepEqual(writes, [[filename, JSON.stringify(history) + "\n", 0o400]]);
+      assert.ok(source.includes(`cat ${filename}`));
+      assert.ok(source.includes(`Read \`${filename}\``));
+      assert.ok(source.includes("`cat` command exits non-zero or its output is not valid JSON"));
+    });
+
+    it("surfaces preparation write failures rather than substituting empty history", async () => {
+      const writeError = Object.assign(new Error("EACCES: permission denied writing history.json"), { code: "EACCES" });
+      const { run, writes } = preparationFixture({ restore: async () => ({ legacy: { files: [] }, snapshots: [] }), writeError });
+      await assert.rejects(run(), error => error === writeError);
+      assert.deepEqual(writes, []);
+    });
+
+    it("surfaces native history read failures before preparing a history file", async () => {
+      const f = fixture();
+      const readError = Object.assign(new Error("Memory history blob read forbidden"), { status: 403 });
+      f.github.rest.git.getBlob = async () => {
+        throw readError;
+      };
+      const { run, writes, directories } = preparationFixture({ restore: () => restoreESLintMemory(f.github) });
+      await assert.rejects(run(), error => error === readError);
+      assert.deepEqual(writes, []);
+      assert.deepEqual(directories, []);
+    });
+
+    it("prepares valid empty history when the legacy branch and prior snapshots are absent", async () => {
+      const f = fixture(0);
+      f.state.missingLegacy = true;
+      f.legacy.length = 0;
+      const { run, writes } = preparationFixture({ restore: () => restoreESLintMemory(f.github) });
+      await run();
+      assert.equal(writes.length, 1);
+      const history = JSON.parse(writes[0][1]);
+      assert.equal(history.legacy.commit, BASE);
+      assert.deepEqual(history.legacy.files, []);
+      assert.deepEqual(history.snapshots, []);
+    });
+
     it("restores independently addressed multi-Claim history without narrowing it or granting current Claim authority", async () => {
       const f = fixture(2);
       f.state.refs.reverse();

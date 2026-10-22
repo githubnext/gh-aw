@@ -28,6 +28,7 @@ var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 type Branch struct {
 	Remote              string
 	Name                string
+	Host                string
 	DependencyClients   map[string]*api.RESTClient
 	DeliveryVerifier    DeliveryVerifier
 	RemediationVerifier RemediationVerifier
@@ -36,6 +37,7 @@ type Branch struct {
 	client              *api.RESTClient
 	ledger              *queueGit
 	ledgerRequestFn     func(context.Context, string, string, any, any) error
+	publicationNow      func() int64
 }
 
 func (b Branch) validate() error {
@@ -64,7 +66,7 @@ func (b Branch) withClient() (Branch, error) {
 		return b, err
 	}
 	if b.client == nil {
-		client, err := api.NewRESTClient(githubapi.ClientOptions("", ""))
+		client, err := api.NewRESTClient(githubapi.ClientOptions(b.Host, ""))
 		if err != nil {
 			return b, err
 		}
@@ -217,7 +219,7 @@ func (b Branch) verifyCheckpointHistory(ctx context.Context, head string, commit
 		if tip != checkpoint.PriorTip {
 			return invalid()
 		}
-		reconstructed, err := CompactCheckpoint(previous, parent, root.Actor, root.At)
+		reconstructed, err := reconstructCheckpointForHost(previous, parent, root.Actor, root.At, checkpoint.StateSHA256, b.Host)
 		if err != nil {
 			return invalid()
 		}
@@ -279,7 +281,7 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 				return nil, nil, queueError("repository_scope_invalid", "ledger actor belongs to another repository")
 			}
 		}
-		_, err = Replay(transactions)
+		_, err = ReplayForHost(transactions, b.Host)
 		return transactions, data, err
 	}
 	return nil, nil, errors.New("queue branch is missing " + FileName)
@@ -343,6 +345,16 @@ func (b Branch) publish(ctx context.Context, snapshot branchSnapshot, next []Que
 // Authenticate derives operator identity from the credential, not command flags,
 // Git authors, submitted actor fields, or an untrusted Actions environment.
 func (b Branch) Authenticate(ctx context.Context, role string) (Actor, error) {
+	return b.authenticate(ctx, role, false)
+}
+
+// AuthenticateClear authorizes repository maintainers and administrators for
+// clear operations, retaining the queue's administrator actor for audit records.
+func (b Branch) AuthenticateClear(ctx context.Context) (Actor, error) {
+	return b.authenticate(ctx, "administrator", true)
+}
+
+func (b Branch) authenticate(ctx context.Context, role string, allowMaintain bool) (Actor, error) {
 	b, err := b.withClient()
 	if err != nil {
 		return Actor{}, err
@@ -359,15 +371,20 @@ func (b Branch) Authenticate(ctx context.Context, role string) (Actor, error) {
 	var repository struct {
 		FullName    string `json:"full_name"`
 		Permissions struct {
-			Push  bool `json:"push"`
-			Admin bool `json:"admin"`
+			Push     bool `json:"push"`
+			Admin    bool `json:"admin"`
+			Maintain bool `json:"maintain"`
 		} `json:"permissions"`
 	}
 	if err := b.client.DoWithContext(ctx, http.MethodGet, "repos/"+b.Remote, nil, &repository); err != nil {
 		return Actor{}, err
 	}
+	canAdminister := repository.Permissions.Admin || allowMaintain && repository.Permissions.Maintain
 	if !decimalIdentity(user.ID.String()) || !strings.EqualFold(repository.FullName, b.Remote) ||
-		!repository.Permissions.Push || role == "administrator" && !repository.Permissions.Admin {
+		!repository.Permissions.Push || role == "administrator" && !canAdminister {
+		if allowMaintain {
+			return Actor{}, queueError("actor_unauthorized", "authenticated repository maintain or admin permission is required to clear a queue")
+		}
 		return Actor{}, queueError("actor_unauthorized", "authenticated repository writer/administrator permission is required")
 	}
 	return Actor{Role: role, Principal: user.ID.String(), Repository: repository.FullName}, nil
@@ -425,7 +442,7 @@ func extending(previous, current []QueueCommit) bool {
 		if err == nil &&
 			encodeErr == nil && op.HistorySHA256 == hashBytes(data) &&
 			op.PriorTip == tip {
-			reconstructed, err := CompactCheckpoint(oldOrder, op.PriorGitSHA, root.Actor, root.At)
+			reconstructed, err := reconstructCheckpoint(oldOrder, op.PriorGitSHA, root.Actor, root.At, op.StateSHA256)
 			if err != nil {
 				return false
 			}
@@ -449,7 +466,23 @@ func extending(previous, current []QueueCommit) bool {
 // discards selections, handles, charges and clocks and recovers uncertain ref
 // acknowledgments by stable request identity before constructing another grant.
 func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publication, error) {
-	b, err := b.authenticatePublication(ctx, actor, request)
+	return b.publishRequest(ctx, actor, request, nil)
+}
+
+// PublishFromSnapshot rejects replacement ledgers before applying intent selected
+// from an existing snapshot. Same-ledger appends and verified checkpoints remain
+// eligible, including across CAS retries and uncertain acknowledgments.
+// Snapshot cancellations allow repository maintainers as well as administrators;
+// other request kinds retain their existing authorization requirements.
+func (b Branch) PublishFromSnapshot(ctx context.Context, actor Actor, request Request, selected []QueueCommit) (Publication, error) {
+	if len(selected) == 0 {
+		return Publication{}, queueError("queue_missing", "snapshot publication requires an existing queue")
+	}
+	return b.publishRequest(ctx, actor, request, selected)
+}
+
+func (b Branch) publishRequest(ctx context.Context, actor Actor, request Request, previous []QueueCommit) (Publication, error) {
+	b, err := b.authenticatePublication(ctx, actor, request, len(previous) > 0 && request.Kind == "cancel_work")
 	if err != nil {
 		return Publication{}, err
 	}
@@ -458,7 +491,7 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		return Publication{}, err
 	}
 	defer cleanup()
-	var last []QueueCommit
+	last := previous
 	var pendingErr error
 	for attempt := range maxRetries {
 		prefix, err := b.readPublicationPrefix(ctx, actor, request, last)
@@ -471,6 +504,15 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		}
 		if candidate.settled {
 			return candidate.publication, nil
+		}
+		// Regenerate immediately with fresh time to exclude expired Work from the next
+		// candidate; no ref write was attempted here, so contention backoff is unnecessary.
+		if expiringGrant(prefix.state, candidate.publication.Commit.Operations, b.publicationTime()) {
+			if prefix.snapshot.head != "" {
+				last = prefix.commits
+			}
+			pendingErr = queueError("work_expired", "a selected Work expired before publication; refresh the fair prefix")
+			continue
 		}
 		_, err = b.publish(ctx, prefix.snapshot, candidate.commits)
 		if err == nil {
@@ -486,7 +528,7 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 			last = prefix.commits
 		}
 		if attempt == maxRetries-1 {
-			return b.recoverPublicationAcknowledgment(ctx, actor, request, err)
+			return b.recoverPublicationAcknowledgment(ctx, actor, request, last, err)
 		}
 		if err := waitForPublicationRetry(ctx, attempt); err != nil {
 			return Publication{}, err
@@ -495,12 +537,12 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 	return Publication{}, errors.New("queue publication exhausted retries")
 }
 
-func (b Branch) authenticatePublication(ctx context.Context, actor Actor, request Request) (Branch, error) {
+func (b Branch) authenticatePublication(ctx context.Context, actor Actor, request Request, allowMaintain bool) (Branch, error) {
 	b, err := b.withClient()
 	if err != nil {
 		return b, err
 	}
-	authenticated, err := b.Authenticate(ctx, actor.Role)
+	authenticated, err := b.authenticate(ctx, actor.Role, allowMaintain)
 	if err != nil || !sameJSON(authenticated, actor) {
 		if err != nil {
 			return b, err
@@ -529,8 +571,8 @@ func (b Branch) readPublicationPrefix(ctx context.Context, actor Actor, request 
 	if err != nil {
 		return publicationPrefix{}, err
 	}
-	if len(previous) > 0 && (snapshot.head == "" || !extending(previous, commits)) {
-		return publicationPrefix{}, queueError("ledger_nonextending", "queue history was deleted or rewritten during publication")
+	if err := b.checkPublicationExtension(ctx, previous, commits); err != nil {
+		return publicationPrefix{}, err
 	}
 	var initial *QueueCommit
 	if snapshot.head == "" {
@@ -553,10 +595,40 @@ func (b Branch) readPublicationPrefix(ctx context.Context, actor Actor, request 
 	return publicationPrefix{commits: commits, snapshot: snapshot, initial: initial, state: state}, nil
 }
 
+func (b Branch) checkPublicationExtension(ctx context.Context, previous, current []QueueCommit) error {
+	if len(previous) == 0 {
+		return nil
+	}
+	for !extending(previous, current) {
+		root, err := firstQueueCommit(current)
+		if err != nil || !isCheckpoint(root) {
+			return queueError("ledger_nonextending", "queue history was deleted or rewritten during publication")
+		}
+		// The current read verified checkpoint ancestry. Walk its bound history
+		// when intervening appends or compactions separate it from the selection.
+		checkpoint, err := decodeCheckpointOperation(root)
+		if err != nil {
+			return err
+		}
+		current, _, err = b.readAt(ctx, checkpoint.PriorGitSHA, false, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type publicationCandidate struct {
 	commits     []QueueCommit
 	publication Publication
 	settled     bool
+}
+
+func (b Branch) publicationTime() int64 {
+	if b.publicationNow != nil {
+		return b.publicationNow()
+	}
+	return time.Now().UnixMilli()
 }
 
 func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, request Request, prefix publicationPrefix, pendingErr error) (publicationCandidate, error) {
@@ -564,7 +636,7 @@ func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, re
 		if existing.Request.Fingerprint != request.Fingerprint || !sameJSON(existing.Actor, actor) {
 			return publicationCandidate{}, queueError("request_reuse", "request identity has different accepted meaning")
 		}
-		_, commit, decision, err := BuildCandidate(prefix.commits, actor, request, time.Now().UnixMilli())
+		_, commit, decision, err := BuildCandidate(prefix.commits, actor, request, b.publicationTime())
 		return publicationCandidate{publication: Publication{Commit: commit, Decision: decision}, settled: true}, err
 	}
 	if err := validateRequestRole(actor, request.Kind); err != nil {
@@ -605,7 +677,7 @@ func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, re
 		candidate.publication.Decision = Decision{Tip: prefix.state.Tip, Operations: prefix.initial.Operations, Assignments: []Assignment{}}
 	} else {
 		candidate.commits, candidate.publication.Commit, candidate.publication.Decision, err =
-			buildCandidateWithObservations(prefix.commits, actor, request, time.Now().UnixMilli(), observations)
+			buildCandidateWithObservations(prefix.commits, actor, request, b.publicationTime(), observations)
 	}
 	if err != nil {
 		return publicationCandidate{}, err
@@ -614,14 +686,19 @@ func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, re
 	return candidate, nil
 }
 
-func (b Branch) recoverPublicationAcknowledgment(ctx context.Context, actor Actor, request Request, pendingErr error) (Publication, error) {
+func (b Branch) recoverPublicationAcknowledgment(ctx context.Context, actor Actor, request Request, previous []QueueCommit, pendingErr error) (Publication, error) {
 	current, _, readErr := b.read(ctx)
+	if readErr == nil {
+		if err := b.checkPublicationExtension(ctx, previous, current); err != nil {
+			return Publication{}, err
+		}
+	}
 	if readErr == nil && len(current) > 0 {
 		projection, replayErr := Replay(current)
 		if replayErr == nil {
 			if existing, ok := projection.Requests[request.ID]; ok &&
 				existing.Request.Fingerprint == request.Fingerprint && sameJSON(existing.Actor, actor) {
-				_, committed, decision, err := BuildCandidate(current, actor, request, time.Now().UnixMilli())
+				_, committed, decision, err := BuildCandidate(current, actor, request, b.publicationTime())
 				return Publication{Commit: committed, Decision: decision}, err
 			}
 		}

@@ -191,7 +191,7 @@ Before finishing, you **MUST** call exactly one terminal safe-output tool:
 
 - `create_pull_request` after updating dependencies and verifying `npm run build` passes.
 - `noop` when no dependency changes are needed after inspection, or when a docs build failure cannot be fixed safely.
-- `missing_tool` when infrastructure or tooling prevents meaningful work (for example, unavailable shell commands, missing Node/npm, or inaccessible repository state).
+- `report_missing_tool` when infrastructure or tooling prevents meaningful work (for example, unavailable shell commands, missing Node/npm, or inaccessible repository state).
 
 ```json
 {"noop": {"message": "No action needed: [brief explanation]"}}

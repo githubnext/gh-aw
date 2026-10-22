@@ -16,7 +16,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: daily-model-resolution
-model: gpt-5.4-mini
+model: gpt-5
 engine:
   id: copilot
   copilot-sdk: true
@@ -227,7 +227,7 @@ You **MUST** call one safe-output tool before finishing:
 ## agent: `run-analyzer`
 ---
 description: Parses a single run directory to extract sub-agent dispatch requests and actual models from api-proxy logs, then classifies model size correctness.
-model: gpt-5.4-mini
+model: mini
 ---
 You are a model-resolution analysis sub-agent.
 

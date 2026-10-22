@@ -30,25 +30,32 @@ type zizmorFinding struct {
 	Determinations struct {
 		Severity string `json:"severity"`
 	} `json:"determinations"`
-	Locations []struct {
-		Symbolic struct {
-			Key struct {
-				Local struct {
-					GivenPath    string `json:"given_path"`
-					VerbatimPath string `json:"verbatim_path"`
-				} `json:"Local"`
-			} `json:"key"`
-			Annotation string `json:"annotation"`
-		} `json:"symbolic"`
-		Concrete struct {
-			Location struct {
-				StartPoint struct {
-					Row    int `json:"row"`
-					Column int `json:"column"`
-				} `json:"start_point"`
-			} `json:"location"`
-		} `json:"concrete"`
-	} `json:"locations"`
+	Locations []zizmorLocation `json:"locations"`
+}
+
+type zizmorLocation struct {
+	Symbolic struct {
+		Key struct {
+			Local struct {
+				GivenPath    string `json:"given_path"`
+				VerbatimPath string `json:"verbatim_path"`
+			} `json:"Local"`
+		} `json:"key"`
+		Annotation string `json:"annotation"`
+		Kind       string `json:"kind"`
+		Route      *struct {
+			Route []zizmorRouteSegment `json:"route"`
+		} `json:"route"`
+	} `json:"symbolic"`
+	Concrete struct {
+		Location struct {
+			StartPoint struct {
+				Row    int `json:"row"`
+				Column int `json:"column"`
+			} `json:"start_point"`
+		} `json:"location"`
+	} `json:"concrete"`
+	path string
 }
 
 // buildZizmorContainerScanPath converts a repository-relative lock file path into a
@@ -323,12 +330,6 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 	return runZizmorOnFiles([]string{lockFile}, verbose, strict)
 }
 
-// parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
-// Returns the total number of warnings found and the number of high/critical severity findings
-func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) { //nolint:largefunc
-	return parseAndDisplayZizmorOutputWithOptions(stdout, stderr, verbose, zizmorResultOptions{})
-}
-
 func parseAndDisplayZizmorOutputWithOptions(stdout, stderr string, verbose bool, opts zizmorResultOptions) (int, int, error) { //nolint:largefunc
 	// Map findings to files for detailed display
 	fileFindings := make(map[string][]zizmorFinding)
@@ -359,6 +360,9 @@ func parseAndDisplayZizmorOutputWithOptions(stdout, stderr string, verbose bool,
 	if strings.TrimSpace(stdout) != "" {
 		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
 			return 0, 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+		}
+		if err := validateZizmorDiagnostics(findings); err != nil {
+			return 0, 0, err
 		}
 		if opts.filteredWarnings != nil {
 			for _, finding := range findings {
@@ -422,16 +426,10 @@ func parseAndDisplayZizmorOutputWithOptions(stdout, stderr string, verbose bool,
 		}
 
 		// Display detailed findings using the shared finding representation
-		scanfindings.Render(os.Stderr, zizmorFindingsToShared(filePath, findings, fileLines))
+		diagnostics := zizmorDiagnosticsToShared(filePath, findings, fileLines)
+		scanfindings.Render(os.Stderr, diagnostics)
 		if opts.findings != nil {
-			for _, finding := range findings {
-				// The last location identifies the affected expression/permission;
-				// preceding locations can merely identify its enclosing job.
-				if len(finding.Locations) > 0 {
-					finding.Locations = finding.Locations[len(finding.Locations)-1:]
-				}
-				*opts.findings = append(*opts.findings, zizmorFindingsToShared(filePath, []zizmorFinding{finding}, fileLines)...)
-			}
+			*opts.findings = append(*opts.findings, diagnostics...)
 		}
 	}
 
@@ -442,10 +440,7 @@ func zizmorFindingPaths(finding zizmorFinding) []string {
 	seen := make(map[string]struct{})
 	var paths []string
 	for _, location := range finding.Locations {
-		filePath := location.Symbolic.Key.Local.GivenPath
-		if filePath == "" {
-			filePath = location.Symbolic.Key.Local.VerbatimPath
-		}
+		filePath := location.file()
 		if filePath == "" {
 			continue
 		}
@@ -463,7 +458,7 @@ func zizmorFindingPaths(finding zizmorFinding) []string {
 func zizmorFindingsToShared(filePath string, findings []zizmorFinding, fileLines []string) []scanfindings.Finding {
 	shared := make([]scanfindings.Finding, 0, len(findings))
 	for _, finding := range findings {
-		// Use the primary location (first location in the list)
+		// Use the primary location (first location in the list).
 		if len(finding.Locations) == 0 {
 			continue
 		}

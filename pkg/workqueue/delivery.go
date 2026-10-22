@@ -3,8 +3,15 @@ package workqueue
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var deliveryLog = logger.New("workqueue:delivery")
 
 // DeliveryVerifier is a trusted, read-only receipt/effect-contract adapter.
 // It verifies existing scoped effects; it must never execute or retry effects.
@@ -44,6 +51,7 @@ func deliveryVerificationExhausted(work *WorkState, recovery ReconciliationPolic
 // proof remains unknown; neither an overall run success nor a missing artifact
 // is interpreted as verified delivery or as proof that effects never began.
 func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (DeliveryRecovery, error) {
+	deliveryLog.Print("delivery.recovery.start")
 	result := DeliveryRecovery{WorkID: workID}
 	b, session, err := b.withClientLedgerSession(ctx)
 	if err != nil {
@@ -56,12 +64,14 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 	}
 	state, work := recovered.state, recovered.work
 	if work.Barrier != "pending" {
+		deliveryLog.Print("delivery.recovery.already_settled")
 		result.Reason = "already_" + work.Barrier
 		return result, nil
 	}
 	recovery := state.Policy.Pools[work.Pool].Reconciliation
 	now := time.Now()
 	if b.DeliveryVerifier == nil && !deliveryVerificationExhausted(work, recovery, 0, now.UnixMilli()) {
+		deliveryLog.Print("delivery.verifier.unavailable")
 		return result, queueError("delivery_verifier_required", "bind a trusted scoped receipt verifier before delivery reconciliation")
 	}
 	contractSupported := validateDeliveryContract(work.Payload) == nil
@@ -74,12 +84,10 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 	remaining := max(0, min(recovery.DeadlineMS, work.completionAt+recovery.DeadlineMS-now.UnixMilli()))
 	deadline := now.Add(time.Duration(remaining) * time.Millisecond)
 	last := DeliveryVerification{Disposition: "unknown"}
+	deliveryLog.Printf("delivery.verifier.budget max_attempts=%d remaining_ms=%d contract_supported=%t verifier_available=%t terminal_before_verification=%t",
+		recovery.MaxAttempts, remaining, contractSupported, b.DeliveryVerifier != nil, beforeVerification.Kind == "terminal_run")
 	for attempt := 0; b.DeliveryVerifier != nil && attempt < recovery.MaxAttempts && time.Now().Before(deadline); attempt++ {
-		verification, verifyErr := func() (DeliveryVerification, error) {
-			callContext, cancel := context.WithDeadline(ctx, deadline)
-			defer cancel()
-			return b.DeliveryVerifier(callContext, state, *claim)
-		}()
+		verification, verifyErr := b.verifyDeliveryAttempt(ctx, state, *claim, deadline, result.Attempts+1)
 		result.Attempts++
 		if verifyErr == nil && contractSupported {
 			last = verification
@@ -102,6 +110,17 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 		}
 	}
 	return b.recoverDeliveryFailure(ctx, session, recovered, requestID, beforeVerification.Kind == "terminal_run", last, result)
+}
+
+func (b Branch) verifyDeliveryAttempt(ctx context.Context, state Projection, claim ClaimState, deadline time.Time, attempt int) (DeliveryVerification, error) {
+	started := time.Now()
+	callContext, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	verification, err := b.DeliveryVerifier(callContext, state, claim)
+	deliveryLog.Printf("delivery.verifier.checked attempt=%d failed=%t timed_out=%t verified=%t receipt_present=%t elapsed_ms=%d",
+		attempt, err != nil, errors.Is(err, context.DeadlineExceeded),
+		verification.Verified, verification.Receipt != "", time.Since(started).Milliseconds())
+	return verification, err
 }
 
 func (b Branch) deliveryRunStatus(ctx context.Context, state Projection, dispatch *DispatchState) (Evidence, error) {
@@ -140,6 +159,7 @@ func (b Branch) publishVerifiedDelivery(ctx context.Context, session *LedgerSess
 	var object map[string]any
 	if err != nil || json.Unmarshal(descriptor, &object) != nil || object == nil ||
 		int64(len(descriptor)) > state.Policy.Limits.ResultBytes {
+		deliveryLog.Printf("delivery.descriptor.invalid bytes=%d max_bytes=%d", len(descriptor), state.Policy.Limits.ResultBytes)
 		return result, queueError("result_invalid", "trusted verifier returned an invalid or oversized descriptor")
 	}
 	_, evidence, err := b.runForDispatch(ctx, state, dispatch, dispatch.Run.RunID)
@@ -164,10 +184,12 @@ func (b Branch) publishVerifiedDelivery(ctx context.Context, session *LedgerSess
 	}
 	publication, err := session.Publish(ctx, recovered.actor, request)
 	if err != nil {
+		deliveryLog.Print("delivery.result.publication_failed")
 		result.Reason = "delivery_unresolved"
 		return result, err
 	}
 	result.Publication, result.Reason = &publication, "delivery_verified"
+	deliveryLog.Printf("delivery.result.persisted attempts=%d", result.Attempts)
 	return result, nil
 }
 
@@ -182,6 +204,7 @@ func (b Branch) recoverDeliveryFailure(ctx context.Context, session *LedgerSessi
 	}
 	if terminal.Kind != "terminal_run" ||
 		!deliveryVerificationExhausted(work, recovery, result.Attempts, time.Now().UnixMilli()) {
+		deliveryLog.Printf("delivery.settlement.unresolved attempts=%d terminal=%t", result.Attempts, terminal.Kind == "terminal_run")
 		result.Reason = "delivery_unresolved"
 		return result, nil
 	}
@@ -195,6 +218,8 @@ func (b Branch) recoverDeliveryFailure(ctx context.Context, session *LedgerSessi
 		terminal.Receipt = last.Receipt
 	}
 	terminal.Attempts, terminal.Effects = result.Attempts, disposition
+	console.PrintWarningMessage(fmt.Sprintf("delivery.verifier.exhausted attempts=%d max_attempts=%d deadline_exhausted=%t receipt_present=%t unknown_effects=%t",
+		result.Attempts, recovery.MaxAttempts, time.Now().UnixMilli()-work.completionAt >= recovery.DeadlineMS, last.Receipt != "", disposition == "unknown"))
 	operation, err := Op(map[string]any{
 		"kind": "DeliveryFailure", "work_id": work.WorkID, "claim_id": claim.ClaimID,
 		"completion_id": work.CompletionID, "reason": "delivery_verification_exhausted",
@@ -215,9 +240,11 @@ func (b Branch) recoverDeliveryFailure(ctx context.Context, session *LedgerSessi
 	}
 	publication, err := session.Publish(ctx, recovered.actor, request)
 	if err != nil {
+		deliveryLog.Print("delivery.failure.publication_failed")
 		result.Reason = "delivery_unresolved"
 		return result, err
 	}
 	result.Publication, result.Reason = &publication, "delivery_failed_"+disposition
+	deliveryLog.Print("delivery.failure.persisted")
 	return result, nil
 }

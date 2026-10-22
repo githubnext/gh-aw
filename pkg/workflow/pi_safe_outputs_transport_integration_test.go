@@ -93,7 +93,7 @@ process.stdout.write(renderPrompt(parseConfig(env.GH_AW_PROMPT_CONFIG), env, './
 	assert.NotContains(t, prompt, "jq -Rs")
 	assert.NotContains(t, prompt, "command -v node")
 	assert.Contains(t, prompt, "no supported transport is available for this engine")
-	assert.Contains(t, prompt, "`missing_tool`")
+	assert.Contains(t, prompt, "`report_missing_tool`")
 }
 
 func TestPiSafeOutputsPromptUsesMCPTransportIntegration(t *testing.T) {

@@ -1,12 +1,15 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue, renderIssueParameters } = require("./issue_report.cjs");
+const { normalizeReportText, normalizeReportTitle } = require("./report_ast.cjs");
+
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
-const { sanitizeContent } = require("./sanitize_content.cjs");
+const { sanitizeContent, expandAllowedAliases } = require("./sanitize_content.cjs");
 const { normalizeCloseOlderKey } = require("./generate_footer.cjs");
 const { appendExecutionProvenance } = require("./execution_provenance.cjs");
-const { formatIssueBody } = require("./issue_body.cjs");
+const { buildIssueBodyReport } = require("./issue_body.cjs");
 const { generateTemporaryId, isTemporaryId, normalizeTemporaryId, getOrGenerateTemporaryId, replaceTemporaryIdReferences } = require("./temporary_id.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
@@ -28,7 +31,6 @@ const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_mentions_from_payload.cjs");
-const MAX_GITHUB_BODY_LENGTH = 65536;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
@@ -87,19 +89,16 @@ async function createIssue(parameters) {
   if (issueArrayLimitError) {
     throw new Error(`${ERR_VALIDATION}: ${issueArrayLimitError}`);
   }
-  const body = formatIssueBody(parameters.body, { repo: { owner, repo } });
-  if (body.length > MAX_GITHUB_BODY_LENGTH) {
-    throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters including attribution`);
-  }
-  /** @type {IssueParameters} */
-  const request = { ...parameters, owner, repo, body };
+  const report = buildIssueBodyReport(parameters.title, parameters.body, { repo: { owner, repo } });
+  /** @type {IssueParameters & {title: string, body: string}} */
+  const request = renderIssueParameters({ ...parameters, owner, repo }, report);
   if (labels) request.labels = labels;
   if (assignees) request.assignees = assignees;
   if (isStagedMode()) {
-    core.info(`Staged: would create issue in ${owner}/${repo} with title: ${parameters.title}`);
+    core.info(`Staged: would create issue in ${owner}/${repo} with title: ${request.title}`);
     return { staged: true, preview: request };
   }
-  const { data: issue } = await withRetry(() => github.rest.issues.create(request), RATE_LIMIT_RETRY_CONFIG, `create_issue in ${owner}/${repo}`);
+  const { data: issue } = await withRetry(() => createReportIssue(github, request), RATE_LIMIT_RETRY_CONFIG, `create_issue in ${owner}/${repo}`);
   core.info(`Created issue ${owner}/${repo}#${issue.number}: ${issue.html_url}`);
   return { staged: false, issue };
 }
@@ -237,7 +236,7 @@ async function findOrCreateParentIssue({ githubClient, groupId, owner, repo, tit
     const template = createParentIssueTemplate(groupId, titlePrefix, workflowName, workflowSourceURL, expiresHours);
     const { data: parentIssue } = await withRetry(
       () =>
-        githubClient.rest.issues.create({
+        createReportIssue(githubClient, {
           owner,
           repo,
           title: template.title,
@@ -994,7 +993,7 @@ async function main(config = {}) {
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
+    processedBody = sanitizeContent(normalizeReportText(processedBody, { preserveImageAttributes: true }), { allowedAliases: allowedMentionAliases, maxMentions });
 
     const bodyLines = processedBody.split("\n");
 
@@ -1021,7 +1020,7 @@ async function main(config = {}) {
     }
 
     // Apply title prefix (only if it doesn't already exist)
-    title = applyTitlePrefix(title, titlePrefix);
+    title = normalizeReportTitle(applyTitlePrefix(title, titlePrefix));
 
     const normalizedTitle = normalizeTitleForDedup(title);
 
@@ -1107,13 +1106,16 @@ async function main(config = {}) {
     const workflowId = process.env.GH_AW_WORKFLOW_ID ?? "";
     const callerWorkflowId = process.env.GH_AW_CALLER_WORKFLOW_ID ?? "";
     const runUrl = buildWorkflowRunUrl(context, context.repo);
-    const body = formatIssueBody(bodyLines.join("\n"), {
+    const report = buildIssueBodyReport(title, bodyLines.join("\n"), {
       repo: repoParts,
       footer: includeFooter,
       bodyFooter: config.body_footer,
       expiresHours,
       closeOlderKey,
+      allowedMentions: expandAllowedAliases(allowedMentionAliases),
     });
+    const request = renderIssueParameters({ owner: repoParts.owner, repo: repoParts.repo, title, labels, assignees }, report);
+    const { body } = request;
 
     // Reserve a max-count slot synchronously before any async pre-creation work.
     // There is no await between check and increment, so concurrent invocations
@@ -1211,22 +1213,7 @@ async function main(config = {}) {
     }
 
     try {
-      if (body.length > MAX_GITHUB_BODY_LENGTH) {
-        throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
-      }
-      const { data: issue } = await withRetry(
-        () =>
-          githubClient.rest.issues.create({
-            owner: repoParts.owner,
-            repo: repoParts.repo,
-            title,
-            body,
-            labels,
-            assignees,
-          }),
-        RATE_LIMIT_RETRY_CONFIG,
-        `create_issue in ${qualifiedItemRepo}`
-      );
+      const { data: issue } = await withRetry(() => createReportIssue(githubClient, request), RATE_LIMIT_RETRY_CONFIG, `create_issue in ${qualifiedItemRepo}`);
 
       core.info(`Created issue ${qualifiedItemRepo}#${issue.number}: ${issue.html_url}`);
       createdIssues.push({ ...issue, _repo: qualifiedItemRepo });

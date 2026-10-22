@@ -158,9 +158,12 @@ func (c *Compiler) addJobLevelSafeOutputConfig(envVars map[string]string, data *
 
 	// Pass detection conclusion and reason to safe outputs when threat detection is enabled.
 	// This allows handlers (e.g., push-to-pull-request-branch) to adjust behavior on warnings.
+	// GH_AW_RUN_DETECTION lets the handler manager fail closed when detection was required
+	// but no conclusion was reported.
 	if IsDetectionJobEnabled(data.SafeOutputs) {
 		envVars["GH_AW_DETECTION_CONCLUSION"] = fmt.Sprintf("${{ needs.%s.outputs.detection_conclusion }}", constants.DetectionJobName)
 		envVars["GH_AW_DETECTION_REASON"] = fmt.Sprintf("${{ needs.%s.outputs.detection_reason }}", constants.DetectionJobName)
+		envVars["GH_AW_RUN_DETECTION"] = fmt.Sprintf("${{ needs.%s.outputs.run_detection }}", constants.DetectionJobName)
 		envVars["GH_AW_THREAT_DETECTION_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.DetectionJobName)
 	}
 

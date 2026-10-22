@@ -493,7 +493,7 @@ Do not create an issue.
 			lockContent := string(lock)
 			assert.NotContains(t, lockContent, `"create_issue"`)
 			assert.NotContains(t, lockContent, "safe_outputs_auto_create_issue.md")
-			for _, tool := range []string{"noop", "missing_tool", "missing_data", "report_incomplete"} {
+			for _, tool := range []string{"noop", "report_missing_tool", "report_missing_data", "report_incomplete"} {
 				assert.Contains(t, lockContent, `"`+tool+`"`)
 			}
 		})

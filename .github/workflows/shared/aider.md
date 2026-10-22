@@ -214,6 +214,32 @@ engine:
 
           original_run_cmd = base_coder.run_cmd
           original_run_shell_commands = base_coder.Coder.run_shell_commands
+          original_get_chat_files_messages = base_coder.Coder.get_chat_files_messages
+
+          def workflow_get_chat_files_messages(coder):
+              messages = original_get_chat_files_messages(coder)
+              for message in messages:
+                  if message["role"] == "user" and message["content"] == coder.gpt_prompts.files_no_full_files:
+                      message["content"] = (
+                          "No editable files have been added yet. This is expected for this unattended workflow, "
+                          "not a request to wait for files. Follow the workflow request: first run its repository "
+                          "discovery commands in fenced bash blocks, then use their results to choose the next step. "
+                          "You can create new files with SEARCH/REPLACE blocks with an empty SEARCH section. "
+                          "Do not stop or ask the user to supply files merely because the initial file list is empty. "
+                          "Emit the appropriate safeoutputs command only after evaluating the actual task results."
+                      )
+              if getattr(coder, "num_reflections", 0) == getattr(coder, "max_reflections", 3):
+                  messages.append({
+                      "role": "user",
+                      "content": (
+                          "This is your last available reflection. Do not repeat discovery or start more edits. "
+                          "Execute the required safeoutputs command in a fenced bash block now. "
+                          "If the task could not be completed, use safeoutputs report_incomplete --reason \"...\" "
+                          "with the actual blocker. Do not claim success or use noop for unfinished work, "
+                          "and do not repeat a safe output already recorded."
+                      ),
+                  })
+              return messages
 
           def workflow_run_shell_commands(coder):
               start = len(command_results)
@@ -256,6 +282,7 @@ engine:
           base_coder.Coder.calculate_and_show_tokens_and_cost = workflow_calculate_usage
           base_coder.run_cmd = workflow_run_cmd
           base_coder.Coder.run_shell_commands = workflow_run_shell_commands
+          base_coder.Coder.get_chat_files_messages = workflow_get_chat_files_messages
           emit("session.init", {"model": os.environ.get("AIDER_MODEL"), "cwd": os.getcwd()})
           emit("user.message", {
               "content": Path(os.environ["GH_AW_PROMPT"]).read_text(encoding="utf-8"),
@@ -429,12 +456,12 @@ engine:
           "mcp.rpc.request", "mcp.rpc.response", "mcp.difc.filtered",
           "mcp.guard.blocked", "mcp.tool_call", "mcp.event", "mcp.configuration",
           "firewall.http_access", "firewall.token_usage", "firewall.model_routing",
-          "firewall.steering", "firewall.event", "model_routing.outcome",
-          "model_endpoint.mismatch",
+          "firewall.upstream_error", "firewall.steering", "firewall.event", "model_routing.outcome",
+          "model_endpoint.mismatch", "model.resolution", "model.config", "model.baseline_estimate",
           "safe_output.request", "safe_output.result", "safe_output.error",
           "experiment.state", "experiment.assignment", "grader.manifest", "grader.result",
           "eval.result", "github_api.rate_limit", "usage.report", "execution.result",
-          "guardrail.daily_aic", "guard.tool_denials_exceeded", "workflow.info", "workflow.job_result",
+          "guardrail.admission", "guardrail.daily_aic", "guard.tool_denials_exceeded", "workflow.info", "workflow.job_result",
           "workflow.run_started", "workflow.run_updated", "workflow.run_settled",
           "dynamicWorkflows.task_started", "dynamicWorkflows.task_progress",
           "dynamicWorkflows.task_updated", "dynamicWorkflows.task_notification",
@@ -495,11 +522,16 @@ engine:
 
 ## Aider execution constraints
 
-Aider runs one non-interactive turn: the prompt is delivered with `--message-file` and your
-single reply is the whole run. Plan for that:
+Aider receives the workflow with `--message-file`. The initial file list can be empty:
+begin with the workflow's discovery commands, not a request for the user to attach files.
+After shell commands, a bounded reflection loop lets you consume their results and continue.
+Plan discovery, edits, verification, and the terminal safe output within that limit:
 
 - **Edit files with *SEARCH/REPLACE* blocks.** Aider applies them for you, including for new
-  files (empty `SEARCH` section). Do not write source files with `cat`/heredocs.
+  files (empty `SEARCH` section). Put the repository-relative filename on its own line
+  immediately before the opening code fence. Use exactly `<<<<<<< SEARCH`, `=======`,
+  and `>>>>>>> REPLACE` on separate lines inside that fence. Never nest code fences.
+  Do not write source files with `cat`/heredocs.
 - **Put shell commands in ```bash blocks, one complete command per line.** Aider executes each
   line separately, so multi-line commands, backslash continuations and heredocs do not work.
   Chain steps with `&&` or `;` on a single line instead.
@@ -507,6 +539,9 @@ single reply is the whole run. Plan for that:
 - **Emit safe outputs through the `safeoutputs` MCP CLI**, for example
   `safeoutputs noop --message "..."`. Every `safeoutputs` command must be inside
   a ```bash block. Commands in prose or inline code are not executed.
+- **Reserve the final reflection for completion reporting.** If edits or verification
+  remain unfinished, call `safeoutputs report_incomplete --reason "..."` with the blocker.
+  Never use `noop` to represent failed or incomplete work.
 
 <!--
 # Aider CLI
@@ -547,6 +582,12 @@ workflow sandbox.
 After suggested commands execute, the entrypoint uses Aider's native reflection
 loop to let the model consume their output and exit codes before deciding the
 next step. Empty output and nonzero command exits also trigger continuation.
+When Aider would insert its native "no files shared" chat message, the entrypoint
+instead explains that an empty initial file list is expected and directs the
+model to the workflow's discovery commands. Existing editable-file content and
+repository-map messages are unchanged. This removes an interactive file-supply
+assumption, not the requirement to inspect results before editing or emitting
+a safe output; it cannot guarantee model compliance.
 The existing three-reflection limit is unchanged; exhausting it without a
 terminal safe output remains an incomplete task. Only the safe-output gateway,
 not shell text or the entrypoint, establishes that a terminal output was recorded.

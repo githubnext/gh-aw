@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|ClaimDeliveryRecovery|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary|WorkExpiration) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, ClaimDeliveryRecovery, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, WorkerDeploymentBoundary, or WorkExpiration when set." >&2
         exit 1
         ;;
 esac
@@ -56,6 +56,14 @@ run_model() {
 }
 
 run_model WorkQueue
+run_model WorkExpiration "" Invariant 0 WorkExpiration
+run_model BrokenExpirationGrant GrantAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationRelease ReservationAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationClaim ClaimAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationWatermark CommittedTimeMonotonicity Invariant 12 WorkExpiration
+run_model BrokenExpirationCheckpoint ProjectionSoundness Invariant 12 WorkExpiration
+run_model ExpirationRunningWitness NoRunningPastExpiry Invariant 12 WorkExpiration
+run_model ExpirationCheckpointWitness NoCheckpointExpiry Invariant 12 WorkExpiration
 run_model Recovery
 run_model QueueOrdering
 run_model BrokenCAS TerminalPersistence
@@ -105,6 +113,36 @@ run_model BrokenCancelledClaimOutput EffectAuthorization Invariant 12 ClaimScope
 run_model BrokenMixedDAGAdmission DAGAuthorization Invariant 12 ClaimScopedWorker
 run_model SingleClaimScopeWitness NoAutomaticScope Invariant 12 ClaimScopedWorker
 run_model MixedClaimDAGWitness NoMixedDAGProgress Invariant 12 ClaimScopedWorker
+run_model DeliveryHealth "" Invariant 0 ClaimDeliveryHealth
+run_model DeliveryHealthStaged "" Invariant 0 ClaimDeliveryHealth
+run_model BrokenDeliveryFalseGreen ReportTruth Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryEarlyStop IndependentSiblings Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryReleaseResult ResultAuthority Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryPrematureRelease ReleaseAuthority Invariant 12 ClaimDeliveryHealth
+run_model DeliveryPendingWitness NoPendingSibling Invariant 12 ClaimDeliveryHealth
+run_model DeliveryFailedWitness NoFailedSibling Invariant 12 ClaimDeliveryHealth
+run_model DeliveryMixedWitness NoMixedSuccess Invariant 12 ClaimDeliveryHealth
+run_model DeliveryReleasedWitness NoReleasedPending Invariant 12 ClaimDeliveryHealth
+run_model DeliveryRecovery "" Invariant 0 ClaimDeliveryRecovery
+run_model DeliveryRecoveryProgress "" Invariant 0 ClaimDeliveryRecovery
+run_model BrokenRecoveryReleased EventualSettlement Temporal 13 ClaimDeliveryRecovery \
+    "Temporal properties were violated"
+run_model BrokenRecoveryUnfair EventualSettlement Temporal 13 ClaimDeliveryRecovery \
+    "Temporal properties were violated"
+run_model BrokenRecoveryPrincipal CleanupAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryDeadline FailureBudget Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryEvidence FailureAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryEffects UnknownEffects Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryCAS PublicationFence Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryArtifact ResultAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryMetadata NativeReadbackAgreement Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryForeignMetadata NativeReadbackAgreement Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryReplay NoReplay Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryRetained RetainedFence Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryReleasedWitness NoReleasedRecovery Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryEnrichedWitness NoEnrichedResult Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryRetainedWitness NoRetainedRecovery Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryUnavailableWitness NoUnavailablePending Invariant 12 ClaimDeliveryRecovery
 run_model ServiceFixed "" Invariant 0 QueueService
 run_model ServiceDynamic "" Invariant 0 QueueService
 run_model BrokenServiceShare ServiceDeviation Invariant 12 QueueService
@@ -130,6 +168,7 @@ run_model BrokenLifecycleVerificationBudget DeliveryFailureBudget Invariant 12 Q
 run_model LifecycleMixedDAGWitness NoMixedLifecycleWitness Invariant 12 QueueLifecycle
 run_model LifecycleActivationWitness NoActivationRecoveryWitness Invariant 12 QueueLifecycle
 run_model LifecycleConflictWitness NoConflictReservationWitness Invariant 12 QueueLifecycle
+run_model LifecycleReleasedPendingWitness NoReleasedPendingDelivery Invariant 12 QueueLifecycle
 run_model ReservationRecovery "" Invariant 0 DispatchReservationRecovery
 run_model BrokenReservationEvidence PrelaunchEvidence Invariant 12 DispatchReservationRecovery
 run_model BrokenReservationCAS StartFence Invariant 12 DispatchReservationRecovery

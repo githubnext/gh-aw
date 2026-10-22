@@ -381,11 +381,6 @@ func ensureCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workf
 	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, false, constants.GetWorkflowDir())
 }
 
-// upgradeCopilotSetupSteps upgrades the version in existing copilot-setup-steps.yml
-func upgradeCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
-	return upgradeCopilotSetupStepsInDir(ctx, verbose, actionMode, version, constants.GetWorkflowDir())
-}
-
 func upgradeCopilotSetupStepsInDir(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version, workflowsDir string) error {
 	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, true, workflowsDir)
 }

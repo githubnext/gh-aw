@@ -11,7 +11,7 @@ permissions:
 
   copilot-requests: write
 tracker-id: hippo-embed
-model: copilot/gpt-5.4-mini
+model: copilot/gpt-5
 engine:
   id: pi
   model-provider: github
@@ -43,7 +43,7 @@ tools:
 steps:
   - name: Install @xenova/transformers
     run: |
-      npm install -g @xenova/transformers
+      npm install -g @xenova/transformers@2.17.2
 
 imports:
   - shared/pmg.md

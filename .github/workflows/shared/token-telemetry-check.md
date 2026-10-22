@@ -2,7 +2,7 @@
 jobs:
   check_token_telemetry:
     runs-on: ubuntu-latest
-    needs: [agent, activation]
+    needs: [agent, activation, detection]
     if: needs.agent.result == 'success'
     permissions:
       contents: read

@@ -15,6 +15,8 @@ process.env.RUNNER_TEMP = scratchRunnerTemp;
 const piModelsJson = await import("./pi_models_json.cjs");
 const loadSDK = async () => ({ ModelRuntime: { create: async () => ({ getModel: () => undefined }) } });
 const { resolveProviderEndpointFromReflect } = await import("./awf_reflect.cjs");
+const { MODEL_NOT_SUPPORTED_PATTERN } = await import("./agent_error_patterns.cjs");
+const reflectFixtures = await import("./fixtures/model_resolution_reflect.cjs");
 
 afterAll(() => {
   if (originalRunnerTemp === undefined) {
@@ -38,6 +40,10 @@ describe("pi_models_json.cjs", () => {
       return true;
     });
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-models-json-test-"));
+    process.env.GH_AW_TMP_DIR = tmpDir;
+    process.env.GH_AW_PI_MODEL_FILE = path.join(tmpDir, "pi-model");
+    process.env.GH_AW_AWF_CONFIG_PATH = path.join(tmpDir, "missing-awf-config.json");
+    delete process.env.GH_AW_PI_MODEL;
   });
 
   afterEach(() => {
@@ -623,7 +629,7 @@ describe("pi_models_json.cjs", () => {
             endpoints: [{ provider, configured: true, models: [] }],
           },
         })
-      ).toThrow(`Pi model "${modelId}" is not advertised by the configured ${provider} proxy endpoint`);
+      ).toThrow(`The requested model is not supported: '${modelId}' is not available in the workflow's live model catalog. Select a model offered to this workflow.`);
     });
 
     it("rejects a model absent from a completed reflected endpoint inventory", () => {
@@ -638,7 +644,7 @@ describe("pi_models_json.cjs", () => {
             endpoints: [{ provider: "copilot", configured: true, models: ["gpt-4o"] }],
           },
         })
-      ).toThrow('Pi model "gpt-5.5" is not advertised by the configured copilot proxy endpoint');
+      ).toThrow(/The requested model is not supported: 'gpt-5\.5'.*agentic-workflows integration/);
       expect(logs).toContain("warning: awf-reflect model availability check failed (provider=copilot, model=gpt-5.5)");
     });
 
@@ -659,6 +665,214 @@ describe("pi_models_json.cjs", () => {
     });
   });
 
+  describe("shared model resolution (recorded /reflect from run 38945917145)", () => {
+    function configure(model, aliases = reflectFixtures.builtinAliases()) {
+      process.env.GH_AW_PI_MODEL = model;
+      process.env.GH_AW_PI_MODEL_ID = model.slice(model.indexOf("/") + 1);
+      process.env.GH_AW_PI_MODEL_ALIASES = JSON.stringify(aliases);
+      process.env.GH_AW_PI_GATEWAY_SECRET_ENV = "COPILOT_GITHUB_TOKEN";
+      process.env.GH_AW_PI_GATEWAY_FALLBACK_PORT = "10002";
+      process.env.GH_AW_LLM_PROVIDER = "github";
+      process.env.AWF_REFLECT_ENABLED = "1";
+      process.env.PI_CODING_AGENT_DIR = tmpDir;
+      process.env.GH_AW_PI_CONFIG = "{}";
+      process.env.GH_AW_PI_STAGING_DIR = path.join(tmpDir, "staged");
+      delete process.env.GH_AW_MODEL_ROUTING;
+      delete process.env.GH_AW_PI_MODELS_JSON_PATH;
+    }
+    const records = () => JSON.parse(fs.readFileSync(path.join(tmpDir, "agent/model-resolution.json"), "utf8"));
+    const run = (reflects, extra = {}) => {
+      const fetchReflect = vi.fn();
+      for (const reflectData of reflects) fetchReflect.mockResolvedValueOnce({ ok: true, reflectData });
+      return { fetchReflect, promise: piModelsJson.main({ loadSDK, loadModelsJson: () => ({ providers: {} }), fetchReflect, ...extra }) };
+    };
+
+    it("resolves copilot/opus to the newest live Opus", async () => {
+      configure("copilot/opus");
+      const { fetchReflect, promise } = run([reflectFixtures.ddgReflect()]);
+      await promise;
+      expect(fetchReflect).toHaveBeenCalledTimes(1);
+      const written = JSON.parse(fs.readFileSync(path.join(tmpDir, "models.json"), "utf8"));
+      expect(written.providers["aw-gateway"].models.map(model => model.id)).toEqual(["claude-opus-5.5"]);
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("claude-opus-5.5");
+      const lines = stderrOutput
+        .join("")
+        .split("\n")
+        .filter(line => line.includes("model resolution: engine=pi"));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain("configured=copilot/opus resolved=claude-opus-5.5");
+      expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: "copilot/opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null }]);
+    });
+
+    it("fails closed with model_unavailable for a retired exact id", async () => {
+      configure("copilot/claude-opus-5");
+      const { promise } = run([reflectFixtures.ddgReflect()]);
+      const error = await promise.catch(err => err);
+      expect(error.name).toBe("ModelAliasResolutionError");
+      expect(error.reason).toBe("model_unavailable");
+      expect(error.message).toMatch(
+        /^Pi model "claude-opus-5" is not advertised by the configured copilot proxy endpoint; The requested model is not supported: 'copilot\/claude-opus-5' is not available in the workflow's live model catalog\. For Copilot, availability also depends on the agentic-workflows integration/
+      );
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(`[gh-aw/pi-models-json] fatal: ${error.message}`)).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+      expect(fs.existsSync(process.env.GH_AW_PI_MODEL_FILE)).toBe(false);
+      expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: "copilot/claude-opus-5", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
+    });
+
+    // Recorded /reflect from Smoke Pi Routed run https://github.com/github/gh-aw/actions/runs/39325995892
+    // (agent artifact, sandbox/firewall/awf-reflect.json): models_fetch_complete: true and 36 Copilot
+    // models including claude-haiku-4.5 and gpt-5.6-luna, but not gpt-5.4-mini.
+    describe("sub-agent model availability (recorded /reflect from run 39325995892)", () => {
+      const piRoutedReflect = () => JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/awf-reflect-pi-routed-39325995892.json"), "utf8"));
+      const runWithSubagents = (subagents, routing = false, parentModel = "copilot/gpt-5.6-luna") => {
+        configure(parentModel, {});
+        if (routing) process.env.GH_AW_MODEL_ROUTING = "1";
+        const agentsDir = path.join(process.env.GH_AW_PI_STAGING_DIR, "agents");
+        fs.mkdirSync(agentsDir, { recursive: true });
+        for (const [name, model] of subagents) fs.writeFileSync(path.join(agentsDir, `${name}.md`), JSON.stringify({ name, model }));
+        // Directory order is filesystem-dependent; pin it to the declaration order.
+        const order = subagents.map(([name]) => `${name}.md`);
+        const readdirSync = fs.readdirSync;
+        vi.spyOn(fs, "readdirSync").mockImplementation((dir, ...rest) => {
+          const entries = readdirSync(dir, ...rest);
+          return path.resolve(String(dir)) === path.resolve(tmpDir, "agents") ? entries.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)) : entries;
+        });
+        const catalog = [
+          { provider: "github-copilot", id: "gpt-5.6-luna", api: "openai-responses" },
+          { provider: "github-copilot", id: "claude-haiku-4.5", api: "anthropic-messages" },
+        ];
+        const sdk = {
+          parseFrontmatter: content => {
+            const { name, model } = JSON.parse(content);
+            return { frontmatter: { name, description: `Report ${name}`, model }, body: name };
+          },
+          ModelRuntime: { create: async () => ({ getModels: () => catalog, getModel: (_provider, id) => catalog.find(model => model.id === id) }) },
+        };
+        return run([piRoutedReflect()], { loadSDK: async () => sdk }).promise;
+      };
+      const subagentRecords = () => records().filter(record => record.role !== "main");
+      const failedMini = role => ({ engine: "pi", role, configured_model: "copilot/gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+      const exactHaiku = role => ({ engine: "pi", role, configured_model: "copilot/claude-haiku-4.5", resolved_model: "claude-haiku-4.5", provider: "copilot", status: "exact", cause: null });
+
+      it.each([false, true])("records failed model_unavailable for a sub-agent pinned to a model missing from /reflect (run 39325995892) (routing=%s)", async routing => {
+        const error = await runWithSubagents([["mini-whoami", "copilot/gpt-5.4-mini"]], routing).catch(err => err);
+        expect(error.name).toBe("ModelAliasResolutionError");
+        expect(error.reason).toBe("model_unavailable");
+        expect(error.message).toMatch(/^Pi model "gpt-5\.4-mini" is not advertised by the configured copilot proxy endpoint/);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+        expect(subagentRecords()).toEqual([failedMini("mini-whoami")]);
+      });
+
+      it("keeps exact resolution for a sub-agent on a live model", async () => {
+        await runWithSubagents([["haiku-whoami", "copilot/claude-haiku-4.5"]]);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(true);
+        expect(subagentRecords()).toEqual([exactHaiku("haiku-whoami")]);
+      });
+
+      it("keeps the configured parent model for a sub-agent with no model declaration", async () => {
+        await runWithSubagents([["inherited-whoami"]]);
+        expect(subagentRecords()).toEqual([{ engine: "pi", role: "inherited-whoami", configured_model: "github-copilot/gpt-5.6-luna", resolved_model: "gpt-5.6-luna", provider: "copilot", status: "exact", cause: null }]);
+      });
+
+      it("rejects an unavailable inherited parent model before preparing sub-agents", async () => {
+        const error = await runWithSubagents([["inherited-whoami"]], false, "copilot/gpt-5.4-mini").catch(err => err);
+        expect(error).toMatchObject({ name: "ModelAliasResolutionError", reason: "model_unavailable" });
+        expect(records()).toEqual([failedMini("main")]);
+        expect(subagentRecords()).toEqual([]);
+        expect(fs.existsSync(path.join(tmpDir, "subagents.json"))).toBe(false);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+      });
+
+      it.each([
+        ["haiku-whoami", "mini-whoami"],
+        ["mini-whoami", "haiku-whoami"],
+      ])("marks only the unavailable sub-agent failed when one of two sub-agents is live (%s, %s)", async (first, second) => {
+        const live = first.includes("haiku") ? first : second;
+        const dead = first.includes("mini") ? first : second;
+        const error = await runWithSubagents([
+          [first, first.includes("haiku") ? "copilot/claude-haiku-4.5" : "copilot/gpt-5.4-mini"],
+          [second, second.includes("haiku") ? "copilot/claude-haiku-4.5" : "copilot/gpt-5.4-mini"],
+        ]).catch(err => err);
+        expect(error.reason).toBe("model_unavailable");
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+        expect(JSON.parse(fs.readFileSync(path.join(tmpDir, "subagents.json"), "utf8")).map(agent => agent.name)).toEqual([first, second]);
+        expect(stderrOutput.join("").includes("model availability confirmed (provider=copilot, model=claude-haiku-4.5)")).toBe(first === live);
+        const byRole = Object.fromEntries(subagentRecords().map(record => [record.role, record]));
+        expect(byRole).toEqual({ [live]: exactHaiku(live), [dead]: failedMini(dead) });
+      });
+
+      it("marks every sub-agent sharing the unavailable model failed", async () => {
+        const error = await runWithSubagents([
+          ["mini-one", "copilot/gpt-5.4-mini"],
+          ["mini-two", "copilot/gpt-5.4-mini"],
+        ]).catch(err => err);
+        expect(error.reason).toBe("model_unavailable");
+        const byRole = Object.fromEntries(subagentRecords().map(record => [record.role, record]));
+        expect(byRole).toEqual({ "mini-one": failedMini("mini-one"), "mini-two": failedMini("mini-two") });
+      });
+    });
+
+    // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+    // "absent" case removes it from a copy of the recording.
+    it("a live exact id wins over an alias with the same name", async () => {
+      for (const model of ["copilot/gpt-5-mini", "gpt-5-mini"]) {
+        configure(model);
+        await run([reflectFixtures.ddgReflect()]).promise;
+        expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("gpt-5-mini");
+        expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: model, resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null }]);
+      }
+      configure("gpt-5-mini");
+      await run([reflectFixtures.withoutCopilotModels(["gpt-5-mini"])]).promise;
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("gpt-5.4-mini");
+      expect(records().at(-1)).toMatchObject({ configured_model: "gpt-5-mini", resolved_model: "gpt-5.4-mini", status: "resolved" });
+    });
+
+    it("workflow-defined alias overrides built-in", async () => {
+      const reflect = reflectFixtures.withCopilotModels(["claude-opus-6"]);
+      configure("copilot/opus");
+      await run([reflect]).promise;
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("claude-opus-6");
+      configure("copilot/opus", { ...reflectFixtures.builtinAliases(), opus: ["copilot/claude-opus-5*"] });
+      await run([reflect]).promise;
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("claude-opus-5.5");
+    });
+
+    // Incomplete discovery is derived from the recorded file (models_fetch_complete: false,
+    // Copilot models: null); no recorded run with this shape exists.
+    it("incomplete discovery passes exact ids through and fails aliases after one refetch", async () => {
+      configure("copilot/claude-opus-5.5");
+      await run([reflectFixtures.incompleteDiscovery()]).promise;
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("claude-opus-5.5");
+
+      fs.rmSync(path.join(tmpDir, "models.json"));
+      configure("copilot/opus");
+      const { fetchReflect, promise } = run([reflectFixtures.incompleteDiscovery(), reflectFixtures.incompleteDiscovery()]);
+      const error = await promise.catch(err => err);
+      expect(error.name).toBe("ModelAliasResolutionError");
+      expect(error.reason).toBe("catalog_unavailable");
+      expect(fetchReflect).toHaveBeenCalledTimes(2);
+      expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+      expect(records().at(-1)).toMatchObject({ role: "main", configured_model: "copilot/opus", status: "failed", cause: "catalog_unavailable" });
+    });
+
+    it("incomplete discovery fails sub-agent aliases instead of using Pi's static model list", async () => {
+      configure("copilot/claude-opus-5.5");
+      fs.mkdirSync(path.join(process.env.GH_AW_PI_STAGING_DIR, "agents"), { recursive: true });
+      fs.writeFileSync(path.join(process.env.GH_AW_PI_STAGING_DIR, "agents/reader.md"), "Fixture");
+      const staticCatalog = [{ provider: "github-copilot", id: "claude-haiku-4.5" }];
+      const sdk = {
+        parseFrontmatter: () => ({ frontmatter: { description: "Read files", model: "haiku" }, body: "Read only." }),
+        ModelRuntime: { create: async () => ({ getModels: () => staticCatalog, getModel: () => undefined }) },
+      };
+      const { fetchReflect, promise } = run([reflectFixtures.incompleteDiscovery(), reflectFixtures.incompleteDiscovery()], { loadSDK: async () => sdk });
+      const error = await promise.catch(err => err);
+      expect(error.name).toBe("ModelAliasResolutionError");
+      expect(error.reason).toBe("catalog_unavailable");
+      expect(error.message).toContain('Pi sub-agent "reader" model alias "haiku" did not resolve');
+      expect(fetchReflect).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("main", () => {
     it.each([false, true])("stages delegated models with their own gateway protocol (routing=%s)", async routing => {
       if (routing) process.env.GH_AW_MODEL_ROUTING = "1";
@@ -672,7 +886,8 @@ describe("pi_models_json.cjs", () => {
       process.env.GH_AW_PI_MODEL_ALIASES = '{"small":["copilot/*haiku*"]}';
       process.env.GH_AW_PI_STAGING_DIR = path.join(tmpDir, "staged");
       process.env.GH_AW_PI_MODEL_ROUTING_MODEL_FILE = path.join(tmpDir, "routing-model");
-      delete process.env.AWF_REFLECT_ENABLED;
+      // Sub-agent aliases resolve only against the live /reflect catalogue.
+      process.env.AWF_REFLECT_ENABLED = "1";
       delete process.env.GH_AW_PI_MODELS_JSON_PATH;
       fs.mkdirSync(path.join(process.env.GH_AW_PI_STAGING_DIR, "agents"), { recursive: true });
       fs.writeFileSync(path.join(process.env.GH_AW_PI_STAGING_DIR, "agents/reader.md"), "Fixture");
@@ -875,7 +1090,7 @@ describe("pi_models_json.cjs", () => {
       process.env.PI_CODING_AGENT_DIR = tmpDir;
 
       const reflectData = {
-        endpoints: [{ provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, base_url: "http://api-proxy:10000" }],
+        endpoints: [{ provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, base_url: "http://api-proxy:10000", models: ["gpt-5.4"] }],
       };
       await piModelsJson.main({
         fetchReflect: async () => ({ ok: true, reflectData }),
@@ -962,7 +1177,7 @@ describe("pi_models_json.cjs", () => {
         })
       );
 
-      await expect(piModelsJson.main({ loadSDK, loadModelsJson: () => ({ providers: {} }) })).rejects.toThrow('Pi model "gpt-5.5" is not advertised by the configured copilot proxy endpoint');
+      await expect(piModelsJson.main({ loadSDK, loadModelsJson: () => ({ providers: {} }) })).rejects.toThrow(/The requested model is not supported: 'gpt-5\.5'/);
       expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
     });
 

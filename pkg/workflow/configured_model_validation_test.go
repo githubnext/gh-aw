@@ -101,7 +101,7 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 		{
 			name: "general-purpose Copilot model",
 			data: &WorkflowData{
-				Model:        "copilot/mai-code-1-flash-picker",
+				Model:        "copilot/mai-code-1.1-flash",
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
 			wantWarning: true,
@@ -180,7 +180,7 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 		{
 			name: "Copilot engine",
 			data: &WorkflowData{
-				Model:        "copilot/mai-code-1-flash-picker",
+				Model:        "copilot/mai-code-1.1-flash",
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 		},
@@ -218,6 +218,51 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 			if tt.wantWarning {
 				assert.Equal(t, 1, compiler.GetWarningCount())
 				assert.Contains(t, string(output), "Select a supported Codex model such as copilot/gpt-6.1-sol")
+			} else {
+				assert.Zero(t, compiler.GetWarningCount())
+				assert.Empty(t, output)
+			}
+		})
+	}
+}
+
+func TestWarnsWhenEngineCannotResolveAlias(t *testing.T) {
+	builtins := BuiltinModelAliases()
+	for _, tt := range []struct {
+		engine      string
+		model       string
+		wantWarning bool
+	}{
+		{engine: "gemini", model: "small", wantWarning: true},
+		{engine: "gemini", model: "google/small?effort=high", wantWarning: true},
+		{engine: "aider", model: "opus", wantWarning: true},
+		{engine: "gemini", model: "gemini-3.8-flash-exact"},
+		{engine: "gemini", model: "${{ inputs.model }}"},
+		{engine: "copilot", model: "opus"},
+		{engine: "claude", model: "copilot/opus"},
+		{engine: "codex", model: "copilot/gpt-5.6"},
+		{engine: "pi", model: "copilot/opus"},
+		{engine: "agy", model: "small"},
+	} {
+		t.Run(tt.engine+"/"+tt.model, func(t *testing.T) {
+			compiler := NewCompiler()
+			oldStderr := os.Stderr
+			reader, writer, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stderr = writer
+			defer func() { os.Stderr = oldStderr }()
+			compiler.warnEngineCannotResolveModelAlias(&WorkflowData{
+				Model:         tt.model,
+				EngineConfig:  &EngineConfig{ID: tt.engine},
+				ModelMappings: builtins,
+			}, "test.md")
+			require.NoError(t, writer.Close())
+			output, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			if tt.wantWarning {
+				assert.Equal(t, 1, compiler.GetWarningCount())
+				assert.Contains(t, string(output), `engine "`+tt.engine+`" does not resolve gh-aw model aliases`)
+				assert.Contains(t, string(output), `uses alias "`)
 			} else {
 				assert.Zero(t, compiler.GetWarningCount())
 				assert.Empty(t, output)

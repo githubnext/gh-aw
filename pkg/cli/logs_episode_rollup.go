@@ -72,13 +72,13 @@ func (acc *episodeAccumulator) addProcessedRun(run ProcessedRun) {
 }
 
 func (acc *episodeAccumulator) addIdentity(run RunData) {
-	if !run.CreatedAt.IsZero() && (acc.metadata.RootRunID == 0 || run.CreatedAt.Before(acc.rootTime)) {
-		acc.rootTime = run.CreatedAt
-		acc.metadata.RootRunID = run.RunID
-		acc.metadata.PrimaryWorkflow = run.WorkflowName
+	if acc.metadata.RepresentativeRunID == 0 || (!run.CreatedAt.IsZero() && (acc.representativeTime.IsZero() || run.CreatedAt.Before(acc.representativeTime))) {
+		acc.representativeTime = run.CreatedAt
+		acc.metadata.RepresentativeRunID = run.RunID
+		acc.metadata.RepresentativeWorkflow = run.WorkflowName
 	}
-	if acc.metadata.PrimaryWorkflow == "" && run.WorkflowName != "" {
-		acc.metadata.PrimaryWorkflow = run.WorkflowName
+	if acc.metadata.RepresentativeWorkflow == "" && run.WorkflowName != "" {
+		acc.metadata.RepresentativeWorkflow = run.WorkflowName
 	}
 	if acc.metadata.Repository == "" && run.Repository != "" {
 		acc.metadata.Repository = run.Repository
@@ -105,8 +105,8 @@ func (acc *episodeAccumulator) finalize() EpisodeData {
 	if acc.duration > 0 {
 		acc.metadata.TotalDuration = timeutil.FormatDuration(acc.duration)
 	}
-	if acc.metadata.PrimaryWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
-		acc.metadata.PrimaryWorkflow = acc.metadata.WorkflowNames[0]
+	if acc.metadata.RepresentativeWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
+		acc.metadata.RepresentativeWorkflow = acc.metadata.WorkflowNames[0]
 	}
 	switch acc.metadata.RiskyNodeCount {
 	case 0:

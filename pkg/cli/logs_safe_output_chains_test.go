@@ -92,6 +92,7 @@ func TestBuildLogsDataIncludesSafeOutputChainMetrics(t *testing.T) {
 				LogsPath:     runDir,
 			},
 			BehaviorFingerprint: &BehaviorFingerprint{ActuationStyle: "selective_write"},
+			AwContext:           &AwContext{EpisodeID: "canonical"},
 		},
 	}
 

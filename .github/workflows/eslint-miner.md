@@ -56,7 +56,10 @@ safe-outputs:
     if-no-changes: warn
     allowed-files:
       - "eslint-factory/**"
-    protected-files: fallback-to-issue
+    protected-files:
+      policy: fallback-to-issue
+      exclude:
+        - /eslint-factory/README.md
   noop:
 timeout-minutes: 120
 max-turns: 1000
@@ -91,17 +94,14 @@ Out of scope:
 
 ## Required flow
 
-1. Mine issues/discussions from the last 14 days for recurring JavaScript/TypeScript failures in `actions/setup/js`.
+1. Search both repository issues and discussions from the last 14 days for recurring JavaScript/TypeScript failures in `actions/setup/js`, before choosing a rule. Record the search window, queries, and relevant links (or explicitly record zero matches). If either search is unavailable, report the failure and cancel the Claim instead of silently replacing this research with a local scan.
 2. Scan `actions/setup/js` for recurring patterns that should be enforced automatically.
 3. Read existing rules in `eslint-factory/src/rules`.
 4. Choose one net-new rule idea with low false-positive risk.
 5. Implement the rule in TypeScript under `eslint-factory/src/rules` and register it in `src/index.ts`.
 6. Update `eslint-factory/eslint.config.cjs` only if needed to enable the new rule.
-7. Validate with:
-   - `cd eslint-factory && npm install`
-   - `cd eslint-factory && npm run build`
-   - `cd eslint-factory && npm run lint:setup-js`
-8. Open one draft PR with evidence and rationale. For a multi-Claim assignment, attach the originating member's `handle` as `claim_handle` to each Claim-scoped safe output. Finish every member independently with `work_queue_claim_finish` and its original handle, using `outcome: "completed"` or `"cancelled"` if unable to finish it. A single-member assignment may omit the selector. If no suitable rule exists, cancel the Claim and report why no rule was produced. Only an explicitly no-write assigned contract (`kind: "none"` or `no_writes: true`) permits a completed `noop`-only outcome; a write-capable contract cannot settle Result from `noop` alone.
+7. Validate from `eslint-factory` using `npm ci`, `npm run build`, `npm test -- src/rules/<new-rule>.test.ts`, and `npm run lint:setup-js`. Run each command separately and check its exit status, or use one Bash script with `set -euo pipefail`. Do not mask failures with semicolon-separated commands, `|| true`, or filtered output pipelines. Inspect the complete lint result, not just matches for the new rule. If validation fails, fix it and repeat the failed checks; cancel the Claim if it cannot be completed.
+8. Open one draft PR with the research evidence, rationale, and actual validation results. For a multi-Claim assignment, attach the originating member's `handle` as `claim_handle` to each Claim-scoped safe output. Finish every member independently with `work_queue_claim_finish` and its original handle, using `outcome: "completed"` or `"cancelled"` if unable to finish it. A single-member assignment may omit the selector. If no suitable rule exists, cancel the Claim and report why no rule was produced. Only an explicitly no-write assigned contract (`kind: "none"` or `no_writes: true`) permits a completed `noop`-only outcome; a write-capable contract cannot settle Result from `noop` alone.
 
 ## Rule quality bar
 

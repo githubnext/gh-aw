@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/actions"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,8 +46,11 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 	job, exists := compiler.jobManager.GetJob("call-spring-boot-bugfix")
 	require.True(t, exists, "call-spring-boot-bugfix job should exist in job manager")
 
-	assert.Equal(t, []string{"safe_outputs"}, job.Needs, "Should depend on safe_outputs")
-	assert.Equal(t, "needs.safe_outputs.outputs.call_workflow_name == 'spring-boot-bugfix'", job.If, "Should have correct if condition")
+	assert.Empty(t, job.Needs, "The typed output reference derives the dependency during Actions workflow resolution")
+	assert.Equal(t, actions.Binary{
+		Left:     actions.OutputRef{Job: "safe_outputs", Name: "call_workflow_name"},
+		Operator: "==", Right: actions.Literal("spring-boot-bugfix"),
+	}, job.Actions.If, "Should have correct typed condition")
 	assert.Equal(t, "./.github/workflows/spring-boot-bugfix.lock.yml", job.Uses, "Should use correct workflow path")
 	assert.True(t, job.SecretsInherit, "Should inherit secrets")
 	// With no markdown path the worker inputs cannot be resolved, so no inputs
@@ -55,7 +60,10 @@ func TestBuildCallWorkflowJobs_GeneratesConditionalJobs(t *testing.T) {
 
 	dottedJob, exists := compiler.jobManager.GetJob("call-worker-v1")
 	require.True(t, exists, "call-worker-v1 job should exist in job manager")
-	assert.Equal(t, "needs.safe_outputs.outputs.call_workflow_name == 'worker.v1'", dottedJob.If,
+	assert.Equal(t, actions.Binary{
+		Left:     actions.OutputRef{Job: "safe_outputs", Name: "call_workflow_name"},
+		Operator: "==", Right: actions.Literal("worker.v1"),
+	}, dottedJob.Actions.If,
 		"Should retain the dotted workflow name in the dispatch condition")
 	assert.Equal(t, "./.github/workflows/worker.v1.lock.yml", dottedJob.Uses,
 		"Should retain the dotted workflow name in the workflow path")
@@ -290,6 +298,11 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 	job, exists := compiler.jobManager.GetJob("call-worker-a")
 	require.True(t, exists, "Job should exist")
 
+	require.NoError(t, compiler.jobManager.AddJob(&Job{
+		Name: "safe_outputs", Outputs: map[string]string{"call_workflow_name": "${{ steps.process.outputs.worker }}"},
+	}))
+	require.NoError(t, compiler.jobManager.resolveActions())
+
 	// Render all jobs to YAML
 	var yamlBuf strings.Builder
 	compiler.jobManager.WriteJobsYAML(&yamlBuf)
@@ -299,7 +312,13 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")
 	// With no markdown path the worker inputs cannot be resolved, so payload is not forwarded.
 	assert.NotContains(t, yamlOutput, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}", "Should not pass payload when worker inputs are unknown")
-	assert.Contains(t, yamlOutput, "if: needs.safe_outputs.outputs.call_workflow_name == 'worker-a'", "Should have if condition")
+	var rendered struct {
+		Jobs map[string]struct {
+			If string `yaml:"if"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(yamlOutput), &rendered))
+	assert.Equal(t, "${{ (needs.safe_outputs.outputs.call_workflow_name == 'worker-a') }}", rendered.Jobs["call-worker-a"].If, "Should have if condition")
 
 	// Should not have runs-on (reusable workflows don't have this)
 	assert.NotContains(t, yamlOutput, "runs-on:", "Reusable workflow jobs should not have runs-on")
@@ -378,7 +397,9 @@ func TestCallWorkflowConclusionDependencies(t *testing.T) {
 				},
 			},
 		},
-		On: "issues",
+		On:              "issues",
+		FrontmatterHash: strings.Repeat("a", 64),
+		BodyHash:        strings.Repeat("b", 64),
 	}
 
 	err = compiler.buildSafeOutputsJobs(workflowData, "main", testFile)

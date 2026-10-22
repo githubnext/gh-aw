@@ -62,9 +62,24 @@ func renderAuditReport(ctx context.Context, processedRun ProcessedRun, metrics L
 			return err
 		}
 	}
+	return renderPreparedAuditReport(ctx, auditData, opts)
+}
+
+func renderPreparedAuditReport(ctx context.Context, auditData AuditData, opts AuditOptions) error {
+	runID := auditData.Overview.RunID
+	runOutputDir := opts.OutputDir
 	if opts.Group {
 		parseAuditLogsIfRequested(runID, runOutputDir, opts)
 		return nil
+	}
+	// Query-specific evidence never enters the shared deterministic audit cache.
+	auditData.EvidenceSearch = nil
+	if opts.Search != "" {
+		search, err := searchAuditSession(ctx, runOutputDir, runID, opts.Search, opts.SearchLimit)
+		if err != nil {
+			return fmt.Errorf("failed to search audit evidence: %w", err)
+		}
+		auditData.EvidenceSearch = search
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -89,7 +104,6 @@ func buildRenderedAuditDataFromCache(ctx context.Context, processedRun Processed
 	}
 	mergeWorkQueueReport(&auditData.WorkQueue, processedRun.WorkQueue)
 	createdItems := resolveCreatedItems(runOutputDir, processedRun.SafeOutputs)
-	addAuditOutcomeSummary(ctx, &auditData, createdItems)
 	comparison, err := buildRenderedAuditComparison(ctx, processedRun, createdItems, runOutputDir, opts)
 	if err != nil {
 		return AuditData{}, err

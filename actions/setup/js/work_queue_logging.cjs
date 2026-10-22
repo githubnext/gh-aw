@@ -77,13 +77,13 @@ function queueControlErrorExplanation(code) {
     case "work_queue_dispatch_credential_metadata_conflict":
       return "The compiled dispatch credential configuration is missing or inconsistent. Recompile the dispatcher with its declared safe-outputs.dispatch-workflow workers and approved credential source.";
     case "queue_control_github_access_denied":
-      return "GitHub denied the queue API request (HTTP 403). Check the selected credential's repository access and required permissions, including contents: write and actions: write for dispatch; keep the agent job read-only.";
+      return "GitHub denied the queue API request (HTTP 403). This status alone does not distinguish permission denial from throttling. Inspect the rate-limit and SSO diagnostics before changing credential permissions; keep the agent job read-only.";
     case "queue_control_github_authentication_failed":
       return "GitHub rejected the credential (HTTP 401). Check that the compiler-selected token is present, valid, and unexpired in the trusted safe-output job; never print the token.";
     case "queue_control_github_not_found":
       return "GitHub could not find or expose the requested queue resource (HTTP 404). Check the approved repository, worker revision, workflow path, and selected token's access.";
     case "queue_control_github_rate_limited":
-      return "GitHub rate-limited the queue request (HTTP 429). Wait for the rate limit to reset, then inspect the authoritative ledger and reconcile existing reservations before retrying.";
+      return "GitHub rate-limited the queue request. Respect the reported reset or retry timing, then inspect the authoritative ledger and reconcile existing reservations before retrying.";
     case "queue_control_github_api_unavailable":
       return "GitHub returned a server error. A write or worker launch may already have happened; inspect the ledger and reconcile the original reservation before retrying.";
     case "queue_control_dispatch_ref_missing":
@@ -108,8 +108,60 @@ function ownValue(value, key) {
   }
 }
 
+/** @param {unknown} headers @param {string} name */
+function headerInteger(headers, name) {
+  const value = ownValue(headers, name);
+  if (typeof value !== "string" || /\s/.test(value) || !/^(?:0|[1-9][0-9]{0,15})$/.test(value)) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
 /** @param {unknown} error */
-function queueControlErrorCode(error) {
+function githubFailureMetadata(error) {
+  const response = ownValue(error, "response");
+  const headers = ownValue(response, "headers") ?? ownValue(error, "headers");
+  /** @type {Record<string, number | boolean>} */
+  const fields = {};
+  for (const [header, field] of [
+    ["x-ratelimit-limit", "rate_limit_limit"],
+    ["x-ratelimit-remaining", "rate_limit_remaining"],
+    ["x-ratelimit-used", "rate_limit_used"],
+    ["x-ratelimit-reset", "rate_limit_reset_unix"],
+    ["retry-after", "retry_after_seconds"],
+  ]) {
+    const value = headerInteger(headers, header);
+    if (value !== undefined) fields[field] = value;
+  }
+  const resource = ownValue(headers, "x-ratelimit-resource");
+  if (resource === "core") fields.rate_limit_resource_core = true;
+  if (resource === "graphql") fields.rate_limit_resource_graphql = true;
+  const sso = ownValue(headers, "x-github-sso");
+  if (typeof sso === "string" && sso.length <= 8192 && /^required(?:;|$)/.test(sso)) fields.sso_required = true;
+  const message = ownValue(ownValue(response, "data"), "message");
+  if (typeof message === "string" && message.length <= 8192) {
+    if (message.startsWith("API rate limit exceeded")) fields.rate_limit_message = true;
+    if (message.startsWith("API rate limit exceeded for installation")) fields.installation_rate_limit = true;
+    if (message.startsWith("You have exceeded a secondary rate limit") || message.startsWith("You have triggered an abuse detection mechanism")) fields.secondary_rate_limit = true;
+    if (message === "Resource not accessible by integration" || message === "Resource not accessible by personal access token") fields.resource_not_accessible = true;
+  }
+  const errors = ownValue(error, "errors");
+  const count = ownValue(errors, "length");
+  if (Number.isSafeInteger(count) && count > 0 && count <= 50) {
+    fields.graphql_errors = count;
+    for (let index = 0; index < count; index++) {
+      const type = ownValue(ownValue(errors, String(index)), "type");
+      if (type === "RATE_LIMITED") fields.graphql_rate_limited = true;
+      if (type === "FORBIDDEN") fields.graphql_forbidden = true;
+      if (type === "UNPROCESSABLE") fields.graphql_unprocessable = true;
+      if (type === "NOT_FOUND") fields.graphql_not_found = true;
+      if (type === "GRAPHQL_VALIDATION_FAILED") fields.graphql_validation_failed = true;
+    }
+  }
+  return fields;
+}
+
+/** @param {unknown} error @param {Record<string, number | boolean>} [metadata] */
+function queueControlErrorCode(error, metadata) {
   for (const key of ["code", "message"]) {
     const code = ownValue(error, key);
     if (typeof code === "string" && CONTROL_ERROR_CODES.has(code)) return code;
@@ -117,6 +169,12 @@ function queueControlErrorCode(error) {
   const response = ownValue(error, "response");
   const status = ownValue(error, "status") ?? ownValue(response, "status");
   if (status === 401) return "queue_control_github_authentication_failed";
+  metadata ??= githubFailureMetadata(error);
+  if (
+    (status === 403 && ((metadata.rate_limit_remaining === 0 && !metadata.resource_not_accessible) || metadata.retry_after_seconds !== undefined || metadata.rate_limit_message || metadata.secondary_rate_limit)) ||
+    metadata.graphql_rate_limited
+  )
+    return "queue_control_github_rate_limited";
   if (status === 403) return "queue_control_github_access_denied";
   if (status === 404) return "queue_control_github_not_found";
   if (status === 429) return "queue_control_github_rate_limited";
@@ -140,8 +198,9 @@ function debugEnabled(namespace) {
 }
 
 /**
- * Events, field names and explanations must be developer-authored. Values are
- * counts/flags only: never pass identities, payloads, credentials or raw errors.
+ * Events and field names must be developer-authored. Values are counts/flags
+ * only; failure explanations may include a validated GitHub request ID.
+ * Never pass identities, payloads, credentials or raw errors.
  * @param {string} component
  */
 function createWorkQueueLogger(component) {
@@ -169,12 +228,17 @@ function createWorkQueueLogger(component) {
     const status = ownValue(error, "status") ?? ownValue(response, "status");
     const message = ownValue(ownValue(response, "data"), "message");
     const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
-    const code = queueControlErrorCode(error);
+    const metadata = githubFailureMetadata(error);
+    const code = queueControlErrorCode(error, metadata);
+    const requestId = ownValue(ownValue(response, "headers"), "x-github-request-id");
+    const validRequestId = typeof requestId === "string" && !/\s/.test(requestId) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(requestId);
+    const requestDiagnostic = Number.isInteger(status) && status >= 100 && status <= 599 ? ` GitHub request ID: ${validRequestId ? requestId : "unknown"}.` : "";
     diagnostic(
       event,
       {
         failed: true,
         ...(Number.isInteger(status) && status >= 100 && status <= 599 ? { http_status: status } : {}),
+        ...metadata,
         ...(status === 422
           ? {
               ref_not_found: boundedMessage.startsWith("No ref found for:"),
@@ -184,7 +248,7 @@ function createWorkQueueLogger(component) {
           : {}),
         [code]: true,
       },
-      queueControlErrorExplanation(code)
+      queueControlErrorExplanation(code) + requestDiagnostic
     );
   }
   return { debug, diagnostic, failure };

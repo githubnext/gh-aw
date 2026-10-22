@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,6 +37,7 @@ func TestFormalPM10a_PreActivationJobPrecedesActivation(t *testing.T) {
 	yamlOut := compileFormalPM10Workflow(t, `---
 name: formal-pm10a
 on:
+  admission: true
   pull_request:
     types: [opened]
   roles: [triage]
@@ -50,13 +52,15 @@ permissions:
 
 	activationSection := extractJobSection(yamlOut, "activation")
 	require.NotEmpty(t, activationSection, "activation job must be present")
-	assert.Contains(t, activationSection, "needs: pre_activation", "activation must depend on pre_activation")
+	assert.Contains(t, activationSection, "      - pre_activation", "activation must depend on pre_activation")
+	assert.Contains(t, activationSection, "      - admission", "activation must depend on admission")
 }
 
 func TestFormalPM10b_ActivatedOutputExistsAndGatesActivation(t *testing.T) {
 	yamlOut := compileFormalPM10Workflow(t, `---
 name: formal-pm10b
 on:
+  admission: true
   pull_request:
     types: [opened]
   roles: [triage]
@@ -73,7 +77,18 @@ permissions:
 
 	activationSection := extractJobSection(yamlOut, "activation")
 	require.NotEmpty(t, activationSection)
-	assert.Contains(t, activationSection, "if: needs.pre_activation.outputs.activated == 'true'")
+	var rendered struct {
+		Jobs map[string]struct {
+			If    string `yaml:"if"`
+			Needs any    `yaml:"needs"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(yamlOut), &rendered))
+	assert.Contains(t, rendered.Jobs["activation"].If, "needs.pre_activation.outputs.activated == 'true'", "activation must require successful pre-activation")
+	assert.Contains(t, rendered.Jobs["activation"].If, "needs.pre_activation.result == 'success'")
+	assert.Contains(t, rendered.Jobs["activation"].Needs, "pre_activation")
+	assert.Contains(t, rendered.Jobs["activation"].Needs, "admission")
+	assert.Contains(t, rendered.Jobs["activation"].If, admissionJobResultCondition)
 }
 
 func TestFormalPM10c_PreActivationJobHasNoWritePermissions(t *testing.T) {
@@ -206,13 +221,11 @@ permissions:
 ---`)
 
 	preActivationSection := extractJobSection(yamlOut, "pre_activation")
-	require.NotEmpty(t, preActivationSection)
-	assert.Contains(t, preActivationSection, `GH_AW_REQUIRED_ROLES: ""`)
+	assert.Empty(t, preActivationSection, "manual workflows without role checks do not need pre-activation")
 
 	activationSection := extractJobSection(yamlOut, "activation")
 	require.NotEmpty(t, activationSection)
-	assert.Contains(t, activationSection, "needs: pre_activation")
-	assert.Contains(t, activationSection, "needs.pre_activation.outputs.activated")
+	assert.NotContains(t, activationSection, "pre_activation", "activation must not depend on an absent job")
 }
 
 func TestFormalPM10c_PreActivationPermissionsTableDriven(t *testing.T) {

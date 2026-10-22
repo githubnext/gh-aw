@@ -118,6 +118,26 @@ func TestBuildMainJobDependencies(t *testing.T) {
 		assert.NotContains(t, depends, "pre_act_job")
 	})
 
+	t.Run("post-agent jobs are excluded even when referenced", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			Jobs: map[string]any{
+				"prepare": map[string]any{"needs": "activation"},
+				"middle":  map[string]any{"needs": "agent"},
+				"release": map[string]any{"needs": []any{"middle", "prepare"}},
+				"report":  map[string]any{"needs": []string{"release"}},
+			},
+			MarkdownContent: "${{ needs.release.outputs.id }}",
+			CustomSteps:     "run: echo ${{ needs.middle.result }}",
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{"REPORT": "${{ needs.report.result }}"},
+			},
+		}
+		depends, _ := c.buildMainJobDependencies(data, true)
+		assert.Equal(t, []string{"activation", "prepare"}, depends)
+		assert.Equal(t, depends, data.AgentJobNeeds)
+	})
+
 	t.Run("builtin job names are never added to depends", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
@@ -138,6 +158,15 @@ func TestBuildMainJobDependencies(t *testing.T) {
 		assert.Equal(t, 1, count, "activation should appear exactly once in depends")
 	})
 
+	t.Run("job depending on both activation phases still runs before agent", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{Jobs: map[string]any{
+			"prepare": map[string]any{"needs": []any{"pre_activation", "activation"}},
+		}}
+		depends, _ := c.buildMainJobDependencies(data, true)
+		assert.Contains(t, depends, "prepare")
+	})
+
 	t.Run("engine env content is returned for builtin-reference warning use", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
@@ -151,8 +180,33 @@ func TestBuildMainJobDependencies(t *testing.T) {
 	})
 }
 
+func TestGetJobsDependingOnAgent(t *testing.T) {
+	jobs := map[string]any{
+		"middle":   map[string]any{"needs": "agent"},
+		"release":  map[string]any{"needs": []any{"middle", "prepare", "report"}},
+		"report":   map[string]any{"needs": []string{"release"}},
+		"prepare":  map[string]any{"needs": "activation"},
+		"cycle_a":  map[string]any{"needs": "cycle_b"},
+		"cycle_b":  map[string]any{"needs": "cycle_a"},
+		"missing":  map[string]any{"needs": "unknown"},
+		"no_needs": map[string]any{},
+		"invalid":  "not a job",
+	}
+	assert.Equal(t, map[string]struct{}{
+		"agent": {}, "middle": {}, "release": {}, "report": {},
+	}, getJobsDependingOnAgent(jobs))
+	assert.Equal(t, map[string]struct{}{"agent": {}}, getJobsDependingOnAgent(nil))
+}
+
 // TestBuildMainJobOutputs tests that the output map contains expected keys under various config.
 func TestBuildMainJobOutputs(t *testing.T) {
+	t.Run("PR checkout invalidation is distinct from ordinary checkout failure", func(t *testing.T) {
+		data := &WorkflowData{AI: "copilot", Permissions: "permissions:\n  contents: read"}
+		outputs := NewCompiler().buildMainJobOutputs(data)
+		assert.Equal(t, "${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}", outputs["checkout_pr_invalidated"])
+		data.CheckoutDisabled = true
+		assert.NotContains(t, NewCompiler().buildMainJobOutputs(data), "checkout_pr_invalidated")
+	})
 	t.Run("core outputs are always present", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{AI: "copilot"}
@@ -352,9 +406,11 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("operational value preserves declared permissions", func(t *testing.T) {
+	t.Run("graders preserve declared permissions", func(t *testing.T) {
 		c := NewCompiler()
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions:\n  contents: read"
 		perms, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
@@ -362,20 +418,24 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		assert.Contains(t, perms, "contents: read")
 	})
 
-	t.Run("operational value allows explicit empty permissions", func(t *testing.T) {
+	t.Run("graders allow explicit empty permissions", func(t *testing.T) {
 		c := NewCompiler()
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions: {}"
-		_, err := c.buildMainJobPermissions(data)
+		_, err = c.buildMainJobPermissions(data)
 		require.NoError(t, err)
 	})
 
-	t.Run("disabled operational value does not add actions read", func(t *testing.T) {
+	t.Run("disabled grader does not add actions read", func(t *testing.T) {
 		c := NewCompiler()
 		disabled := false
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions:\n  contents: read"
-		data.Graders.Graders["operational-value"].Enabled = &disabled
+		data.Graders.Graders["loops"].Enabled = &disabled
 		perms, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
 		assert.NotContains(t, perms, "actions: read")

@@ -81,7 +81,7 @@ function managerOptions(overrides = {}) {
 
 beforeEach(() => {
   oldEnv = { ...process.env };
-  oldGlobals = Object.fromEntries(["core", "context", "github", "getOctokit"].map(key => [key, Object.getOwnPropertyDescriptor(global, key)]));
+  oldGlobals = Object.fromEntries(["core", "context", "github", "getOctokit", "exec"].map(key => [key, Object.getOwnPropertyDescriptor(global, key)]));
   for (const key of Object.keys(process.env)) if (key.startsWith("GH_AW_")) delete process.env[key];
   process.env.RUNNER_TEMP = root;
   process.env.GITHUB_WORKSPACE = root;
@@ -203,6 +203,154 @@ describe("disabled safe-output behavioral parity", () => {
 });
 
 describe("real immutable Claim routing", () => {
+  it.each([false, true])("reuses the selected queue transport for initial and bounded delivery readback with explicit client=%s", async explicitClient => {
+    const fixture = activate(2, () => []);
+    for (const member of fixture.assignment.claims) {
+      fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    }
+    global.github = fixture.githubClient;
+    const queueClient = explicitClient ? { ...fixture.githubClient } : fixture.githubClient;
+    const store = require("./work_queue_store.cjs");
+    const reads = vi.spyOn(store, "readWorkQueueLog").mockImplementation(async parameters => {
+      expect(parameters.githubClient).toBe(queueClient);
+      return fixture.readWorkQueueLog();
+    });
+    process.env.GITHUB_WORKFLOW_REF = `owner/repo/.github/workflows/worker.lock.yml@${"a".repeat(40)}`;
+    const { finalizeWorkerResults } = require("./finish_work_queue_claim.cjs");
+    const result = await manager.main({
+      ...(explicitClient ? { queueClient } : {}),
+      controlIntentPath: path.join(root, "missing-intents.jsonl"),
+      finalizeResults: options => finalizeWorkerResults({ ...options, publishWorkQueueRequest: fixture.publishWorkQueueRequest, now: fixture.at }),
+    });
+    expect(result.settlements.map(settlement => settlement.delivery.verification)).toEqual(["verified", "verified"]);
+    expect(fixture.assignment.claims.map(member => fixture.state.works.get(member.work_id).barrier)).toEqual(["verified", "verified"]);
+    expect(reads).toHaveBeenCalled();
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it.each([...["create_discussion", "create_pull_request"].flatMap(type => [false, true].map(tampered => [type, tampered, false])), ["create_discussion", false, true]])(
+    "independently verifies the real %s handler and manager without masking tampered=%s or labelFailure=%s",
+    async (type, tampered, labelFailure) => {
+      const pending = tampered || labelFailure;
+      const labelNames = type === "create_discussion" ? ["report", "x".repeat(64)] : ["report"];
+      const fixture = activate(1, () => [{ type, title: "Required report", body: "Report body", labels: ["report"] }], {
+        workDefaults: {
+          payload: {
+            effect_contract: { version: 1, outputs: [{ type, min: 1, max: 1 }] },
+            resource_scope: { version: 1, resources: [{ host: "github.com", repository: "owner/repo", repository_id: "7" }] },
+          },
+        },
+      });
+      const member = fixture.assignment.claims[0];
+      fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+      const snapshot = JSON.parse(fs.readFileSync(process.env.GH_AW_WORK_QUEUE_SNAPSHOT, "utf8"));
+      snapshot.transactionLog = serializeTransactionLog(fixture.transactions);
+      fs.writeFileSync(process.env.GH_AW_WORK_QUEUE_SNAPSHOT, JSON.stringify(snapshot));
+      global.github = fixture.githubClient;
+      global.github.rest.rateLimit = { get: vi.fn(async () => ({ data: { resources: { core: { remaining: 5000, limit: 5000 } } } })) };
+      const tree = "b".repeat(40);
+      const commit = "c".repeat(40);
+      const base = "d".repeat(40);
+      global.exec = {
+        exec: vi.fn(async () => 0),
+        getExecOutput: vi.fn(async (_command, args) => ({ exitCode: 0, stdout: args.at(-1) === "HEAD^{tree}" ? tree : args.at(-1) === "refs/remotes/origin/main^{commit}" ? base : "", stderr: "" })),
+      };
+      global.core.startGroup = vi.fn();
+      global.core.endGroup = vi.fn();
+      Object.assign(global.github.rest.git, {
+        getRef: vi.fn(async ({ ref }) => ({ data: { ref: `refs/${ref}`, object: { type: "commit", sha: commit } } })),
+        getCommit: vi.fn(async () => ({ data: { sha: commit, tree: { sha: tree }, parents: [{ sha: base }] } })),
+        getTree: vi.fn(async () => ({ data: { sha: tree, tree: [], truncated: false } })),
+      });
+      global.github.rest.repos.compareCommits = vi.fn(async () => ({ data: { base_commit: { sha: base }, merge_base_commit: { sha: base }, status: "ahead", ahead_by: 1, behind_by: 0 } }));
+      let native;
+      global.github.rest.pulls = {
+        create: vi.fn(async parameters => {
+          native = {
+            ...parameters,
+            id: 190,
+            node_id: "PR_19",
+            number: 19,
+            html_url: "https://github.com/owner/repo/pull/19",
+            state: "open",
+            labels: [],
+            assignees: [],
+            head: { sha: commit, ref: parameters.head, repo: { full_name: "owner/repo", id: 7 } },
+            base: { sha: base, ref: "main", repo: { full_name: "owner/repo", id: 7 } },
+          };
+          return { data: native };
+        }),
+        get: vi.fn(async () => ({ data: { ...native, body: tampered ? "Changed after publication" : native.body } })),
+      };
+      global.github.rest.issues = {
+        get: vi.fn(async () => ({ data: { id: 191, number: 19, labels: native.labels, assignees: [], pull_request: { url: "https://api.github.com/repos/owner/repo/pulls/19" } } })),
+        addLabels: vi.fn(async () => {
+          native.labels = labelNames.map(name => ({ name }));
+          return { data: native.labels };
+        }),
+      };
+      global.github.graphql = vi.fn(async (query, variables) => {
+        if (query.includes("WorkQueueEffectTargets")) {
+          return {
+            nodes: variables.ids.map(id =>
+              id === "R_7"
+                ? { __typename: "Repository", id, databaseId: 7, nameWithOwner: "owner/repo" }
+                : { __typename: id === "D_19" ? "Discussion" : id.startsWith("L_") ? "Label" : "DiscussionCategory", id, ...(id === "D_19" ? { number: 19 } : {}), repository: { nameWithOwner: "owner/repo", databaseId: 7 } }
+            ),
+          };
+        }
+        if (query.includes("discussionCategories")) return { repository: { id: "R_7", discussionCategories: { nodes: [{ id: "C_1", name: "Reports", slug: "reports" }] } } };
+        if (query.includes("after: $cursor")) return { repository: { labels: { nodes: labelNames.map((name, index) => ({ id: `L_${index + 1}`, name })), pageInfo: { hasNextPage: false } } } };
+        if (query.includes("addLabelsToLabelable")) {
+          if (labelFailure) throw new Error("Injected native label API unavailable");
+          native.labels.nodes = labelNames.map(name => ({ name }));
+          return { addLabelsToLabelable: { labelable: { id: native.id, labels: native.labels } } };
+        }
+        if (query.includes("mutation")) {
+          native = {
+            __typename: "Discussion",
+            id: "D_19",
+            number: 19,
+            url: "https://github.com/owner/repo/discussions/19",
+            title: variables.title,
+            body: variables.body,
+            repository: { id: "R_7", databaseId: 7, nameWithOwner: "owner/repo" },
+            category: { id: "C_1" },
+            labels: { nodes: [], pageInfo: { hasNextPage: false } },
+          };
+          return { createDiscussion: { discussion: native } };
+        }
+        return { node: { ...native, body: tampered ? "Changed after publication" : native.body } };
+      });
+      process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({
+        [type]: { category: "Reports", footer: false, fallback_to_issue: false, allow_empty: true, base_branch: "main", labels: type === "create_discussion" ? [" report ", "x".repeat(70)] : [" report "] },
+      });
+      const runtime = {
+        assignment: fixture.assignment,
+        context: fixture.workerContext,
+        githubClient: fixture.githubClient,
+        workflowRef: `owner/repo/.github/workflows/worker.lock.yml@${"a".repeat(40)}`,
+        readWorkQueueLog: fixture.readWorkQueueLog,
+      };
+      const { authorizeWorkerClaim, finalizeWorkerResults } = require("./finish_work_queue_claim.cjs");
+      const { readDeliveryControlInventory } = require("./work_queue_delivery.cjs");
+      const result = await manager.main(
+        managerOptions({
+          authorize: request => authorizeWorkerClaim({ ...runtime, ...request }),
+          readControlInventory: () => readDeliveryControlInventory({ ...runtime, claim_handle: member.handle }),
+          finalizeResults: options => finalizeWorkerResults({ ...options, ...runtime, publishWorkQueueRequest: fixture.publishWorkQueueRequest, now: fixture.at }),
+        })
+      );
+      expect(result.settlements[0].success, JSON.stringify(global.core.setFailed.mock.calls)).toBe(true);
+      if (type === "create_discussion") expect(native.labels.nodes, JSON.stringify(global.core.warning.mock.calls)).toHaveLength(labelFailure ? 0 : labelNames.length);
+      expect(result.settlements[0].delivery.verification, result.settlements[0].delivery.reason).toBe(pending ? "unknown" : "verified");
+      expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", pending ? "delivery_pending" : "completed");
+      if (pending) expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
+      else expect(global.core.setFailed).not.toHaveBeenCalled();
+      expect(fixture.state.works.get(member.work_id).barrier).toBe(pending ? "pending" : "verified");
+    }
+  );
+
   it("allows only noop safe outputs for a genuinely absent dispatcher queue", () => {
     process.env.GH_AW_WORK_QUEUE_ENABLED = "true";
     process.env.GH_AW_WORK_QUEUE_ROLE = "dispatcher";
@@ -274,7 +422,39 @@ describe("real immutable Claim routing", () => {
     }
     expect(options.finalizeResults).toHaveBeenCalledTimes(1);
     expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", "delivery_pending");
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
     expect(global.getOctokit).not.toHaveBeenCalled();
+  });
+
+  it.each(["pending", "delivery_failed"])("fails an otherwise successful output pass with a %s delivery without suppressing its verified sibling", async state => {
+    const fixture = activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    await scope.withClaimExecution({ assignment: fixture.assignment, claim_handle: "h1", authorize }, () => manifest.writeSafeOutputErrorReport({ message: "Original handler failure" }));
+    const options = managerOptions({
+      finalizeResults: vi.fn(async () => ({ claims: { h1: { state }, h2: { state: "result" } } })),
+    });
+    const result = await manager.main(options);
+    expect(result.settlements).toHaveLength(2);
+    expect(result.settlements.every(settlement => settlement.success)).toBe(true);
+    expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", "delivery_pending");
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
+    const worker = scope.readClaimScopeContext().assignment;
+    const directory = scope.claimArtifactPath(root, "h1", worker);
+    const report = JSON.parse(fs.readFileSync(path.join(directory, manifest.CLAIM_DELIVERY_ERRORS_FILE_NAME), "utf8"));
+    expect(report).toMatchObject({
+      claim_handle: "h1",
+      errorCode: "claim_delivery_unverified",
+      message: `Claim delivery state: ${state}; effects: unknown`,
+      failures: [{ type: "claim_delivery", errorCode: state === "delivery_failed" ? "delivery_failed" : "verification_unresolved" }],
+    });
+    expect(fs.statSync(path.join(directory, manifest.CLAIM_DELIVERY_ERRORS_FILE_NAME)).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(fs.readFileSync(path.join(directory, "safe-output-errors.json"), "utf8")).message).toBe("Original handler failure");
+  });
+
+  it.each(["result", "cancelled"])("does not fail independently settled %s Claims", async state => {
+    activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    await manager.main(managerOptions({ finalizeResults: vi.fn(async () => ({ claims: { h1: { state }, h2: { state: "result" } } })) }));
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+    expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", state === "result" ? "completed" : "completed_with_cancellations");
   });
 
   it("redacts every persisted Claim diagnostic before JSON encoding and keeps files private", async () => {

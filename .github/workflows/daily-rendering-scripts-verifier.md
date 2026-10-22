@@ -68,6 +68,17 @@ network:
     - defaults
     - node
 
+steps:
+  - name: Setup Node.js for rendering verification
+    uses: actions/setup-node@v7.1.0
+    with:
+      node-version: "24"
+      cache: npm
+      cache-dependency-path: actions/setup/js/package-lock.json
+  - name: Install locked JavaScript test dependencies
+    working-directory: actions/setup/js
+    run: npm ci --ignore-scripts --no-audit --no-fund
+
 imports:
   - uses: shared/meta-analysis-base.md
     with:
@@ -119,6 +130,8 @@ Each day:
 
 DO NOT USE `gh aw` CLI directly for GitHub API operations — it is not authenticated in this environment. Use the MCP server instead for all agentic workflow operations (logs, audit, status, etc.).
 
+The deterministic setup steps install `actions/setup/js/package-lock.json` dependencies before entering the sandbox, including Vitest. Do not install dependencies inside the sandbox, change the package lock, rewrite Git URLs, disable TLS verification, or widen the network allowlist to repair the environment. If the installed test harness cannot run, report `report_missing_tool` and `report_incomplete`; do not claim successful verification.
+
 Verify the agentic-workflows MCP server is operational:
 ```
 Use the agentic-workflows MCP "status" tool to verify configuration.
@@ -126,8 +139,8 @@ Use the agentic-workflows MCP "status" tool to verify configuration.
 
 ## Known Environment Constraints
 
-- `bash` cannot access `/tmp/` in this environment — use the Read/Write tools for `/tmp/gh-aw/...` paths.
-- Bare `node` execution is permission-gated and denied in this sandbox. Do not run `node -e`, `which node`, `node --version`, or full-path `node` probes. Use `npm run test:js -- --run <spec>` as the only supported JavaScript test harness command.
+- Use the Read/Write tools to inspect downloaded artifacts under `/tmp/gh-aw/` and create the harness input. The Vitest harness reads the selected log file directly.
+- Use `npm run test:js -- ...` for JavaScript execution. Do not use bare `node` commands or availability probes. The checked-in Vitest harness resolves parser modules relative to the checkout, not a temporary script directory.
 - The `logs` MCP tool may appear to hang or hit a 60s timeout while still finishing server-side. Wait once with `sleep 60`, then read the returned `file_path` directly. Do not loop with repeated `sleep` + `tail` polling.
 
 ## Phase 1: Find the Most Recent Run
@@ -149,7 +162,7 @@ If no logs are found, retry with `count: 5` and use the most recent run.
 
 ## Phase 2: Identify the Engine and Agent Output File
 
-Read the summary JSON at the `file_path` returned by the logs tool (use the Read tool — bash cannot access `/tmp/` in this environment):
+Read the summary JSON at the `file_path` returned by the logs tool using the Read tool:
 
 ```
 Read the file at the file_path returned in Phase 1.
@@ -170,6 +183,8 @@ If `agent-stdio.log` is missing (e.g. the run used the Copilot engine which stor
 
 If no agent output file is found at all, run Phase 3 (the `audit` MCP tool) which will report the correct path in its `overview.logs_path` field.
 
+Prefer the engine's structured output over wrapper stdout. For Pi, use `{RUN_DIR}/pi-streaming.jsonl` (or find that file in the downloaded agent artifact); `agent-stdio.log` may contain launcher diagnostics rather than Pi events. For Copilot, select the session's `events.jsonl` file, not a directory. Use Read/Glob tools to identify the actual downloaded file, and preserve its path as `AGENT_OUTPUT_FILE`.
+
 ## Phase 3: Audit the Run
 
 Use the agentic-workflows MCP `audit` tool to get the full run report and confirm which agent output file to use:
@@ -182,166 +197,28 @@ Note the engine type, total tokens, and any errors in the audit output.
 
 ## Phase 4: Run the Output Through the Parser
 
-Create a test harness that mocks GitHub Actions globals and runs the engine-specific parser:
+Use the Write tool to create `/tmp/gh-aw/agent/rendering-verifier-input.json` with the engine and exact log-file path selected in Phase 2. Replace the example values with those of the downloaded run; this JSON is data, never executable JavaScript:
 
-```bash
-cat > /tmp/gh-aw/agent-parser-harness.cjs << 'EOF'
-// @ts-check
-"use strict";
-
-// Mock GitHub Actions globals required by the parser scripts
-const summaryLines = [];
-const mockCore = {
-  info: (msg) => console.log("[INFO]", msg),
-  warning: (msg) => console.warn("[WARN]", msg),
-  error: (msg) => { console.error("[ERROR]", msg); process.exitCode = 1; },
-  debug: () => {},
-  setOutput: (k, v) => console.log("[OUTPUT]", k + "=", String(v).substring(0, 200)),
-  setFailed: (msg) => { console.error("[FAILED]", msg); process.exitCode = 1; },
-  summary: {
-    addRaw: (s) => { summaryLines.push(s); return mockCore.summary; },
-    write: async () => {},
-  },
-};
-
-global.core = mockCore;
-global.github = {};
-global.context = {};
-
-const [,, agentOutputPath, engine] = process.argv;
-if (!agentOutputPath || !engine) {
-  console.error("Usage: node gh-aw-parser-harness.cjs <agent-output-file-or-dir> <engine>");
-  process.exit(1);
-}
-
-process.env.GH_AW_AGENT_OUTPUT = agentOutputPath;
-
-const parserMap = {
-  copilot: "./parse_copilot_log.cjs",
-  claude:  "./parse_claude_log.cjs",
-  codex:   "./parse_codex_log.cjs",
-  gemini:  "./parse_gemini_log.cjs",
-  custom:  "./parse_custom_log.cjs",
-};
-
-const parserFile = parserMap[engine.toLowerCase()];
-if (!parserFile) {
-  console.error("Unknown engine:", engine, "— supported:", Object.keys(parserMap).join(", "));
-  process.exit(1);
-}
-
-console.log("Running", engine, "parser against:", agentOutputPath);
-const { main } = require(parserFile);
-
-main()
-  .then(() => {
-    const summaryContent = summaryLines.join("");
-    const summaryBytes = Buffer.byteLength(summaryContent, "utf8");
-    console.log("[SUCCESS] Parser completed. Step summary size:", summaryBytes, "bytes");
-
-    if (summaryBytes === 0) {
-      console.warn("[WARN] No content was added to the step summary — parser may have found nothing to render");
-    } else {
-      console.log("[INFO] Summary preview (first 600 chars):");
-      console.log(summaryContent.substring(0, 600));
-    }
-  })
-  .catch((err) => {
-    console.error("[FAILURE] Parser threw an exception:", err.message);
-    console.error(err.stack);
-    process.exit(1);
-  });
-EOF
+```json
+{"engine": "pi", "logPath": "/tmp/gh-aw/aw-mcp/logs/run-12345678/pi-streaming.jsonl"}
 ```
 
-Run the parser harness against the real agent output:
+Run the checked-in harness, which mocks Actions logging globals and calls the selected engine's parser function on the real file content:
 
 ```bash
-# Use the ENGINE and AGENT_OUTPUT_FILE values determined in Phase 2.
-# Do NOT re-discover them here — bash cannot access /tmp/ in this environment.
-# ENGINE and AGENT_OUTPUT_FILE must be set from Phase 2 before running this block.
-# Do NOT run node availability probes (node -e, node --version, which node, full-path node).
-# Run the expected parser check directly via vitest:
-# npm run test:js -- --run parse_${ENGINE}_log.test.cjs
-
-cd ${{ github.workspace }}/actions/setup/js
-echo "Engine: $ENGINE"
-echo "Agent output file: $AGENT_OUTPUT_FILE"
-
-node /tmp/gh-aw/agent-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
-echo "Exit code: $?"
+cd ${{ github.workspace }}/actions/setup/js && npm run test:js -- --config vitest.rendering.config.mjs --silent=false
 ```
 
-Capture the full output and exit code. A non-zero exit code or `[ERROR]`/`[FAILURE]` lines indicate a parsing problem.
+The dedicated config requires a readable input JSON and real log file. The harness supports Pi and the other checked-in engine parsers, rejects unsupported engines, and fails on empty/unrecognized logs or empty rendered Markdown. It reports recognized-event and rendered-byte counts without printing raw log content. It calls the parser function directly, avoiding the production entry point's writes to the current run's session artifacts.
+
+Capture the full output and command exit code without piping through `tail` or appending a successful `echo`. A non-zero exit is a failed check, not a successful static verification. Inspect any reported warnings. Never replace this command with the default test config: that config runs fixture regressions but skips the real-file check.
 
 ## Phase 5: Verify the Rendering Scripts
 
-Test the `render_template.cjs` rendering logic with known cases:
+The Phase 4 command also executes five exact-output checks against `render_template.cjs`: truthy/falsy blocks, truthy/falsy inline conditionals, and preservation of surrounding lines. All must pass. For the broader existing rendering regressions, run:
 
 ```bash
-cat > /tmp/gh-aw/agent-render-test.cjs << 'EOF'
-// @ts-check
-"use strict";
-
-const mockCore = {
-  info: (msg) => console.log("[INFO]", msg),
-  warning: () => {},
-  error: (msg) => { console.error("[ERROR]", msg); process.exitCode = 1; },
-  debug: () => {},
-};
-global.core = mockCore;
-
-const { renderMarkdownTemplate } = require("./render_template.cjs");
-
-const cases = [
-  {
-    name: "truthy block preserved",
-    input: "{{#if true}}\nHello\n{{/if}}",
-    check: (r) => r.includes("Hello"),
-  },
-  {
-    name: "falsy block removed",
-    input: "{{#if false}}\nHidden\n{{/if}}",
-    check: (r) => !r.includes("Hidden"),
-  },
-  {
-    name: "inline truthy preserved",
-    input: "Start {{#if true}}middle{{/if}} end",
-    check: (r) => r.includes("middle"),
-  },
-  {
-    name: "inline falsy removed",
-    input: "Start {{#if false}}gone{{/if}} end",
-    check: (r) => !r.includes("gone"),
-  },
-  {
-    name: "surrounding text preserved",
-    input: "Before\n{{#if false}}\nRemoved\n{{/if}}\nAfter",
-    check: (r) => r.includes("Before") && r.includes("After") && !r.includes("Removed"),
-  },
-];
-
-let passed = 0;
-let failed = 0;
-for (const tc of cases) {
-  const result = renderMarkdownTemplate(tc.input);
-  if (tc.check(result)) {
-    console.log("[PASS]", tc.name);
-    passed++;
-  } else {
-    console.log("[FAIL]", tc.name);
-    console.log("  Input:  ", JSON.stringify(tc.input));
-    console.log("  Output: ", JSON.stringify(result));
-    failed++;
-    process.exitCode = 1;
-  }
-}
-console.log("\nResults:", passed, "passed,", failed, "failed");
-EOF
-
-cd ${{ github.workspace }}/actions/setup/js
-node /tmp/gh-aw/agent-render-test.cjs
-echo "Render test exit code: $?"
+cd ${{ github.workspace }}/actions/setup/js && npm run test:js -- --run render_template.test.cjs
 ```
 
 ## Phase 6: Analyze Results
@@ -364,15 +241,9 @@ Review the outputs from Phases 4 and 5 and determine:
 
 ### No Issues Found
 
-If both the parser and render tests pass cleanly with no errors or warnings, store the result in cache memory and exit without creating a PR.
+Only if the dedicated real-file harness and render tests pass cleanly with no errors or warnings, store the result in cache memory and exit without creating a PR. A blocked install, missing artifact, unsupported engine, skipped real-file test, or static-only inspection is incomplete verification: report `report_missing_tool` or `report_missing_data` as appropriate and `report_incomplete`, never `noop` or `"status": "ok"`.
 
-```bash
-# Save result to cache memory
-mkdir -p /tmp/gh-aw/cache-memory/rendering-scripts-verifier
-echo "{\"date\": \"$(date +%Y-%m-%d)\", \"run_id\": \"$RUN_DIR\", \"engine\": \"$ENGINE\", \"status\": \"ok\"}" \
-  > /tmp/gh-aw/cache-memory/rendering-scripts-verifier/latest.json
-cat /tmp/gh-aw/cache-memory/rendering-scripts-verifier/latest.json
-```
+Use the Write tool to save `/tmp/gh-aw/cache-memory/rendering-scripts-verifier/latest.json` with the actual date, run ID, engine, `"status": "ok"`, and the recognized-event/rendered-byte counts from the successful real-file check.
 
 ## Phase 7: Apply Fixes (If Needed)
 
@@ -390,16 +261,12 @@ If you found parser or rendering issues:
 
 3. **Verify the fix resolves the issue**:
    ```bash
-   cd ${{ github.workspace }}/actions/setup/js
-   node /tmp/gh-aw/agent-parser-harness.cjs "$AGENT_OUTPUT_FILE" "$ENGINE"
-   node /tmp/gh-aw/agent-render-test.cjs
+   cd ${{ github.workspace }}/actions/setup/js && npm run test:js -- --config vitest.rendering.config.mjs --silent=false
    ```
 
 4. **Run the existing test suite** to ensure no regressions:
    ```bash
-   cd ${{ github.workspace }}/actions/setup/js
-   npm run test:js -- --run parse_<engine>_log.test.cjs 2>&1 | tail -40
-   npm run test:js -- --run render_template.test.cjs 2>&1 | tail -20
+   cd ${{ github.workspace }}/actions/setup/js && npm run test:js -- --run parse_<engine>_log.test.cjs render_template.test.cjs rendering_scripts_verifier.test.cjs
    ```
 
 5. Verify working tree cleanliness exactly once before creating the PR:

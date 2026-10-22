@@ -144,32 +144,6 @@ func TestJobDependsOnPreActivationEdgeCases(t *testing.T) {
 	}
 }
 
-// TestJobDependsOnAgentEdgeCases tests edge cases for jobDependsOnAgent function
-func TestJobDependsOnAgentEdgeCases(t *testing.T) {
-	tests := []struct {
-		name      string
-		jobConfig map[string]any
-		expected  bool
-	}{
-		{
-			name: "array with mixed types including agent",
-			jobConfig: map[string]any{
-				"needs": []any{123, "agent", "job2"},
-			},
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := jobDependsOnAgent(tt.jobConfig)
-			if result != tt.expected {
-				t.Errorf("jobDependsOnAgent() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestGetCustomJobsDependingOnPreActivationEdgeCases tests edge cases for getCustomJobsDependingOnPreActivation method
 func TestGetCustomJobsDependingOnPreActivationEdgeCases(t *testing.T) {
 	compiler := NewCompiler()
@@ -463,9 +437,6 @@ Marker: ${{ needs.select.outputs.marker }}
 		t.Fatal(err)
 	}
 	lock := string(lockContent)
-	if !strings.Contains(lock, "  activation:\n    name: activation\n    needs: select") {
-		t.Fatalf("activation should depend on runtime-import referenced job; lock excerpt:\n%s", lock)
-	}
 	var compiledWorkflow map[string]any
 	if err := yaml.Unmarshal(lockContent, &compiledWorkflow); err != nil {
 		t.Fatalf("could not parse compiled workflow: %v", err)
@@ -478,8 +449,8 @@ Marker: ${{ needs.select.outputs.marker }}
 	if !ok {
 		t.Fatal("compiled workflow is missing activation job")
 	}
-	needs, ok := activation["needs"].(string)
-	if !ok || needs != "select" {
+	needs, ok := activation["needs"].([]any)
+	if !ok || !slices.Contains(needs, "select") || !slices.Contains(needs, "admission") {
 		t.Errorf("activation should depend on runtime-import referenced job select; got needs: %#v", activation["needs"])
 	}
 	if !strings.Contains(lock, "GH_AW_NEEDS_SELECT_OUTPUTS_ISSUE_NUMBERS: ${{ needs.select.outputs.issue_numbers }}") {

@@ -1,2260 +1,251 @@
-// @ts-check
-/// <reference types="@actions/github-script" />
-
 const fs = require("fs");
-const path = require("path");
-const os = require("os");
-const crypto = require("crypto");
+const cp = require("child_process");
+const { performance } = require("perf_hooks");
+const { computeGraders, createSessionLookups, runBuiltinGrader, withDefaultGraders, DEFAULT_GRADER_IDS, BUILTIN_GRADERS, BUILTIN_META, normalizeResult, evaluateThreshold } = require("./trace_graders.cjs");
 
-const {
-  main,
-  mainFromEnvironment,
-  readGraderEnvironment,
-  preprocessTrace,
-  findAgentEventsFiles,
-  extractNativeToolCalls,
-  mergeToolCalls,
-  COPILOT_SESSION_STATE_DIR,
-  safeReadFile,
-  safeParseJsonl,
-  safeParseJson,
-  readFirstAvailable,
-  readEvalSummary,
-  deepFreeze,
-  deepClone,
-  runGrader,
-  runBuiltinGrader,
-  runCustomGrader,
-  runOperationalValueGrader,
-  withAllBuiltinGraders,
-  normalizeResult,
-  buildGradersSummaryBody,
-  evaluateThreshold,
-  BUILTIN_GRADERS,
-  BUILTIN_META,
-  GRADER_VERSION,
-  IMPLEMENTATION_ID,
-  MANIFEST_PATH,
-  RESULTS_PATH,
-  archiveOperationalValueEvaluator,
-  MAX_FILE_SIZE,
-  MAX_LINE_LENGTH,
-  SCRIPT_TIMEOUT_MS,
-  gradeToolSuccessRate,
-  gradeToolFailureCount,
-  gradeRetries,
-  gradeLoops,
-  gradeTrajectoryEfficiency,
-  gradeExecutionStepCount,
-  gradeExecutionDuration,
-  gradeWorkingSetRebuildFactor,
-  gradeContextGrowth,
-  gradeArtifactProduction,
-} = require("./trace_graders.cjs");
-const { TRAJECTORY_GRADERS, TRAJECTORY_GRADER_META, MAX_TRAJECTORY_ITEMS } = require("./trajectory_graders.cjs");
-
-// --- Helper to create a minimal trace ---
-
-/** @returns {import("./trace_graders.cjs").PreprocessedTrace} */
-function makeTrace(overrides = {}) {
-  return {
-    tokenUsageEntries: [],
-    agentUsage: null,
-    mcpGatewayEntries: [],
-    agentOutput: null,
-    toolCalls: [],
-    gatewayRequests: [],
-    retryEvents: [],
-    errorEvents: [],
-    steps: [],
-    totalInputTokens: 0,
-    totalOutputTokens: 0,
-    totalDurationMs: 0,
-    totalRequests: 0,
-    files: [],
-    artifacts: [],
-    ...overrides,
-  };
+function event(type, data, phase = "agent", source = "agent-session.jsonl") {
+  return { type, data, provenance: { component: "agent", phase, path: source, index: 0 } };
 }
 
-function runTrajectoryBuiltin(id, trace, config) {
-  return runBuiltinGrader(id, makeTrace(trace), { ...BUILTIN_META[id], source: "builtin", config });
+function fixture() {
+  return [
+    event("workflow.info", { runId: 123 }, "activation"),
+    event("tool.execution_start", { toolCallId: "a", toolName: "view", input: { path: "a" } }),
+    event("tool.execution_complete", { toolCallId: "a", success: true }),
+    event("tool.execution_start", { toolCallId: "b", toolName: "view", input: { path: "a" } }),
+    event("tool.execution_complete", { toolCallId: "b", success: false }),
+    event("tool.execution_start", { toolCallId: "c", toolName: "edit" }),
+    event("firewall.token_usage", { requestId: "r1", usage: { inputTokens: 10, outputTokens: 5 }, durationMs: 100 }),
+    event("firewall.token_usage", { requestId: "r2", usage: { inputTokens: 30, outputTokens: 5 }, durationMs: 200 }),
+    event("usage.report", { usage: { inputTokens: 999, outputTokens: 999 } }),
+    event("firewall.token_usage", { usage: { inputTokens: 10000 }, durationMs: 9999 }, "detection"),
+    event("mcp.event", { event: "retry" }),
+    event("safe_output.result", { type: "create_issue", number: 1 }, "safe_outputs"),
+    event("experiment.assignment", { assignments: { model: "fast" } }, "activation"),
+    event("eval.result", { id: "goal", answer: "YES" }, "evals"),
+  ];
 }
 
-function runPolicyNearMiss(trace) {
-  return runTrajectoryBuiltin("policy-near-miss", trace);
-}
+afterEach(() => vi.restoreAllMocks());
 
-function runExplorationError(trace) {
-  return runTrajectoryBuiltin("exploration-error", trace);
-}
-
-function runExploitationError(trace) {
-  return runTrajectoryBuiltin("exploitation-error", trace);
-}
-
-function runSkillConstraintCoverage(trace, config) {
-  return runTrajectoryBuiltin("skill-constraint-coverage", trace, config);
-}
-
-function runToolOutputConsumptionRate(trace) {
-  return runTrajectoryBuiltin("tool-output-consumption-rate", trace);
-}
-
-function runBacklogGrader(id, trace) {
-  return runTrajectoryBuiltin(id, trace);
-}
-
-describe("trace_graders", () => {
-  describe("buildGradersSummaryBody", () => {
-    it("renders all computed grader values without emojis", () => {
-      const summary = buildGradersSummaryBody([
-        { id: "tool-success-rate", name: "Tool success rate", value: 0.98765, unit: "ratio", status: "pass", source: "builtin" },
-        { id: "custom", name: "Custom", value: 2, unit: "count", status: "fail", source: "inline" },
-        { id: "unavailable", name: "Unavailable", value: null, unit: "", status: "unavailable", source: "builtin" },
-      ]);
-
-      expect(summary).toContain("| Pass | Tool success rate | builtin | 0.9877 | ratio |");
-      expect(summary).toContain("| Fail | Custom | inline | 2 | count |");
-      expect(summary).not.toContain("Unavailable");
-      expect(summary).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+describe("pure unified-session graders", () => {
+  it("materializes statistics, lookups, and thresholds from canonical events", () => {
+    const session = fixture();
+    const lookups = createSessionLookups(session);
+    expect(lookups.stats).toMatchObject({
+      toolCallCount: 3,
+      failedToolCalls: 2,
+      totalInputTokens: 40,
+      totalOutputTokens: 10,
+      totalRequests: 2,
+      totalDurationMs: 300,
+      retryCount: 1,
+      artifactCount: 1,
     });
-
-    it("escapes untrusted table cells", () => {
-      const summary = buildGradersSummaryBody([{ id: "custom", name: "Custom | <grader>", value: 1, unit: "unit|&", status: "pass", source: "inline|source" }]);
-
-      expect(summary).toContain("Custom \\| &lt;grader&gt;");
-      expect(summary).toContain("inline\\|source");
-      expect(summary).toContain("unit\\|&amp;");
+    expect(lookups.eventsOfType("tool.execution_complete")).toHaveLength(2);
+    expect(lookups.eventsOfType("missing")).toEqual([]);
+    const { output } = computeGraders(session);
+    const values = Object.fromEntries(output.results.map(result => [result.id, result.value]));
+    expect(values).toEqual({
+      "tool-success-rate": 1 / 3,
+      "tool-failure-count": 2,
+      retries: 1,
+      loops: 1,
+      "trajectory-efficiency": 2 / 3,
+      "execution-step-count": 2,
+      "execution-duration": 300,
+      "working-set-rebuild-factor": 40 / 30,
+      "context-growth": 50 / 15,
+      "artifact-production": 1,
     });
-
-    it("escapes backslashes before pipes", () => {
-      const summary = buildGradersSummaryBody([{ id: "custom", name: "A\\|B", value: 1, unit: "count", status: "pass", source: "inline" }]);
-
-      expect(summary).toContain("| Pass | A\\\\\\|B | inline | 1 | count |");
-    });
-
-    it("surrounds the table with blank lines for details rendering", () => {
-      const summary = buildGradersSummaryBody([{ id: "custom", name: "Custom", value: 1, unit: "count", status: "pass", source: "inline" }]);
-
-      expect(summary.startsWith("\n\n")).toBe(true);
-      expect(summary.endsWith("\n\n")).toBe(true);
+    expect(output.run.id).toBe("123");
+    expect(output.context).toEqual({
+      experiments: { model: "fast" },
+      evals: { total: 1, yes: 1, no: 0, unknown: 0, byQuestion: { goal: "YES" } },
     });
   });
 
-  describe("archiveOperationalValueEvaluator", () => {
-    it("writes only evaluator bytes matching the frozen digest", () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "operational-value-evaluator-archive-"));
-      const outputPath = path.join(tempDir, "operational_value_evaluator.sh");
-      const content = "#!/usr/bin/env bash\nprintf 'ok\\n'\n";
-      const digest = crypto.createHash("sha256").update(content, "utf8").digest("hex");
-      try {
-        archiveOperationalValueEvaluator(content, digest, outputPath);
-        expect(fs.readFileSync(outputPath, "utf8")).toBe(content);
-        expect(() => archiveOperationalValueEvaluator(content, "invalid", outputPath)).toThrow("digest mismatch");
-      } finally {
-        fs.rmSync(tempDir, { recursive: true, force: true });
+  it("does not read files, execute commands, use environment data, or mutate the session", () => {
+    const session = fixture();
+    const before = structuredClone(session);
+    const freeze = value => {
+      if (value && typeof value === "object") {
+        Object.values(value).forEach(freeze);
+        Object.freeze(value);
       }
-    });
-  });
-
-  describe("runOperationalValueGrader", () => {
-    it("uses the first ordered metric as primary and retains diagnostics", () => {
-      const evaluator = `#!/usr/bin/env bash
-set -euo pipefail
-    request=$(cat)
-    printf '%s' "$request" | jq -e '.outputs == [{"type":"noop","message":"nothing to do"}]' >/dev/null
-printf '%s\\n' '[{"id":"goal-attained","value":0.75},{"id":"evidence-available","value":1}]'
-`;
-      const result = runOperationalValueGrader(
-        "operational-value",
-        evaluator,
-        { name: "Operational Value", description: "Whether the run attained its outcome", unit: "ratio", direction: "higher_is_better", source: "operational-value" },
-        { env: { ...process.env, GITHUB_RUN_ID: "1", GITHUB_RUN_ATTEMPT: "1" }, event: {}, outputs: [{ type: "noop", message: "nothing to do" }] }
-      );
-
-      expect(result.value).toBe(0.75);
-      expect(result.description).toBe("Whether the run attained its outcome");
-      expect(result.metrics).toEqual([
-        { id: "goal-attained", value: 0.75 },
-        { id: "evidence-available", value: 1 },
-      ]);
-      expect(result.diagnostics).toEqual({ "evidence-available": 1 });
-    });
-  });
-
-  // --- safeParseJsonl ---
-  describe("safeParseJsonl", () => {
-    it("parses valid JSONL", () => {
-      const content = '{"a":1}\n{"b":2}\n';
-      const result = safeParseJsonl(content);
-      expect(result).toEqual([{ a: 1 }, { b: 2 }]);
-    });
-
-    it("skips malformed lines", () => {
-      const content = '{"a":1}\nnot json\n{"b":2}\n';
-      const result = safeParseJsonl(content);
-      expect(result).toEqual([{ a: 1 }, { b: 2 }]);
-    });
-
-    it("skips oversized lines", () => {
-      const longLine = '{"x":"' + "a".repeat(MAX_LINE_LENGTH + 10) + '"}';
-      const content = '{"a":1}\n' + longLine + '\n{"b":2}\n';
-      const result = safeParseJsonl(content);
-      expect(result).toEqual([{ a: 1 }, { b: 2 }]);
-    });
-
-    it("handles empty input", () => {
-      expect(safeParseJsonl("")).toEqual([]);
-      expect(safeParseJsonl("\n\n")).toEqual([]);
-    });
-  });
-
-  // --- safeParseJson ---
-  describe("safeParseJson", () => {
-    it("parses valid JSON", () => {
-      expect(safeParseJson('{"a":1}')).toEqual({ a: 1 });
-    });
-
-    // --- readEvalSummary ---
-    describe("readEvalSummary", () => {
-      const evalsPath = "/tmp/gh-aw/evals.jsonl";
-
-      afterEach(() => {
-        if (fs.existsSync(evalsPath)) {
-          fs.unlinkSync(evalsPath);
-        }
-      });
-
-      it("returns null when evals file is absent", () => {
-        if (fs.existsSync(evalsPath)) {
-          fs.unlinkSync(evalsPath);
-        }
-        expect(readEvalSummary()).toBeNull();
-      });
-
-      it("summarizes YES/NO/UNKNOWN answers", () => {
-        fs.mkdirSync(path.dirname(evalsPath), { recursive: true });
-        fs.writeFileSync(evalsPath, [JSON.stringify({ id: "q1", answer: "YES" }), JSON.stringify({ id: "q2", answer: "no" }), JSON.stringify({ id: "q3", answer: "MAYBE" })].join("\n") + "\n", "utf8");
-        expect(readEvalSummary()).toEqual({
-          total: 3,
-          yes: 1,
-          no: 1,
-          unknown: 1,
-          byQuestion: {
-            q1: "YES",
-            q2: "NO",
-            q3: "UNKNOWN",
-          },
-        });
-      });
-    });
-
-    it("returns null for invalid JSON", () => {
-      expect(safeParseJson("not json")).toBeNull();
-    });
-
-    it("returns null for oversized content", () => {
-      const big = "a".repeat(MAX_FILE_SIZE + 1);
-      expect(safeParseJson(big)).toBeNull();
-    });
-  });
-
-  // --- deepFreeze ---
-  describe("deepFreeze", () => {
-    it("freezes objects deeply", () => {
-      const obj = { a: { b: { c: 1 } } };
-      deepFreeze(obj);
-      expect(Object.isFrozen(obj)).toBe(true);
-      expect(Object.isFrozen(obj.a)).toBe(true);
-      expect(Object.isFrozen(obj.a.b)).toBe(true);
-    });
-
-    it("handles null/primitives", () => {
-      expect(deepFreeze(null)).toBeNull();
-      expect(deepFreeze(42)).toBe(42);
-    });
-  });
-
-  // --- Built-in graders ---
-  describe("gradeToolSuccessRate", () => {
-    it("returns 1 for no tool calls", () => {
-      expect(gradeToolSuccessRate(makeTrace())).toBe(1);
-    });
-
-    it("computes success rate", () => {
-      const trace = makeTrace({
-        toolCalls: [
-          { name: "a", success: true },
-          { name: "b", success: false },
-          { name: "c", success: true },
-        ],
-      });
-      expect(gradeToolSuccessRate(trace)).toBeCloseTo(2 / 3);
-    });
-
-    it("handles error field as failure indicator", () => {
-      const trace = makeTrace({
-        toolCalls: [{ name: "a" }, { name: "b", error: "something failed" }],
-      });
-      expect(gradeToolSuccessRate(trace)).toBe(0.5);
-    });
-  });
-
-  describe("gradeToolFailureCount", () => {
-    it("returns 0 for no tool calls", () => {
-      expect(gradeToolFailureCount(makeTrace())).toBe(0);
-    });
-
-    it("counts failures", () => {
-      const trace = makeTrace({
-        toolCalls: [
-          { name: "a", success: true },
-          { name: "b", success: false },
-          { name: "c", error: "err" },
-        ],
-      });
-      expect(gradeToolFailureCount(trace)).toBe(2);
-    });
-
-    it("matches success-rate complement for ambiguous calls", () => {
-      const trace = makeTrace({
-        toolCalls: [{ name: "a", success: true }, { name: "b", status: "error" }, { name: "c" }],
-      });
-      const failures = gradeToolFailureCount(trace);
-      const successRate = gradeToolSuccessRate(trace);
-      expect(successRate).toBeCloseTo((trace.toolCalls.length - failures) / trace.toolCalls.length);
-    });
-  });
-
-  describe("gradeRetries", () => {
-    it("returns 0 for no retries", () => {
-      expect(gradeRetries(makeTrace())).toBe(0);
-    });
-
-    it("counts retry events from preprocessed retryEvents", () => {
-      const trace = makeTrace({
-        retryEvents: [{ event: "retry" }, { retry: true }, { message: "Retrying request" }],
-      });
-      expect(gradeRetries(trace)).toBe(3);
-    });
-  });
-
-  describe("gradeLoops", () => {
-    it("returns 0 for no loops", () => {
-      expect(gradeLoops(makeTrace())).toBe(0);
-    });
-
-    it("detects consecutive identical calls", () => {
-      const trace = makeTrace({
-        toolCalls: [
-          { name: "read", arguments: { path: "/a" } },
-          { name: "read", arguments: { path: "/a" } },
-          { name: "read", arguments: { path: "/a" } },
-          { name: "write", arguments: { path: "/b" } },
-        ],
-      });
-      expect(gradeLoops(trace)).toBe(2);
-    });
-  });
-
-  describe("gradeTrajectoryEfficiency", () => {
-    it("returns 1 for no tool calls", () => {
-      expect(gradeTrajectoryEfficiency(makeTrace())).toBe(1);
-    });
-
-    it("computes efficiency", () => {
-      const trace = makeTrace({
-        toolCalls: [{ name: "read" }, { name: "write" }, { name: "read" }, { name: "read" }],
-      });
-      expect(gradeTrajectoryEfficiency(trace)).toBe(0.5);
-    });
-  });
-
-  describe("gradeExecutionStepCount", () => {
-    it("returns total LLM requests", () => {
-      expect(gradeExecutionStepCount(makeTrace({ totalRequests: 42 }))).toBe(42);
-    });
-  });
-
-  describe("gradeExecutionDuration", () => {
-    it("returns total duration", () => {
-      expect(gradeExecutionDuration(makeTrace({ totalDurationMs: 12345 }))).toBe(12345);
-    });
-  });
-
-  describe("gradeWorkingSetRebuildFactor", () => {
-    it("computes cumulative input relative to the peak invocation", () => {
-      const trace = makeTrace({
-        tokenUsageEntries: [{ input_tokens: 100_000 }, { input_tokens: 150_000 }, { input_tokens: 200_000 }, { input_tokens: 200_000 }, { input_tokens: 224_000 }],
-      });
-      expect(gradeWorkingSetRebuildFactor(trace)).toBeCloseTo(874_000 / 224_000);
-    });
-
-    it("returns null when no positive input-token measurement is available", () => {
-      expect(gradeWorkingSetRebuildFactor(makeTrace())).toBeNull();
-      expect(gradeWorkingSetRebuildFactor(makeTrace({ tokenUsageEntries: [{ input_tokens: 0 }] }))).toBeNull();
-    });
-
-    it("uses canonical input tokens without adding cache token fields", () => {
-      const trace = makeTrace({
-        tokenUsageEntries: [
-          { input_tokens: 10, cache_read_tokens: 1_000 },
-          { input_tokens: 20, cache_write_tokens: 1_000 },
-        ],
-      });
-      expect(gradeWorkingSetRebuildFactor(trace)).toBe(1.5);
-    });
-  });
-
-  describe("gradeContextGrowth", () => {
-    it("returns 1 for fewer than 2 entries", () => {
-      expect(gradeContextGrowth(makeTrace())).toBe(1);
-      expect(gradeContextGrowth(makeTrace({ tokenUsageEntries: [{ input_tokens: 100, output_tokens: 50 }] }))).toBe(1);
-    });
-
-    it("computes growth ratio", () => {
-      const trace = makeTrace({
-        tokenUsageEntries: [
-          { input_tokens: 100, output_tokens: 50 },
-          { input_tokens: 200, output_tokens: 100 },
-        ],
-        totalInputTokens: 300,
-        totalOutputTokens: 150,
-      });
-      expect(gradeContextGrowth(trace)).toBe(3);
-    });
-  });
-
-  describe("gradeArtifactProduction", () => {
-    it("returns 0 for no agent output", () => {
-      expect(gradeArtifactProduction(makeTrace())).toBe(0);
-    });
-
-    it("counts artifacts array", () => {
-      const trace = makeTrace({
-        artifacts: [{ type: "pr" }, { type: "issue" }],
-      });
-      expect(gradeArtifactProduction(trace)).toBe(2);
-    });
-  });
-
-  // --- normalizeResult ---
-  describe("normalizeResult", () => {
-    const meta = { name: "Test", unit: "count", direction: "lower_is_better", threshold: 5, source: "builtin" };
-
-    it("normalizes a number result with threshold pass", () => {
-      const r = normalizeResult("test", 3, meta);
-      expect(r.id).toBe("test");
-      expect(r.value).toBe(3);
-      expect(r.passed).toBe(true);
-      expect(r.status).toBe("pass");
-      expect(r.unit).toBe("count");
-      expect(r.implementation.id).toBe(IMPLEMENTATION_ID);
-    });
-
-    it("normalizes a number result with threshold fail", () => {
-      const r = normalizeResult("test", 10, meta);
-      expect(r.passed).toBe(false);
-      expect(r.status).toBe("fail");
-    });
-
-    it("uses manifest metadata for object results from custom scripts", () => {
-      const r = normalizeResult("test", { value: 42, unit: "ms", severity: "warning", details: "too slow" }, { ...meta, source: "inline" });
-      expect(r.value).toBe(42);
-      expect(r.unit).toBe("count");
-      expect(r.severity).toBe("warning");
-      expect(r.details).toBe("too slow");
-    });
-
-    it("omits an unrecognized custom severity", () => {
-      const r = normalizeResult("test", { value: 42, severity: "sensitive trace content" }, { ...meta, source: "inline" });
-      expect(r.severity).toBeUndefined();
-    });
-
-    it("handles null result as unavailable", () => {
-      const r = normalizeResult("test", null, meta);
-      expect(r.status).toBe("unavailable");
-    });
-
-    it("handles non-finite value as error", () => {
-      const r = normalizeResult("test", NaN, meta);
-      expect(r.status).toBe("error");
-      expect(r.error).toContain("non-finite");
-    });
-
-    it("includes digest in implementation when provided", () => {
-      const r = normalizeResult("test", 1, { ...meta, source: "inline", digest: "abc123" });
-      expect(r.implementation.digest).toBe("abc123");
-    });
-  });
-
-  // --- evaluateThreshold ---
-  describe("evaluateThreshold", () => {
-    it("passes when higher_is_better and value >= threshold", () => {
-      expect(evaluateThreshold(0.9, "higher_is_better", 0.8)).toBe(true);
-      expect(evaluateThreshold(0.7, "higher_is_better", 0.8)).toBe(false);
-    });
-
-    it("passes when lower_is_better and value <= threshold", () => {
-      expect(evaluateThreshold(3, "lower_is_better", 5)).toBe(true);
-      expect(evaluateThreshold(10, "lower_is_better", 5)).toBe(false);
-    });
-
-    it("returns null when no threshold", () => {
-      expect(evaluateThreshold(1, "higher_is_better", undefined)).toBeNull();
-    });
-  });
-
-  // --- runGrader ---
-  describe("runGrader", () => {
-    it("runs built-in grader", () => {
-      const trace = makeTrace({ totalRequests: 5 });
-      const result = runGrader("execution-step-count", true, undefined, trace);
-      expect(result.value).toBe(5);
-      expect(result.error).toBeNull();
-    });
-
-    it("runs inline script via vm sandbox", () => {
-      const trace = makeTrace({ toolCalls: [{ name: "a" }, { name: "b" }] });
-      const result = runGrader("custom", false, "return { value: trace.toolCalls.length }", trace);
-      expect(result.value).toBe(2);
-      expect(result.error).toBeNull();
-    });
-
-    it("supports legacy expression-style scripts", () => {
-      const trace = makeTrace({ toolCalls: [{ name: "a" }] });
-      const result = runGrader("custom", false, "return trace.toolCalls.length", trace);
-      expect(result.value).toBe(1);
-    });
-
-    it("catches script errors", () => {
-      const result = runGrader("bad", false, "return undefinedVar.prop", makeTrace());
-      expect(result.value).toBeNull();
-      expect(result.error).toContain("runtime error");
-    });
-
-    it("rejects non-numeric results from inline scripts", () => {
-      const result = runGrader("str", false, 'return "hello"', makeTrace());
-      expect(result.value).toBeNull();
-      expect(result.error).toContain("non-finite");
-    });
-
-    it("rejects NaN from built-in graders", () => {
-      const result = runGrader("nan-test", false, "return NaN", makeTrace());
-      expect(result.value).toBeNull();
-      expect(result.error).toContain("non-finite");
-    });
-
-    it("rejects Infinity", () => {
-      const result = runGrader("inf-test", false, "return Infinity", makeTrace());
-      expect(result.value).toBeNull();
-      expect(result.error).toContain("non-finite");
-    });
-
-    it("rejects non-finite values in object results", () => {
-      const result = runCustomGrader("test", "return { value: NaN }", makeTrace(), { name: "test", unit: "", direction: "", source: "inline" });
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("error");
-      expect(result.error).toContain("non-finite");
-    });
-  });
-
-  // --- runCustomGrader node:vm sandbox ---
-  describe("runCustomGrader sandbox", () => {
-    const meta = { name: "test", unit: "", direction: "", source: "inline" };
-
-    it("selects the supported permission flag", () => {
-      const cp = require("child_process");
-      const originalFlags = process.allowedNodeEnvironmentFlags;
-      for (const flag of ["--permission", "--experimental-permission"]) {
-        process.allowedNodeEnvironmentFlags = new Set([flag]);
-        const spawn = vi.spyOn(cp, "spawnSync").mockReturnValue({ status: 0, stdout: '{"ok":true,"value":1}' });
-        try {
-          expect(runCustomGrader("test", "return 1", makeTrace(), meta).value).toBe(1);
-          expect(spawn.mock.calls[0][1][0]).toBe(flag);
-          expect(spawn.mock.calls[0][1][1]).toBe(`--allow-fs-read=${spawn.mock.calls[0][1][2]}`);
-        } finally {
-          process.allowedNodeEnvironmentFlags = originalFlags;
-          spawn.mockRestore();
-        }
-      }
-    });
-
-    it("fails closed when the permission model is unavailable", () => {
-      const originalFlags = process.allowedNodeEnvironmentFlags;
-      process.allowedNodeEnvironmentFlags = new Set();
-      try {
-        const result = runCustomGrader("test", "return 1", makeTrace(), meta);
-        expect(result.status).toBe("error");
-        expect(result.value).toBeNull();
-        expect(result.error).toContain("install Node.js 20 or newer");
-      } finally {
-        process.allowedNodeEnvironmentFlags = originalFlags;
-      }
-    });
-
-    it("cannot access process or require", () => {
-      const result = runCustomGrader("test", "return typeof process === 'undefined' && typeof require === 'undefined' ? 1 : 0", makeTrace(), meta);
-      expect(result.value).toBe(1);
-      expect(result.status).toBe("pass");
-    });
-
-    it("does not expose the bootstrap global's host constructor", () => {
-      const result = runCustomGrader("test", 'try { return typeof root.constructor.constructor("return process")() === "object" ? 1 : 0; } catch { return 0; }', makeTrace(), meta);
-      expect(result.value).toBe(0);
-      expect(result.status).toBe("pass");
-    });
-
-    it("does not let a host-object constructor escape execute a command", () => {
-      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "grader-escape-"));
-      const markerPath = path.join(tempDir, "executed");
-      const script = `try {
-        const escapedProcess = trace.constructor.constructor("return process")();
-        escapedProcess.getBuiltinModule("node:child_process").execSync("touch ${markerPath}");
-      } catch {}
-      return 1;`;
-      try {
-        const result = runCustomGrader("test", script, makeTrace(), meta);
-        expect(result.value).toBe(1);
-        expect(result.status).toBe("pass");
-        expect(fs.existsSync(markerPath)).toBe(false);
-      } finally {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-
-    it("cannot access fetch", () => {
-      const result = runCustomGrader("test", "return typeof fetch", makeTrace(), meta);
-      expect(result.value).toBeNull();
-    });
-
-    it("cannot construct Date", () => {
-      const result = runCustomGrader("test", "try { new Date(); return 0 } catch(e) { return 1 }", makeTrace(), meta);
-      // Date is not available in the sandbox
-      expect(result.value).toBe(1);
-    });
-
-    it("cannot use Math.random", () => {
-      const result = runCustomGrader("test", "return typeof Math.random", makeTrace(), meta);
-      expect(result.value).toBeNull(); // "undefined" is not a number
-    });
-
-    it("cannot mutate frozen trace", () => {
-      const trace = makeTrace({ toolCalls: [{ name: "a" }] });
-      const result = runCustomGrader("test", "try { trace.toolCalls.push({name:'b'}); return 0 } catch(e) { return 1 }", trace, meta);
-      expect(result.value).toBe(1);
-    });
-
-    it("receives config parameter", () => {
-      const result = runCustomGrader("test", "return config.multiplier * 2", makeTrace(), { ...meta, config: { multiplier: 5 } });
-      expect(result.value).toBe(10);
-    });
-
-    it("handles scripts containing template literals safely", () => {
-      const trace = makeTrace({ toolCalls: Array.from({ length: 12 }, () => ({ name: "a" })) });
-      const result = runCustomGrader("test", "return `${trace.toolCalls.length}`.length", trace, meta);
-      expect(result.value).toBe(2);
-      expect(result.error).toBeUndefined();
-    });
-
-    it("receives run metadata from caller", () => {
-      const result = runCustomGrader("test", "return run.graderCount", makeTrace(), { ...meta, graderCount: 7 });
-      expect(result.value).toBe(7);
-    });
-
-    it("can use helpers", () => {
-      const result = runCustomGrader("test", "return helpers.clamp(10, 0, 5)", makeTrace(), meta);
-      expect(result.value).toBe(5);
-    });
-
-    it("supports multiline return object form", () => {
-      const script = `
-        const count = trace.toolCalls.length;
-        return {
-          value: count,
-          unit: "count",
-          severity: count > 10 ? "warning" : "info"
-        }
-      `;
-      const trace = makeTrace({ toolCalls: [{ name: "a" }, { name: "b" }] });
-      const result = runCustomGrader("test", script, trace, { ...meta, unit: "count" });
-      expect(result.value).toBe(2);
-      expect(result.unit).toBe("count");
-    });
-
-    it("times out on infinite loops", () => {
-      const result = runCustomGrader("test", "while(true){} return 1", makeTrace(), meta);
-      expect(result.status).toBe("error");
-      expect(result.error).toContain("runtime error");
-    });
-  });
-
-  describe("policy-near-miss custom grader", () => {
-    it("discovers objectives after an events-only candidate", () => {
-      const result = runPolicyNearMiss({
-        trajectoryIR: { events: [{ kind: "safe_output" }] },
-        ir: { objectives: [{ id: "guard", description: "Verify approval", satisfiedAtEventIndex: null }] },
-      });
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("guardObjectives=1 unmet=1");
-    });
-
-    it("identifies guard objectives and treats event index zero as satisfied", () => {
-      const result = runPolicyNearMiss({
-        trajectoryIR: {
-          events: [{ kind: "safe_output" }],
-          objectives: [
-            { id: "met", description: "Check authorization", satisfiedAtEventIndex: 0 },
-            { id: "unmet", description: "Verification required", satisfiedAtEventIndex: null },
-            { id: "not-a-guard", description: "Complete checkbox", satisfiedAtEventIndex: null },
-          ],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("guardObjectives=2 unmet=1");
-    });
-
-    it.each([
-      ["no objectives", { trajectoryIR: { events: [{ kind: "safe_output" }], objectives: [] } }],
-      ["no outcome", { trajectoryIR: { events: [], objectives: [{ description: "Check approval" }] } }],
-      ["no guard objective", { trajectoryIR: { events: [{ kind: "safe_output" }], objectives: [{ description: "Write report" }] } }],
-    ])("normalizes %s as unavailable", (_name, trace) => {
-      const result = runPolicyNearMiss(trace);
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.status).toBe("unavailable");
-    });
-  });
-
-  describe("exploration-error custom grader", () => {
-    it("reports unavailable when no objectives are declared", () => {
-      const result = runExplorationError({ trajectoryIR: { events: [{ kind: "state_change", ref: "a" }] } });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("no declared objectives");
-    });
-
-    it("returns zero when all objectives are already satisfied", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Read all files", satisfiedAtEventIndex: 0 }],
-        },
-      });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("all objectives satisfied");
-    });
-
-    it("prefers the objective-bearing IR candidate over unrelated agentOutput observations", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          events: [{ kind: "state_change", ref: "repo-root" }],
-        },
-        agentOutput: {
-          observations: [{ id: "obs-1" }],
-        },
-      });
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("observations=0");
-    });
-
-    it("counts distinct state refs from state_change events", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          events: [
-            { kind: "state_change", ref: "repo-root" },
-            { kind: "state_change", ref: "repo-readme" },
-            { kind: "state_change", ref: "repo-root" },
-          ],
-          observations: [{ id: "obs-1" }],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("distinctStatesVisited=2");
-    });
-
-    it("falls back to declared states[] when no state_change events exist", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          states: [{ id: "a" }, { id: "b" }],
-          observations: [{ id: "obs-1" }],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("from declared states[]");
-    });
-
-    it("clamps the ratio at zero when observations exceed the visited-state count", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          states: [{ id: "a" }],
-          observations: [{ id: "obs-1" }, { id: "obs-2" }, { id: "obs-3" }],
-        },
-      });
-
-      expect(result.value).toBe(0);
-    });
-
-    it("is unavailable without state_change events or declared states", () => {
-      const result = runExplorationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          observations: [{ id: "obs-1" }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("no state_change events or declared states");
-    });
-  });
-
-  describe("exploitation-error custom grader", () => {
-    it("reports unavailable when no objectives are declared", () => {
-      const result = runExploitationError({ trajectoryIR: { observations: [{ id: "obs-1" }] } });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("no declared objectives");
-    });
-
-    it("returns zero when all objectives are already satisfied", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Read all files", satisfiedAtEventIndex: 0 }],
-        },
-      });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("all objectives satisfied");
-    });
-
-    it("is unavailable without state_change events or declared states", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          observations: [{ id: "obs-1" }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("no state_change events or declared states");
-    });
-
-    it("is unavailable when the trace records no observations", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          states: [{ id: "a" }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("no observations");
-    });
-
-    it("defers to exploration-error when exploration was insufficient", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          events: [
-            { kind: "state_change", ref: "repo-root" },
-            { kind: "state_change", ref: "repo-readme" },
-          ],
-          observations: [{ id: "obs-1", consumedByActionIds: ["act-1"] }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.message).toContain("exploration was insufficient");
-      expect(result.message).toContain("exploration-error");
-    });
-
-    it("scores the unused fraction of observations when exploration was sufficient", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          events: [
-            { kind: "state_change", ref: "repo-root" },
-            { kind: "state_change", ref: "repo-root" },
-          ],
-          observations: [
-            { id: "obs-1", consumedByActionIds: ["act-1"] },
-            { id: "obs-2", consumedByActionIds: [] },
-          ],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("observations=2 unused=1");
-      expect(result.details).toContain("distinctStatesVisited=1");
-      expect(result.details).toContain("unmet objectives: goal");
-    });
-
-    it("falls back to declared states[] when no state_change events exist", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          states: [{ id: "a" }, { id: "b" }],
-          observations: [{ id: "obs-1" }, { id: "obs-2" }],
-        },
-      });
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("from declared states[]");
-    });
-
-    it("prefers the objective-bearing IR candidate over unrelated agentOutput observations", () => {
-      const result = runExploitationError({
-        trajectoryIR: {
-          objectives: [{ id: "goal", description: "Inspect repo", satisfiedAtEventIndex: null }],
-          states: [{ id: "a" }],
-          observations: [{ id: "obs-1", consumedByActionIds: ["act-1"] }],
-        },
-        agentOutput: {
-          observations: [{ id: "obs-x" }],
-        },
-      });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("observations=1 unused=0");
-    });
-  });
-
-  describe("skill-constraint-coverage custom grader", () => {
-    it("reports full coverage when every constraint is exercised and succeeds", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          trajectoryIR: {
-            toolCalls: [
-              { name: "read_file", arguments: { path: "a.md" }, success: true },
-              { name: "run_lint", arguments: {}, success: true },
-            ],
-          },
-        },
-        {
-          constraints: [
-            { id: "reads-before-write", pattern: "read_file", description: "must read before writing" },
-            { id: "lints", pattern: "run_lint", description: "must lint" },
-          ],
-        }
-      );
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("constraints=2 exercised=2 covered=2");
-    });
-
-    it("counts an exercised-but-failing constraint as uncovered", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          trajectoryIR: {
-            toolCalls: [{ name: "run_lint", arguments: {}, success: false }],
-          },
-        },
-        {
-          constraints: [{ id: "lints", pattern: "run_lint" }],
-        }
-      );
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("exercised=1 covered=0");
-      expect(result.details).toContain("unmet: lints");
-    });
-
-    it("ignores success when requireSuccess is false", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          trajectoryIR: {
-            actions: [{ type: "comment", target: "issue-1", validAtIssueTime: false }],
-          },
-        },
-        {
-          constraints: [{ id: "comments", pattern: "comment", requireSuccess: false }],
-        }
-      );
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("covered=1");
-    });
-
-    it("uses the preprocessed trace as a fallback candidate when trajectoryIR is absent", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          toolCalls: [{ name: "read_file", arguments: { path: "a.md" }, success: true }],
-        },
-        {
-          constraints: [{ id: "reads-before-write", pattern: "read_file" }],
-        }
-      );
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("constraints=1 exercised=1 covered=1");
-    });
-
-    it("counts non-object constraint entries against the denominator instead of dropping them", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          trajectoryIR: {
-            toolCalls: [{ name: "run_lint", arguments: {}, success: true }],
-          },
-        },
-        {
-          constraints: [null, { id: "lints", pattern: "run_lint" }],
-        }
-      );
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("constraints=2 exercised=1 covered=1 invalidPattern=1");
-    });
-
-    it("counts a constraint with an invalid pattern against the denominator instead of dropping it", () => {
-      const result = runSkillConstraintCoverage(
-        {
-          trajectoryIR: {
-            toolCalls: [{ name: "run_lint", arguments: {}, success: true }],
-          },
-        },
-        {
-          constraints: [
-            { id: "lints", pattern: "run_lint" },
-            { id: "broken", pattern: "(" },
-          ],
-        }
-      );
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("constraints=2 exercised=1 covered=1 invalidPattern=1");
-    });
-
-    it.each([
-      ["no constraints configured", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, {}],
-      ["no constraints with a valid pattern", { trajectoryIR: { toolCalls: [{ name: "x", success: true }] } }, { constraints: [{ id: "c", pattern: "" }] }],
-      ["no toolCalls/actions in trace", { trajectoryIR: {} }, { constraints: [{ id: "c", pattern: "x" }] }],
-    ])("normalizes %s as unavailable", (_name, trace, config) => {
-      const result = runSkillConstraintCoverage(trace, config);
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.status).toBe("unavailable");
-    });
-  });
-
-  describe("tool-output-consumption-rate custom grader", () => {
-    it("scores the fraction of matching tool observations that were consumed", () => {
-      const result = runToolOutputConsumptionRate({
-        trajectoryIR: {
-          toolCalls: [{ id: "tc-1" }, { id: "tc-2" }],
-          observations: [
-            { id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] },
-            { id: "obs-2", sourceToolCallId: "tc-2", consumedByActionIds: [] },
-            { id: "obs-3", sourceToolCallId: null, consumedByActionIds: ["act-2"] },
-            { id: "obs-4", sourceToolCallId: "unknown", consumedByActionIds: ["act-3"] },
-          ],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("toolObservations=2 consumed=1");
-      expect(result.details).toContain("unconsumed: obs-2");
-    });
-
-    it("treats malformed consumption metadata as unconsumed", () => {
-      const result = runToolOutputConsumptionRate({
-        trajectoryIR: {
-          toolCalls: [{ id: "tc-1" }],
-          observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: "act-1" }],
-        },
-      });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("toolObservations=1 consumed=0");
-    });
-
-    it("treats consumedByActionIds arrays containing only non-string/empty entries as unconsumed", () => {
-      const result = runToolOutputConsumptionRate({
-        trajectoryIR: {
-          toolCalls: [{ id: "tc-1" }, { id: "tc-2" }],
-          observations: [
-            { id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: [null] },
-            { id: "obs-2", sourceToolCallId: "tc-2", consumedByActionIds: [42, ""] },
-          ],
-        },
-      });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("toolObservations=2 consumed=0");
-      expect(result.details).toContain("unconsumed: obs-1, obs-2");
-    });
-
-    it("reads observations/toolCalls from the root trace object", () => {
-      const result = runToolOutputConsumptionRate({
-        toolCalls: [{ id: "tc-1" }],
-        observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }],
-      });
-
-      expect(result.value).toBe(1);
-    });
-
-    it("reads a complete IR nested in agentOutput", () => {
-      const result = runToolOutputConsumptionRate({
-        agentOutput: {
-          trajectoryIR: {
-            toolCalls: [{ id: "tc-1" }],
-            observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }],
-          },
-        },
-      });
-
-      expect(result.value).toBe(1);
-    });
-
-    it.each([
-      ["no observations", { trajectoryIR: { toolCalls: [{ id: "tc-1" }] } }, "no observations"],
-      ["no tool calls", { trajectoryIR: { observations: [{ id: "obs-1", sourceToolCallId: "tc-1", consumedByActionIds: ["act-1"] }] } }, "no tool-originated observations"],
-      [
-        "no matching tool call",
-        {
-          trajectoryIR: {
-            toolCalls: [{ id: "tc-1" }],
-            observations: [{ id: "obs-1", sourceToolCallId: "unknown", consumedByActionIds: ["act-1"] }],
-          },
-        },
-        "no tool-originated observations",
-      ],
-    ])("normalizes %s as unavailable", (_name, trace, message) => {
-      const result = runToolOutputConsumptionRate(trace);
-
-      expect(result.value).toBeNull();
-      expect(result.passed).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain(message);
-    });
-  });
-
-  describe("provenance backlog custom graders", () => {
-    const trace = {
-      trajectoryIR: {
-        events: [
-          { index: 0, kind: "observation", ref: "obs-1" },
-          { index: 1, kind: "safe_output", ref: "output-1" },
-          { index: 2, kind: "safe_output", ref: "output-2" },
-        ],
-        actions: [
-          { id: "action-1", type: "edit", target: "a.go", consequential: true },
-          { id: "action-2", type: "comment", target: "issue-1", consequential: true },
-          { id: "action-3", type: "read", target: "README.md", consequential: false },
-        ],
-        toolCalls: [{ id: "tool-1" }],
-        observations: [{ id: "obs-1" }],
-        provenanceEdges: [
-          { from: "obs-1", to: "derived-1", relation: "informed" },
-          { from: "derived-1", to: "output-1", relation: "derived-from" },
-          { from: "tool-1", to: "action-1", relation: "informed" },
-        ],
-      },
     };
-
-    it("follows multi-hop lineage from final outputs to evidence roots", () => {
-      const result = runBacklogGrader("end-to-end-lineage-completeness", trace);
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("outputs=2 traceable=1");
-      expect(result.details).toContain("output-2");
-    });
-
-    it("scores consequential actions only", () => {
-      const result = runBacklogGrader("action-provenance-coverage", trace);
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("consequentialActions=2 covered=1");
-      expect(result.details).toContain("action-2");
-    });
-
-    it.each([
-      ["end-to-end-lineage-completeness", { trajectoryIR: { events: [], provenanceEdges: [] } }],
-      ["action-provenance-coverage", { trajectoryIR: { actions: [{ id: "read-1", type: "read", consequential: false }], provenanceEdges: [], toolCalls: [], observations: [] } }],
-    ])("normalizes non-applicable %s evidence as unavailable", (id, unavailableTrace) => {
-      const result = runBacklogGrader(id, unavailableTrace);
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-    });
-
-    it("rejects an action provenance graph missing the canonical consequential flag", () => {
-      const result = runBacklogGrader("action-provenance-coverage", {
-        trajectoryIR: {
-          actions: [{ id: "action-1", type: "edit" }],
-          toolCalls: [],
-          observations: [],
-          provenanceEdges: [],
-        },
+    freeze(session);
+    for (const name of ["readFileSync", "statSync", "readdirSync", "existsSync", "writeFileSync"]) {
+      vi.spyOn(fs, name).mockImplementation(() => {
+        throw new Error(`unexpected I/O: ${name}`);
       });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("consequential flag");
-    });
-
-    it("rejects a malformed non-record action entry instead of silently excluding it", () => {
-      const result = runBacklogGrader("action-provenance-coverage", {
-        trajectoryIR: {
-          actions: [{ id: "action-1", type: "edit", consequential: true }, "not-a-record"],
-          toolCalls: [],
-          observations: [],
-          provenanceEdges: [],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("not a record");
-    });
-  });
-
-  describe("completion backlog custom graders", () => {
-    it("counts every unsatisfied objective at termination", () => {
-      const result = runBacklogGrader("premature-termination-gap", {
-        trajectoryIR: {
-          objectives: [{ id: "done", satisfiedAtEventIndex: 1 }, { id: "missing", satisfiedAtEventIndex: null }, { id: "also-missing" }],
-        },
-      });
-
-      expect(result.value).toBe(2);
-      expect(result.details).toContain("objectives=3 unsatisfied=2");
-    });
-
-    it("counts events after the last objective became satisfied", () => {
-      const result = runBacklogGrader("evidence-saturation-stopping-lag", {
-        trajectoryIR: {
-          objectives: [
-            { id: "first", satisfiedAtEventIndex: 1 },
-            { id: "last", satisfiedAtEventIndex: 3 },
-          ],
-          events: [{ index: 0 }, { index: 1 }, { index: 3 }, { index: 4 }, { index: 8 }],
-        },
-      });
-
-      expect(result.value).toBe(2);
-      expect(result.details).toContain("saturationEventIndex=3 eventsAfterSaturation=2");
-    });
-
-    it("does not fabricate a stopping lag before evidence saturation", () => {
-      const result = runBacklogGrader("evidence-saturation-stopping-lag", {
-        trajectoryIR: {
-          objectives: [{ id: "missing", satisfiedAtEventIndex: null }],
-          events: [{ index: 0 }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("never saturated");
-    });
-
-    it("rejects an earlier satisfaction index absent from the trace even when the latest one is present", () => {
-      const result = runBacklogGrader("evidence-saturation-stopping-lag", {
-        trajectoryIR: {
-          objectives: [
-            { id: "first", satisfiedAtEventIndex: 2 },
-            { id: "last", satisfiedAtEventIndex: 3 },
-          ],
-          events: [{ index: 0 }, { index: 1 }, { index: 3 }, { index: 4 }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("absent from the trace");
-    });
-  });
-
-  describe("dependency-order-violation-rate custom grader", () => {
-    it("scores completed dependent objectives with any late prerequisite as violations", () => {
-      const result = runBacklogGrader("dependency-order-violation-rate", {
-        trajectoryIR: {
-          objectives: [
-            { id: "prerequisite-a", satisfiedAtEventIndex: 1, dependsOn: [] },
-            { id: "prerequisite-b", satisfiedAtEventIndex: 5, dependsOn: [] },
-            { id: "ordered", satisfiedAtEventIndex: 3, dependsOn: ["prerequisite-a"] },
-            { id: "violating", satisfiedAtEventIndex: 4, dependsOn: ["prerequisite-a", "prerequisite-b"] },
-            { id: "not-executed", satisfiedAtEventIndex: null, dependsOn: ["prerequisite-a"] },
-          ],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("completedDependentObjectives=2 violations=1");
-      expect(result.details).toContain("violating");
-    });
-
-    it("rejects incomplete dependency graphs", () => {
-      const result = runBacklogGrader("dependency-order-violation-rate", {
-        trajectoryIR: {
-          objectives: [{ id: "dependent", satisfiedAtEventIndex: 1, dependsOn: ["missing"] }],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("unknown objective");
-    });
-
-    it("rejects a malformed non-array dependsOn instead of treating it as no dependencies", () => {
-      const result = runBacklogGrader("dependency-order-violation-rate", {
-        trajectoryIR: {
-          objectives: [
-            { id: "prerequisite-a", satisfiedAtEventIndex: 1, dependsOn: [] },
-            { id: "malformed", satisfiedAtEventIndex: 2, dependsOn: "prerequisite-a" },
-          ],
-        },
-      });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("dependsOn must be an array");
-    });
-  });
-
-  describe("objective and grounding backlog custom graders", () => {
-    it("scores the fraction of declared objectives completed", () => {
-      const result = runBacklogGrader("objective-coverage", {
-        trajectoryIR: {
-          objectives: [{ id: "done", satisfiedAtEventIndex: 1 }, { id: "done-too", satisfiedAtEventIndex: 0 }, { id: "missing", satisfiedAtEventIndex: null }, { id: "absent" }],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("objectives=4 completed=2");
-      expect(result.details).toContain("missing, absent");
-    });
-
-    it("rejects invalid objective satisfaction indexes", () => {
-      const result = runBacklogGrader("objective-coverage", { trajectoryIR: { objectives: [{ id: "bad", satisfiedAtEventIndex: -1 }] } });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("invalid objective satisfaction index");
-    });
-
-    it("scores actions that were valid when issued", () => {
-      const result = runBacklogGrader("grounding-accuracy", {
-        trajectoryIR: {
-          actions: [
-            { id: "a1", validAtIssueTime: true },
-            { id: "a2", validAtIssueTime: false },
-            { id: "a3", validAtIssueTime: true },
-            { id: "a4", validAtIssueTime: true },
-          ],
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.75);
-      expect(result.details).toContain("actions=4 valid=3; ungrounded: a2");
-    });
-
-    it("does not guess grounding when validity is missing", () => {
-      const result = runBacklogGrader("grounding-accuracy", { trajectoryIR: { actions: [{ id: "a1", validAtIssueTime: true }, { id: "a2" }] } });
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-    });
-  });
-
-  describe("reference-trajectory backlog custom graders", () => {
-    it("scores the correct tool prefix with parameter credit", () => {
-      const result = runBacklogGrader("tool-wise-score", {
-        trajectoryIR: {
-          toolCalls: [
-            { id: "t2", eventIndex: 2, name: "view", arguments: { path: "b.go", range: [1, 2] } },
-            { id: "t1", eventIndex: 0, name: "grep", arguments: { pattern: "x", path: "." } },
-            { id: "t3", eventIndex: 4, name: "bash", arguments: {} },
-          ],
-          reference: {
-            toolCalls: [{ name: "grep", arguments: { path: ".", pattern: "x" } }, { name: "view", arguments: { path: "a.go", range: [1, 2] } }, { name: "edit", arguments: { path: "a.go" } }, { name: "bash" }],
-          },
-        },
-      });
-
-      expect(result.value).toBeCloseTo((1 + 0.75) / 4);
-      expect(result.details).toContain("referenceSteps=4 observedSteps=3 correctPrefix=2");
-      expect(result.details).toContain("expected edit, got bash");
-    });
-
-    it("computes nDTW over state_change events", () => {
-      const exact = runBacklogGrader("trajectory-ndtw", {
-        trajectoryIR: {
-          events: [
-            { index: 0, kind: "state_change", ref: "s1" },
-            { index: 1, kind: "tool_call", ref: "t1" },
-            { index: 2, kind: "state_change", ref: "s2" },
-            { index: 3, kind: "state_change", ref: "s2" },
-          ],
-          reference: { states: ["s1", "s2"] },
-        },
-      });
-      const detour = runBacklogGrader("trajectory-ndtw", {
-        trajectoryIR: {
-          events: [
-            { index: 0, kind: "state_change", ref: "s1" },
-            { index: 1, kind: "state_change", ref: "s9" },
-            { index: 2, kind: "state_change", ref: "s2" },
-          ],
-          reference: { states: ["s1", "s2"] },
-        },
-      });
-
-      expect(exact.value).toBeCloseTo(1);
-      expect(detour.value).toBeCloseTo(Math.exp(-1 / 2));
-      expect(detour.details).toContain("referenceStates=2 observedStates=3 dtwDistance=1");
-    });
-
-    it("scores recall of reference patch files", () => {
-      const result = runBacklogGrader("code-search-recall", {
-        trajectoryIR: {
-          resources: [
-            { id: "r1", kind: "file", uri: "./pkg/a.go" },
-            { id: "r2", kind: "url", uri: "pkg/b.go" },
-            { id: "r3", kind: "file", uri: "pkg/c.go" },
-          ],
-          reference: { patch: { files: [{ path: "pkg/a.go" }, "pkg/b.go", "pkg/c.go", "pkg/d.go"] } },
-        },
-      });
-
-      expect(result.value).toBeCloseTo(0.5);
-      expect(result.details).toContain("referenceFiles=4 located=2; never located: pkg/b.go, pkg/d.go");
-    });
-
-    it.each([
-      ["tool-wise-score", { trajectoryIR: { toolCalls: [] } }],
-      ["trajectory-ndtw", { trajectoryIR: { events: [{ index: 0, kind: "state_change", ref: "s1" }], reference: null } }],
-      ["code-search-recall", { trajectoryIR: { resources: [], reference: { patch: { files: [] } } } }],
-      ["trajectory-ndtw", { trajectoryIR: { events: [{ index: 0, kind: "tool_call", ref: "t1" }], reference: { states: ["s1"] } } }],
-      ["tool-wise-score", { trajectoryIR: { reference: { toolCalls: [{ name: "grep" }] } } }],
-      ["code-search-recall", { trajectoryIR: { reference: { patch: { files: [{ path: "" }] } }, resources: [] } }],
-      ["tool-wise-score", { trajectoryIR: { toolCalls: [{ name: "grep", eventIndex: 1 }, { name: "view" }], reference: { toolCalls: [{ name: "grep" }] } } }],
-    ])("reports %s as unavailable without fabricating a score", (id, unavailableTrace) => {
-      const result = runBacklogGrader(id, unavailableTrace);
-
-      expect(result.value).toBeNull();
-      expect(result.status).toBe("unavailable");
-    });
-  });
-
-  describe("code-read-precision built-in grader", () => {
-    const reference = { patch: { files: ["pkg/a.go", { path: "./pkg/a.go" }, { path: "/pkg/b.go" }, "pkg/unread.go"] } };
-    const read = target => ({ type: "read", target, consequential: false });
-    const run = ir => runTrajectoryBuiltin("code-read-precision", { trajectoryIR: ir });
-
-    it("scores distinct file reads, not reference recall or action frequency", () => {
-      const result = run({
-        reference,
-        actions: [
-          read(" pkg/a.go "),
-          read("./pkg/a.go"),
-          { type: "inspect", target: "/pkg/b.go", consequential: false },
-          read("pkg/unrelated.go"),
-          { type: "search", target: "pkg/other.go", consequential: false },
-          { type: "list", target: "pkg/listed.go", consequential: false },
-          { type: "edit", target: "pkg/edited.go", consequential: true },
-          { type: "read", target: "pkg/mutated.go", consequential: true },
-          { type: "thread", target: "pkg/thread.go", consequential: false },
-        ],
-        resources: [{ kind: "file", uri: "pkg/unread.go" }],
-      });
-      expect(result.value).toBeCloseTo(2 / 3);
-      expect(result).toMatchObject({ source: "builtin", status: "pass", unit: "ratio" });
-      expect(TRAJECTORY_GRADER_META["code-read-precision"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
-      expect(result.details).toBe("referenceFiles=3 readFiles=3 relevant=2; unrelated reads: pkg/unrelated.go");
-    });
-
-    it.each([
-      ["all relevant", [read("pkg/a.go"), read("pkg/b.go")], 1],
-      ["none relevant", [read("pkg/A.go"), read("pkg/elsewhere.go")], 0],
-    ])("scores %s reads", (_name, actions, value) => {
-      expect(run({ reference, actions }).value).toBe(value);
-    });
-
-    it.each(["root", "trajectoryIR", "trajectoryIr", "ir", "agentOutput", "agentOutput.trajectoryIR", "agentOutput.trajectoryIr", "agentOutput.trajectory"])("accepts the %s canonical IR location", location => {
-      const ir = { reference, actions: [read("pkg/a.go")] };
-      const trace = location === "root" ? ir : location.split(".").reduceRight((value, key) => ({ [key]: value }), ir);
-      expect(runTrajectoryBuiltin("code-read-precision", trace).value).toBe(1);
-    });
-
-    it.each([
-      ["missing reference", { actions: [read("pkg/a.go")] }, "no reference patch files"],
-      ["malformed reference", { reference: { patch: { files: "pkg/a.go" } }, actions: [] }, "no reference patch files"],
-      ["empty reference", { reference: { patch: { files: [] } }, actions: [] }, "no reference patch files"],
-      ["missing reference path", { reference: { patch: { files: [{}] } }, actions: [] }, "missing a path"],
-      ["invalid reference path", { reference: { patch: { files: [{ path: 42 }] } }, actions: [] }, "missing a path"],
-      ["empty reference path", { reference: { patch: { files: [" ./ "] } }, actions: [] }, "missing a path"],
-      ["missing actions", { reference }, "well-formed actions"],
-      ["non-array actions", { reference, actions: {} }, "well-formed actions"],
-      ["non-record action", { reference, actions: [read("pkg/a.go"), null] }, "well-formed actions"],
-      ["missing type", { reference, actions: [read("pkg/a.go"), { consequential: false }] }, "missing a type"],
-      ["missing flag", { reference, actions: [{ type: "read", target: "pkg/a.go" }] }, "consequential flag"],
-      ["invalid flag", { reference, actions: [{ ...read("pkg/a.go"), consequential: "false" }] }, "consequential flag"],
-      ["missing target", { reference, actions: [read("pkg/a.go"), read(null)] }, "file target"],
-      ["invalid target", { reference, actions: [read(42)] }, "file target"],
-      ["empty target", { reference, actions: [read(" / ")] }, "file target"],
-      ["no reads", { reference, actions: [] }, "no file reads"],
-      ["searches only", { reference, actions: [{ type: "search", target: null, consequential: false }] }, "no file reads"],
-    ])("reports %s as unavailable without fabricating a score", (_name, ir, reason) => {
-      const result = run(ir);
-      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable", source: "builtin" });
-      expect(result.message).toContain(reason);
-    });
-
-    it("does not merge evidence from unrelated IR candidates", () => {
-      const result = runTrajectoryBuiltin("code-read-precision", { reference, agentOutput: { actions: [read("pkg/a.go")] } });
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("well-formed actions");
-    });
-
-    it.each(["actions", "reference.patch.files"])("rejects oversized %s", collection => {
-      const ir = { reference, actions: [read("pkg/a.go")] };
-      const oversized = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, () => (collection === "actions" ? read("pkg/a.go") : "pkg/a.go"));
-      if (collection === "actions") ir.actions = oversized;
-      else ir.reference = { patch: { files: oversized } };
-      const result = run(ir);
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain(`${collection} exceeds ${MAX_TRAJECTORY_ITEMS} items`);
-    });
-
-    it("computes at the size limit with bounded diagnostic output", () => {
-      const longPath = `pkg/${"x".repeat(10_000)}.go`;
-      const actions = [read(longPath), ...Array.from({ length: MAX_TRAJECTORY_ITEMS - 1 }, (_, index) => read(`pkg/${index}.go`))];
-      const files = actions.map(action => action.target);
-      const started = performance.now();
-      expect(run({ reference: { patch: { files } }, actions }).value).toBe(1);
-      const unrelated = run({ reference, actions });
-      expect(unrelated.value).toBe(0);
-      expect(unrelated.details).toContain(`${longPath.slice(0, 117)}...`);
-      expect(unrelated.details).not.toContain(longPath);
-      expect(unrelated.details).toContain("pkg/3.go");
-      expect(unrelated.details).not.toContain("pkg/4.go");
-      expect(unrelated.details.length).toBeLessThan(1000);
-      expect(performance.now() - started).toBeLessThan(1000);
-    });
-  });
-
-  describe("code-edit-precision built-in grader", () => {
-    const reference = { patch: { files: ["pkg/a.go", { path: "./pkg/a.go" }, { path: "/pkg/b.go" }, "pkg/untouched.go"] } };
-    const edit = target => ({ type: "edit", target, consequential: true });
-    const run = ir => runTrajectoryBuiltin("code-edit-precision", { trajectoryIR: ir });
-
-    it("scores distinct edited files, not reference recall or action frequency", () => {
-      const result = run({
-        reference,
-        actions: [
-          edit(" pkg/a.go "),
-          edit("./pkg/a.go"),
-          edit("/pkg/b.go"),
-          edit("pkg/unrelated.go"),
-          { type: "read", target: "pkg/untouched.go", consequential: false },
-          { type: "search", target: "pkg/other.go", consequential: false },
-          { type: "comment", target: "pkg/commented.go", consequential: true },
-        ],
-      });
-      expect(result).toMatchObject({ value: 2 / 3, source: "builtin", status: "pass", unit: "ratio" });
-      expect(TRAJECTORY_GRADER_META["code-edit-precision"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
-      expect(result.details).toBe("referenceFiles=3 editedFiles=3 relevant=2; unrelated edits: pkg/unrelated.go");
-    });
-
-    it.each([
-      ["all relevant", [edit("pkg/a.go"), edit("pkg/b.go")], 1],
-      ["none relevant", [edit("pkg/A.go"), edit("pkg/elsewhere.go")], 0],
-    ])("scores %s edits", (_name, actions, value) => {
-      expect(run({ reference, actions }).value).toBe(value);
-    });
-
-    it.each([
-      ["missing reference", { actions: [edit("pkg/a.go")] }, "no reference patch files"],
-      ["malformed reference", { reference: { patch: { files: "pkg/a.go" } }, actions: [] }, "no reference patch files"],
-      ["empty reference", { reference: { patch: { files: [] } }, actions: [] }, "no reference patch files"],
-      ["missing reference path", { reference: { patch: { files: [{}] } }, actions: [] }, "missing a path"],
-      ["empty reference path", { reference: { patch: { files: [" ./ "] } }, actions: [] }, "missing a path"],
-      ["missing actions", { reference }, "well-formed actions"],
-      ["non-array actions", { reference, actions: {} }, "well-formed actions"],
-      ["non-record action", { reference, actions: [edit("pkg/a.go"), null] }, "well-formed actions"],
-      ["missing type", { reference, actions: [edit("pkg/a.go"), { consequential: false }] }, "missing a type"],
-      ["missing flag", { reference, actions: [{ type: "edit", target: "pkg/a.go" }] }, "consequential flag"],
-      ["non-consequential edit", { reference, actions: [{ ...edit("pkg/a.go"), consequential: false }] }, "not consequential"],
-      ["missing target", { reference, actions: [edit("pkg/a.go"), edit(null)] }, "file target"],
-      ["empty target", { reference, actions: [edit(" / ")] }, "file target"],
-      ["no edits", { reference, actions: [] }, "no file edits"],
-      ["reads only", { reference, actions: [{ type: "read", target: "pkg/a.go", consequential: false }] }, "no file edits"],
-    ])("reports %s as unavailable without fabricating a score", (_name, ir, reason) => {
-      const result = run(ir);
-      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable", source: "builtin" });
-      expect(result.message).toContain(reason);
-    });
-
-    it("does not merge evidence from unrelated IR candidates", () => {
-      const result = runTrajectoryBuiltin("code-edit-precision", { reference, agentOutput: { actions: [edit("pkg/a.go")] } });
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain("well-formed actions");
-    });
-
-    it.each(["actions", "reference.patch.files"])("rejects oversized %s", collection => {
-      const ir = { reference, actions: [edit("pkg/a.go")] };
-      const oversized = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, () => (collection === "actions" ? edit("pkg/a.go") : "pkg/a.go"));
-      if (collection === "actions") ir.actions = oversized;
-      else ir.reference = { patch: { files: oversized } };
-      const result = run(ir);
-      expect(result.status).toBe("unavailable");
-      expect(result.message).toContain(`${collection} exceeds ${MAX_TRAJECTORY_ITEMS} items`);
-    });
-
-    it("bounds diagnostics for long unrelated paths", () => {
-      const longPath = `pkg/${"x".repeat(10_000)}.go`;
-      const result = run({ reference, actions: [edit(longPath)] });
-      expect(result.value).toBe(0);
-      expect(result.details).toContain(`${longPath.slice(0, 117)}...`);
-      expect(result.details).not.toContain(longPath);
-    });
-  });
-
-  describe("process-alignment-fitness built-in grader", () => {
-    const model = { start: "search", end: "edit", transitions: { search: ["read"], read: ["edit"] } };
-    const run = (toolCalls, config = { model }, location = "trajectoryIR") => runTrajectoryBuiltin("process-alignment-fitness", { [location]: { toolCalls } }, config);
-    const call = (name, eventIndex) => ({ name, eventIndex });
-
-    it("scores an ordered conforming trajectory including both boundaries", () => {
-      const result = run([call("edit", 5), call("search", 1), call("read", 3)]);
-      expect(result).toMatchObject({ value: 1, status: "pass", source: "builtin", unit: "ratio" });
-      expect(result.details).toBe("observedSteps=3 allowedChecks=4 totalChecks=4");
-      expect(TRAJECTORY_GRADER_META["process-alignment-fitness"]).toMatchObject({ direction: "higher_is_better", min: 0, max: 1 });
-    });
-
-    it.each(["trajectoryIr", "ir"])("reads the %s IR", location => {
-      expect(run([call("search", 0), call("read", 1), call("edit", 2)], { model }, location).value).toBe(1);
-    });
-
-    it("counts forbidden transitions and wrong start/end independently", () => {
-      expect(run([call("search", 0), call("edit", 1)]).value).toBe(2 / 3);
-      expect(run([call("read", 0), call("search", 1), call("read", 2)]).value).toBe(1 / 4);
-      expect(run([call("other", 0)]).value).toBe(0);
-    });
-
-    it("handles a one-call process", () => {
-      expect(run([call("search", 0)], { model: { start: "search", end: "search", transitions: {} } }).value).toBe(1);
-    });
-
-    it("reports missing models as not applicable", () => {
-      const result = run([call("search", 0)], {});
-      expect(result).toMatchObject({ value: null, passed: null, status: "unavailable" });
-      expect(result.message).toContain("not applicable");
-    });
-
-    it.each([
-      ["missing calls", undefined],
-      ["empty calls", []],
-      ["non-array calls", {}],
-      ["missing name", [{ eventIndex: 0 }]],
-      ["missing event index", [{ name: "search" }]],
-      ["negative index", [call("search", -1)]],
-      ["duplicate index", [call("search", 1), call("read", 1)]],
-    ])("rejects %s", (_reason, toolCalls) => {
-      expect(run(toolCalls)).toMatchObject({ value: null, status: "unavailable" });
-    });
-
-    it.each([
-      ["non-record", []],
-      ["missing start", { end: "edit", transitions: {} }],
-      ["missing end", { start: "search", transitions: {} }],
-      ["invalid transitions", { start: "search", end: "edit", transitions: { search: "read" } }],
-      ["invalid destination", { start: "search", end: "edit", transitions: { search: [""] } }],
-    ])("rejects a %s model", (_reason, malformed) => {
-      expect(run([call("search", 0)], { model: malformed })).toMatchObject({ value: null, status: "unavailable" });
-    });
-
-    it("bounds the number of model transitions", () => {
-      const oversized = { start: "search", end: "edit", transitions: { search: Array(MAX_TRAJECTORY_ITEMS + 1).fill("read") } };
-      expect(run([call("search", 0)], { model: oversized })).toMatchObject({ value: null, status: "unavailable" });
-      const manySources = Object.fromEntries(Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, (_, index) => [`tool-${index}`, []]));
-      expect(run([call("search", 0)], { model: { start: "search", end: "edit", transitions: manySources } })).toMatchObject({ value: null, status: "unavailable" });
-    });
-  });
-
-  // --- Hostile data ---
-  describe("hostile data handling", () => {
-    it("handles hostile strings in tool call names", () => {
-      const trace = makeTrace({
-        toolCalls: [
-          { name: '"><script>alert(1)</script>', success: true },
-          { name: "normal", success: true },
-        ],
-      });
-      expect(gradeToolSuccessRate(trace)).toBe(1);
-      expect(gradeToolFailureCount(trace)).toBe(0);
-    });
-
-    it("handles nested malicious JSON in JSONL", () => {
-      const hostile = '{"a":1,"constructor":{"prototype":{"polluted":true}}}';
-      const result = safeParseJsonl(hostile);
-      expect(result.length).toBe(1);
-      expect(result[0].a).toBe(1);
-      expect(Object.prototype).not.toHaveProperty("polluted");
-    });
-
-    it("hostile script cannot escape sandbox", () => {
-      const meta = { name: "test", unit: "", direction: "", source: "inline" };
-      // Attempt to access constructor chain
-      const result = runCustomGrader("test", "return this && this.constructor ? 0 : 1", makeTrace(), meta);
-      // Should not crash
-      expect(result.error === null || result.error !== null).toBe(true);
-    });
-
-    it("hostile script cannot use eval via string code gen", () => {
-      const meta = { name: "test", unit: "", direction: "", source: "inline" };
-      // codeGeneration: {strings: false} prevents this
-      const result = runCustomGrader("test", "try { const f = new Function('return 1'); return 0 } catch(e) { return 1 }", makeTrace(), meta);
-      expect(result.value).toBe(1); // Should fail because code gen is disabled
-    });
-  });
-
-  // --- Determinism ---
-  describe("determinism", () => {
-    it("produces identical results for identical input", () => {
-      const trace = makeTrace({
-        toolCalls: [
-          { name: "read", success: true, arguments: { path: "/a" } },
-          { name: "write", success: false, arguments: { path: "/b" } },
-          { name: "read", success: true, arguments: { path: "/a" } },
-        ],
-        tokenUsageEntries: [
-          { input_tokens: 100, output_tokens: 50, duration_ms: 1000 },
-          { input_tokens: 200, output_tokens: 100, duration_ms: 2000 },
-        ],
-        totalInputTokens: 300,
-        totalOutputTokens: 150,
-        totalDurationMs: 3000,
-        totalRequests: 2,
-        retryEvents: [{ event: "retry" }],
-        artifacts: [{ type: "pr" }],
-        steps: [
-          { index: 0, inputTokens: 100, outputTokens: 50, durationMs: 1000, model: null },
-          { index: 1, inputTokens: 200, outputTokens: 100, durationMs: 2000, model: null },
-        ],
-      });
-
-      const results1 = Object.entries(BUILTIN_GRADERS).map(([id, fn]) => ({
-        id,
-        value: fn(trace),
-      }));
-      const results2 = Object.entries(BUILTIN_GRADERS).map(([id, fn]) => ({
-        id,
-        value: fn(trace),
-      }));
-
-      expect(results1).toEqual(results2);
-    });
-
-    it("produces no timestamp in normalized output", () => {
-      const meta = { name: "Test", unit: "count", direction: "lower_is_better", source: "builtin" };
-      const r = normalizeResult("test", 5, meta);
-      expect(r).not.toHaveProperty("timestamp");
-    });
-  });
-
-  // --- trace.steps and enriched fields ---
-  describe("preprocessTrace enrichment", () => {
-    const mcpLogsDir = "/tmp/gh-aw/mcp-logs";
-    const gatewayPath = path.join(mcpLogsDir, "gateway.jsonl");
-    const altGatewayPath = path.join(mcpLogsDir, "mcp-gateway.jsonl");
-    const rpcMessagesPath = path.join(mcpLogsDir, "rpc-messages.jsonl");
-
-    afterEach(() => {
-      for (const p of [gatewayPath, altGatewayPath, rpcMessagesPath]) {
-        if (fs.existsSync(p)) fs.unlinkSync(p);
-      }
-    });
-
-    it("extracts steps from token usage entries", () => {
-      // Mock safeReadFile to return test data - use the preprocessTrace's logic
-      const trace = makeTrace({
-        tokenUsageEntries: [
-          { input_tokens: 100, output_tokens: 50, duration_ms: 500, model: "gpt-4" },
-          { input_tokens: 200, output_tokens: 100, duration_ms: 1000, model: "gpt-4" },
-        ],
-        steps: [
-          { index: 0, inputTokens: 100, outputTokens: 50, durationMs: 500, model: "gpt-4" },
-          { index: 1, inputTokens: 200, outputTokens: 100, durationMs: 1000, model: "gpt-4" },
-        ],
-      });
-      expect(trace.steps.length).toBe(2);
-      expect(trace.steps[0].inputTokens).toBe(100);
-      expect(trace.steps[1].model).toBe("gpt-4");
-    });
-
-    it("extracts retryEvents, errorEvents", () => {
-      const trace = makeTrace({
-        retryEvents: [{ event: "retry" }],
-        errorEvents: [{ level: "error", message: "fail" }],
-      });
-      expect(trace.retryEvents.length).toBe(1);
-      expect(trace.errorEvents.length).toBe(1);
-    });
-
-    it("reads rpc-messages fallback and normalizes tool_name records", () => {
-      fs.mkdirSync(mcpLogsDir, { recursive: true });
-      fs.writeFileSync(rpcMessagesPath, [JSON.stringify({ event: "rpc", tool_name: "github-mcp-server-search_code", payload: { tool_name: "github-mcp-server-search_code", arguments: { query: "foo" } } })].join("\n") + "\n", "utf8");
-
-      const trace = preprocessTrace();
-      expect(trace.toolCalls.length).toBeGreaterThan(0);
-      expect(trace.toolCalls[0].name).toBe("github-mcp-server-search_code");
-      expect(trace.toolCalls[0].arguments).toEqual({ query: "foo" });
-    });
-  });
-
-  // --- Native Copilot events.jsonl tool calls ---
-  describe("native agent tool calls", () => {
-    const mcpLogsDir = "/tmp/gh-aw/mcp-logs";
-    const rpcMessagesPath = path.join(mcpLogsDir, "rpc-messages.jsonl");
-    const sessionDir = path.join(COPILOT_SESSION_STATE_DIR, "session-1");
-    const eventsPath = path.join(sessionDir, "events.jsonl");
-
-    /** @param {any[]} events */
-    function writeEvents(events) {
-      fs.mkdirSync(sessionDir, { recursive: true });
-      fs.writeFileSync(eventsPath, events.map(e => JSON.stringify(e)).join("\n") + "\n", "utf8");
     }
-
-    beforeEach(() => {
-      // Session state staged by other runs must not leak into discovery assertions.
-      fs.rmSync(COPILOT_SESSION_STATE_DIR, { recursive: true, force: true });
+    vi.spyOn(cp, "spawnSync").mockImplementation(() => {
+      throw new Error("unexpected subprocess");
     });
-
-    afterEach(() => {
-      if (fs.existsSync(rpcMessagesPath)) fs.unlinkSync(rpcMessagesPath);
-      fs.rmSync(COPILOT_SESSION_STATE_DIR, { recursive: true, force: true });
-    });
-
-    it("finds staged events.jsonl files deterministically", () => {
-      writeEvents([{ type: "user.message", timestamp: "2026-01-01T00:00:00Z", data: {} }]);
-      fs.mkdirSync(path.join(COPILOT_SESSION_STATE_DIR, "session-0"), { recursive: true });
-      fs.writeFileSync(path.join(COPILOT_SESSION_STATE_DIR, "session-0", "events.jsonl"), "", "utf8");
-
-      expect(findAgentEventsFiles()).toEqual([path.join(COPILOT_SESSION_STATE_DIR, "session-0", "events.jsonl"), eventsPath]);
-    });
-
-    it("returns no files when the session directory is missing", () => {
-      expect(findAgentEventsFiles(path.join(COPILOT_SESSION_STATE_DIR, "missing"))).toEqual([]);
-    });
-
-    it("normalizes a native skill invocation with arguments and toolCallId", () => {
-      const calls = extractNativeToolCalls([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", arguments: { skill: "documentation" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:01Z", data: { toolCallId: "call-1", success: true } },
-      ]);
-
-      expect(calls).toHaveLength(1);
-      expect(calls[0].name).toBe("skill");
-      expect(calls[0].toolCallId).toBe("call-1");
-      expect(calls[0].arguments).toEqual({ skill: "documentation" });
-      expect(calls[0].success).toBe(true);
-      expect(calls[0].status).toBe("success");
-      expect(calls[0].completed).toBe(true);
-    });
-
-    it("marks failed completions and keeps error details", () => {
-      const calls = extractNativeToolCalls([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "bash", arguments: { command: "false" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:01Z", data: { toolCallId: "call-1", success: false, error: { message: "exit 1" } } },
-      ]);
-
-      expect(calls[0].success).toBe(false);
-      expect(calls[0].status).toBe("error");
-      expect(calls[0].error).toEqual({ message: "exit 1" });
-    });
-
-    it("keeps calls without a completion distinguishable from successful calls", () => {
-      const calls = extractNativeToolCalls([{ type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", arguments: { skill: "documentation" } } }]);
-
-      expect(calls[0].completed).toBe(false);
-      expect(calls[0].success).toBeUndefined();
-      expect(calls[0].status).toBeUndefined();
-    });
-
-    it("correlates completions by tool name when toolCallId is absent", () => {
-      const calls = extractNativeToolCalls([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolName: "bash" } },
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:01Z", data: { toolName: "bash" } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:02Z", data: { toolName: "bash", success: true } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:03Z", data: { toolName: "bash", success: false } },
-      ]);
-
-      expect(calls).toHaveLength(2);
-      expect(calls[0].success).toBe(true);
-      expect(calls[1].success).toBe(false);
-    });
-
-    it("keeps completions that have no matching start", () => {
-      const calls = extractNativeToolCalls([{ type: "tool.execution_complete", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-9", toolName: "view", success: true } }]);
-
-      expect(calls).toHaveLength(1);
-      expect(calls[0].name).toBe("view");
-      expect(calls[0].success).toBe(true);
-    });
-
-    it("deduplicates gateway records that duplicate a native MCP call", () => {
-      const nativeCalls = [{ source: "agent", name: "search_code", tool: "search_code", mcpServerName: "github-mcp-server", mcpToolName: "search_code", arguments: { query: "foo" }, success: true, completed: true }];
-      const gatewayCalls = [
-        { name: "github-mcp-server-search_code", tool: "github-mcp-server-search_code", arguments: { query: "foo" } },
-        { name: "github-mcp-server-search_code", tool: "github-mcp-server-search_code", arguments: { query: "bar" } },
-      ];
-
-      const merged = mergeToolCalls(nativeCalls, gatewayCalls);
-      expect(merged).toHaveLength(2);
-      expect(merged[0].source).toBe("agent");
-      expect(merged[1].arguments).toEqual({ query: "bar" });
-    });
-
-    it("keeps gateway records when there are no native calls", () => {
-      const gatewayCalls = [{ name: "bash", arguments: { command: "ls" } }];
-      expect(mergeToolCalls([], gatewayCalls)).toEqual(gatewayCalls);
-    });
-
-    it("merges native and gateway tool calls during preprocessing", () => {
-      writeEvents([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", arguments: { skill: "documentation" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:01Z", data: { toolCallId: "call-1", success: true } },
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:02Z", data: { toolCallId: "call-2", toolName: "search_code", mcpServerName: "github-mcp-server", mcpToolName: "search_code", arguments: { query: "foo" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:03Z", data: { toolCallId: "call-2", success: true } },
-      ]);
-      fs.mkdirSync(mcpLogsDir, { recursive: true });
-      fs.writeFileSync(rpcMessagesPath, JSON.stringify({ event: "rpc", tool_name: "github-mcp-server-search_code", payload: { tool_name: "github-mcp-server-search_code", arguments: { query: "foo" } } }) + "\n", "utf8");
-
-      const trace = preprocessTrace();
-      expect(trace.nativeToolCalls).toHaveLength(2);
-      expect(trace.toolCalls).toHaveLength(2);
-      expect(trace.toolCalls.map(call => call.name)).toEqual(["skill", "search_code"]);
-    });
-
-    it("preserves structured input written under the SDK `input` field", () => {
-      const calls = extractNativeToolCalls([{ type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", input: { skill: "documentation" } } }]);
-
-      expect(calls[0].arguments).toEqual({ skill: "documentation" });
-    });
-
-    it("correlates completions when only some events carry a toolCallId", () => {
-      const calls = extractNativeToolCalls([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "bash", input: { command: "first" } } },
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:01Z", data: { toolName: "bash", input: { command: "second" } } },
-        // Completion without an id must consume the oldest pending start, even though
-        // that start carried an id.
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:02Z", data: { toolName: "bash", success: true } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:03Z", data: { toolName: "bash", success: false } },
-      ]);
-
-      expect(calls).toHaveLength(2);
-      expect(calls[0].arguments).toEqual({ command: "first" });
-      expect(calls[0].success).toBe(true);
-      expect(calls[1].arguments).toEqual({ command: "second" });
-      expect(calls[1].success).toBe(false);
-    });
-
-    it("does not merge distinct tools whose names differ only by separators", () => {
-      const nativeCalls = [{ source: "agent", name: "list_issues", tool: "list_issues", arguments: { repo: "gh-aw" }, success: true, completed: true }];
-      const gatewayCalls = [{ name: "list-issues", tool: "list-issues", arguments: { repo: "gh-aw" } }];
-
-      expect(mergeToolCalls(nativeCalls, gatewayCalls)).toHaveLength(2);
-    });
-
-    it("deduplicates JSON-RPC tools/call gateway records against native calls", () => {
-      writeEvents([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "list_issues", mcpServerName: "github", mcpToolName: "list_issues", input: { repo: "gh-aw" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:01Z", data: { toolCallId: "call-1", success: true } },
-      ]);
-      fs.mkdirSync(mcpLogsDir, { recursive: true });
-      fs.writeFileSync(
-        rpcMessagesPath,
-        JSON.stringify({
-          timestamp: "2026-01-01T00:00:00Z",
-          event: "rpc_request",
-          _schema: "rpc-message/v2",
-          direction: "OUT",
-          server_id: "github",
-          method: "tools/call",
-          payload: { jsonrpc: "2.0", method: "tools/call", params: { name: "list_issues", arguments: { repo: "gh-aw" } } },
-        }) + "\n",
-        "utf8"
-      );
-
-      const trace = preprocessTrace();
-      expect(trace.toolCalls).toHaveLength(1);
-      expect(trace.toolCalls[0].source).toBe("agent");
-    });
-
-    it("normalizes JSON-RPC tools/call name and arguments when there is no native call", () => {
-      fs.mkdirSync(mcpLogsDir, { recursive: true });
-      fs.writeFileSync(
-        rpcMessagesPath,
-        JSON.stringify({
-          timestamp: "2026-01-01T00:00:00Z",
-          event: "rpc_request",
-          server_id: "github",
-          method: "tools/call",
-          payload: { jsonrpc: "2.0", method: "tools/call", params: { name: "list_issues", arguments: { repo: "gh-aw" } } },
-        }) + "\n",
-        "utf8"
-      );
-
-      const trace = preprocessTrace();
-      expect(trace.toolCalls).toHaveLength(1);
-      expect(trace.toolCalls[0].name).toBe("list_issues");
-      expect(trace.toolCalls[0].arguments).toEqual({ repo: "gh-aw" });
-    });
-
-    it("scores an incomplete native call as a tool failure", () => {
-      const trace = makeTrace({ toolCalls: [{ source: "agent", name: "skill", arguments: { skill: "documentation" }, completed: false }] });
-
-      expect(BUILTIN_GRADERS["tool-success-rate"](trace)).toBe(0);
-      expect(BUILTIN_GRADERS["tool-failure-count"](trace)).toBe(1);
-    });
-
-    it("does not let an incomplete skill call satisfy skill-constraint-coverage", () => {
-      writeEvents([{ type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", input: { skill: "documentation" } } }]);
-
-      const trace = preprocessTrace();
-      const result = runSkillConstraintCoverage({ toolCalls: trace.toolCalls }, { constraints: [{ id: "uses-documentation-skill", pattern: "skill .*documentation" }] });
-
-      expect(result.value).toBe(0);
-      expect(result.details).toContain("exercised=1 covered=0");
-    });
-
-    it("lets skill-constraint-coverage match a native skill invocation", () => {
-      writeEvents([
-        { type: "tool.execution_start", timestamp: "2026-01-01T00:00:00Z", data: { toolCallId: "call-1", toolName: "skill", arguments: { skill: "documentation" } } },
-        { type: "tool.execution_complete", timestamp: "2026-01-01T00:00:01Z", data: { toolCallId: "call-1", success: true } },
-      ]);
-
-      const trace = preprocessTrace();
-      const result = runSkillConstraintCoverage({ toolCalls: trace.toolCalls }, { constraints: [{ id: "uses-documentation-skill", pattern: "skill .*documentation" }] });
-
-      expect(result.value).toBe(1);
-      expect(result.details).toContain("exercised=1 covered=1");
-    });
+    const first = computeGraders(session);
+    expect(computeGraders(session)).toEqual(first);
+    expect(session).toEqual(before);
+    expect(first.output.results.every(result => result.status !== "error")).toBe(true);
   });
 
-  // --- All built-in graders are registered ---
-  describe("built-in grader registry", () => {
-    const expectedIds = [
-      "tool-success-rate",
-      "tool-failure-count",
-      "retries",
-      "loops",
-      "trajectory-efficiency",
-      "execution-step-count",
-      "execution-duration",
-      "working-set-rebuild-factor",
-      "context-growth",
-      "artifact-production",
-      ...Object.keys(TRAJECTORY_GRADERS),
+  it("enables only cheap graders by default, preserving disables and opt-ins", () => {
+    expect(withDefaultGraders([]).map(grader => grader.id)).toEqual(DEFAULT_GRADER_IDS);
+    const { output } = computeGraders(
+      [],
+      [
+        { id: "loops", enabled: false },
+        { id: "recurrence-determinism", enabled: true },
+      ]
+    );
+    expect(output.results.map(result => result.id)).not.toContain("loops");
+    expect(output.results.map(result => result.id)).toContain("recurrence-determinism");
+    expect(output.results.find(result => result.id === "recurrence-determinism").status).toBe("unavailable");
+    expect(output.results.map(result => result.id)).not.toContain("trajectory-ndtw");
+  });
+
+  it("can disable every default without re-enabling them", () => {
+    const { output } = computeGraders(
+      [],
+      DEFAULT_GRADER_IDS.map(id => ({ id, enabled: false }))
+    );
+    expect(output.results).toEqual([]);
+  });
+
+  it.each([
+    { id: "custom", source: "inline", script: "return 1" },
+    { id: "operational-value", source: "operational-value", run: "test.sh" },
+    { id: "loops", source: "builtin", script: "return 1" },
+    { id: "loops", source: "builtin", run: "test.sh" },
+    { id: "toString" },
+    { id: "__proto__" },
+  ])("rejects executable or unknown grader configuration: %j", grader => {
+    expect(() => computeGraders(fixture(), [grader])).toThrow(/custom graders/);
+  });
+
+  it("rejects legacy payloads and malformed sessions instead of producing success-shaped defaults", () => {
+    expect(() => computeGraders({ toolCalls: [] })).toThrow(/unified session/);
+    expect(() => computeGraders([{ type: "tool.execution_start", data: {} }])).toThrow(/unified session/);
+    expect(() => computeGraders([null])).toThrow(/unified session/);
+    expect(() => withDefaultGraders([{ id: "loops" }, { id: "loops" }])).toThrow(/duplicate/);
+  });
+
+  it("scopes identical tool call IDs to each session", () => {
+    const session = [
+      event("tool.execution_start", { sessionId: "one", toolCallId: "same", toolName: "view" }),
+      event("tool.execution_start", { sessionId: "two", toolCallId: "same", toolName: "view" }),
+      event("tool.execution_complete", { sessionId: "two", toolCallId: "same", success: true }),
+      event("tool.execution_complete", { sessionId: "one", toolCallId: "same", success: false }),
     ];
-
-    it("has all expected built-in graders", () => {
-      for (const id of expectedIds) {
-        expect(BUILTIN_GRADERS).toHaveProperty(id);
-        expect(typeof BUILTIN_GRADERS[id]).toBe("function");
-      }
-    });
-
-    it("has no unexpected graders", () => {
-      const ids = Object.keys(BUILTIN_GRADERS);
-      expect(ids.sort()).toEqual([...expectedIds].sort());
-    });
-
-    it("reports a non-record trace as not applicable instead of throwing", () => {
-      for (const [id, grade] of Object.entries(TRAJECTORY_GRADERS)) {
-        for (const trace of [null, undefined, "trace", 42, []]) {
-          const result = grade(trace, {});
-          expect(result, id).toMatchObject({ value: null, passed: null });
-          expect(typeof result.message, id).toBe("string");
-        }
-      }
-    });
-
-    it("includes every trajectory grader", () => {
-      expect(Object.keys(TRAJECTORY_GRADERS)).toHaveLength(25);
-      expect(Object.keys(TRAJECTORY_GRADER_META).sort()).toEqual(Object.keys(TRAJECTORY_GRADERS).sort());
-    });
-
-    it("all graders have metadata", () => {
-      for (const id of expectedIds) {
-        expect(BUILTIN_META).toHaveProperty(id);
-        expect(BUILTIN_META[id].name).toBeTruthy();
-        expect(BUILTIN_META[id].unit).toBeDefined();
-        expect(BUILTIN_META[id].direction).toBeDefined();
-      }
-    });
-
-    it("matches the Go built-in grader registry", () => {
-      const goSource = fs.readFileSync(path.join(__dirname, "../../../pkg/workflow/graders_config.go"), "utf8");
-      const registry = goSource.slice(goSource.indexOf("var BuiltinGraderRegistry"), goSource.indexOf("// BuiltinGraderIDs"));
-      const goIds = [...registry.matchAll(/\{ID: "([a-z0-9-]+)"/g)].map(match => match[1]);
-      expect(goIds).toEqual(Object.keys(BUILTIN_GRADERS));
-      expect(Object.keys(BUILTIN_META)).toEqual(goIds);
-    });
+    expect(createSessionLookups(session).toolCalls.map(call => call.success)).toEqual([false, true]);
   });
 
-  describe("withAllBuiltinGraders", () => {
-    it("adds every built-in missing from the manifest", () => {
-      const graders = withAllBuiltinGraders([{ id: "my-metric", source: "inline", enabled: true }]);
-      expect(graders.map(g => g.id)).toEqual(["my-metric", ...Object.keys(BUILTIN_GRADERS)]);
-      const added = graders.find(g => g.id === "recurrence-rate");
-      expect(added).toMatchObject({ source: "builtin", enabled: true, name: "Recurrence Rate (RQA RR)", unit: "ratio", direction: "lower_is_better" });
-    });
-
-    it("keeps explicitly declared entries, including disabled built-ins and inline overrides", () => {
-      const declared = [
-        { id: "loops", source: "builtin", enabled: false },
-        { id: "recurrence-rate", source: "inline", enabled: true },
-      ];
-      const graders = withAllBuiltinGraders(declared);
-      expect(graders.filter(g => g.id === "loops")).toEqual([{ ...BUILTIN_META.loops, ...declared[0] }]);
-      expect(graders.filter(g => g.id === "recurrence-rate")).toEqual([declared[1]]);
-      expect(graders).toHaveLength(Object.keys(BUILTIN_GRADERS).length);
-    });
-
-    it("hydrates compact overrides without replacing explicit values", () => {
-      const graders = withAllBuiltinGraders([{ id: "tool-success-rate", source: "builtin", enabled: true, threshold: 0.95 }]);
-      expect(graders[0]).toMatchObject({ ...BUILTIN_META["tool-success-rate"], threshold: 0.95, enabled: true });
-    });
+  it("correlates tool calls across staged session files", () => {
+    const session = [
+      event("tool.execution_start", { sessionId: "one", toolCallId: "same", toolName: "view" }, "agent", "session-a.jsonl"),
+      event("tool.execution_complete", { sessionId: "one", toolCallId: "same", success: false }, "agent", "session-b.jsonl"),
+    ];
+    const lookups = createSessionLookups(session);
+    expect(lookups.toolCalls).toHaveLength(1);
+    expect(lookups.stats).toMatchObject({ toolCallCount: 1, failedToolCalls: 1 });
   });
 
-  describe("main", () => {
-    let originalCore;
-    beforeEach(() => {
-      originalCore = global.core;
-      const summary = { addDetails: vi.fn(() => summary), write: vi.fn(async () => summary) };
-      global.core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary };
-    });
-    afterEach(() => {
-      global.core = originalCore;
-      vi.unstubAllEnvs();
-    });
-
-    it("reads JSON chunks from the environment without evaluating their contents", async () => {
-      const manifest = { version: 1, graders: [{ id: "env-metric", name: "'${{ secrets.TOKEN }}' 世界", source: "inline", enabled: true }] };
-      const payload = JSON.stringify(manifest).replaceAll("$", "\\u0024");
-      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", "2");
-      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", payload.slice(0, 50));
-      vi.stubEnv("GH_AW_GRADER_MANIFEST_1", payload.slice(50));
-      vi.stubEnv("GH_AW_GRADER_EXEC_CHUNKS", "1");
-      vi.stubEnv("GH_AW_GRADER_EXEC_0", JSON.stringify([{ id: "env-metric", script: "return {value: 7};" }]));
-      expect(readGraderEnvironment("GH_AW_GRADER_MANIFEST")).toEqual(manifest);
-      await mainFromEnvironment();
-      const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
-      expect(output.results.find(result => result.id === "env-metric")).toMatchObject({ value: 7 });
-      expect(global.core.setFailed).not.toHaveBeenCalled();
-    });
-
-    it.each(["missing", "invalid-count", "missing-chunk", "malformed-json"])("fails explicitly for %s environment payloads", async scenario => {
-      vi.stubEnv("GH_AW_GRADER_MANIFEST_CHUNKS", scenario === "missing" ? undefined : scenario === "invalid-count" ? "NaN" : "1");
-      vi.stubEnv("GH_AW_GRADER_MANIFEST_0", scenario === "malformed-json" ? "{" : undefined);
-      await mainFromEnvironment();
-      expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("failed to parse environment payloads"));
-    });
-
-    it.each(["json", "legacy-base64"])("runs every built-in grader with %s inputs even when the manifest lists only custom graders", async format => {
-      const manifest = { version: 1, graders: [{ id: "my-metric", name: "My Metric", source: "inline", enabled: true, unit: "count" }] };
-      const execSpec = [{ id: "my-metric", script: "return { value: 1 };" }];
-      await main(format === "json" ? manifest : Buffer.from(JSON.stringify(manifest)).toString("base64"), format === "json" ? execSpec : Buffer.from(JSON.stringify(execSpec)).toString("base64"));
-
-      const output = JSON.parse(fs.readFileSync(RESULTS_PATH, "utf8"));
-      const ids = output.results.map(r => r.id);
-      expect(ids).toEqual(["my-metric", ...Object.keys(BUILTIN_GRADERS)]);
-      for (const result of output.results.filter(r => r.id !== "my-metric")) {
-        expect(result.source).toBe("builtin");
-        expect(result.status).not.toBe("error");
-      }
-      expect(global.core.setFailed).not.toHaveBeenCalled();
-    });
+  it("does not pair a different known call ID with an unfinished call", () => {
+    const session = [event("tool.execution_start", { toolCallId: "one", toolName: "view" }), event("tool.execution_complete", { toolCallId: "two", toolName: "view", success: true })];
+    expect(createSessionLookups(session).stats).toMatchObject({ toolCallCount: 2, failedToolCalls: 1 });
   });
 
-  describe("trajectory built-in graders", () => {
-    const states = ["a", "b", "a", "b", "c", "c", "c", "a"].map((id, index) => ({ id, firstEventIndex: index }));
-    const events = ["tool_call", "observation", "tool_call", "observation", "state_change", "message", "tool_call", "safe_output"].map((kind, index) => ({ index, kind }));
-
-    it("computes state recurrence graders over the canonical IR", () => {
-      const trace = { ir: { states, events } };
-      expect(runTrajectoryBuiltin("state-revisit-probability-rep", trace).value).toBeCloseTo((8 - 3) / 8);
-      expect(runTrajectoryBuiltin("recurrence-rate", trace).value).toBeCloseTo(14 / 56);
-      for (const id of ["recurrence-determinism", "recurrence-laminarity", "recurrence-trapping-time"]) {
-        const result = runTrajectoryBuiltin(id, trace);
-        expect(result.status).toBe("pass");
-        expect(typeof result.value).toBe("number");
-      }
-    });
-
-    it("computes event sequence complexity graders over the canonical IR", () => {
-      const trace = { ir: { events } };
-      for (const id of ["event-entropy-rate", "lempel-ziv-trajectory-complexity"]) {
-        const result = runTrajectoryBuiltin(id, trace);
-        expect(result.status).toBe("pass");
-        expect(result.value).toBeGreaterThan(0);
-        expect(result.value).toBeLessThanOrEqual(1);
-      }
-    });
-
-    it("reports every trajectory grader as unavailable or not applicable on a trace without IR", () => {
-      for (const id of Object.keys(TRAJECTORY_GRADERS)) {
-        const result = runTrajectoryBuiltin(id, {});
-        expect(result.status).not.toBe("error");
-        expect(result.status).toBe("unavailable");
-        expect(result.value).toBeNull();
-      }
-    });
-
-    it("reports oversized IR collections as unavailable without running the grader", () => {
-      const oversized = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, (_, index) => ({ id: `s${index % 7}`, firstEventIndex: index }));
-      for (const id of Object.keys(TRAJECTORY_GRADERS)) {
-        const result = runTrajectoryBuiltin(id, { ir: { states: oversized } });
-        expect(result.status).toBe("unavailable");
-        expect(result.message).toContain(`states exceeds ${MAX_TRAJECTORY_ITEMS} items`);
-      }
-    });
-
-    it("does not treat a long preprocessed toolCalls list as an oversized IR", () => {
-      const toolCalls = Array.from({ length: MAX_TRAJECTORY_ITEMS + 1 }, () => ({ name: "bash", success: true }));
-      const result = runTrajectoryBuiltin("skill-constraint-coverage", { toolCalls }, { constraints: [{ id: "uses-bash", pattern: "bash" }] });
-      expect(result.value).toBe(1);
-    });
-
-    it("stays cheap at the maximum supported trajectory size", () => {
-      const n = MAX_TRAJECTORY_ITEMS;
-      const bigStates = Array.from({ length: n }, (_, index) => ({ id: `s${index % 11}`, firstEventIndex: index }));
-      const bigEvents = Array.from({ length: n }, (_, index) => ({ index, kind: index % 3 === 0 ? "state_change" : "tool_call", ref: `s${index % 11}` }));
-      const trace = { ir: { states: bigStates, events: bigEvents, reference: { states: bigStates.slice(0, 200).map(state => state.id) } } };
-      const started = performance.now();
-      for (const id of Object.keys(TRAJECTORY_GRADERS)) {
-        expect(runTrajectoryBuiltin(id, trace).status).not.toBe("error");
-      }
-      expect(performance.now() - started).toBeLessThan(5000);
-    });
+  it("separates subagents sharing a parent session and tool IDs", () => {
+    const session = [
+      event("tool.execution_start", { sessionId: "parent", agentId: "one", toolCallId: "same", toolName: "view" }),
+      event("tool.execution_start", { sessionId: "parent", agentId: "two", toolCallId: "same", toolName: "view" }),
+      event("tool.execution_complete", { sessionId: "parent", agentId: "two", toolCallId: "same", success: true }),
+      event("tool.execution_complete", { sessionId: "parent", agentId: "one", toolCallId: "same", success: false }),
+    ];
+    expect(createSessionLookups(session).toolCalls.map(call => call.success)).toEqual([false, true]);
+    expect(runBuiltinGrader("loops", session, BUILTIN_META.loops).value).toBe(0);
   });
 
-  // --- GRADER_VERSION ---
-  describe("version", () => {
-    it("is a number", () => {
-      expect(typeof GRADER_VERSION).toBe("number");
-      expect(GRADER_VERSION).toBe(1);
-    });
+  it("projects trajectory evidence from the session without reading a separate trace", () => {
+    const session = [event("trajectory.ir", { states: [{ id: "a" }, { id: "b" }, { id: "a" }] }), event("trajectory.ir", { states: [{ id: "ignored" }] }, "evals")];
+    expect(runBuiltinGrader("state-revisit-probability-rep", session, BUILTIN_META["state-revisit-probability-rep"]).value).toBeCloseTo(1 / 3);
+    expect(runBuiltinGrader("event-entropy-rate", fixture(), BUILTIN_META["event-entropy-rate"]).value).not.toBeNull();
+  });
+
+  it("correlates missing IDs by tool name and retains orphan completions", () => {
+    const session = [
+      event("tool.execution_start", { toolName: "view", input: { path: "a" } }),
+      event("tool.execution_complete", { toolName: "view", success: true }),
+      event("tool.execution_start", { toolName: "view", input: { path: "b" } }),
+      event("tool.execution_complete", { toolName: "view", success: false }),
+      event("tool.execution_complete", { toolName: "edit", success: true }),
+    ];
+    expect(createSessionLookups(session).stats).toMatchObject({ toolCallCount: 3, failedToolCalls: 1 });
+  });
+
+  it("merges gateway-only calls into mixed native traces without duplicating IDs", () => {
+    const mixed = [
+      event("tool.execution_start", { toolCallId: "native", toolName: "view" }),
+      event("tool.execution_complete", { toolCallId: "native", success: true }),
+      event("mcp.rpc.request", { serverName: "github", rpcId: "native", toolName: "view", method: "tools/call" }),
+      event("mcp.rpc.response", { serverName: "github", rpcId: "native", status: "error" }),
+      event("mcp.rpc.request", { serverName: "github", rpcId: "gateway", toolName: "edit", method: "tools/call" }),
+      event("mcp.rpc.response", { serverName: "github", rpcId: "gateway", status: "error" }),
+      event("mcp.rpc.response", { serverName: "github", rpcId: "initialize", method: "initialize" }),
+    ];
+    expect(createSessionLookups(mixed).stats).toMatchObject({ toolCallCount: 2, failedToolCalls: 1 });
+    const gatewayOnly = [event("mcp.rpc.request", { serverName: "github", rpcId: "a", toolName: "view", method: "tools/call" }), event("mcp.rpc.response", { serverName: "github", rpcId: "a", status: "error" })];
+    expect(createSessionLookups(gatewayOnly).stats).toMatchObject({ toolCallCount: 1, failedToolCalls: 1 });
+  });
+
+  it("uses canonical usage when proxy telemetry is absent and duration evidence as a fallback", () => {
+    const session = [event("usage.report", { usage: { inputTokens: 20, outputTokens: 5 } }), event("execution.result", { durationMs: 50 })];
+    expect(createSessionLookups(session).stats).toMatchObject({ totalInputTokens: 20, totalRequests: 1, totalDurationMs: 50 });
+    expect(runBuiltinGrader("execution-duration", [], BUILTIN_META["execution-duration"]).status).toBe("unavailable");
+    expect(runBuiltinGrader("working-set-rebuild-factor", [], BUILTIN_META["working-set-rebuild-factor"]).status).toBe("unavailable");
+  });
+
+  it("compares arguments deterministically regardless of object-key order", () => {
+    const session = [event("tool.execution_start", { toolName: "view", input: { a: 1, b: 2 } }), event("tool.execution_start", { toolName: "view", input: { b: 2, a: 1 } })];
+    expect(runBuiltinGrader("loops", session, BUILTIN_META.loops).value).toBe(1);
+  });
+
+  it("does not fabricate complete statistics from partial or overflowing measurements", () => {
+    const partial = [event("firewall.token_usage", { usage: { inputTokens: 2, outputTokens: 1 }, durationMs: 0.5 }), event("firewall.token_usage", { usage: { outputTokens: 1 } })];
+    const stats = createSessionLookups(partial).stats;
+    expect(stats).toMatchObject({ totalInputTokens: null, totalOutputTokens: 2, totalDurationMs: null });
+    for (const id of ["context-growth", "working-set-rebuild-factor", "execution-duration"]) {
+      expect(runBuiltinGrader(id, partial, BUILTIN_META[id]).status).toBe("unavailable");
+    }
+    expect(createSessionLookups(partial.slice(0, 1)).stats.totalDurationMs).toBe(0.5);
+    const overflow = [event("usage.report", { usage: { inputTokens: Number.MAX_SAFE_INTEGER, outputTokens: 1 } }), event("usage.report", { usage: { inputTokens: 1, outputTokens: 1 } })];
+    expect(createSessionLookups(overflow).stats.totalInputTokens).toBeNull();
+    expect(runBuiltinGrader("context-growth", overflow, BUILTIN_META["context-growth"]).status).toBe("unavailable");
+  });
+
+  it("keeps default grading fast on a 20,000-call log", () => {
+    const session = Array.from({ length: 20000 }, (_, index) => [
+      event("tool.execution_start", { toolCallId: String(index), toolName: "view", input: { path: String(index) } }),
+      event("tool.execution_complete", { toolCallId: String(index), success: true }),
+    ]).flat();
+    const started = performance.now();
+    const { output } = computeGraders(session);
+    expect(performance.now() - started).toBeLessThan(1500);
+    expect(output.results.find(result => result.id === "tool-failure-count").value).toBe(0);
+    expect(output.results).toHaveLength(DEFAULT_GRADER_IDS.length);
+  });
+
+  it("uses the session interface for every registered built-in", () => {
+    for (const id of Object.keys(BUILTIN_GRADERS)) {
+      expect(runBuiltinGrader(id, fixture(), BUILTIN_META[id]).status).not.toBe("error");
+    }
+  });
+
+  it("normalizes unavailable and invalid results and evaluates thresholds", () => {
+    expect(normalizeResult("loops", Infinity, BUILTIN_META.loops).status).toBe("error");
+    expect(normalizeResult("loops", { value: null, message: "missing" }, BUILTIN_META.loops)).toMatchObject({ status: "unavailable", message: "missing" });
+    expect(evaluateThreshold(0.8, "higher_is_better", 0.8)).toBe(true);
+    expect(evaluateThreshold(2, "lower_is_better", 1)).toBe(false);
+    expect(evaluateThreshold(2, "lower_is_better", undefined)).toBeNull();
   });
 });

@@ -126,6 +126,19 @@ describe("create_pr_review_comment.cjs", () => {
     expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled();
   });
 
+  it("fits oversized inline comments before buffering and retains the full footer", async () => {
+    const bodyFooter = "POLICY-START " + "f".repeat(1000) + " POLICY-END";
+    const addComment = vi.spyOn(buffer, "addComment");
+    const handler = await createHandler({ body_footer: bodyFooter });
+    const result = await handler({ type: "create_pull_request_review_comment", path: "src/main.js", line: 10, body: "x".repeat(100000) }, {});
+    expect(result.success).toBe(true);
+    const comment = addComment.mock.calls[0][0];
+    expect(comment.body.length).toBeLessThanOrEqual(65536);
+    expect(comment.body).toContain("Content redacted to fit size limit.");
+    expect(comment.body).toContain(bodyFooter);
+    expect(comment.bodyFooter).toBe("\n\n" + bodyFooter);
+  });
+
   it("should buffer a multi-line PR review comment", async () => {
     const message = {
       type: "create_pull_request_review_comment",

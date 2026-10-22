@@ -31,7 +31,7 @@ func (c *Compiler) parseCreateProjectStatusUpdateConfig(outputMap map[string]any
 			}
 		}
 
-		createProjectStatusUpdateLog.Printf("Parsed create-project-status-update config: max=%d, hasCustomToken=%v, hasCustomProject=%v",
+		createProjectStatusUpdateLog.Printf("Parsed create-project-status-update config: max=%v, hasCustomToken=%v, hasCustomProject=%v",
 			config.Max, config.GitHubToken != "", config.Project != "")
 		return config
 	}

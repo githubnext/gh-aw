@@ -7,6 +7,8 @@ sidebar:
 
 GitHub Agentic Workflows upload several artifacts during workflow execution. This reference documents every artifact name, its contents, and how to access the data — especially for downstream workflows that use `gh run download` directly instead of `gh aw logs`.
 
+The `agent` and `agent-output-fallback` uploads require successful built-in secret redaction and every configured custom secret-masking step, regardless of whether the agent firewall is enabled. Failed, skipped, cancelled, or missing redaction steps block both uploads, including custom steps with `continue-on-error: true`. An engine failure alone does not block these uploads when redaction succeeds.
+
 ## Quick Reference
 
 | Artifact Name | Constant | Type | Description |
@@ -23,6 +25,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `prompt` | — | Legacy/back-compat | Historical standalone prompt artifact (`prompt.txt`); in current compiled workflows `prompt.txt` is included in the `activation` artifact instead |
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
+| `graders` | `constants.GradersArtifactName` | Conditional | Combined built-in and custom results and data-only manifest from the separate `graders` job, generated when JavaScript or operational-value Bash graders are enabled |
 | `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Multi-file | Safe output items manifest (`safe-output-items.jsonl`), temporary ID map (`temporary-id-map.json`), and failure diagnostics (`safe-output-errors.json`, written only when the `Process Safe Outputs` step fails) |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
@@ -51,18 +54,12 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `experiment` | `experiment`, `usage` | A/B experiment state (only present when experiments are declared) |
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `evals` | `usage` | BinEval evaluation results (only present when `evals` are declared) |
-| `graders` | `usage`, `agent`, `agent-output-fallback` | Deterministic grader results (only present when `graders` are declared) |
+| `graders` | `usage`, `graders`, legacy agent artifacts | Default built-ins and optional combined custom results |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
-# Download only firewall artifacts
-gh aw logs <run-id> --artifacts firewall
-
-# Download agent and firewall artifacts
+# Download agent and firewall artifacts only
 gh aw logs <run-id> --artifacts agent --artifacts firewall
-
-# Download everything (default)
-gh aw logs <run-id>
 ```
 
 ## `firewall-audit-logs`
@@ -78,8 +75,6 @@ regular-file link count, sanitizes sensitive fields, and stages only the
 sanitized copy at `/tmp/gh-aw/awf-resolved-config.json` before upload. Older
 AWF versions remain compatible and simply omit this file; omission is not
 reported as collected evidence.
-
-> **⚠️ Important:** Current runs include API proxy logs in the unified `agent` artifact at `sandbox/firewall/logs/api-proxy-logs/`. The separate `firewall-audit-logs` artifact may also contain firewall audit logs, depending on workflow configuration and AWF version.
 
 ### Directory Structure
 
@@ -115,32 +110,12 @@ gh aw logs <run-id> --artifacts firewall --json
 # Download the firewall-audit-logs artifact
 gh run download <run-id> -n firewall-audit-logs
 
-# Token usage data is at:
-cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
-
-# Network access log is at:
-cat firewall-audit-logs/squid-logs/access.log
-
-# Audit trail is at:
+# Files are laid out as in the directory structure above
 cat firewall-audit-logs/audit.jsonl
-
-# Policy manifest is at:
-cat firewall-audit-logs/policy-manifest.json
 ```
 
-### Common Mistake
-
-Current workflows include `token-usage.jsonl` and `model-routing.jsonl` in the `agent` artifact under `sandbox/firewall/logs/api-proxy-logs/`. Older runs may instead use the separate `firewall-audit-logs` artifact.
-
-```bash
-# ✅ Current runs — API proxy logs in the agent artifact
-gh run download <run-id> -n agent
-cat agent/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
-
-# Older layouts may use firewall-audit-logs
-gh run download <run-id> -n firewall-audit-logs
-cat firewall-audit-logs/api-proxy-logs/token-usage.jsonl
-```
+> [!NOTE]
+> Current runs keep `token-usage.jsonl` and `model-routing.jsonl` in the `agent` artifact (`gh run download <run-id> -n agent`, then `agent/sandbox/firewall/logs/api-proxy-logs/`). Older runs use `firewall-audit-logs/api-proxy-logs/`.
 
 ### JSON Schemas
 
@@ -168,7 +143,7 @@ The AWF API proxy log directory may also contain `token-usage.jsonl` and `model-
 
 ## `agent-output-fallback`
 
-When uploaded, the small `agent-output-fallback` artifact includes the processed agent output, safe-output records, execution evidence, agent usage, and the three supported `token-usage.jsonl` and `model-routing.jsonl` path variants beneath `sandbox/firewall/logs`, `sandbox/firewall/audit`, and `sandbox/firewall-audit-logs`. It also carries grader files when graders are configured.
+When uploaded, the small `agent-output-fallback` artifact includes the processed agent output, safe-output records, execution evidence, agent usage, and the three supported `token-usage.jsonl` and `model-routing.jsonl` path variants beneath `sandbox/firewall/logs`, `sandbox/firewall/audit`, and `sandbox/firewall-audit-logs`. Built-in graders run later in conclusion and are stored in `usage`; custom graders run in a separate downstream job and publish the `graders` artifact.
 
 For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/).
 
@@ -219,7 +194,7 @@ See [A/B Experiments](/gh-aw/experimental/experiments/) for how to declare exper
 
 ## `usage`
 
-The `usage` artifact is a compact conclusion-job artifact with workflow-run metadata and token-usage files for lightweight reporting and forecasting, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
+The `usage` artifact is a compact conclusion-job artifact with workflow-run metadata and token-usage files, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
 
 Its `activity/summary.json` file uses the `usage-activity-summary/v1` schema. The optional activity sections are additive; the `working_set` and `friction` sections are always written when the calculation step executes. Runs produced before a section shipped simply omit it, and every consumer treats a missing section as unmeasured:
 
@@ -228,72 +203,22 @@ The `ledger.transactions_added` count covers repo-memory ledger appends recorded
 ```json
 {
   "schema": "usage-activity-summary/v1",
-  "ledger": {
-    "transactions_added": 3
-  },
-  "firewall": {
-    "total_requests": 12,
-    "allowed_requests": 10,
-    "blocked_requests": 2
-  },
+  "ledger": { "transactions_added": 3 },
+  "firewall": { "total_requests": 12, "allowed_requests": 10, "blocked_requests": 2 },
   "gateway": {
     "total_calls": 5,
     "failed_calls": 1,
-    "total_input_size": 1000,
-    "total_output_size": 5000,
-    "max_input_size": 400,
-    "max_output_size": 3000,
     "tool_calls": [
-      {
-        "tool_call_id": "call-1",
-        "timestamp": "2026-09-09T00:00:00Z",
-        "server_name": "github",
-        "tool_name": "issue_read",
-        "request_size": 200,
-        "response_size": 800,
-        "duration_ms": 100,
-        "outcome": "success"
-      }
+      { "tool_call_id": "call-1", "server_name": "github", "tool_name": "issue_read", "request_size": 200, "response_size": 800, "duration_ms": 100, "outcome": "success" }
     ],
-    "servers": [
-      {
-        "server_name": "github",
-        "request_count": 5,
-        "tool_call_count": 5,
-        "failed_calls": 1
-      }
-    ],
-    "tools": [
-      {
-        "server_name": "github",
-        "tool_name": "issue_read",
-        "call_count": 5,
-        "failed_calls": 1,
-        "total_input_size": 1000,
-        "total_output_size": 5000,
-        "max_input_size": 400,
-        "max_output_size": 3000,
-        "avg_duration_ms": 120,
-        "max_duration_ms": 250
-      }
-    ]
+    "servers": [ { "server_name": "github", "request_count": 5, "tool_call_count": 5, "failed_calls": 1 } ],
+    "tools": [ { "server_name": "github", "tool_name": "issue_read", "call_count": 5, "failed_calls": 1, "avg_duration_ms": 120 } ]
   },
-  "integrity": {
-    "total_filtered": 2,
-    "filtered_server_counts": { "github": 2 },
-    "filtered_tool_counts": { "issue_read": 2 },
-    "filtered_reason_counts": { "integrity": 2 }
-  },
-  "steering": {
-    "total_events": 3,
-    "event_counts": {
-      "token_steering": 2,
-      "timeout_steering": 1
-    }
-  },
+  "integrity": { "total_filtered": 2, "filtered_server_counts": { "github": 2 } },
+  "steering": { "total_events": 3, "event_counts": { "token_steering": 2, "timeout_steering": 1 } },
   "working_set": {
     "measurement_state": "measured",
-    "rebuild_factor": 3.9017857142857144,
+    "rebuild_factor": 3.9,
     "cumulative_input_tokens": 874000,
     "peak_input_tokens": 224000,
     "rebuild_excess_tokens": 650000,
@@ -302,125 +227,20 @@ The `ledger.transactions_added` count covers repo-memory ledger appends recorded
   "friction": {
     "measurement_state": "statistical",
     "canonical_unit": "aic",
-    "sources": ["agent_session", "agent_token_usage", "firewall", "mcp_gateway"],
-    "total_events": 2,
     "total_occurrences": 4,
     "counted_occurrences": 3,
     "suppressed_occurrences": 1,
-    "linked_invocations": 1,
-    "unattributed_occurrences": 0,
-    "cost": {
-      "aic": 1.25,
-      "tokens": { "input": 200, "output": 40, "cache_read": 10, "cache_write": 2, "reasoning": 4, "total": 256 },
-      "turns": 1,
-      "tool_calls": 3,
-      "latency_ms": 550
-    },
-    "dimension_states": {
-      "aic": "statistical",
-      "tokens": "statistical",
-      "turns": "measured",
-      "tool_calls": "measured",
-      "latency_ms": "measured"
-    },
-    "uncertainty": {
-      "aic": {
-        "state": "statistical",
-        "method": "mean_invocation_apportionment",
-        "confidence": "low",
-        "relative_error": 0.3,
-        "sample_size": 2,
-        "basis": "AI credits of errored invocations (measured), of linked follow-up invocations (causal), or the mean healthy-invocation cost (statistical)"
-      }
-    },
-    "drivers": [
-      {
-        "driver": "mcp_tool_error",
-        "class": "tool_failure",
-        "source": "mcp_gateway",
-        "events": 1,
-        "occurrences": 1,
-        "counted_occurrences": 1,
-        "suppressed_occurrences": 0,
-        "state": "causal",
-        "cost": { "aic": 0.5, "tokens": { "input": 100, "output": 28, "cache_read": 0, "cache_write": 0, "reasoning": 0, "total": 128 }, "turns": 0, "tool_calls": 1, "latency_ms": 250 }
-      }
-    ],
-    "groups": [
-      {
-        "group_id": "tool_failure",
-        "primary_source": "mcp_gateway",
-        "event_ids": ["mcp_tool_error:call-1"],
-        "total_occurrences": 4,
-        "counted_occurrences": 3,
-        "suppressed_occurrences": 1,
-        "rule": "highest-fidelity source owns overlapping occurrences; lower-fidelity sources contribute only their excess"
-      }
-    ],
-    "events": [
-      {
-        "id": "mcp_tool_error:call-1",
-        "driver": "mcp_tool_error",
-        "source": "mcp_gateway",
-        "group_id": "tool_failure",
-        "label": "github/issue_read",
-        "timestamp": "2026-09-09T00:00:01Z",
-        "occurrences": 1,
-        "counted_occurrences": 1,
-        "suppressed_occurrences": 0,
-        "state": "causal",
-        "dimension_states": {
-          "aic": "causal",
-          "tokens": "causal",
-          "turns": "unsupported",
-          "tool_calls": "measured",
-          "latency_ms": "measured"
-        },
-        "cost": { "aic": 0.5, "tokens": { "input": 100, "output": 28, "cache_read": 0, "cache_write": 0, "reasoning": 0, "total": 128 }, "turns": 0, "tool_calls": 1, "latency_ms": 250 }
-      }
-    ],
-    "unmeasured_drivers": [{ "driver": "firewall_block", "reason": "no_occurrences" }]
+    "cost": { "aic": 1.25, "turns": 1, "tool_calls": 3, "latency_ms": 550 },
+    "drivers": [ { "driver": "mcp_tool_error", "class": "tool_failure", "source": "mcp_gateway", "state": "causal", "cost": { "aic": 0.5 } } ],
+    "groups": [ { "group_id": "tool_failure", "primary_source": "mcp_gateway", "event_ids": ["mcp_tool_error:call-1"] } ],
+    "events": [ { "id": "mcp_tool_error:call-1", "driver": "mcp_tool_error", "group_id": "tool_failure", "state": "causal", "cost": { "aic": 0.5 } } ],
+    "unmeasured_drivers": [ { "driver": "firewall_block", "reason": "no_occurrences" } ]
   },
   "safe_outputs": {
     "total_items": 2,
-    "items_by_type": {
-      "create_issue": 1,
-      "add_labels": 1
-    },
+    "items_by_type": { "create_issue": 1, "add_labels": 1 },
     "items": [
-      {
-        "type": "create_issue",
-        "provider": "github",
-        "url": "https://github.com/owner/repo/issues/42",
-        "number": 42,
-        "repo": "owner/repo",
-        "target": {
-          "provider": "github",
-          "repository": "owner/repo",
-          "number": 42
-        },
-        "timestamp": "2026-09-14T00:00:00.000Z"
-      },
-      {
-        "type": "add_labels",
-        "provider": "github",
-        "number": 42,
-        "repo": "owner/repo",
-        "target": {
-          "provider": "github",
-          "repository": "owner/repo",
-          "number": 42,
-          "kind": "issue"
-        },
-        "labels": [
-          {
-            "name": "triage",
-            "database_id": 1234,
-            "node_id": "LA_example"
-          }
-        ],
-        "timestamp": "2026-09-14T00:00:01.000Z"
-      }
+      { "type": "create_issue", "provider": "github", "url": "https://github.com/owner/repo/issues/42", "number": 42, "repo": "owner/repo" }
     ]
   }
 }
@@ -451,7 +271,7 @@ Working-Set Rebuild Factor measures cumulative context reconstruction relative t
 
 > **Friction cost** is the estimated avoidable marginal cost attributable to an execution-friction event, relative to the counterfactual execution in which that event did not occur.
 
-The `friction` section contains the precomputed friction cost for tool calls that failed, responses that were filtered, requests that were blocked, and model invocations that errored or were retried. The conclusion job computes it once from the logs it already parses, so consumers that download only the `usage` artifact read the finished numbers instead of re-deriving them. `gh aw logs` and `gh aw audit` always prefer this precomputed section when it is present.
+The `friction` section holds the precomputed friction cost for failed tool calls, filtered responses, blocked requests, and errored or retried model invocations. The conclusion job computes it once, and `gh aw logs` and `gh aw audit` prefer it when present.
 
 AI credits (`aic`) are the canonical unit. Every other dimension — token classes, turns, tool calls, and latency — is reported only for drivers that support it, and `unsupported` is stated explicitly rather than reported as zero.
 
@@ -510,11 +330,8 @@ The `usage` artifact also carries experiment and evals data when the workflow de
 Token-usage files are diagnostic data produced in the agent runtime. Their mirrored AIC fields support usage reporting and analysis, but are not sufficient evidence to classify a provider failure as a trusted budget-enforcement event.
 
 ```bash
-# Download only the usage artifact
 gh aw logs <run-id> --artifacts usage
-
-# Or with gh run download
-gh run download <run-id> -n usage
+# or: gh run download <run-id> -n usage
 ```
 
 ## `evals`
@@ -534,11 +351,8 @@ for live-run verification and a dated answer-distribution sample.
 ### Accessing evals data
 
 ```bash
-# Download only the evals artifact
 gh aw logs <run-id> --artifacts evals
-
-# Or with gh run download
-gh run download <run-id> -n evals
+# or: gh run download <run-id> -n evals
 ```
 
 The `gh aw audit` command exposes an `--evals` flag that skips runs without evals results and automatically downloads the evals artifact when `--artifacts` is narrowed:
@@ -569,12 +383,21 @@ contributes zero answers. Keep `UNKNOWN` separate from both `YES` and `NO`.
 
 ## Grader files
 
-When the workflow frontmatter declares one or more `graders`, the grader files are stored inside existing artifacts rather than uploaded as a standalone `graders` artifact. They live under `agent/graders/` in the unified `agent` artifact, under `graders/` in the `agent-output-fallback` artifact when the fallback transport is used, and under `usage/graders/` after the conclusion job mirrors them for lightweight downloads. The files are:
+The conclusion job computes fast built-in graders by default after collecting
+the redacted unified session. Results live under `graders/` in the `usage`
+artifact, alongside `aw_session.jsonl`. Custom JavaScript and operational-value Bash run only in a separate
+downstream job, publishing a standalone `graders` artifact with combined built-in
+and custom results. Neither kind runs in the agent job. The files are:
 
 - `grader_manifest.json` — The configured graders with their unit, direction, and threshold
-- `grader_results.json` — The validated grader results (status, raw value, pass/fail) computed from the run trace
+- `grader_results.json` — The validated grader results (status, raw value, pass/fail) computed from the in-memory unified session
 
 ### Accessing graders data
+
+`gh aw logs --graders` and `--artifacts graders` include both the conclusion job's
+`usage` artifact and the separate job's `graders` artifact. Workflow-call-prefixed
+names are matched automatically. The combined custom artifact is preferred when
+present; built-ins remain available for runs without custom graders.
 
 ```bash
 # Download the artifacts that carry grader results
@@ -582,11 +405,15 @@ gh aw logs <run-id> --artifacts graders
 
 # Or with gh run download against the actual artifacts
 gh run download <run-id> -n usage
-gh run download <run-id> -n agent
-gh run download <run-id> -n agent-output-fallback
 ```
 
-`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `total`, `passed`, `failed`, `error_count`, and `unavailable_count`). The artifact also retains the exact operational-value evaluator bytes used for that run.
+`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `total`, `passed`, `failed`, `error_count`, and `unavailable_count`). Grader manifest and result events are also included in the unified session. Historical runs may retain grader files in agent artifacts.
+
+The usage manifest includes `customGraders` IDs only, never custom source.
+Audit conditionally downloads the optional `graders` artifact when these IDs
+are registered and prefers its combined results, including for cached reports.
+If that artifact is absent, built-in results remain available. The standalone
+manifest also omits executable source; it does not replace the conclusion session.
 
 ## Naming Compatibility
 
@@ -607,9 +434,8 @@ Single-file artifacts are automatically flattened to root level regardless of th
 When workflows are invoked via `workflow_call`, GitHub Actions prepends a short hash to artifact names (e.g., `abc123-firewall-audit-logs`). The CLI handles this automatically by matching artifact names that end with `-{base-name}`.
 
 ```bash
-# Both of these are recognized as the firewall artifact:
-# - firewall-audit-logs           (direct invocation)
-# - abc123-firewall-audit-logs    (workflow_call invocation)
+# Both are recognized as the firewall artifact:
+# firewall-audit-logs, abc123-firewall-audit-logs
 ```
 
 ## Learn More

@@ -57,12 +57,31 @@ func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestLoadCachedAuditDataDropsHistoricalOutcomeSnapshot(t *testing.T) {
+	runDir := t.TempDir()
+	run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
+	data := AuditData{
+		CacheSource:    auditCacheSourceFull,
+		Overview:       buildAuditOverview(run, nil),
+		Outcomes:       []OutcomeReport{{Type: "create_issue"}},
+		OutcomeSummary: &OutcomeSummary{Total: 1},
+	}
+	require.NoError(t, writeAuditData(runDir, data))
+
+	cached, ok := loadCachedAuditData(runDir, run, auditCacheSourceFull)
+	require.True(t, ok)
+	assert.Equal(t, data.Overview, cached.Overview)
+	assert.Empty(t, cached.Outcomes)
+	assert.Nil(t, cached.OutcomeSummary)
+}
+
 func TestLoadCachedAuditDataRejectsOlderSchema(t *testing.T) {
 	t.Parallel()
 
-	// Earlier audits lack model availability root-cause findings.
-	require.Equal(t, 7, auditSchemaVersion)
-	for _, schemaVersion := range []int{0, 5, 6} {
+	// Earlier audits lack captured queue diagnostics or unified-session model
+	// resolution findings and must be regenerated.
+	require.Equal(t, 10, auditSchemaVersion)
+	for _, schemaVersion := range []int{0, 5, 6, 7, 8, 9} {
 		runDir := t.TempDir()
 		run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
 		data, err := json.Marshal(AuditData{

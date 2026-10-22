@@ -58,8 +58,8 @@ function reduceModelNameToIdentifier(modelName) {
 }
 
 /**
- * Strip a provider prefix from a model name (e.g. "copilot/mai-code-1-flash-picker"
- * becomes "mai-code-1-flash-picker") so the identifier reflects the model, not the provider.
+ * Strip a provider prefix from a model name (e.g. "copilot/mai-code-1.1-flash"
+ * becomes "mai-code-1.1-flash") so the identifier reflects the model, not the provider.
  *
  * @param {string} normalizedModelName
  * @returns {string}

@@ -148,7 +148,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// the rootless location to ${RUNNER_TEMP}/gh-aw/bin/copilot where AWF expects it.
 	rootless := isArcDindTopology(workflowData)
 	compiledVersion := workflowData.CompiledVersion
-	npmSteps := generateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, compiledVersion, "", getNVXGuestLibc(workflowData))
+	checksumsSHA256 := ""
+	if workflowData.EngineConfig != nil {
+		checksumsSHA256 = workflowData.EngineConfig.ChecksumsSHA256
+	}
+	npmSteps := generateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, compiledVersion, string(constants.CopilotSessionIDMinVersion), getNVXGuestLibc(workflowData), checksumsSHA256)
 	if len(inlineDriverWriteStep) > 0 {
 		npmSteps = append(npmSteps, inlineDriverWriteStep)
 	}
@@ -273,7 +277,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 		)
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
-		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " " + copilotSDKWebFetchDependency + " ts-node typescript"
+		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " " + copilotSDKWebFetchDependency + " ts-node@10.9.2 typescript@5.8.3"
 	case "go":
 		spec.stepName = "Install GitHub Copilot SDK (Go)"
 		spec.command = workspaceCommandPrefix + "go get github.com/github/copilot-sdk/go@v" + version
@@ -428,6 +432,9 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
+	if agentConfig != nil && agentConfig.ChecksumsSHA256 != "" {
+		installCmd += " --checksums-sha256 " + agentConfig.ChecksumsSHA256
+	}
 	// Rootless runtime profiles run AWF as the runner user: pass --rootless so the
 	// install script installs into $HOME/.local/{bin,lib/awf} (always writable, even on
 	// standard GitHub-hosted runners where /usr/local is root-owned) and exports
@@ -454,13 +461,27 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 func generateDockerComposeInstallStep() GitHubActionStep {
 	return GitHubActionStep([]string{
 		"      - name: Install Docker Compose plugin",
+		"        shell: bash",
 		"        run: |",
+		`          set -euo pipefail`,
 		`          export DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
 		`          mkdir -p "$DOCKER_CONFIG/cli-plugins"`,
 		`          arch="$(uname -m)"`,
-		`          case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="aarch64" ;; *) echo "Unsupported architecture for docker compose plugin: $arch" >&2; exit 1 ;; esac`,
-		`          curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
-		`          chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
+		`          case "$arch" in x86_64|amd64) arch="x86_64"; digest="9040bd35b2cc0783ce6c5de491de7e52e24d4137dbfc5de8a524f718fc23556c" ;; aarch64|arm64) arch="aarch64"; digest="d1148609319706a57b755ff0f61d604a63a8cf57adb24c17535baa766ff14b4f" ;; *) echo "Unsupported architecture for docker compose plugin: $arch" >&2; exit 1 ;; esac`,
+		`          download="$(mktemp)"`,
+		`          trap 'rm -f "$download"' EXIT`,
+		`          curl --proto '=https' --proto-redir '=https' -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$download"`,
+		`          if command -v sha256sum >/dev/null 2>&1; then`,
+		`            actual="$(sha256sum "$download")"`,
+		`          elif command -v shasum >/dev/null 2>&1; then`,
+		`            actual="$(shasum -a 256 "$download")"`,
+		`          else`,
+		`            echo "ERROR: No sha256sum or shasum found" >&2; exit 1`,
+		`          fi`,
+		`          if [[ "${actual%% *}" != "$digest" ]]; then`,
+		`            echo "ERROR: Trusted SHA256 verification failed for Docker Compose; refusing installation" >&2; exit 1`,
+		`          fi`,
+		`          install -m 0755 "$download" "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
 		`          docker compose version`,
 	})
 }

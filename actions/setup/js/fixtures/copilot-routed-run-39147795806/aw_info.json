@@ -1,0 +1,32 @@
+{
+  "engine_id": "copilot",
+  "engine_name": "GitHub Copilot CLI",
+  "model": "auto",
+  "version": "1.0.98",
+  "agent_version": "1.0.98",
+  "workflow_name": "Smoke Copilot Routed",
+  "experimental": false,
+  "supports_tools_allowlist": true,
+  "cache_memory": false,
+  "run_id": 39147795806,
+  "run_number": 46,
+  "run_attempt": "1",
+  "repository": "github/gh-aw",
+  "ref": "refs/heads/main",
+  "sha": "eb42b26807ac37c20f0a43ba3beba68375ab43e1",
+  "actor": "SivaKesava1",
+  "event_name": "workflow_dispatch",
+  "target_repo": "",
+  "staged": false,
+  "dry_run": false,
+  "allowed_domains": ["defaults"],
+  "firewall_enabled": true,
+  "awf_version": "v0.28.62",
+  "awmg_version": "",
+  "agent_runtime": "",
+  "steps": {
+    "firewall": "squid"
+  },
+  "created_at": "2026-10-18T17:04:03.230Z",
+  "frontmatter_emoji": "🧭"
+}

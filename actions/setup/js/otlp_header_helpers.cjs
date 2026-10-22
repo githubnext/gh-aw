@@ -56,9 +56,10 @@ function getAuthorizationSecretValues(value) {
 /**
  * Collect OTLP credentials independently of setup log capture or token prefixes.
  * Include headers from disabled endpoints: their credentials still exist in env.
+ * @param {boolean} forRunnerMasking - Avoid registering plain placeholder values as runner masks
  * @returns {string[]} Unique secret values, longest first
  */
-function getOTLPSecretValues() {
+function collectOTLPSecretValues(forRunnerMasking) {
   const headers = [process.env.OTEL_EXPORTER_OTLP_HEADERS, process.env.GH_AW_OTLP_ALL_HEADERS];
   const endpointsRaw = process.env.GH_AW_OTLP_ENDPOINTS;
   if (endpointsRaw) {
@@ -78,13 +79,18 @@ function getOTLPSecretValues() {
   /** @type {Set<string>} */
   const secrets = new Set();
   for (const raw of headers) {
+    if (forRunnerMasking && raw && raw.length >= 4) secrets.add(raw);
     for (const pair of (raw || "").split(",")) {
       const separator = pair.indexOf("=");
       if (separator <= 0) continue;
       const encoded = pair.slice(separator + 1).trim();
-      if (encoded.length >= 4) secrets.add(encoded);
       // Parse individually so duplicate header names never overwrite a secret.
-      for (const value of Object.values(parseOTLPHeaders(pair))) {
+      const values = Object.values(parseOTLPHeaders(pair));
+      const value = values[0] ?? encoded;
+      const isAuthorization = /^(Basic|Bearer)\s+(.+)$/i.test(value.trim());
+      if (forRunnerMasking && !isAuthorization && (value.length < 8 || /^\d+$/.test(value))) continue;
+      if (encoded.length >= 4) secrets.add(encoded);
+      for (const value of values) {
         for (const secret of getAuthorizationSecretValues(value)) secrets.add(secret);
       }
     }
@@ -95,4 +101,23 @@ function getOTLPSecretValues() {
   return [...secrets].sort((a, b) => b.length - a.length);
 }
 
-module.exports = { parseOTLPHeaders, getAuthorizationSecretValues, getOTLPSecretValues };
+/**
+ * Collect credentials for artifact and step-summary redaction, including plain
+ * header values at the four-character minimum.
+ * @returns {string[]}
+ */
+function getOTLPSecretValues() {
+  return collectOTLPSecretValues(false);
+}
+
+/**
+ * Select runner masks without suppressing outputs matching plain placeholders.
+ * Auth schemes retain the four-character credential minimum, including decoded
+ * Basic passwords. Full headers remain masked even when a plain value is skipped.
+ * @returns {string[]}
+ */
+function getOTLPRunnerMaskValues() {
+  return collectOTLPSecretValues(true);
+}
+
+module.exports = { parseOTLPHeaders, getAuthorizationSecretValues, getOTLPSecretValues, getOTLPRunnerMaskValues };

@@ -6,6 +6,60 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+`compile --dry-run` now rejects authored host steps, custom MCP servers/scripts,
+custom safe-output scripts, enabled Bash graders, and authored OIDC permissions,
+including imports. Custom jobs and custom safe-output jobs become disabled,
+credential-free placeholders with empty outputs. Existing actionable scanner
+findings fail alongside added findings. Migrate by removing unsupported
+declarations in a separate diagnostic workflow, reviewing skipped dependencies,
+and resolving actionable findings before live testing. Ordinary compilation is
+unchanged; dry-run is still not a hosted execution sandbox.
+
+AWF and downloaded Copilot CLI releases now require a reviewed checksum-manifest
+digest bundled in the trusted setup action or supplied as literal
+`sandbox.agent.checksums-sha256` (AWF) / `engine.checksums-sha256` (Copilot)
+frontmatter alongside an explicit release version. These values pin
+`checksums.txt` / `SHA256SUMS.txt`, not individual executables. Unreviewed
+downloads without a supplied pin and `latest` downloads fail closed instead of
+trusting a checksum from the same HTTPS origin. Built-in pins cover AWF v0.28.62,
+Copilot CLI v1.0.98, and the legacy Copilot v1.0.21 manifest. Obtain other
+manifest digests through an independently trusted channel and update/recompile
+workflows to consume the new setup action. Explicit Copilot pins bypass
+toolcache selection; without a supplied pin, trusted toolcache behavior is
+unchanged. Repository Go tooling, module requirements and generated runtime
+defaults now use Go 1.27.3; release builds reject older toolchains. Go root
+capture and Serena setup clear stale GOROOT values before discovering the
+selected toolchain, preventing mixed-version compiler/standard-library failures.
+
+Logs episode rollups now require a recorded nonempty `context.episode_id`.
+Call-ID grouping, synthetic episode IDs, metadata-inferred lineage, and bridges
+through uncorrelated runs are removed. Runs without canonical identity remain
+in `.runs[]` and overall totals, but not episode counts, rollups, or edges.
+Replace episode-level `root_run_id` and `primary_workflow` with
+`representative_run_id` and `representative_workflow` for selected-data identity;
+use `recorded_roots[]` for canonical root claims. Recompile workflows to record
+canonical context for future runs; historical data without it remains available
+for per-run analysis only. Compact JSON retains all canonical episodes, including
+single-run episodes. Coverage remains `unknown` or `partial`, never complete.
+
+Graders now run in conclusion as pure computation over the redacted in-memory
+unified session. Ten fast built-ins are enabled by default; other built-ins
+require explicit opt-in. Custom JavaScript runs only in a separate restricted
+`graders` job, using immutable `session`, `config`, and `helpers` inputs.
+Conclusion never receives custom executable definitions or user-provided steps.
+Repository-owned `graders.operational-value.run` Bash runs only in that separate
+job: replace legacy stdin requests with the session JSONL file in `$1` /
+`GH_AW_SESSION_FILE` and JSON config in `GH_AW_GRADER_CONFIG`. Existing metric
+arrays remain supported. Compiler validation and `grader-shell-file-write`
+reject detected file writes; trusted shell is not yet microVM-isolated.
+Recompile workflows to move grading out of the
+agent job. Read schema-version-2 results from `usage/graders/`; CLI replay now
+accepts unified-session JSONL or a JSON event array instead of legacy trace
+payloads. Custom results use a separate combined `graders` artifact, downloaded
+conditionally by audit when custom IDs are registered, including cached reports.
+The logs `graders` artifact set includes both jobs' results and supports
+workflow-call-prefixed artifacts.
+
 MCP workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled
 by default. Operators can enable them for trusted clients and workflow sources
 with `gh aw mcp-server --allow-write-tools`; `--validate-actor` additionally

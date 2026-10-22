@@ -10,6 +10,9 @@ import "embed"
 //go:embed js/schema-validation.cjs js/json_schema_validation.cjs js/memory_schema_contract.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
+//go:embed js/trace_graders.cjs js/grader_session.cjs js/grader_artifacts.cjs js/trajectory_graders.cjs js/builtin_graders.json js/working_set_metrics.cjs
+//go:embed js/custom_graders.cjs js/custom_grader_worker.cjs
+//go:embed js/operational_value_grader.cjs js/operational_value_worker.cjs
 //go:embed js/workflow_job_durations.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
 //go:embed js/mcp_rate_limit.cjs
@@ -30,6 +33,9 @@ import "embed"
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/work_queue_host.cjs
 //go:embed js/aw_context.cjs js/experiment_helpers.cjs js/finish_work_queue_claim.cjs
+//go:embed js/webhook_context.cjs js/provider_issue_webhook.cjs js/webhook_resource.cjs
+//go:embed js/gateway_command_webhook.cjs js/slash_command_matcher.cjs
+//go:embed js/github_notification_webhook.cjs js/github_notification_webhooks.json
 //go:embed js/messages_core.cjs
 //go:embed js/work_queue_mcp_server.cjs js/work_queue_replay.cjs js/work_queue_intents.cjs
 //go:embed js/work_queue_issue_contract.cjs
@@ -41,15 +47,19 @@ import "embed"
 //go:embed js/work_queue_summary_renderer.cjs
 //go:embed js/work_queue_memory.cjs js/work_queue_logging.cjs
 //go:embed js/work_queue_native.cjs js/work_queue_control_receipts.cjs js/work_queue_delivery.cjs
+//go:embed js/work_queue_native_creation_delivery.cjs
 //go:embed js/dispatch_workflow_transport.cjs
 //go:embed js/work_queue_effect_resource.cjs js/work_queue_effect_client.cjs js/work_queue_claim_adapters.cjs
 //go:embed js/work_queue_declared_verification.cjs js/work_queue_dependency_resolver.cjs js/work_queue_dispatch.cjs
 //go:embed js/work_queue_dispatch_credential.cjs js/work_queue_provisioning.cjs js/work_queue_reconciler.cjs
+//go:embed js/work_queue_read_retry.cjs
+//go:embed js/work_queue_expiration.cjs
 //go:embed js/work_queue_deployment.cjs js/work_queue_deployment_control.cjs
 //go:embed js/work_queue_git_tree_adapter.cjs js/work_queue_graphql_adapter.cjs js/work_queue_rest_adapter.cjs
-//go:embed js/work_queue_graph.cjs js/work_queue_limits.cjs js/work_queue_scheduler.cjs js/work_queue_yaml.cjs
+//go:embed js/work_queue_graph.cjs js/work_queue_limits.cjs js/work_queue_scheduler.cjs js/work_queue_yaml.cjs js/work_queue_expiration.cjs
 //go:embed js/work_queue_indexes.cjs
 //go:embed js/mcp_server_core.cjs js/mcp_dependencies_manager.cjs js/mcp_enhanced_errors.cjs js/mcp_logger.cjs
+//go:embed js/safe_output_names.cjs
 //go:embed js/mcp_handler_go.cjs js/mcp_handler_javascript.cjs js/mcp_handler_process.cjs
 //go:embed js/mcp_handler_python.cjs js/mcp_handler_shell.cjs
 //go:embed js/glob_pattern_helpers.cjs js/handler_auth.cjs js/invocation_context_helpers.cjs
@@ -57,7 +67,13 @@ import "embed"
 //go:embed js/constants.cjs js/error_codes.cjs js/error_helpers.cjs js/model_costs.cjs js/models.json js/shim.cjs
 //go:embed js/agent_execution.cjs js/agent_error_patterns.cjs js/harness_error_patterns.cjs js/harness_crash_signals.cjs
 //go:embed js/engine_log_parser.cjs
+//go:embed js/routing_analytics.cjs js/resolve_model_alias.cjs
 //go:embed js/parse_kiro_log.cjs
 //go:embed js/parse_deepseek_log.cjs
 //go:embed js/parse_pydantic_log.cjs
 var SessionParserSources embed.FS
+
+// GitHubNotificationWebhooks is the source catalog shared by compiler and runtime.
+//
+//go:embed js/github_notification_webhooks.json
+var GitHubNotificationWebhooks []byte

@@ -243,6 +243,7 @@ describe("handle_agent_failure", () => {
         data: {
           jobs: [
             {
+              id: 456,
               name: "agent",
               conclusion: "failure",
               steps: [{ name: "Checkout repository (gh-aw default)", conclusion: "failure", completed_at: checkoutCompletedAt }],
@@ -252,7 +253,14 @@ describe("handle_agent_failure", () => {
       });
       global.github = {
         paginate: vi.fn(async (request, params) => (await request(params)).data.jobs),
-        rest: { pulls: { get: getPR }, actions: { listJobsForWorkflowRun: listJobs }, issues: { create: vi.fn() } },
+        rest: {
+          pulls: { get: getPR },
+          actions: {
+            listJobsForWorkflowRun: listJobs,
+            downloadJobLogsForWorkflowRun: vi.fn().mockResolvedValue({ data: "fatal: couldn't find remote ref refs/pull/42/merge" }),
+          },
+          issues: { create: vi.fn() },
+        },
       };
     });
 
@@ -356,7 +364,7 @@ describe("handle_agent_failure", () => {
         expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("PR merge ref was invalidated"));
         expect(global.core.debug).toHaveBeenCalledWith("Checking PR #42 for merge-ref checkout invalidation");
         expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref checkout timing: closed_at=2026-10-03T12:00:00.000Z, checkout_completed_at=2026-10-03T12:00:01.000Z");
-        expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation confirmed: closure preceded failed default checkout completion");
+        expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation confirmed: missing merge ref after closure");
       } finally {
         delete process.env.GH_AW_AGENT_CONCLUSION;
       }
@@ -366,6 +374,39 @@ describe("handle_agent_failure", () => {
       getPR.mockResolvedValue({ data: { state: "closed", closed_at: "2026-10-03T12:00:02Z" } });
       expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
       expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation not confirmed: no failed default checkout completed at or after PR closure");
+    });
+
+    it.each(["ArrayBuffer", "Uint8Array", "Buffer", "Uint8Array subarray"])("decodes %s job logs before checking merge-ref invalidation", async shape => {
+      const evidence = "fatal: couldn't find remote ref refs/pull/42/merge";
+      const bytes = new TextEncoder().encode(evidence);
+      const padded = new TextEncoder().encode(`prefix ${evidence} suffix`);
+      const logs = shape === "ArrayBuffer" ? bytes.buffer : shape === "Buffer" ? Buffer.from(bytes) : shape === "Uint8Array subarray" ? padded.subarray(7, 7 + bytes.length) : bytes;
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: logs });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(true);
+    });
+
+    it.each(["fatal: Authentication failed", "remote: Permission denied", "fatal: unable to access origin: network error", "unknown git error", "fatal: couldn't find remote ref refs/pull/99/merge"])(
+      "does not suppress binary logs without this PR's missing-ref evidence: %s",
+      async evidence => {
+        global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: new TextEncoder().encode(evidence) });
+        expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+      }
+    );
+
+    it("does not coerce unsupported job log bodies into evidence", async () => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: { toString: () => "fatal: couldn't find remote ref refs/pull/42/merge" } });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+      expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation not confirmed: unsupported job log response");
+    });
+
+    it.each(["fatal: Authentication failed", "remote: Permission denied", "", null])("keeps a failed checkout visible without missing-ref evidence: %j", async logs => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: logs });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+    });
+
+    it("keeps a failed checkout visible when its logs cannot be read", async () => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockRejectedValue(new Error("403 forbidden"));
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
     });
 
     it("does not suppress a real agent failure after closure", async () => {
@@ -472,7 +513,7 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("### Runtime Checkout Rejected");
       expect(rendered).toContain("org/b is not permitted by allowed-repos");
       expect(rendered).toContain("Update the explicit repository list");
-      expect(rendered).not.toContain("The runtime did not record a specific cause.");
+      expect(rendered).not.toContain("No additional engine error was captured.");
     });
 
     it("includes the last failed agent step when available", async () => {
@@ -579,7 +620,78 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("Failing step:** `Run agent`");
       expect(rendered).not.toContain("agent-generated root cause");
       expect(rendered).not.toContain("log excerpt");
-      expect(rendered).toContain("The runtime did not record a specific cause.");
+      expect(rendered).toContain("No additional engine error was captured.");
+    });
+
+    it("reports the redaction step's own error instead of a generic driver exit", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        {
+          id: 456,
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Run agent", conclusion: "failure" },
+            { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            { name: "Post Run agent", conclusion: "failure" },
+          ],
+        },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockResolvedValue({
+        data: [
+          "2026-10-10T10:00:01.500Z ##[error]Secret redaction failed (stage=read, code=EIO)",
+          "2026-10-10T10:00:02.500Z ##[warning]Secret redaction failed (stage=unlink, code=EACCES)",
+          "2026-10-10T10:00:03.000Z ##[error]ERR_VALIDATION: Secret redaction failed: ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)",
+          "2026-10-10T10:00:03.100Z ##[error]private-exception-message",
+          "2026-10-10T10:00:03.200Z ##[error]Secret redaction failed (stage=read, code=private-code)",
+          "2026-10-10T10:00:05.000Z ##[error]Secret redaction failed (stage=write, code=ENOSPC)",
+        ].join("\n"),
+      });
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics).toMatchObject({ failingStep: "Redact secrets in logs", agentConclusion: "failure", secretRedactionFailed: true });
+      expect(buildFailureIssueTitle({ workflowName: "Test", terminalOutputFailureCause: "secret_redaction_failure" })).toBe("[aw] Test: failed to redact secrets in logs");
+      expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({ owner: "owner", repo: "repo", job_id: 456 });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["engine_driver_failure"], engineFailureContext: "generic driver exit" });
+      expect(rendered).toContain("Secret redaction failed (stage=unlink, code=EACCES)");
+      expect(rendered).toContain("ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)");
+      expect(rendered).not.toContain("generic driver exit");
+      expect(rendered).not.toContain("private-");
+      expect(rendered).not.toContain("code=EIO");
+      expect(rendered).not.toContain("code=ENOSPC");
+    });
+
+    it.each([
+      ["ERR_VALIDATION: Secret redaction failed: Secret redaction failed (stage=unlink, code=EACCES)", "Secret redaction failed (stage=unlink, code=EACCES)"],
+      ["ERR_VALIDATION: Secret redaction failed: ERR_VALIDATION: Removed artifact sources after runtime mask collection failed", "ERR_VALIDATION: Removed artifact sources after runtime mask collection failed"],
+      ["ERR_VALIDATION: Removed artifact sources after runtime mask collection failed", "ERR_VALIDATION: Removed artifact sources after runtime mask collection failed"],
+    ])("accepts only the fixed emitted redactor diagnostic %s", async (message, expected) => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        { id: 456, name: "agent", conclusion: "failure", steps: [{ name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" }] },
+      ]);
+      const download = vi.fn();
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = download;
+      for (const [candidate, accepted] of [
+        [message, true],
+        [`${message} private-payload`, false],
+        [`private-payload ${message}`, false],
+        [`${message}\rprivate-payload`, false],
+      ]) {
+        download.mockResolvedValue({ data: `2026-10-10T10:00:03.000Z ##[error]${candidate}` });
+        const diagnostics = await getFailedAgentDiagnostics();
+        expect(diagnostics.stepError).toBe(accepted ? expected : "Secret redaction failed; error details are unavailable. Inspect the Redact secrets in logs step in the linked run.");
+      }
+    });
+
+    it("keeps a redaction-specific explanation when its job log is unavailable", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        { id: 456, name: "agent", conclusion: "failure", steps: [{ name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" }] },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockRejectedValue(new Error("private-api-error"));
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics.stepError).toContain("Secret redaction failed; error details are unavailable.");
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("private-api-error");
     });
 
     it("includes the first failing startup step for a recorded not_started agent", async () => {
@@ -591,11 +703,13 @@ describe("handle_agent_failure", () => {
           steps: [
             { name: "Start MCP gateway", conclusion: "failure" },
             { name: "Run agent", conclusion: "skipped" },
+            { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
             { name: "Post Run agent", conclusion: "failure" },
           ],
         },
       ]);
       const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      expect(diagnostics).toEqual({ failingStep: "Start MCP gateway", agentConclusion: "failure" });
       const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure", "report_incomplete"], engineFailureContext: "" });
       expect(rendered).toContain("Failing step:** `Start MCP gateway`");
       expect(rendered).not.toContain("private startup error");
@@ -687,7 +801,7 @@ describe("handle_agent_failure", () => {
 
       expect(result).toContain("Failing step:** `Run agent`");
       expect(result).toContain("**Driver exit code:** `1`");
-      expect(result).not.toContain("The runtime did not record a specific cause.");
+      expect(result).not.toContain("No additional engine error was captured.");
     });
 
     it("states when no cause was captured", () => {
@@ -697,7 +811,7 @@ describe("handle_agent_failure", () => {
         engineFailureContext: "",
       });
 
-      expect(result).toContain("The runtime did not record a specific cause.");
+      expect(result).toContain("No additional engine error was captured.");
     });
 
     it("keeps the job, step, and exit code together in one compact section", () => {
@@ -781,7 +895,7 @@ describe("handle_agent_failure", () => {
 
     try {
       await main();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] unknown hit AI credits rate limit" }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] unknown: hit AI credits rate limit" }));
     } finally {
       fs.rmSync(path.dirname(agentOutputPath), { recursive: true, force: true });
       delete process.env.GH_AW_AGENT_OUTPUT;
@@ -819,26 +933,26 @@ describe("handle_agent_failure", () => {
     };
 
     const cases = [
-      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily AI credits budget" },
-      { flag: "hasDailyAICGuardrailError", expected: "[aw] Test Workflow could not verify daily AI credits" },
-      { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
-      { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
-      { flag: "hasEngineRateLimit429", expected: "[aw] Test Workflow hit engine rate limit (HTTP 429)" },
-      { flag: "http400ResponseError", expected: "[aw] Test Workflow hit HTTP 400 bad request" },
-      { flag: "unknownModelAICredits", expected: "[aw] Test Workflow has unknown model pricing" },
-      { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
-      { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
-      { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
-      { flag: "shellExpansionGuardRejected", expected: "[aw] Test Workflow hit shell expansion guard rejection" },
-      { flag: "isTimedOut", expected: "[aw] Test Workflow timed out" },
-      { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow exceeded tool denial limit" },
-      { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow has cache-memory miss misconfiguration" },
-      { flag: "hasReportIncomplete", expected: "[aw] Test Workflow reported incomplete result" },
-      { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow produced no safe outputs" },
-      { flag: "hasMissingTool", expected: "[aw] Test Workflow is missing required tool" },
-      { flag: "hasMissingData", expected: "[aw] Test Workflow is missing required data" },
-      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow failed to assign agent" },
-      { flag: "copilotOrgBillingError", expected: "[aw] Test Workflow hit Copilot organization billing error" },
+      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow: exceeded daily AI credits budget" },
+      { flag: "hasDailyAICGuardrailError", expected: "[aw] Test Workflow: could not verify daily AI credits" },
+      { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow: exceeded max AI credits" },
+      { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow: hit AI credits rate limit" },
+      { flag: "hasEngineRateLimit429", expected: "[aw] Test Workflow: hit engine rate limit (HTTP 429)" },
+      { flag: "http400ResponseError", expected: "[aw] Test Workflow: hit HTTP 400 bad request" },
+      { flag: "unknownModelAICredits", expected: "[aw] Test Workflow: has unknown model pricing" },
+      { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow: failed to mint GitHub App token" },
+      { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow: failed lockdown check" },
+      { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow: has stale lock file" },
+      { flag: "shellExpansionGuardRejected", expected: "[aw] Test Workflow: hit shell expansion guard rejection" },
+      { flag: "isTimedOut", expected: "[aw] Test Workflow: timed out" },
+      { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow: exceeded tool denial limit" },
+      { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow: has cache-memory miss misconfiguration" },
+      { flag: "hasReportIncomplete", expected: "[aw] Test Workflow: reported incomplete result" },
+      { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow: produced no safe outputs" },
+      { flag: "hasMissingTool", expected: "[aw] Test Workflow: is missing required tools" },
+      { flag: "hasMissingData", expected: "[aw] Test Workflow: is missing required data" },
+      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow: failed to assign agent" },
+      { flag: "copilotOrgBillingError", expected: "[aw] Test Workflow: hit Copilot organization billing error" },
     ];
 
     it.each(cases)("returns expected title for isolated $flag", ({ flag, expected }) => {
@@ -846,36 +960,46 @@ describe("handle_agent_failure", () => {
     });
 
     it("falls back to generic failed title when no specific condition matches", () => {
-      expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow failed");
-      expect(buildFailureIssueTitle({ ...baseOptions, transportWedge: true })).toBe("[aw] Test Workflow stalled on an MCP tool call");
+      expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow: failed");
+      expect(buildFailureIssueTitle({ ...baseOptions, transportWedge: true })).toBe("[aw] Test Workflow: stalled on an MCP tool call");
     });
 
     it.each([
-      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
-      ["engine_driver_failure", "[aw] Test Workflow engine driver failed before emitting a terminal safe output"],
-      ["safeoutputs_cli_error", "[aw] Test Workflow failed to invoke safeoutputs CLI"],
-      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
-      ["invalid_safe_outputs", "[aw] Test Workflow produced no valid safe outputs"],
+      ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["engine_driver_failure", "[aw] Test Workflow: engine driver failed before emitting a terminal safe output"],
+      ["safeoutputs_cli_error", "[aw] Test Workflow: failed to invoke safeoutputs CLI"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow: finished without a terminal safe output"],
+      ["invalid_safe_outputs", "[aw] Test Workflow: produced no valid safe outputs"],
     ])("distinguishes %s from generic incompletion", (emptyOutputCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, hasReportIncomplete: true, emptyOutputCause })).toBe(title);
     });
 
     it.each([
-      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
-      ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
-      ["request_rejection", "[aw] Test Workflow had a request rejected"],
-      ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
-      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
-      ["unknown", "[aw] Test Workflow finished without a clear failure cause"],
+      ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["driver_crash", "[aw] Test Workflow: engine driver crashed"],
+      ["secret_redaction_failure", "[aw] Test Workflow: failed to redact secrets in logs"],
+      ["engine_outage", "[aw] Test Workflow: experienced an engine outage"],
+      ["request_rejection", "[aw] Test Workflow: had a request rejected"],
+      ["prompt_exhaustion", "[aw] Test Workflow: reported incomplete result"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow: finished without a terminal safe output"],
+      ["unknown", "[aw] Test Workflow: failed (cause unknown)"],
     ])("uses the classified terminal-output cause %s in the issue title", (terminalOutputFailureCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
     });
 
+    it.each(
+      ["agent_startup_failure", "driver_crash", "secret_redaction_failure"].flatMap(terminalOutputFailureCause =>
+        ["hasModelEndpointMismatch", "modelNotSupportedError", "http400ResponseError", "isTimedOut", "hasEngineRateLimit429", "unknownModelAICredits"].map(flag => ({ terminalOutputFailureCause, flag }))
+      )
+    )("keeps fatal $terminalOutputFailureCause above historical $flag in the issue title", ({ terminalOutputFailureCause, flag }) => {
+      expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause, [flag]: true })).toBe(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause }));
+    });
+
     it.each([
-      [1, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [137, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [139, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [1, ["capi_server_error"], [502], "[aw] Test Workflow experienced an engine outage"],
+      [1, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [137, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [139, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [1, ["capi_server_error"], [502], "[aw] Test Workflow: experienced an engine outage"],
     ])("uses runtime evidence rather than a bare driver exit %s to choose an outage title", (exitCode, categories, errorCodes, title) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
       const { tmpdir } = require("os");
@@ -898,43 +1022,43 @@ describe("handle_agent_failure", () => {
           emptyOutputCause: "missing_terminal_safe_output",
           terminalOutputFailureCause: "prompt_exhaustion",
         })
-      ).toBe("[aw] Test Workflow reported incomplete result");
+      ).toBe("[aw] Test Workflow: reported incomplete result");
     });
 
     it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
+      expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow: has unknown model pricing");
     });
 
     it("prefers shellExpansionGuardRejected over isTimedOut when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, shellExpansionGuardRejected: true, isTimedOut: true })).toBe("[aw] Test Workflow hit shell expansion guard rejection");
+      expect(buildFailureIssueTitle({ ...baseOptions, shellExpansionGuardRejected: true, isTimedOut: true })).toBe("[aw] Test Workflow: hit shell expansion guard rejection");
     });
 
     it("returns missing model pricing title with model name when missingModelPricingError is true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)");
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)");
     });
 
     it("returns missing model pricing title without model name when model name is empty", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow has no AI credits pricing for model");
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow: has no AI credits pricing for model");
     });
 
     it("sanitizes Copilot agent-not-found title content", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, copilotAgentNotFound: "agent` @octo\npayload" })).toBe('[aw] Test Workflow could not find configured Copilot agent "agent` ``@octo`` payload"');
+      expect(buildFailureIssueTitle({ ...baseOptions, copilotAgentNotFound: "agent` @octo\npayload" })).toBe('[aw] Test Workflow: could not find configured Copilot agent "agent` @octo payload"');
     });
 
     it("prefers missingModelPricingError over unknownModelAICredits when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", unknownModelAICredits: true })).toBe(
-        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+        "[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)"
       );
     });
 
     it("prefers missingModelPricingError over http400ResponseError when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", http400ResponseError: true })).toBe(
-        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+        "[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)"
       );
     });
 
     it("aiCreditsRateLimitError takes precedence over hasEngineRateLimit429 when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, aiCreditsRateLimitError: true, hasEngineRateLimit429: true })).toBe("[aw] Test Workflow hit AI credits rate limit");
+      expect(buildFailureIssueTitle({ ...baseOptions, aiCreditsRateLimitError: true, hasEngineRateLimit429: true })).toBe("[aw] Test Workflow: hit AI credits rate limit");
     });
   });
 
@@ -965,7 +1089,7 @@ describe("handle_agent_failure", () => {
       );
       fs.writeFileSync(
         path.join(promptsDir, "threat_detection_engine_error.md"),
-        "> [!WARNING]\n> **Threat Detection Engine Failure** — The analysis engine could not complete. This is a tooling failure, not a security finding.\n> {threat_detected_marker}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>"
+        "> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> {threat_detected_marker}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>"
       );
 
       process.env.RUNNER_TEMP = tmpDir;
@@ -1304,6 +1428,136 @@ describe("handle_agent_failure", () => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    it.each(["success", "failure", "not_started"])("publishes the selected failure through its include filter after driver %s, despite historical model errors", async driverConclusion => {
+      syncRuntimePromptTemplates(import.meta.url);
+      const startup = driverConclusion === "not_started";
+      const crashed = driverConclusion === "failure";
+      const cause = startup ? "agent_startup_failure" : "secret_redaction_failure";
+      const output = path.join(tmpDir, "output.json");
+      fs.writeFileSync(
+        output,
+        JSON.stringify(
+          startup
+            ? { items: [{ type: "report_incomplete", reason: cause, failureCause: cause }], collectorEmptyOutputCause: cause, collectorFailureCause: cause }
+            : crashed
+              ? {
+                  items: [{ type: "report_incomplete", reason: "engine_driver_failure", failureCause: "driver_crash", driverExitCode: 139 }],
+                  collectorEmptyOutputCause: "engine_driver_failure",
+                  collectorFailureCause: "driver_crash",
+                  collectorDriverExitCode: 139,
+                }
+              : { items: [{ type: "noop", message: "Done" }] }
+        )
+      );
+      if (crashed) fs.writeFileSync(path.join(tmpDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 139 } }));
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+      vi.stubEnv("GH_AW_AGENT_CONCLUSION", "failure");
+      vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+      vi.stubEnv("GH_AW_FAILURE_CATEGORIES_FILTER", JSON.stringify([cause]));
+      vi.stubEnv("GH_AW_MODEL_NOT_SUPPORTED_ERROR", "true");
+      vi.stubEnv("GH_AW_HTTP_400_RESPONSE_ERROR", "true");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+      const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create, createComment: vi.fn() },
+          pulls: { get: vi.fn() },
+          actions: {
+            listJobsForWorkflowRun: vi.fn(),
+            downloadJobLogsForWorkflowRun: vi.fn().mockResolvedValue({
+              data: "2026-10-10T10:00:04.500Z ##[error]ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)",
+            }),
+          },
+        },
+        paginate: vi.fn(async () => [
+          {
+            id: 456,
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              ...(startup ? [{ name: "Start MCP gateway", conclusion: "failure" }] : []),
+              { name: "Run agent", conclusion: startup ? "skipped" : driverConclusion },
+              { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            ],
+          },
+        ]),
+        graphql: vi.fn(),
+      };
+      const write = vi.spyOn(fs, "writeFileSync");
+      try {
+        await main();
+        expect(global.core.setFailed.mock.calls).toEqual(startup || crashed ? [["Agent reported that it could not complete the task"]] : []);
+        expect(create).toHaveBeenCalledOnce();
+        const issue = create.mock.calls[0][0];
+        expect(issue.title).toBe(startup ? "[aw] Test Workflow: failed before agent execution started" : "[aw] Test Workflow: failed to redact secrets in logs");
+        expect(issue.body).toContain(`failure_cause: ${cause}`);
+        expect(issue.body).toMatch(new RegExp(`failure_categories: [^>]*${cause}`));
+        expect(issue.body).toContain(`Failing step:** \`${startup ? "Start MCP gateway" : "Redact secrets in logs"}\``);
+        if (startup) {
+          expect(issue.body).not.toContain("secret_redaction_failure");
+          expect(issue.body).not.toContain("input_bytes=12");
+          expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
+        } else {
+          expect(issue.body).toContain("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)");
+          expect(issue.body).not.toContain("No additional engine error was captured");
+          if (crashed) expect(issue.body).toContain("Failure classification: driver_crash");
+        }
+        expect(write).toHaveBeenCalledWith(require("./handle_agent_failure.cjs").FAILURE_CATEGORIES_PATH, expect.stringContaining(`"${cause}"`));
+        if (!startup && !crashed) expect(global.core.setFailed).not.toHaveBeenCalled();
+      } finally {
+        write.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it.each(["GH_AW_MODEL_ENDPOINT_MISMATCH_ERROR", "GH_AW_MODEL_NOT_SUPPORTED_ERROR", "GH_AW_HTTP_400_RESPONSE_ERROR", "GH_AW_AGENTIC_ENGINE_TIMEOUT"])(
+      "keeps final driver crash title, cause and details despite historical %s",
+      async historicalSignal => {
+        syncRuntimePromptTemplates(import.meta.url);
+        const output = path.join(tmpDir, "output.json");
+        fs.writeFileSync(
+          output,
+          JSON.stringify({
+            items: [{ type: "report_incomplete", reason: "engine_driver_failure", failureCause: "driver_crash", driverExitCode: 139 }],
+            collectorEmptyOutputCause: "engine_driver_failure",
+            collectorFailureCause: "driver_crash",
+            collectorDriverExitCode: 139,
+          })
+        );
+        fs.writeFileSync(path.join(tmpDir, "agent-session.jsonl"), JSON.stringify({ type: "agent.execution", data: { categories: [], errorCodes: [], errorTypes: [], exitCode: 139 } }));
+        vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+        vi.stubEnv("GH_AW_AGENT_CONCLUSION", "failure");
+        vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+        vi.stubEnv(historicalSignal, "true");
+        fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+        const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+        global.github = {
+          rest: {
+            search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+            issues: { create, createComment: vi.fn() },
+            pulls: { get: vi.fn() },
+            actions: { listJobsForWorkflowRun: vi.fn() },
+          },
+          paginate: vi.fn(async () => [{ name: "agent", conclusion: "failure", steps: [{ name: "Run agent", conclusion: "failure" }] }]),
+          graphql: vi.fn(),
+        };
+        try {
+          await main();
+          expect(global.core.setFailed.mock.calls).toEqual([["Agent reported that it could not complete the task"]]);
+          expect(create).toHaveBeenCalledOnce();
+          const { title, body } = create.mock.calls[0][0];
+          expect(title).toBe("[aw] Test Workflow: engine driver crashed");
+          expect(body).toContain("failure_cause: driver_crash");
+          expect(body).toContain("Failure classification: driver_crash");
+          expect(body).toContain("Driver exit code: 139");
+          expect(body).toContain("Task Could Not Be Completed");
+        } finally {
+          vi.unstubAllEnvs();
+        }
+      }
+    );
 
     it.each(
       ["failure", "success"].flatMap(conclusion =>
@@ -1784,7 +2038,7 @@ describe("handle_agent_failure", () => {
       expect(updateIssueMock).toHaveBeenCalledWith(
         expect.objectContaining({
           issue_number: 42,
-          title: "[aw] Test Workflow produced no safe outputs",
+          title: "[aw] Test Workflow: produced no safe outputs",
           labels: ["agentic-workflows"],
           state: "open",
         })
@@ -1932,7 +2186,7 @@ describe("handle_agent_failure", () => {
       expect(body.match(/\*\*Driver exit code:\*\*/g)).toHaveLength(1);
       expect(body.match(/### Failure Diagnostics/g)).toHaveLength(1);
       expect(body).toContain("Completion signal: agent reported incomplete (reason and details excluded)");
-      expect(body).toContain("_Only runtime metadata is shown; agent-generated text is excluded._");
+      expect(body).toContain(`${existingIssue ? "_" : "*"}Only runtime metadata is shown; agent-generated text is excluded.${existingIssue ? "_" : "*"}`);
       expect(body).toContain("The workflow recorded a `report_incomplete` signal");
       expect(body).not.toContain("agent-generated diagnostic");
       expect(body).not.toContain("infrastructure_error");
@@ -1962,7 +2216,7 @@ describe("handle_agent_failure", () => {
             items: [
               {
                 number: 42,
-                title: "[aw] Test Workflow failed",
+                title: "[aw] Test Workflow: failed",
                 html_url: "https://github.com/owner/repo/issues/42",
                 body: buildWorkflowMarkerOnlyIssueBody(),
               },
@@ -2161,7 +2415,7 @@ describe("handle_agent_failure", () => {
             items: [
               {
                 number: 42,
-                title: "[aw] Test Workflow failed",
+                title: "[aw] Test Workflow: failed",
                 html_url: "https://github.com/owner/repo/issues/42",
                 body: buildExistingIssueBody({
                   workflowId,
@@ -2216,13 +2470,13 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({ branch: "feature/other", categories: ["missing_safe_outputs"] }),
                     },
                     {
                       number: 43,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/43",
                       body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
                     },
@@ -2369,7 +2623,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow timed out");
+      expect(createCall.title).toBe("[aw] Test Workflow: timed out");
     });
 
     it("uses shell expansion guard title instead of timeout when both flags are present", async () => {
@@ -2406,7 +2660,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow hit shell expansion guard rejection");
+      expect(createCall.title).toBe("[aw] Test Workflow: hit shell expansion guard rejection");
       expect(createCall.body).toContain("SHELL GUARD TEMPLATE");
       expect(createCall.body).not.toContain("TIMEOUT TEMPLATE");
     });
@@ -2439,7 +2693,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow produced no safe outputs");
+      expect(createCall.title).toBe("[aw] Test Workflow: produced no safe outputs");
     });
 
     it("uses a precise report incomplete title", async () => {
@@ -2472,7 +2726,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow reported incomplete result");
+      expect(createCall.title).toBe("[aw] Test Workflow: reported incomplete result");
     });
 
     it.each([
@@ -2517,13 +2771,13 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).toHaveBeenCalledOnce();
       const { title, body } = createIssueMock.mock.calls[0][0];
       if (budgetExceeded) {
-        expect(title).toBe("[aw] Test Workflow exceeded max AI credits");
+        expect(title).toBe("[aw] Test Workflow: exceeded max AI credits");
         expect(body).toContain("AI Credits Budget Exceeded");
         expect(body).toContain("failure_categories: max_ai_credits_exceeded");
         expect(body).not.toContain("Copilot organization billing is unavailable");
         expect(body).not.toContain("copilot_org_billing_error");
       } else {
-        expect(title).toBe("[aw] Test Workflow hit Copilot organization billing error");
+        expect(title).toBe("[aw] Test Workflow: hit Copilot organization billing error");
         expect(body).toContain("Copilot organization billing is unavailable");
         expect(body).not.toContain("max_ai_credits_exceeded");
       }
@@ -2610,7 +2864,7 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({
                         branch: "feature/current",
@@ -2941,8 +3195,11 @@ describe("handle_agent_failure", () => {
       const commentTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_comment.md"), "utf8");
       const issueTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), "utf8");
 
-      for (const template of [commentTemplate, issueTemplate]) {
-        const rendered = renderTemplate(template, templateContext);
+      const { buildFailureReport } = require("./failure_report.cjs");
+      const { renderReport } = require("./report_ast.cjs");
+      const issueContext = Object.fromEntries(Array.from(issueTemplate.matchAll(/\{(\w+)\}/g), match => [match[1], ""]));
+      const issueReport = buildFailureReport(issueTemplate, "[aw] Test Workflow: reported incomplete result", { ...issueContext, ...templateContext });
+      for (const rendered of [renderTemplate(commentTemplate, templateContext), renderReport(issueReport).body]) {
         expect(rendered).not.toContain(reportIncompleteMarker);
         expect(rendered).toContain("The workflow recorded a `report_incomplete` signal");
         expect(rendered).toContain("completion could not be confirmed");
@@ -5715,9 +5972,9 @@ describe("handle_agent_failure", () => {
 
   describe("buildReportIncompleteContext", () => {
     it.each([
-      [1, [], [], "unknown"],
-      [137, [], [], "unknown"],
-      [139, [], [], "unknown"],
+      [1, [], [], "driver_crash"],
+      [137, [], [], "driver_crash"],
+      [139, [], [], "driver_crash"],
       [1, ["capi_server_error"], [502], "engine_outage"],
     ])("renders a driver failure classification supported by runtime evidence for exit %s", (exitCode, categories, errorCodes, failureCause) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
@@ -6893,7 +7150,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: `[aw] Test Workflow ${titleSuffix}` }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: `[aw] Test Workflow: ${titleSuffix}` }));
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain(reason);
       expect(categories).not.toContain("agent_failure");
@@ -6971,7 +7228,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow: reported incomplete result" }));
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain("report_incomplete");
       expect(categories).not.toContain(reason);
@@ -7011,7 +7268,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow: reported incomplete result" }));
       const body = create.mock.calls[0][0].body;
       expect(body).toContain("Failing step:** `Post Run agent`");
       expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
@@ -7055,7 +7312,13 @@ describe("handle_agent_failure", () => {
 
       vi.resetModules();
       const { main: mainFn } = require("./handle_agent_failure.cjs");
-      await mainFn();
+      const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+      try {
+        await mainFn();
+        expect(render).toHaveBeenCalledTimes(1);
+      } finally {
+        render.mockRestore();
+      }
 
       // report_incomplete overrides the hasCompletedDespiteJobFailure exemption
       expect(createIssueMock).toHaveBeenCalled();
@@ -7675,7 +7938,7 @@ describe("handle_agent_failure", () => {
       expect(capturedBody).toContain("⚠️ Failure Cascade Detected");
       expect(capturedBody).toContain("cascade-suspected");
       expect(capturedBody).toContain("#100");
-      expect(capturedBody).toContain("[aw] Workflow 0 failed");
+      expect(capturedBody).toContain("\\[aw\\] Workflow 0 failed");
     });
 
     it("filters out non-[aw] issues from findRecentFailureIssues", async () => {
@@ -7784,6 +8047,10 @@ describe("handle_agent_failure", () => {
 
     it("classifies an MCP watchdog failure without a generic agent failure", () => {
       expect(buildFailureMatchCategories({ agentConclusion: "failure", transportWedge: true })).toEqual(["transport_wedge"]);
+    });
+
+    it("classifies a selected redaction failure without a generic agent failure", () => {
+      expect(buildFailureMatchCategories({ agentConclusion: "failure", secretRedactionFailed: true })).toEqual(["secret_redaction_failure"]);
     });
 
     it("classifies MCP watchdog failures from structured unified-session events", () => {

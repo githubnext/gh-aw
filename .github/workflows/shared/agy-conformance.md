@@ -105,6 +105,7 @@ post-steps:
       assert.ok(outputStat.isFile() && !outputStat.isSymbolicLink() && outputStat.size <= 16384);
       assert.deepEqual(JSON.parse(fs.readFileSync(outputs, "utf8")), {
         type: "noop", message: "Conformance probes completed",
+        ...(expected.claimHandle !== undefined && { claim_handle: expected.claimHandle }),
       });
       const usage = {};
       for (const name of ["input_tokens", "output_tokens", "thinking_tokens", "cache_read_tokens", "total_tokens"]) {

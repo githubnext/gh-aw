@@ -33,7 +33,7 @@ func TestStepOrderTracker_ValidateOrdering_SecretRedactionBeforeUploads(t *testi
 	}
 }
 
-func TestStepOrderTracker_ValidateOrdering_ArchivedOperationalValueEvaluator(t *testing.T) {
+func TestStepOrderTracker_ValidateOrdering_RejectsExecutableGraderArtifact(t *testing.T) {
 	tracker := NewStepOrderTracker()
 	tracker.MarkAgentExecutionComplete()
 	tracker.RecordSecretRedaction("Redact grader outputs")
@@ -41,8 +41,8 @@ func TestStepOrderTracker_ValidateOrdering_ArchivedOperationalValueEvaluator(t *
 		"/tmp/gh-aw/agent/graders/operational_value_evaluator.sh",
 	})
 
-	if err := tracker.ValidateStepOrdering(); err != nil {
-		t.Errorf("Expected archived operational-value evaluator to be allowed, got: %v", err)
+	if err := tracker.ValidateStepOrdering(); err == nil {
+		t.Error("Expected an unscanned executable grader artifact to be rejected")
 	}
 }
 
@@ -272,7 +272,7 @@ func TestIsKnownUnscannedButAllowedForUpload_WindowsStyle(t *testing.T) {
 		{
 			name:     "Windows-style operational-value evaluator under approved root",
 			path:     `\tmp\gh-aw\agent\graders\operational_value_evaluator.sh`,
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "UNC-style bundle under approved root",

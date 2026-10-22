@@ -6,9 +6,54 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPlaywrightDomainsCodemod_NonMappingNetwork(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name    string
+		network string
+		allowed []any
+	}{
+		{name: "shorthand", network: "defaults", allowed: []any{"defaults", "example.com"}},
+		{name: "null", network: "", allowed: []any{"example.com", "defaults"}},
+		{name: "explicit null", network: "null", allowed: []any{"example.com", "defaults"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			content := "---\nnetwork: " + tt.network + ` # retain network comment
+tools:
+  playwright:
+    version: v1.41.0
+    allowed_domains: [example.com, defaults]
+---
+
+# Prompt
+`
+			document, err := aw.Parse(content)
+			require.NoError(t, err)
+			mod := getPlaywrightDomainsToNetworkAllowedCodemod()
+			result, applied, err := mod.Apply(content, document.Frontmatter)
+			require.NoError(t, err)
+			require.True(t, applied)
+			assertPolicyCodemodValue(t, result, tt.allowed, "network", "allowed")
+			assert.NotContains(t, result, "allowed_domains")
+			assert.Contains(t, result, "# retain network comment")
+			assert.Contains(t, result, "version: v1.41.0")
+			assert.True(t, strings.HasSuffix(result, "\n---\n\n# Prompt\n"))
+
+			document, err = aw.Parse(result)
+			require.NoError(t, err)
+			second, applied, err := mod.Apply(result, document.Frontmatter)
+			require.NoError(t, err)
+			assert.False(t, applied)
+			assert.Equal(t, result, second)
+		})
+	}
+}
 
 func TestGetPlaywrightDomainsCodemod(t *testing.T) {
 	t.Parallel()

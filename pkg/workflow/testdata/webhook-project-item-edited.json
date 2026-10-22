@@ -1,0 +1,25 @@
+{
+  "action": "edited",
+  "organization": { "id": 991, "login": "example-org" },
+  "sender": { "id": 102, "login": "octocat" },
+  "projects_v2_item": {
+    "id": 1103,
+    "node_id": "PVTI_example",
+    "project_node_id": "PVT_example",
+    "content_node_id": "I_example",
+    "content_type": "Issue",
+    "created_at": "2026-10-01T00:00:00Z",
+    "updated_at": "2026-10-02T00:00:00Z",
+    "archived_at": null
+  },
+  "changes": {
+    "field_value": {
+      "field_node_id": "PVTSSF_example",
+      "field_type": "single_select",
+      "field_name": "Status",
+      "project_number": 7,
+      "from": { "id": "todo-option", "name": "Todo" },
+      "to": { "id": "ready-option", "name": "Ready" }
+    }
+  }
+}

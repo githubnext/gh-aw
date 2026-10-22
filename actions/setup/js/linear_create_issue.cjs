@@ -8,6 +8,8 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const { appendConfiguredBodyFooter } = require("./body_footer.cjs");
+const { renderIssueParameters } = require("./issue_report.cjs");
+const { normalizeReportText } = require("./report_ast.cjs");
 
 const LINEAR_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LINEAR_PROJECT_ID_PATTERN = /^(?:[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -98,11 +100,13 @@ async function main(config = {}) {
       throw new Error(`${ERR_VALIDATION}: linear_create_issue content is outside the configured field limits`);
     }
 
-    const title = sanitizeTitle(item.title);
-    const description = appendConfiguredBodyFooter(sanitizeContent(item.body), config.body_footer, { maxLength: 65000 });
-    if (!title) {
-      throw new Error(`${ERR_VALIDATION}: linear_create_issue title is empty after sanitization`);
-    }
+    const sanitizedTitle = sanitizeTitle(item.title);
+    if (!sanitizedTitle) throw new Error(`${ERR_VALIDATION}: linear_create_issue title is empty after sanitization`);
+    const rendered = renderIssueParameters({ title: sanitizedTitle, body: appendConfiguredBodyFooter(sanitizeContent(normalizeReportText(item.body, { preserveImageAttributes: true })), config.body_footer, { maxLength: 65000 }) });
+    const title = rendered.title;
+    const description = rendered.body.trimEnd();
+    if (description.length > 65000) throw new Error(`${ERR_VALIDATION}: linear_create_issue rendered body exceeds 65000 characters`);
+    if (!description) throw new Error(`${ERR_VALIDATION}: linear_create_issue body is empty after normalization`);
 
     if (isStagedMode(config)) {
       logStagedPreviewInfo(`Would create Linear issue "${title}"`);

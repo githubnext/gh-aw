@@ -2,7 +2,7 @@
 private: true
 emoji: "📦"
 name: Daily Model Inventory Checker
-description: Queries model lists from OpenAI, Anthropic, and Google APIs daily, uses AWF /reflect for Copilot models, then analyzes the combined inventory to propose updates to the builtin model alias mapping
+description: Queries model lists from OpenAI, Anthropic, and Google APIs daily, uses AWF /reflect for Copilot models, checks every workflow model pin against the live Copilot catalogue, then analyzes the combined inventory to propose updates to the builtin model alias mapping
 on:
   schedule:
     - cron: daily
@@ -184,7 +184,8 @@ jobs:
           fi
           # runner-guard:ignore RGS-012 -- the Gemini API key is sent only to the official Google models endpoint.
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}") || true
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            "https://generativelanguage.googleapis.com/v1beta/models") || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
             jq '{
               provider: "gemini",
@@ -338,6 +339,33 @@ steps:
       echo "Combined inventory written to $INVENTORY"
       cat "$INVENTORY"
 
+# The pin check runs again after the agent, preferring the harness's own /reflect capture,
+# so the report artifact and step summary do not depend on the agent.
+post-steps:
+  - name: Check workflow model pins
+    if: always()
+    continue-on-error: true
+    shell: bash
+    run: |
+      set -euo pipefail
+      OUT="/tmp/gh-aw/agent/model-inventory/model-pins"
+      REFLECT=/dev/null
+      for candidate in /tmp/gh-aw/agent/awf-reflect.json /tmp/gh-aw/sandbox/firewall/awf-reflect.json /tmp/gh-aw/agent/model-inventory/reflect.json; do
+        if [ -s "$candidate" ]; then REFLECT="$candidate"; break; fi
+      done
+      echo "Checking workflow model pins against $REFLECT"
+      node "${RUNNER_TEMP}/gh-aw/actions/model_pin_check.cjs" --reflect "$REFLECT" --out-dir "$OUT" --repo "$GITHUB_WORKSPACE" > /dev/null
+      cat "$OUT/model-pins.md" >> "$GITHUB_STEP_SUMMARY"
+
+  - name: Upload workflow model pin report
+    if: always()
+    uses: actions/upload-artifact@v7.0.2
+    with:
+      name: model-pins
+      path: /tmp/gh-aw/agent/model-inventory/model-pins/
+      if-no-files-found: warn
+      retention-days: 30
+
 sandbox:
   agent:
     id: awf
@@ -482,6 +510,26 @@ while IFS= read -r entry; do
 done < <(jq -c '.endpoints[]? | select(.configured == true and .models == null and .models_url != null)' "$OUT" 2>/dev/null || true)
 echo "Copilot reflect metadata written to $OUT"
 ```
+
+### Step 0.5: Check Workflow Model Pins
+
+Run the deterministic pin checker right after Step 0. It classifies every model pin configured
+by `.github/workflows/*.md` (and their imports) against the Copilot catalogue in the reflect
+file, using the same resolver as the engine harnesses. Do not classify pins yourself.
+
+```bash
+set -euo pipefail
+REPO="${GITHUB_WORKSPACE:-$PWD}"
+node "$REPO/actions/setup/js/model_pin_check.cjs" \
+  --reflect /tmp/gh-aw/agent/model-inventory/reflect.json \
+  --out-dir /tmp/gh-aw/agent/model-inventory/model-pins \
+  --repo "$REPO"
+```
+
+It writes `model-pins-summary.md` (the issue section), `model-pins.md` (every pin with its
+classification) and `model-pins.json` to `/tmp/gh-aw/agent/model-inventory/model-pins/`. The
+run uploads that directory as the `model-pins` artifact. Read `counts.unresolvable` from
+`model-pins.json` for Step 6.
 
 ### Step 1: Load and Validate the Inventory
 
@@ -692,6 +740,13 @@ If you found any meaningful updates to propose, create a GitHub issue using `cre
 
 **Issue title format**: `Model alias inventory update - YYYY-MM-DD`
 
+**Workflow model pins**: start the issue body with the contents of
+`/tmp/gh-aw/agent/model-inventory/model-pins/model-pins-summary.md` from Step 0.5, copied
+verbatim (it begins with `### Action required` when any pin is unresolvable). Do not edit,
+reorder or summarize it. If `counts.unresolvable` in `model-pins.json` is greater than 0,
+the title must be `Model alias inventory - action required - YYYY-MM-DD`, and the issue
+must be created even if no alias or pricing updates are needed.
+
 **Issue body structure** (use h3 `###` or lower — never h1/h2):
 
 ```markdown
@@ -759,9 +814,11 @@ Any caveats, historical entries retained, or aliases that are already well-cover
 ```
 
 If no updates are needed (all live models are already covered by existing aliases, all
-`models.json` pricing entries are up to date, and no new task-oriented aliases are warranted), create an issue with
-title `Model alias inventory - no changes needed - YYYY-MM-DD` and a brief summary confirming
-coverage is up to date.
+`models.json` pricing entries are up to date, no new task-oriented aliases are warranted, and
+`counts.unresolvable` in `model-pins.json` is 0), create an issue with
+title `Model alias inventory - no changes needed - YYYY-MM-DD`, starting with the verbatim
+`model-pins-summary.md` contents and then a brief summary confirming coverage is up to date.
+Never use the "no changes needed" title when any workflow model pin is unresolvable.
 
 
 ### Output Format

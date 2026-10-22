@@ -61,11 +61,12 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 		return err
 	}
 
-	// Capture whether tools.bash was explicitly set to false before default-tool resolution
-	// removes the "bash" key entirely (unless overridden by required git commands). This lets
-	// us distinguish "bash explicitly refused" from "bash never configured", which both end up
-	// with an absent "bash" key after applyDefaultTools.
-	bashExplicitlyFalse := isToolExplicitlyFalse(data.Tools["bash"])
+	_, bashExplicitlyDisabled := data.ExplicitlyDisabledTools["bash"]
+	bashExplicitlyFalse := bashExplicitlyDisabled || isToolExplicitlyFalse(data.Tools["bash"])
+	if needsGitCommands(data.SafeOutputs) {
+		bashExplicitlyFalse = false
+		delete(data.ExplicitlyDisabledTools, "bash")
+	}
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
 	data.BashDisabled = isBashFullyDisabled(data.Tools, bashExplicitlyFalse)
 	data.ParsedTools = NewTools(data.Tools)
@@ -82,7 +83,12 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
 }
 
 func prepareToolsForDefaults(data *WorkflowData) error {
-	data.ExplicitlyDisabledTools = collectExplicitlyDisabledTools(data.Tools)
+	if data.ExplicitlyDisabledTools == nil {
+		data.ExplicitlyDisabledTools = make(map[string]struct{})
+	}
+	for name := range collectExplicitlyDisabledTools(data.Tools) {
+		data.ExplicitlyDisabledTools[name] = struct{}{}
+	}
 	return expandJiraToolConfig(data.Tools)
 }
 
@@ -535,24 +541,20 @@ func (c *Compiler) replaceIssueNumberReferences(yamlContent string) string {
 	return strings.ReplaceAll(yamlContent, "github.event.issue.number", "inputs.issue_number")
 }
 
-// isBashFullyDisabled reports whether the final (post-default-resolution) tools map represents
-// a complete refusal of bash/shell execution, i.e. tools.bash: false, or tools.bash: [] (empty
-// allowlist). wasExplicitlyFalse must be computed by the caller from the tools map *before*
-// applyDefaultTools runs, since a "bash: false" that is not overridden by required git commands
-// results in the "bash" key being removed entirely — the same final state as "bash" never being
-// configured at all. Only the explicit-false signal lets us tell these two cases apart.
-// bash: [] (empty array), by contrast, survives applyDefaultTools unchanged, so it can be
-// detected directly from the resolved tools map.
+// isBashFullyDisabled reports whether bash/shell execution was explicitly refused or its
+// effective allowlist is empty. wasExplicitlyFalse must be computed before tool defaults are
+// applied, since defaults can replace the explicit false value in the tools map.
 func isBashFullyDisabled(tools map[string]any, wasExplicitlyFalse bool) bool {
+	if wasExplicitlyFalse {
+		return true
+	}
 	if bashVal, hasBash := tools["bash"]; hasBash {
 		if bashCommands, ok := bashVal.([]any); ok {
 			return len(bashCommands) == 0
 		}
 		return false
 	}
-	// "bash" key is absent: either it was explicitly disabled (and not overridden by required
-	// git commands), or it was never configured. Only the former counts as "fully disabled".
-	return wasExplicitlyFalse
+	return false
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present

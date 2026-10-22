@@ -25,6 +25,7 @@ engine:
         - raw.githubusercontent.com
         - api.github.com
         - objects.githubusercontent.com
+        - release-assets.githubusercontent.com # GitHub release download redirects
       provider-domains:
         copilot: api.githubcopilot.com
         anthropic: api.anthropic.com

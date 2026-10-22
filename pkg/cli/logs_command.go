@@ -127,12 +127,14 @@ func NewLogsCommand() *cobra.Command {
 		Short:   "Download and analyze agentic workflow logs and artifacts",
 		Long:    buildLogsCommandLongDescription(validArtifactSets),
 		Example: buildLogsCommandExample(),
+		Args:    cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLogsCommand(cmd, args)
 		},
 	}
 	addLogsCommandFlags(logsCmd, validArtifactSets)
 	registerLogsCommandCompletions(logsCmd)
+	logsCmd.AddCommand(newLogsEpisodeCommand())
 	return logsCmd
 }
 
@@ -639,7 +641,7 @@ func addLogsCommandFlags(logsCmd *cobra.Command, validArtifactSets string) {
 	logsCmd.Flags().String("safe-output", "", "Filter to runs containing a specific safe output type (e.g., create-issue, missing-tool, missing-data, noop, report-incomplete)")
 	logsCmd.Flags().Bool("filtered-integrity", false, "Filter to runs containing items that were filtered by gateway integrity checks")
 	logsCmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically includes the usage artifact (which contains evals)")
-	logsCmd.Flags().Bool("graders", false, "Filter to runs containing deterministic grader results; automatically includes grader artifacts")
+	logsCmd.Flags().Bool("graders", false, "Filter to runs containing deterministic grader results; includes conclusion and separate custom-grader artifacts")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	logsCmd.Flags().Bool("audit", false, "Generate audit.json in each workflow run cache directory (comparisons use downloaded runs only)")
 	addJSONFlag(logsCmd)

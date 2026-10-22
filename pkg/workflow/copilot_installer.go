@@ -6,12 +6,15 @@ import (
 
 var copilotInstallerLog = logger.New("workflow:copilot_installer")
 
-func generateCopilotInstallerSteps(version, stepName string, rootless bool, compiledVersion, copilotMinVersion, guestLibc string) []GitHubActionStep {
+func generateCopilotInstallerSteps(version, stepName string, rootless bool, compiledVersion, copilotMinVersion, guestLibc, checksumsSHA256 string) []GitHubActionStep {
 	copilotInstallerLog.Printf("Generating Copilot installer steps using install_copilot_cli.sh: version=%q, rootless=%v, compiledVersion=%q, copilotMinVersion=%q", version, rootless, compiledVersion, copilotMinVersion)
 
-	rootlessFlag := ""
+	installerFlags := ""
 	if rootless {
-		rootlessFlag = " --rootless"
+		installerFlags = " --rootless"
+	}
+	if checksumsSHA256 != "" {
+		installerFlags += " --checksums-sha256 " + checksumsSHA256
 	}
 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
@@ -29,7 +32,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
-			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag,
+			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + installerFlags,
 			"        env:",
 			"          GH_HOST: github.com",
 			"          ENGINE_VERSION: " + version,
@@ -45,7 +48,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 		copilotInstallerLog.Print("No explicit version; script will resolve via compat.json or baked-in default")
 		stepLines := []string{
 			"      - name: " + stepName,
-			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"` + rootlessFlag,
+			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"` + installerFlags,
 			"        env:",
 			"          GH_HOST: github.com",
 		}
@@ -55,11 +58,11 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag,
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + installerFlags,
 		"        env:",
 		"          GH_HOST: github.com",
 	}
-	stepLines = appendCopilotInstallerVersionEnv(stepLines, "", "", guestLibc)
+	stepLines = appendCopilotInstallerVersionEnv(stepLines, "", copilotMinVersion, guestLibc)
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }

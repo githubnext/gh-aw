@@ -51,8 +51,10 @@ negative controls and validated readable traces without live effects.
 | [`no-json-stringify-equality`](#no-json-stringify-equality) | Disallow comparing two `JSON.stringify()` results for equality |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
+| [`no-map-parseint-callback`](#no-map-parseint-callback) | Disallow passing `parseInt` directly as an array callback, because the element index is used as the radix |
 | [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
 | [`no-single-char-string-replace`](#no-single-char-string-replace) | Disallow `String.prototype.replace()` with a single-character string pattern, which replaces only the first occurrence |
+| [`no-split-filter-trim-without-trim-map`](#no-split-filter-trim-without-trim-map) | Require split values to be trimmed before filtering out empty entries |
 | [`no-string-fallback-for-non-string-message`](#no-string-fallback-for-non-string-message) | Disallow stringifying a container object instead of its non-string `.message` value in a fallback |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
@@ -161,7 +163,7 @@ Using an interpolated route bypasses Octokit's typed route dispatch, can silentl
 
 **Out of scope:**
 - `this.github.request(...)` — `this`-based member expressions are not resolved.
-- `github.request(route, ...)` — variable indirection for the route argument is not resolved.
+- `github.request(route, ...)` when `route` cannot be resolved to a write-once local initializer or a top-level `const` initializer. Top-level `let`/`var`, reassigned bindings, and enclosing-function locals are not resolved.
 - `github.request("GET /repos/".concat(owner), ...)` — `.concat()`-built routes are not inspected.
 - `github.request("GET /repos" + "/{owner}/{repo}", ...)` — compile-time constant concatenations are accepted.
 
@@ -231,6 +233,14 @@ Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...
 
 **Safe alternative:**
 - `values.reduce((a, b) => Math.max(a, b), -Infinity)` / `values.reduce((a, b) => Math.min(a, b), Infinity)` — folds the array without expanding it into arguments, using the same identity value `Math.max()` / `Math.min()` return on an empty array so the empty-input result matches the spread form instead of throwing.
+
+### `no-map-parseint-callback`
+
+Disallow passing global `parseInt` or `Number.parseInt` directly to `.map()`, because `.map()` passes the element index as the second callback argument and `parseInt` interprets it as the radix. Use `.map(value => parseInt(value, 10))` or `.map(Number)` instead.
+
+### `no-split-filter-trim-without-trim-map`
+
+Disallow filtering delimiter-separated `.split()` results by whether `value.trim()` is nonempty without trimming the retained values. For example, `.split(",").filter(value => value.trim())` removes blank entries but preserves whitespace in the others. Use `.split(",").map(value => value.trim()).filter(Boolean)` instead.
 
 ### `no-misplaced-error-code-definition`
 
@@ -902,6 +912,8 @@ Disallow passing an interpolated template literal or dynamic string concatenatio
 - Static command strings, including string concatenation of only static expressions and chained string-normalizing methods on them.
 - Arguments passed correctly via the `args` array.
 
+Write-once local initializers and top-level `const` initializers are inspected, including aliases and precisely resolvable destructuring. Top-level `let`/`var`, reassigned bindings, and enclosing-function locals are not resolved.
+
 ### `no-setfailed-then-exit-zero`
 
 Disallow resetting the exit code to success (`process.exit(0)` or `process.exitCode = 0`) after `core.setFailed()`.
@@ -1237,6 +1249,10 @@ const branch = stdout.trim();
 ### `no-async-foreach-callback`
 
 Disallow `async` callbacks passed to `Array.prototype.forEach()`. `forEach()` ignores each callback's returned promise, so the work is not sequenced and rejections can go unhandled.
+
+Calls using `.forEach(...)`, `["forEach"](...)`, or a no-substitution template literal (`` [`forEach`](...) ``) are checked, including escaped spellings whose cooked value is `forEach`. Named callbacks are resolved when bound to a single, unreassigned function declaration or a `const` initialized with a function expression or arrow function. Parameters, imports, mutable bindings, and dynamically computed property names are not resolved.
+
+Callback references are resolved across any number of enclosing function scopes, respecting shadowing. Unlike the command initializer resolution used by the exec, child-process, and GitHub request rules, enclosing-function locals are included here because these unreassigned callback bindings retain their async function identity.
 
 **Flagged form:**
 ```js

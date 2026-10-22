@@ -30,9 +30,9 @@ The possibilities are vast. Challenges include secure authentication, cost manag
 
 There are two complementary layers to workflow distribution across an organization.
 
-[Adding Existing Workflows](/gh-aw/guides/working-with-workflows/#adding-existing-workflows) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
+[Adding Existing Workflows](/gh-aw/setup/working-with-workflows/#adding-existing-workflows) covers the developer-facing mechanics: use `gh aw add` or `gh aw add-wizard` to install a workflow from another repository, and `gh aw update` to pull in upstream changes while preserving local edits. Use `imports:` in workflow frontmatter to pull in shared components (tool configs, MCP server definitions, prompt snippets) — see [Imports](/gh-aw/reference/imports/) for the full reference.
 
-[Sharing Workflows in the Organization](/gh-aw/practices/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
+[Sharing Workflows in the Organization](/gh-aw/guides/sharing-workflows/) covers the organizational governance layer: recommended techniques like maintaining a central `agentic-workflows` repository as the source of truth, versioning with exact tags (`@v1.2.0`), moving major refs (`@v1`), or SHA pins, parameterized shared components via `import-schema`, and controlling discoverability with `private: true`.
 
 import { Image } from 'astro:assets';
 import usingAtScaleSharing from '../../../assets/diagrams/using-at-scale-2026-08-27.svg';
@@ -68,7 +68,7 @@ A particularly important design pattern for multi-repo operations is [CentralRep
 
 ## Safe Rollout
 
-[Safe Rollout](/gh-aw/practices/safe-rollout/) describes how to move from report-only or staged behavior to production writes with evidence and control. One technique inside that progression is shadow evaluation, where the workflow writes to a safe non-production target before promotion.
+[Safe Rollout](/gh-aw/guides/safe-rollout/) describes how to move from report-only or staged behavior to production writes with evidence and control. One technique inside that progression is shadow evaluation, where the workflow writes to a safe non-production target before promotion.
 
 ## Large Repositories with Many Issues
 
@@ -94,7 +94,7 @@ as what they cost. Start with run volume, successful runs, AIC, accepted safe
 outputs, and AIC per accepted outcome; compare similar workflow and output
 types over a stable observation window.
 
-[Measuring Impact](/gh-aw/practices/measuring-impact/) describes the practical
+[Measuring Impact](/gh-aw/guides/measuring-impact/) describes the practical
 measurement loop, including how to evaluate safe outputs with `gh aw outcomes`
 and use outcome data to identify low-value or overlapping automation.
 

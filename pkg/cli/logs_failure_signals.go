@@ -38,7 +38,7 @@ func failureSignalRole(signal FailureSignal) string {
 	switch signal.Kind {
 	case "failed_job", "failed_step", "mcp_failure":
 		return "failure_boundary"
-	case "workflow_failure":
+	case "workflow_failure", "no_jobs":
 		return "metadata_only"
 	default:
 		return "context"
@@ -64,6 +64,8 @@ func failureTarget(run *RunData) FailureClusterTarget {
 		WorkflowName: run.WorkflowName, WorkflowPath: run.WorkflowPath,
 		Engine: run.EngineID, Model: run.Model, CreatedAt: run.CreatedAt,
 		URL: run.URL, LogsPath: run.LogsPath, AuditPath: run.AuditPath,
+		Branch: run.Branch, Event: run.Event, HeadSHA: run.HeadSHA,
+		Attempt: run.RunAttempt, UpdatedAt: run.UpdatedAt,
 	}
 }
 

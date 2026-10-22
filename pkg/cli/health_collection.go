@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,25 +16,53 @@ import (
 
 // HealthCollection describes a bounded sample, including any quota-related truncation.
 type HealthCollection struct {
-	Partial         bool                     `json:"partial"`
-	Reason          string                   `json:"reason,omitempty"`
-	Warning         string                   `json:"warning,omitempty"`
-	Host            string                   `json:"host"`
-	APIRateLimit    *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
-	RevisionLookups int                      `json:"revision_lookups"`
-	APIRequests     int                      `json:"api_requests"`
-	MinimumRuns     int                      `json:"minimum_runs"`
-	MaximumDays     int                      `json:"maximum_days"`
-	StartDate       string                   `json:"start_date,omitempty"`
-	EndDate         string                   `json:"end_date,omitempty"`
-	workflows       []GitHubWorkflow
-	revisions       map[string]*workflow.LockMetadata
-	headRevisions   map[string]*workflow.LockMetadata
-	checkedRequests int
-	repoOverride    string
-	stopped         bool
-	visited         map[string]struct{}
-	jobPresence     map[healthRunAttempt]bool
+	ProducerVersion           string                              `json:"producer_version,omitempty"`
+	ReportSchemaVersion       int                                 `json:"report_schema_version,omitempty"`
+	ObservedAt                time.Time                           `json:"observed_at,omitzero"`
+	Capabilities              []string                            `json:"capabilities,omitempty"`
+	WorkQueue                 *HealthWorkQueue                    `json:"work_queue,omitempty"`
+	CacheEvidence             map[int64]HealthCacheEvidence       `json:"cache_evidence,omitempty"`
+	JobEvidence               map[int64]HealthJobEvidence         `json:"job_evidence,omitempty"`
+	JobRequests               int                                 `json:"job_requests"`
+	Partial                   bool                                `json:"partial"`
+	Reason                    string                              `json:"reason,omitempty"`
+	Warning                   string                              `json:"warning,omitempty"`
+	Host                      string                              `json:"host"`
+	APIRateLimit              *GitHubAPIRateLimitState            `json:"api_rate_limit,omitempty"`
+	RevisionLookups           int                                 `json:"revision_lookups"`
+	APIRequests               int                                 `json:"api_requests"`
+	MinimumRuns               int                                 `json:"minimum_runs"`
+	MaximumDays               int                                 `json:"maximum_days"`
+	StartDate                 string                              `json:"start_date,omitempty"`
+	EndDate                   string                              `json:"end_date,omitempty"`
+	FailurePassComplete       bool                                `json:"failure_pass_complete"`
+	FailureListingComplete    bool                                `json:"failure_listing_complete"`
+	FailureCandidates         int                                 `json:"failure_candidates"`
+	FailureCandidateWorkflows int                                 `json:"failure_candidate_workflows"`
+	PotentialIssues           []HealthPotentialIssue              `json:"potential_issues,omitempty"`
+	PRLifecycleEvidence       map[int64]HealthPRLifecycleEvidence `json:"pr_lifecycle_evidence,omitempty"`
+	LifecycleRequests         int                                 `json:"lifecycle_requests"`
+	ApprovalExpiryEvidence    map[int64]HealthApprovalEvidence    `json:"approval_expiry_evidence,omitempty"`
+	ApprovalRequests          int                                 `json:"approval_requests"`
+	failureInventory          []WorkflowRun
+	lifecycleResponses        map[string]healthLifecycleResponse
+	workflows                 []GitHubWorkflow
+	revisions                 map[string]*workflow.LockMetadata
+	headRevisions             map[string]*workflow.LockMetadata
+	sourceRevisions           map[string]string
+	fileSnapshots             map[string]healthFileSnapshot
+	lockSnapshots             map[string]healthLockSnapshot
+	localGit                  *healthLocalGit
+	localGitChecked           bool
+	LocalRevisionReads        int `json:"local_revision_reads"`
+	checkedRequests           int
+	repoOverride              string
+	stopped                   bool
+	visited                   map[string]struct{}
+	jobPresence               map[healthRunAttempt]bool
+	jobs                      map[healthRunAttempt]*healthJobs
+	cacheSummaries            map[healthRunAttempt]*RunSummary
+	failureScopes             map[string]map[string]struct{}
 }
 
 const healthMinimumRuns = 5
@@ -93,7 +123,16 @@ func healthAPI(collection *HealthCollection, endpoint string, extra ...string) (
 	out, err := healthRunGH(ctx, "Fetching health evidence...", args...)
 	if err != nil {
 		err = fmt.Errorf("health API request failed: %w: %s", err, strings.TrimSpace(string(out)))
-		if errorutil.IsRateLimitError(err.Error()) {
+		message := err.Error()
+		rateLimited := errorutil.IsRateLimitError(message)
+		// HTML failures may include full pages; bound the error before warnings or debug logging.
+		if slices.Contains(extra, "Accept: text/html") && (len(out) > 0 || len(message) > 256 || strings.Contains(message, "<")) {
+			err = errors.New("health HTML request failed: response omitted")
+			if rateLimited {
+				err = fmt.Errorf("health HTML request failed: %w", errLogsAPIRateLimitReached)
+			}
+		}
+		if rateLimited {
 			stopHealthCollection(collection, err)
 		}
 	}
@@ -108,7 +147,41 @@ func (config HealthConfig) collectionWorkflows() []GitHubWorkflow {
 }
 
 func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
-	if collection == nil || (!collection.Partial && collection.Warning == "") {
+	if collection == nil {
+		return nil
+	}
+	if _, err := fmt.Fprintf(w, "\n[health_evidence] producer=%q schema=%d observed_at=%s api_requests=%d job_requests=%d; bounded sample, not a fleet failure rate\n",
+		collection.ProducerVersion, collection.ReportSchemaVersion, collection.ObservedAt.Format(time.RFC3339),
+		collection.APIRequests, collection.JobRequests); err != nil {
+		return err
+	}
+	if err := renderHealthCacheEvidence(w, collection.CacheEvidence); err != nil {
+		return err
+	}
+	if err := renderHealthWorkQueue(w, collection.WorkQueue); err != nil {
+		return err
+	}
+	for _, id := range slices.Sorted(maps.Keys(collection.ApprovalExpiryEvidence)) {
+		evidence := collection.ApprovalExpiryEvidence[id]
+		if _, err := fmt.Fprintf(w, "[health_approval_expiry] run=%d attempt=%d status=%s reason=%q url=%s\n",
+			id, evidence.Attempt, evidence.Status, evidence.Reason, evidence.URL); err != nil {
+			return err
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(collection.PRLifecycleEvidence)) {
+		evidence := collection.PRLifecycleEvidence[id]
+		if _, err := fmt.Fprintf(w, "[health_pr_lifecycle] run=%d status=%s reason=%q pr=%d event_at=%s\n",
+			id, evidence.Status, evidence.Reason, evidence.Number, evidence.EventAt.Format(time.RFC3339)); err != nil {
+			return err
+		}
+	}
+	if collection.FailureCandidates > 0 {
+		if _, err := fmt.Fprintf(w, "\n[health_candidates] failed_runs=%d workflows=%d listing_complete=%t; list-only signals may include jobless or superseded runs, not a fleet failure rate\n",
+			collection.FailureCandidates, collection.FailureCandidateWorkflows, collection.FailureListingComplete); err != nil {
+			return err
+		}
+	}
+	if !collection.Partial && collection.Warning == "" {
 		return nil
 	}
 	_, err := fmt.Fprintf(w, "\n[health_collection]\npartial=%t reason=%s warning=%q\n",

@@ -60,6 +60,21 @@ describe("generate_aw_info.cjs", () => {
     expect(info.skills).toBeUndefined();
   });
 
+  // Compiled GH_AW_INFO_SUB_AGENT_MODELS of typist (Claude) and daily-arxiv-researcher (Codex,
+  // whose run 39394965127 never delegated), as written to their lock files.
+  it.each([
+    ["claude", '[{"model":"small","name":"duplicate-type-finder","patterns":["anthropic/*haiku*"]}]'],
+    [
+      "codex",
+      '[{"model":"openai/gpt-5.4-mini","name":"preliminary-investigator","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"paper-screener","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.4-mini","name":"relevance-ranker","patterns":["openai/gpt-5.4-mini"]},{"model":"openai/gpt-5.6-sol","name":"opportunity-extractor","patterns":["openai/gpt-5.6-sol"]}]',
+    ],
+  ])("claude_codex_aw_info_contains_declared_subagent_models (%s)", async (_engine, declarations) => {
+    process.env.GH_AW_INFO_SUB_AGENT_MODELS = declarations;
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.sub_agent_models).toEqual(JSON.parse(declarations));
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     // Keep compiler-fixed runner paths in memory; never write to the host's /tmp.
@@ -87,6 +102,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_AGENT_VERSION = "0.0.419";
     process.env.GH_AW_INFO_CLI_VERSION = "";
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
+    process.env.GH_AW_INFO_WORKFLOW_ID = "github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main";
     process.env.GH_AW_INFO_EXPERIMENTAL = "false";
     process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST = "true";
     delete process.env.GH_AW_INFO_CACHE_MEMORY;
@@ -124,6 +140,7 @@ describe("generate_aw_info.cjs", () => {
   });
 
   it("should write aw_info.json with values from env vars and context", async () => {
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     await main(mockCore, mockContext);
 
     expect(fs.existsSync(awInfoPath)).toBe(true);
@@ -133,6 +150,8 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.engine_name).toBe("GitHub Copilot CLI");
     expect(awInfo.model).toBe("gpt-4");
     expect(awInfo.workflow_name).toBe("my-workflow");
+    expect(awInfo.workflow_id).toBe("github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
+    expect(awInfo.workflow_call_id).toBe("12345-1:github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
     expect(awInfo.experimental).toBe(false);
     expect(awInfo.supports_tools_allowlist).toBe(true);
     expect(awInfo.cache_memory).toBe(false);
@@ -147,6 +166,47 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.firewall_enabled).toBe(false);
     expect(awInfo.features).toBeUndefined();
     expect(awInfo.created_at).toBeTruthy();
+  });
+
+  it("records the executing reusable workflow separately from its caller in the same run", async () => {
+    const callerRef = "github/my-repo/.github/workflows/caller.yml@refs/heads/main";
+    const executingRef = "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1";
+    process.env.GH_AW_INFO_WORKFLOW_ID = executingRef;
+    vi.stubEnv("GITHUB_WORKFLOW_REF", callerRef);
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
+    const caller = { repo: "github/my-repo", run_id: "12345", run_attempt: "2", workflow_id: callerRef, workflow_call_id: `12345-2:${callerRef}` };
+    await main(mockCore, { ...mockContext, payload: { inputs: { aw_context: JSON.stringify(caller) } } });
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info).toMatchObject({
+      workflow_id: executingRef,
+      workflow_call_id: `12345-2:${executingRef}`,
+      caller_workflow_ref: callerRef,
+      run_id: 12345,
+      run_attempt: "2",
+      event_name: "push",
+      context: caller,
+    });
+    expect(String(info.run_id)).toBe(info.context.run_id);
+    expect(info.workflow_id).not.toBe(info.context.workflow_id);
+    expect(info.workflow_call_id).not.toBe(info.context.workflow_call_id);
+  });
+
+  it("does not misidentify the caller as the executing workflow when its reference is unavailable", async () => {
+    delete process.env.GH_AW_INFO_WORKFLOW_ID;
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
+    vi.stubEnv("GITHUB_WORKFLOW_REF", "github/my-repo/.github/workflows/caller.yml@refs/heads/main");
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.workflow_id).toBe("");
+    expect(info.workflow_call_id).toBe("12345-2");
+    expect(info.caller_workflow_ref).toBe("github/my-repo/.github/workflows/caller.yml@refs/heads/main");
+  });
+
+  it("defaults the workflow call ID to the first attempt when the runner omits it", async () => {
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", undefined);
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.workflow_call_id).toBe("12345-1:github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
   });
 
   it("should record dry-run and explicitly report unverified extension effects", async () => {
@@ -425,6 +485,38 @@ describe("generate_aw_info.cjs", () => {
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("aw_context", "{}");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse aw_context input as JSON"));
+  });
+
+  it("exposes normalized webhook arrays in aw_info and expression outputs without requiring caller-run fields", async () => {
+    const deliveries = [
+      { delivery_id: "first", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
+      { delivery_id: "second", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/2", type: ["created"] } },
+      { delivery_id: "third", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
+    ];
+    const raw = { webhook: { event: "projects_v2_item", deliveries: [...deliveries, deliveries[0]] }, items: [{ item_number: "forged" }], item_number: "first-item-must-not-be-selected" };
+    const expected = {
+      webhook: { event: "projects_v2_item", deliveries },
+      items: [1, 2].map(number => ({ item_type: "projects_v2_item", item_number: String(number), repo: "", source: "https://api.github.com/orgs/org/projectsV2/1", url: `https://api.github.com/orgs/org/projectsV2/1/items/${number}` })),
+    };
+    for (const payload of [{ client_payload: { schema_version: 2, aw_context: raw } }, { inputs: { aw_context: JSON.stringify({ repo: "org/repo", run_id: "1", workflow_id: "parent", ...raw }) } }]) {
+      vi.clearAllMocks();
+      await main(mockCore, { ...mockContext, eventName: "repository_dispatch", payload });
+      const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+      expect(info.context).toMatchObject(expected);
+      expect(info.context.item_number).toBe("");
+      const [, json] = mockCore.setOutput.mock.calls.find(([key]) => key === "aw_context");
+      expect(JSON.parse(json)).toMatchObject(expected);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("forged");
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("do-not-log-payload");
+    }
+  });
+
+  it("fails malformed webhook arrays instead of returning an empty context", async () => {
+    const payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [] } } } };
+    await expect(main(mockCore, { ...mockContext, payload })).rejects.toThrow(/non-empty array/);
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("aw_context", expect.anything());
+    expect(fs.existsSync(awInfoPath)).toBe(false);
   });
 
   it("should reject aw_context with nested objects", async () => {
