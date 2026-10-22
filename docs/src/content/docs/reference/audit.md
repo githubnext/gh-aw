@@ -28,10 +28,71 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 | `--group` | off | Group audit findings so each `[run, code]` pair appears once with an occurrence count and representative entry |
 | `--no-baseline` | off | Skip baseline lookup and comparison for single-run audits; the Comparison section reports no baseline found |
+| `--search <query>` | off | Retrieve relevant unified-session evidence with local BM25 ranking (single-run only; incompatible with `--group` and job/step URLs) |
+| `--search-limit <n>` | `5` | Maximum evidence groups returned by `--search`, from 1 to 20 |
 
 Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`.
 
 By default a single-run audit renders a Comparison section against an earlier run of the same workflow. Use `--no-baseline` when that baseline is unrepresentative or to avoid the extra downloads. A `--no-baseline` result is never written to the audit cache, so it cannot suppress the Comparison section of a later default audit.
+
+### Searching session evidence
+
+```bash
+gh aw audit 1234567890 --search "api.example.com ERR_AUTH_401" --json
+gh aw audit 1234567890 --search "github.issue_read timeout" --search-limit 3
+```
+
+`--search` adds an `evidence_search` section without replacing the full audit.
+It indexes actual events from the downloaded, redacted `usage/aw_session.jsonl`
+(or root `aw_session.jsonl`), not raw engine logs or synthesized run summaries.
+Narrowed `--artifacts` selections automatically include `usage`. Missing,
+malformed, unsupported, oversized, or symlinked unified-session inputs produce
+an error rather than a partial search presented as complete. Search accepts
+queries up to 1,024 bytes and sessions up to 64 MiB, 20,000 events, and 256
+distinct stages. Decoded data is bounded to 64 nesting levels.
+
+Ranking uses an in-memory BM25 index with no model calls, embeddings, external
+search service, or persistent index. Paths, tool names, domains, and error codes
+are indexed both as full identifiers and as components. Exact repeated events
+share one ranking document so retries cannot dominate relevance statistics.
+BM25 scores only complete decoded event fields and event types, never Drain3
+templates or anomaly scores. Identifiers remain searchable even when a
+displayed template masks them.
+
+Repetition grouping is automatic; there is no Drain3 option to configure.
+Exact duplicates share occurrence counts without mining. Drain3 runs only when
+more matches exist than the requested result limit and the first `limit + 1`
+ranked candidates include repeated component/phase/type stages with identical
+structured outcomes. It mines up to the first 2,048 bytes of each actual event
+in session order. A template group is used only when it combines at least two
+of those candidates and its displayed template costs fewer bytes than the
+suppressed evidence excerpts. Grouping preserves BM25 scores and the highest
+ranked representative; it never reranks results.
+
+Explicit outcome fields (including success, error, exit code, status, job result,
+and firewall decision) partition groups, so success and failure counts cannot
+be combined. `occurrences` counts all events in that outcome-specific group;
+`matching_occurrences` counts its query-matching events. Ungrouped events and
+exact-duplicate groups omit `cluster_id`, `template`, and `anomaly_score`.
+Drain3 IDs are scoped to the run-local stage and are not stable across queries
+or indexes.
+
+Each result includes up to three matching source references, a representative
+event, and its preceding and following session events. References retain JSONL
+line numbers, event IDs, timestamps, and original artifact paths/indexes when
+present.
+
+`bm25_score` measures query relevance; `anomaly_score` separately describes
+Drain3's online assessment when the representative event was ingested, when
+grouping is used (zero scores may be omitted). Neither
+score determines finding severity, confidence, audit completeness, or threat
+absence. Zero matches do not mean a run is safe. Matches are relevance-ordered;
+their references and neighboring context preserve session chronology.
+
+Returned excerpts are capped at 600 bytes each and template/excerpt text at
+16 KiB overall. `text_bytes`, report-level `truncated`, and per-excerpt
+`truncated` indicate these bounds. Search results and query text are never
+written into the shared audit cache; each query reads the unified session anew.
 
 **Single-run examples:**
 
