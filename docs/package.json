@@ -33,12 +33,12 @@
     "mermaid": "11.17.2",
     "sharp": "^0.35.5",
     "starlight-blog": "^0.30.0",
-    "starlight-changelogs": "^0.7.0",
+    "starlight-changelogs": "^0.7.1",
     "starlight-links-validator": "0.26.0",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "@types/primer__octicons": "^19.21.0",
     "http-server": "^14.1.1",
     "satori": "^0.33.5",
