@@ -146,7 +146,7 @@ func TestWorkCommandPolicyFromConfigClosedFlags(t *testing.T) {
 		cmd := NewWorkCommand()
 		cmd.SetOut(io.Discard)
 		cmd.SetErr(io.Discard)
-		cmd.SetArgs(arguments)
+		cmd.SetArgs(append([]string{"--repo", "github/gh-aw"}, arguments...))
 		if err := cmd.Execute(); err == nil || (!strings.Contains(err.Error(), "--epoch") && !strings.Contains(err.Error(), "mutually exclusive")) {
 			t.Fatalf("invalid policy configuration selectors were accepted: %v", err)
 		}
