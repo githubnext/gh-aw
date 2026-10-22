@@ -1,24 +1,24 @@
 {
-  "run_date": "2026-10-21T18:34:34Z",
-  "run_id": "39652840494",
+  "run_date": "2026-10-22T00:54:02Z",
+  "run_id": "39702220314",
   "source": "pr-triage",
-  "eligible_total": 5,
-  "cooldown_skipped": 0,
-  "open_copilot_prs": 5,
+  "eligible_total": 6,
+  "cooldown_skipped": 2,
+  "open_copilot_prs": 8,
   "category_counts": {
-    "bug": 5
+    "bug": 6
   },
   "risk_counts": {
     "low": 2,
-    "medium": 1,
+    "medium": 2,
     "high": 2
   },
   "priority_counts": {
-    "medium": 5
+    "medium": 6
   },
   "action_counts": {
     "auto_merge": 2,
-    "fast_track": 1,
+    "fast_track": 2,
     "batch_review": 0,
     "defer": 2,
     "close": 0
@@ -26,26 +26,35 @@
   "batches": [
     {
       "id": "guardrails",
-      "members": [
-        70343,
-        70346,
-        70347
-      ],
+      "members": [70343, 70346, 70347],
       "reason": "guardrail and trusted-bot policy fixes"
     }
   ],
   "selected_candidates": [
+    {
+      "number": 70861,
+      "title": "Resolve Claude detection model aliases before CLI launch",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 68,
+      "score_breakdown": {"impact": 35, "urgency": 15, "quality": 18},
+      "action": "fast_track",
+      "batch": null,
+      "labels": [
+        "pr-type:bug",
+        "pr-risk:medium",
+        "pr-priority:medium",
+        "pr-action:fast_track",
+        "pr-agent:copilot"
+      ]
+    },
     {
       "number": 70347,
       "title": "Honor runner proxy settings in CLI proxy and MCP gateway containers",
       "category": "bug",
       "risk": "medium",
       "priority_score": 65,
-      "score_breakdown": {
-        "impact": 30,
-        "urgency": 15,
-        "quality": 20
-      },
+      "score_breakdown": {"impact": 30, "urgency": 15, "quality": 20},
       "action": "fast_track",
       "batch": "guardrails",
       "labels": [
@@ -63,11 +72,7 @@
       "category": "bug",
       "risk": "low",
       "priority_score": 60,
-      "score_breakdown": {
-        "impact": 25,
-        "urgency": 15,
-        "quality": 20
-      },
+      "score_breakdown": {"impact": 25, "urgency": 15, "quality": 20},
       "action": "auto_merge",
       "batch": "guardrails",
       "labels": [
@@ -85,11 +90,7 @@
       "category": "bug",
       "risk": "low",
       "priority_score": 55,
-      "score_breakdown": {
-        "impact": 20,
-        "urgency": 15,
-        "quality": 20
-      },
+      "score_breakdown": {"impact": 20, "urgency": 15, "quality": 20},
       "action": "auto_merge",
       "batch": "guardrails",
       "labels": [
@@ -107,11 +108,7 @@
       "category": "bug",
       "risk": "high",
       "priority_score": 60,
-      "score_breakdown": {
-        "impact": 30,
-        "urgency": 18,
-        "quality": 12
-      },
+      "score_breakdown": {"impact": 30, "urgency": 18, "quality": 12},
       "action": "defer",
       "batch": null,
       "labels": [
@@ -128,11 +125,7 @@
       "category": "bug",
       "risk": "high",
       "priority_score": 57,
-      "score_breakdown": {
-        "impact": 33,
-        "urgency": 12,
-        "quality": 12
-      },
+      "score_breakdown": {"impact": 33, "urgency": 12, "quality": 12},
       "action": "defer",
       "batch": null,
       "labels": [
@@ -144,6 +137,6 @@
       ]
     }
   ],
-  "skipped_prs": [],
-  "notes": "Eligible set filtered to app/github-copilot PRs older than 1 hour at 2026-10-21T18:29:47Z."
+  "skipped_prs": [70952, 70942],
+  "notes": "Eligible set filtered to open app/github-copilot PRs older than 1 hour at 2026-10-22T00:54:02Z. PRs 70952 and 70942 were skipped under the 1-hour cooldown."
 }
