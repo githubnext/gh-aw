@@ -496,10 +496,11 @@ Claim directories and files use modes `0700` and `0600`. Writers redact availabl
 configured secrets, gateway tokens and built-in credential patterns from decoded
 JSON keys and values before serialization. After delivery verification, the
 existing redactor applies the worker job's configured secrets and any recoverable
-agent-log runtime masks. Upload requires successful redaction and defaults to
-one-day retention; `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` can override that
-repository-wide default. Ordinary workflows and queue observers gain no Claim
-paths or extra redaction step.
+agent-log runtime masks. Upload requires successful redaction. Successful worker
+jobs default to one-day retention; failed worker jobs retain `safe-outputs-items`
+for seven days. The repository artifact-retention policy or
+`GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` overrides these defaults. Ordinary
+workflows and queue observers gain no Claim paths or extra redaction step.
 
 Redaction does not anonymize repository names, resource IDs or URLs, and cannot
 identify arbitrary personal data or unknown secrets. Opaque runtime masks
