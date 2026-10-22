@@ -1,8 +1,8 @@
 # ADR-71194: Validate Gallery Docs by Compiling Linked Repository Workflows
 
 **Date**: 2026-10-22
-**Status**: Draft
-**Deciders**: pelikhan (PR author); [TODO: verify additional reviewers]
+**Status**: Accepted
+**Deciders**: pelikhan (PR author)
 
 ---
 
@@ -12,7 +12,7 @@ Documentation gallery pages (for example `docs/src/content/docs/gallery/linter-f
 
 ### Decision
 
-We will treat repository workflows linked from gallery pages as the source of truth for documentation examples and validate them by compiling each linked `.github/workflows/<name>.md` in an isolated temporary `.github/workflows` fixture. The fixture copies `.github/skills` and `.github/aw`, copies subdirectories, symlinks sibling workflow files (excluding the target and its `.lock.yml`), and compiles the target with `SetApprove(true)`. Pages that link to repository workflows fall back to this path when no `gh aw add` directive is present; the work-queue factory test now asserts the exact set of linked eslint workflows instead of compiling patched excerpts.
+Repository workflows linked from gallery pages are the source of truth for documentation examples. Tests validate each linked `.github/workflows/<name>.md` by compiling it in an isolated temporary `.github/workflows` fixture. The fixture copies `.github/skills` and `.github/aw`, copies subdirectories, symlinks sibling workflow files (excluding the target and its `.lock.yml`), and compiles the target with `SetApprove(true)`. Pages fall back to linked workflows only when no inline primary example or `agentics-workflow` directive is present. Malformed or duplicate inline examples remain fatal, even alongside valid links or directives. The work-queue factory test asserts the exact set of linked eslint workflows instead of compiling patched excerpts.
 
 ### Alternatives Considered
 
@@ -46,4 +46,4 @@ This would be cheapest, but it would not detect a linked workflow that stops com
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+Implementation: [PR #71194](https://github.com/github/gh-aw/pull/71194).
