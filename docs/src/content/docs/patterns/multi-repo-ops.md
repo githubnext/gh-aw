@@ -49,7 +49,7 @@ Authentication details and step-by-step setup are covered in the [Triage from Si
 
 ## CentralRepoOps
 
-For org-wide rollouts and aggregated tracking across many repositories, see [CentralRepoOps](/gh-aw/patterns/central-repo-ops/). It covers two models: a **central control plane** that dispatches work to target repos, and a **central tracker repo** where component repos push events for unified visibility.
+For automation hosted centrally and targeting software in one or more other repositories, see [CentralRepoOps](/gh-aw/patterns/central-repo-ops/). Workers can run on their own schedules; an orchestrator is optional. The central automation repository can also collect events from component repos for unified visibility.
 
 ## Flowing Changes to Downstream Repositories
 
