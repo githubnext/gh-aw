@@ -42,6 +42,7 @@ func NewCopilotEngine() *CopilotEngine {
 			experimental:     false,
 			ghSkillAgentName: "github-copilot",
 			capabilities: EngineCapabilities{
+				OTEL:                 true,
 				ToolsAllowlist:       true,
 				MCP:                  true,
 				MaxTurns:             true,  // AWF max-turns is supported for Copilot runs

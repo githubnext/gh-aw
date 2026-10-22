@@ -16296,6 +16296,10 @@
                 "capabilities": {
                   "type": "object",
                   "properties": {
+                    "otel": {
+                      "type": "boolean",
+                      "description": "Whether the engine can export OpenTelemetry using standard OTEL_* environment variables. This declares engine support only; automatic agent export requires an AWF OTLP gateway."
+                    },
                     "tools-allowlist": {
                       "type": "boolean"
                     },

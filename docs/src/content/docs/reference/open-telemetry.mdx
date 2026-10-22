@@ -156,7 +156,9 @@ When observability is enabled, trace data is also mirrored to local JSONL files 
 
 - `otel.jsonl` for spans emitted by gh-aw JavaScript helpers
 
-Copilot CLI inherits the standard OpenTelemetry environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`) and exports its own spans directly to the configured OTLP backend. Query them there, filtered by the `github.run_id` resource attribute (see [ADR-34450](https://github.com/github/gh-aw/blob/main/docs/adr/34450-inject-otel-resource-attributes-for-child-otel-sdk-correlation.md)).
+The engine interface exposes an `OTEL` capability for engines that consume standard `OTEL_*` exporter variables. Copilot CLI and Claude Code declare support; declarative engines can declare `engine.behaviors.capabilities.otel: true`. The capability describes engine support, not whether export is enabled for a run.
+
+Automatic agent-native export is pending an [AWF credential-isolated OTLP gateway](https://github.com/github/gh-aw-firewall/issues/10445). AWF currently forwards environment variables and proxies OTLP/HTTP egress, but does not provide an agent-facing collector that isolates upstream credentials. Exporter endpoints, headers, and multi-target configuration therefore remain excluded from the agent sandbox. The intended integration uses only the default collector for agent telemetry; gh-aw's own multi-target export is unchanged.
 
 See [Artifacts](/gh-aw/reference/artifacts/) for artifact download details.
 

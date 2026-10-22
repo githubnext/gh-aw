@@ -111,6 +111,9 @@ type Engine interface {
 // EngineCapabilities captures optional engine features.
 // New capabilities should be added here so existing engines inherit the zero-value default.
 type EngineCapabilities struct {
+	// OTEL reports whether the engine exports OpenTelemetry using standard OTEL_* variables.
+	OTEL bool
+
 	// ToolsAllowlist reports whether the engine supports MCP tool allow-listing.
 	ToolsAllowlist bool
 

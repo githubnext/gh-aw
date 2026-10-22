@@ -130,6 +130,7 @@ type ModelSelection struct {
 // EngineCapabilitiesDefinition captures declarative engine capabilities loaded from
 // engine definition frontmatter.
 type EngineCapabilitiesDefinition struct {
+	OTEL                 bool `yaml:"otel,omitempty"`
 	ToolsAllowlist       bool `yaml:"tools-allowlist,omitempty"`
 	MaxTurns             bool `yaml:"max-turns,omitempty"`
 	WebSearch            bool `yaml:"web-search,omitempty"`
@@ -144,6 +145,7 @@ type EngineCapabilitiesDefinition struct {
 // runtime EngineCapabilities struct used by CodingAgentEngine implementations.
 func (d EngineCapabilitiesDefinition) ToRuntimeCapabilities() EngineCapabilities {
 	return EngineCapabilities{
+		OTEL:                 d.OTEL,
 		ToolsAllowlist:       d.ToolsAllowlist,
 		MaxTurns:             d.MaxTurns,
 		WebSearch:            d.WebSearch,

@@ -33,6 +33,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			experimental:     false,
 			ghSkillAgentName: "claude-code",
 			capabilities: EngineCapabilities{
+				OTEL:                 true,
 				ToolsAllowlist:       true,
 				MCP:                  true,
 				MaxTurns:             true,  // Claude supports max-turns feature

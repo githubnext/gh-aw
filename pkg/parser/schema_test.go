@@ -14,6 +14,7 @@ func TestValidateMainWorkflowFrontmatter_CheckoutAllowPrivateRepos(t *testing.T)
 		checkout := map[string]any{
 			"repo": "${{ vars.REPOS }}", "path": "targets", "allowed-repos": "org/*", "allow-private-repos": value,
 		}
+
 		for _, config := range []any{checkout, []any{checkout}} {
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
 				"on": "workflow_dispatch", "engine": "copilot", "checkout": config,
@@ -22,6 +23,25 @@ func TestValidateMainWorkflowFrontmatter_CheckoutAllowPrivateRepos(t *testing.T)
 			if (err == nil) != valid {
 				t.Fatalf("allow-private-repos=%v: validation error = %v, valid %t", value, err, valid)
 			}
+		}
+	}
+}
+
+func TestValidateIncludedFileFrontmatter_OTELCapability(t *testing.T) {
+	for _, value := range []any{true, false, "true", 1, nil} {
+		err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(map[string]any{
+			"engine": map[string]any{
+				"id":           "custom",
+				"display-name": "Custom",
+				"behaviors": map[string]any{
+					"execution":    map[string]any{"command-name": "custom"},
+					"capabilities": map[string]any{"otel": value},
+				},
+			},
+		}, "engine.md")
+		_, valid := value.(bool)
+		if (err == nil) != valid {
+			t.Fatalf("otel=%v: validation error = %v, valid %t", value, err, valid)
 		}
 	}
 }
