@@ -117,7 +117,9 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 				return nil, 0, err
 			}
 			if !hasJobs {
-				observeHealthApprovalExpiry(run, collection)
+				if err := observeHealthApprovalExpiry(run, collection); err != nil {
+					return nil, 0, err
+				}
 				healthLog.Printf("Ignoring run %d with no jobs", run.DatabaseID)
 				continue
 			}
