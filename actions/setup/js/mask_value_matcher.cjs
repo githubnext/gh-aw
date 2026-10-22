@@ -56,14 +56,19 @@ function* maskedValueMatches(text, maskedValues, allowed = () => true, overlappi
 }
 
 /**
- * @param {Iterable<{start: number, end: number, value: string, ambiguous?: boolean}>} matches
+ * @param {Iterable<{start: number, end: number, value: string, ambiguous?: boolean, replacement?: string}>} matches
  */
 function* overlappingMatchGroups(matches) {
   let group;
   for (const match of matches) {
     if (group && match.start < group.end) {
       group.end = Math.max(group.end, match.end);
-      if (match.value.length > group.value.length) group.value = match.value;
+      if (match.value.length > group.value.length) {
+        group.value = match.value;
+        group.replacement = match.replacement;
+      } else if (match.replacement !== undefined && match.value.length === group.value.length) {
+        group.replacement = match.replacement;
+      }
       group.ambiguous ||= match.ambiguous;
     } else {
       if (group) yield group;

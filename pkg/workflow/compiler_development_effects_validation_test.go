@@ -138,10 +138,6 @@ Analyze the repository.
 	require.ErrorContains(t, c.CompileWorkflow(path), "jobs.upload_assets.restore-memory")
 	require.NoFileExists(t, filepath.Join(dir, "workflow.lock.yml"))
 	c.SetDryRun(false)
-	require.NoError(t, c.CompileWorkflow(path))
-	lock, err := os.ReadFile(filepath.Join(dir, "workflow.lock.yml"))
-	require.NoError(t, err)
-	section := extractJobSection(string(lock), "upload_assets")
-	assert.Contains(t, section, "Restore cache-memory")
-	assert.Contains(t, section, "BASH_ENV: ./unsafe.sh")
+	require.ErrorContains(t, c.CompileWorkflow(path), "jobs.upload_assets: this name is reserved")
+	require.NoFileExists(t, filepath.Join(dir, "workflow.lock.yml"))
 }

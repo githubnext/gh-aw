@@ -39,7 +39,7 @@ class DailyPRReviewIntegrityTests(unittest.TestCase):
         self.assertIn("Do not attempt the remaining candidates after that denial", self.text)
         self.assertIn("mark them **Not attempted**", self.text)
         self.assertIn("not **Blocked** as though each had returned a denial", self.text)
-        self.assertIn("gh-aw-mcpg v0.4.36", self.text)
+        self.assertIn("gh-aw-mcpg v0.4.37", self.text)
         self.assertIn("meaningful diff review remains unavailable", self.text)
 
     def test_filtered_content_has_no_alternate_transport_or_trust_workaround(self):

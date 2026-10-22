@@ -25,7 +25,11 @@ func renderEpisodeView(out io.Writer, data LogsData, view string, jsonOutput boo
 		return encoder.Encode(data)
 	}
 	if retrieval := data.EpisodeRetrieval; retrieval != nil && retrieval.Cached {
-		if _, err := fmt.Fprintf(out, "Cached episode snapshot from %s; no GitHub requests. Use --refresh to collect again.\n", retrieval.CollectedAt.Format(time.RFC3339)); err != nil {
+		status := "no GitHub requests"
+		if data.Outcomes != nil {
+			status = "membership reused; outcomes checked live"
+		}
+		if _, err := fmt.Fprintf(out, "Cached episode snapshot from %s; %s. Use --refresh to collect again.\n", retrieval.CollectedAt.Format(time.RFC3339), status); err != nil {
 			return fmt.Errorf("write episode cache status: %w", err)
 		}
 	}
@@ -80,4 +84,17 @@ func renderEpisodeHops(out io.Writer, data LogsData) error {
 		return fmt.Errorf("write episode explanation: %w", err)
 	}
 	return nil
+}
+
+func renderLogsEpisodeOutcomes(out io.Writer, data LogsData, episodes bool) error {
+	if episodes {
+		if len(data.Episodes) == 0 {
+			if _, err := fmt.Fprintln(out, "\nNo recorded episodes in the selected runs; episode membership is unavailable."); err != nil {
+				return fmt.Errorf("write episode coverage: %w", err)
+			}
+		} else if err := renderEpisodeHops(out, data); err != nil {
+			return err
+		}
+	}
+	return renderLogsOutcomes(out, data)
 }

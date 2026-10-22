@@ -144,12 +144,14 @@ func determineMCPPropertyOrder(toolName string, mcpConfig *parser.RegistryMCPSer
 		return []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry", "required"}, true
 	case "http":
 		if renderer.Format == "toml" {
-			return []string{"url", "http_headers"}, true
+			// Forward-looking: production HTTP MCP callers currently use JSON;
+			// this TOML property order is not exercised by engine compilation.
+			return []string{"url", "ca_cert_file", "http_headers"}, true
 		}
 		if len(headerSecrets) > 0 {
-			return []string{"type", "url", "headers", "auth", "tools", "env", "required"}, true
+			return []string{"type", "url", "caCertFile", "headers", "auth", "tools", "env", "required"}, true
 		}
-		return []string{"type", "url", "headers", "auth", "tools", "required"}, true
+		return []string{"type", "url", "caCertFile", "headers", "auth", "tools", "required"}, true
 	default:
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpConfig.Type)))
 		return nil, false
@@ -188,6 +190,8 @@ func shouldRenderMCPProperty(prop string, mcpConfig *parser.RegistryMCPServerCon
 		return len(mcpConfig.Env) > 0 || len(headerSecrets) > 0
 	case "url":
 		return mcpConfig.URL != ""
+	case "caCertFile", "ca_cert_file":
+		return mcpConfig.CACertFile != ""
 	case "headers", "http_headers":
 		return len(mcpConfig.Headers) > 0
 	case "auth":
@@ -213,7 +217,7 @@ func renderMCPProperties(yaml *strings.Builder, properties []string, mcpConfig *
 
 func renderMCPProperty(yaml *strings.Builder, property string, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
 	switch property {
-	case "type", "container", "entrypoint", "command", "url", "registry", "required":
+	case "type", "container", "entrypoint", "command", "url", "registry", "required", "caCertFile", "ca_cert_file":
 		renderMCPScalarProperty(yaml, property, isLast, mcpConfig, renderer)
 	case "tools", "entrypointArgs", "mounts", "args", "proxy-args":
 		renderMCPArrayProperty(yaml, property, isLast, mcpConfig, renderer)
@@ -251,6 +255,11 @@ func renderMCPScalarProperty(yaml *strings.Builder, property string, isLast bool
 		renderMCPStringScalar(yaml, renderer, "url", urlValue, isLast)
 	case "registry":
 		renderMCPStringScalar(yaml, renderer, "registry", mcpConfig.Registry, isLast)
+	case "caCertFile", "ca_cert_file":
+		value := mcpConfig.CACertFile
+		value = strings.ReplaceAll(value, "${{ github.workspace }}", `\${GITHUB_WORKSPACE}`)
+		value = strings.ReplaceAll(value, "${{ runner.temp }}", `\${RUNNER_TEMP}`)
+		renderMCPStringScalar(yaml, renderer, property, value, isLast)
 	case "required":
 		if renderer.Format == "json" && mcpConfig.Required != nil && !*mcpConfig.Required {
 			fmt.Fprintf(yaml, "%s\"required\": false%s\n", renderer.IndentLevel, renderMCPComma(isLast))
@@ -437,6 +446,7 @@ func validateMCPKnownProperties(toolConfig map[string]any, toolName string) erro
 		"url":            {},
 		"headers":        {},
 		"auth":           {},
+		"ca-cert-file":   {},
 		"registry":       {},
 		"allowed":        {},
 		"toolsets":       {},
@@ -600,6 +610,10 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		return nil, err
 	}
 	result.Type = mcpType
+	result.CACertFile, err = parser.ParseMCPCACertFile(toolConfig, result.Type, toolName)
+	if err != nil {
+		return nil, err
+	}
 
 	if registry, ok := config.GetString("registry"); ok {
 		result.Registry = registry

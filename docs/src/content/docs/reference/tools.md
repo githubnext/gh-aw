@@ -291,7 +291,35 @@ mcp-servers:
     allowed: ["send_message", "get_channel_history"]
 ```
 
-**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions), `required` (startup criticality). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+**Options**: `command` + `args` (process-based), `container` (Docker image), `url` + `headers` (HTTP endpoint), `ca-cert-file` (per-server HTTPS CA trust), `registry` (MCP registry URI), `env` (environment variables), `allowed` (tool restrictions), `required` (startup criticality). See [MCPs Guide](/gh-aw/guides/mcps/) for setup.
+
+### Custom CA Certificates
+
+`ca-cert-file` adds PEM CA certificates to system trust for one custom HTTPS MCP server. Other servers, the runner, and model-provider connections keep their existing trust. Certificate and hostname verification remain enabled. Requires MCP Gateway v0.4.35 or later; the default gateway includes support.
+
+```yaml wrap
+mcp-servers:
+  internal:
+    type: http
+    url: https://mcp.internal.example/mcp
+    ca-cert-file: .github/certs/internal-ca.pem
+```
+
+The path is relative to `GITHUB_WORKSPACE`, or an absolute Linux host path. For a custom checkout path such as `checkout: { path: target }`, include that directory: `ca-cert-file: target/.github/certs/internal-ca.pem`. The exact prefixes `${{ github.workspace }}/` and `${{ runner.temp }}/` are also supported. Paths may contain letters, digits, spaces, `_`, `.`, `/`, and `-`; parent-directory traversal, shell substitutions, and other expressions are rejected. The file must exist and be readable by the runner before the **Start MCP Gateway** step. The launcher resolves symlinks and mounts only that file read-only at a gateway-private path, including when `sandbox.mcp.mounts` overrides the defaults. No extra gateway mount configuration is needed.
+
+For PEM content stored in a secret, a reviewed setup step can provision the file through an environment variable; the server then uses `ca-cert-file: "${{ runner.temp }}/internal-ca.pem"`:
+
+```yaml wrap
+steps:
+  - name: Provision MCP CA
+    env:
+      MCP_CA_PEM: ${{ secrets.MCP_CA_PEM }}
+    run: |
+      umask 077
+      printf '%s\n' "$MCP_CA_PEM" > "$RUNNER_TEMP/internal-ca.pem"
+```
+
+Do not put a private key in this file. Missing or unreadable files fail startup; malformed PEM or files without valid CA certificates are rejected by the gateway without printing certificate contents. `ca-cert-file` is not supported for stdio servers or plain HTTP URLs. Local `gh aw mcp inspect` reports this gateway-only setting as unsupported rather than ignoring it. This setting does not replace the separate model-provider `sandbox.agent.ca-cert` configuration.
 
 ### Required Field
 

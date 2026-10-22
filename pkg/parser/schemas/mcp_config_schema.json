@@ -23,6 +23,7 @@
     {
       "type": "http",
       "url": "https://api.example.com/mcp",
+      "ca-cert-file": ".github/certs/private-ca.pem",
       "headers": {
         "Authorization": "Bearer ${{ secrets.API_TOKEN }}"
       }
@@ -128,6 +129,11 @@
         }
       ]
     },
+    "ca-cert-file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "PEM CA file trusted only for this HTTPS MCP server. Repository-relative or absolute host path; supports github.workspace and runner.temp prefixes. Provision before gateway startup."
+    },
     "headers": {
       "type": "object",
       "patternProperties": {
@@ -213,6 +219,17 @@
   "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
   "additionalProperties": false,
   "allOf": [
+    {
+      "if": { "required": ["ca-cert-file"] },
+      "then": {
+        "required": ["url"],
+        "properties": {
+          "type": { "enum": ["http"] },
+          "url": { "pattern": "^https://" }
+        },
+        "not": { "anyOf": [{ "required": ["command"] }, { "required": ["container"] }] }
+      }
+    },
     {
       "if": {
         "properties": {

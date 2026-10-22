@@ -22,7 +22,7 @@ Avoid custom impact formulas. Read the metrics gh-aw already exposes in layers, 
 | --- | --- | --- |
 | Operations | Run count, completion rate, retries, duration | [`gh aw logs`](/gh-aw/setup/cli/#logs) and [`gh aw health`](/gh-aw/setup/cli/#health) |
 | Cost efficiency | AIC and AIC per successful run | [`gh aw logs`](/gh-aw/setup/cli/#logs) and [Cost Management](/gh-aw/reference/cost-management/) |
-| Outcomes | Accepted, rejected, pending, acceptance rate, time to outcome | [`gh aw outcomes`](/gh-aw/setup/cli/#outcomes) |
+| Outcomes | Accepted, rejected, pending, acceptance rate, time to outcome | [`gh aw logs --outcomes`](/gh-aw/setup/cli/#logs---outcomes) |
 | Long-term impact | Backlog, review time, defects, or another repository-specific goal | Repository analytics or organization reporting |
 
 Long-term impact is the hardest to attribute. Start with run volume, success, cost, and acceptance over time; once stable, connect them to whether outputs reduced later work.
@@ -35,17 +35,18 @@ use this measurement loop:
 1. Choose an observation window, such as the last 30 days, and record the workflow's run count, successful runs, and AIC.
 2. Identify the runs that produced safe outputs. No additional `outcomes:` configuration is required; outcome evaluation uses the safe-output artifacts from each run.
 3. Allow enough time for repository activity to reveal the result. For example, wait for a proposed pull request to be reviewed or an issue to be resolved.
-4. Evaluate each run with `gh aw outcomes RUN_ID`. Run the command again later for outputs that are still `pending`.
+4. Evaluate selected runs with `gh aw logs WORKFLOW --outcomes`. Run the command again later for outputs that are still `pending`.
 5. Compare similar output types over time. Track accepted outcomes and AIC per accepted outcome, then investigate workflows whose acceptance falls or cost rises.
 
 For a quick machine-readable summary:
 
 ```bash wrap
-gh aw outcomes 1234567890 --json |
-  jq '.summary | {total, accepted, rejected, ignored, pending, acceptance_rate}'
+gh aw logs weekly-research --outcomes --json |
+  jq '.outcomes[] | {run_id, summary}'
 ```
 
-The run ID is in the GitHub Actions run URL. The command downloads the run's safe-output artifacts and checks the current state of the affected objects. See [Outcomes](/gh-aw/reference/outcomes/#evaluating-outcomes-in-practice)
+For a specific run, pipe its ID to `gh aw logs --stdin --repo owner/repo --outcomes`.
+The command downloads safe-output manifests and checks the current state of the affected objects. See [Outcomes](/gh-aw/reference/outcomes/#evaluating-outcomes-in-practice)
 for evaluation timing, result interpretation, and telemetry export.
 
 Use built-in telemetry first; for repository-wide or organization-wide trends, send the same data to [OpenTelemetry](/gh-aw/reference/open-telemetry/).
@@ -58,7 +59,7 @@ A workflow can look efficient alone while reducing total system value, for examp
 
 Waste is any cost, time, or reviewer attention that does not produce proportional value: redundant runs, duplicate outputs, repeated context collection, expensive model calls for deterministic work, and outputs with consistently low acceptance.
 
-Use the `object_url` and `repo` fields from `gh aw outcomes --json` to find multiple workflows acting on the same object before changing triggers or consolidating workflows.
+Use the `object_url` and `repo` fields in `.outcomes[].items[]` from `gh aw logs --outcomes --json` to find multiple workflows acting on the same object before changing triggers or consolidating workflows.
 
 Typical fixes: consolidate overlapping workflows, share intermediate artifacts, cache stable context, and move deterministic work out of the agent path.
 

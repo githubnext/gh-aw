@@ -17,7 +17,6 @@ import (
 	"github.com/github/gh-aw/pkg/intent"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var outcomeEvalLog = logger.New("cli:outcome_eval")
@@ -107,6 +106,7 @@ var outcomeEvaluators = map[string]outcomeEvaluator{
 // EvaluateOutcomes checks the current state of all safe output items from a run.
 // The mapping parameter is required and defines how labels map to objective values.
 func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverride string, mapping *github.ObjectiveMapping) []OutcomeReport {
+	ctx = withOutcomeAPICache(ctx)
 	outcomeEvalLog.Printf("Evaluating outcomes: items=%d, repo_override=%q", len(items), repoOverride)
 	if repoOverride == "" {
 		slug, err := GetCurrentRepoSlug()
@@ -124,10 +124,7 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 			skipped++
 			continue
 		}
-		repo := item.Repo
-		if repo == "" {
-			repo = repoOverride
-		}
+		repo := resolveItemRepo(item, repoOverride)
 		eval, ok := outcomeEvaluators[item.Type]
 		if !ok {
 			outcomeEvalLog.Printf("No evaluator registered for type %q, using generic sticky", item.Type)
@@ -239,23 +236,12 @@ func ghAPIGet(ctx context.Context, endpoint string, repo string) (map[string]any
 	if err := validateAPIEndpoint(endpoint); err != nil {
 		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
 	}
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	outcomeEvalLog.Printf("gh api GET: repo=%s, endpoint=%s, host=%q", ownerRepo, endpoint, host)
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
 	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint))}
-	var output []byte
-	var err error
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
-	}
+	result, err := requestOutcomeJSON[map[string]any](ctx, repo, args)
 	if err != nil {
 		outcomeEvalLog.Printf("gh api GET failed: endpoint=%s, err=%v", endpoint, err)
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
-	}
-	var result map[string]any
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("parsing response for %s: %w", endpoint, err)
 	}
 	return result, nil
 }
@@ -265,21 +251,18 @@ func ghAPIGetArray(ctx context.Context, endpoint string, repo string) ([]map[str
 	if err := validateAPIEndpoint(endpoint); err != nil {
 		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
 	}
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
-	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint)), "--paginate", "--slurp"}
-	var output []byte
-	var err error
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
+	if labels, ok := outcomeCachedLabels(ctx, endpoint, repo); ok {
+		return labels, nil
+	}
+	ownerRepo, _ := repoutil.NormalizeRepoForAPI(repo)
+	args := []string{"api", fmt.Sprintf("repos/%s/%s", escapeOwnerRepo(ownerRepo), escapeEndpoint(endpoint)),
+		"--method", "GET", "-f", "per_page=100", "--paginate", "--slurp"}
+	pages, err := requestOutcomeJSON[[][]map[string]any](ctx, repo, args)
 	if err != nil {
 		return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
-	}
-	var pages [][]map[string]any
-	if err := json.Unmarshal(output, &pages); err != nil {
-		return nil, fmt.Errorf("parsing response for %s: %w", endpoint, err)
 	}
 	var result []map[string]any
 	for _, page := range pages {
@@ -314,23 +297,13 @@ func buildGraphQLArgs(query string, variables map[string]any) ([]string, error) 
 // ghAPIGraphQL calls the GitHub GraphQL API via gh cli and returns the parsed JSON.
 // Values are passed as GraphQL variables rather than interpolated into the query text.
 func ghAPIGraphQL(ctx context.Context, query string, variables map[string]any, repo string) (map[string]any, error) {
-	ownerRepo, host := repoutil.NormalizeRepoForAPI(repo)
 	args, err := buildGraphQLArgs(query, variables)
 	if err != nil {
 		return nil, err
 	}
-	var output []byte
-	if host != "" {
-		output, err = workflow.RunGHContextWithHost(ctx, "Checking outcome...", host, args...)
-	} else {
-		output, err = workflow.RunGH("Checking outcome...", args...)
-	}
+	result, err := requestOutcomeJSON[map[string]any](ctx, repo, args)
 	if err != nil {
 		return nil, fmt.Errorf("gh api graphql: %w", err)
-	}
-	var result map[string]any
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("parsing graphql response for %s: %w", ownerRepo, err)
 	}
 	return result, nil
 }
@@ -385,17 +358,35 @@ func isBotUser(login string) bool {
 	return strings.HasSuffix(login, "[bot]") || login == "github-actions" || login == "copilot-swe-agent"
 }
 
-// resolveItemRepo returns the repo to use for API calls, preferring the item's repo field.
+// resolveItemRepo prefers the item's repository, inheriting its URL or run host when hostless.
 func resolveItemRepo(item CreatedItemReport, repoOverride string) string {
-	if item.Repo != "" {
+	repo, host := repoutil.NormalizeRepoForAPI(item.Repo)
+	if host != "" {
 		return item.Repo
 	}
-	if item.URL != "" {
-		if r := parseRepoFromURL(item.URL); r != "" {
-			return r
+	_, host = repoutil.NormalizeRepoForAPI(repoOverride)
+	if objectURL, err := url.Parse(item.URL); err == nil && objectURL.Host != "" &&
+		(objectURL.Scheme == "https" || objectURL.Scheme == "http") {
+		owner, rest, found := strings.Cut(strings.Trim(objectURL.Path, "/"), "/")
+		repository, _, _ := strings.Cut(rest, "/")
+		if found && owner != "" && repository != "" {
+			if repo == "" {
+				repo = strings.Join([]string{owner, repository}, "/")
+			}
+			// An explicit object URL can target a different host from the run.
+			if objectURL.Host != "github.com" || host != "" {
+				return strings.Join([]string{objectURL.Host, repo}, "/")
+			}
+			return repo
 		}
 	}
-	return repoOverride
+	if repo == "" {
+		return repoOverride
+	}
+	if host != "" {
+		return strings.Join([]string{host, repo}, "/")
+	}
+	return repo
 }
 
 // resolveItemNumber returns the object number, trying item.Number first then URL parsing.

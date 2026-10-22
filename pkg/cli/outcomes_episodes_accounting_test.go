@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -26,18 +25,21 @@ func writeEpisodeAccountingFiles(t *testing.T, dir string, files map[string]stri
 func runEpisodeAccountingReport(t *testing.T, files map[string]string) (EpisodeOutcomesData, string) {
 	t.Helper()
 	dir := t.TempDir()
-	logsPath := filepath.Join(dir, "logs.json")
-	content, err := json.Marshal(episodeLogs(1))
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
-	outcomesDir := filepath.Join(dir, "outcomes")
-	writeOutcomeJSONL(outcomesDir, 1, []OutcomeReport{episodeObservation(1, "item-1", OutcomeStatusAccepted).OutcomeReport})
-	writeEpisodeAccountingFiles(t, filepath.Join(dir, "run-1"), files)
-	var stdout, stderr bytes.Buffer
-	require.NoError(t, runOutcomesEpisodes(logsPath, outcomesDir, dir, true, &stdout, &stderr))
-	var report EpisodeOutcomesData
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
-	return report, stderr.String()
+	writeEpisodeAccountingFiles(t, dir, files)
+	logs := episodeLogs(1)
+	logs.Runs[0].LogsPath = dir
+	data := LogsData{Runs: logs.Runs, Episodes: []EpisodeData{logs.Episodes[0].EpisodeData}}
+	reports := []OutcomesData{{RunID: 1, Items: []OutcomeReport{episodeObservation(1, "item-1", OutcomeStatusAccepted).OutcomeReport}}}
+	require.NoError(t, attachLogsOutcomes(&data, reports))
+	require.NotNil(t, data.EpisodeOutcomes)
+	require.Len(t, data.EpisodeOutcomes.Episodes, 1)
+	var diagnostics []string
+	for _, qualification := range data.EpisodeOutcomes.Episodes[0].Qualifications {
+		if strings.HasPrefix(qualification, "Run 1: ") {
+			diagnostics = append(diagnostics, qualification)
+		}
+	}
+	return *data.EpisodeOutcomes, strings.Join(diagnostics, "\n")
 }
 
 func TestEpisodeAccountingPhaseSources(t *testing.T) {
@@ -278,30 +280,6 @@ func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	assert.InDelta(t, 1.0, usage.TotalAIC, 1e-9)
-}
-
-func TestEpisodeOutcomesUseConfinedFallbackForRelocatedReport(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	logsPath := filepath.Join(dir, "logs.json")
-	logs := episodeLogs(42)
-	logs.Runs[0].LogsPath = "/old/cache/run-42"
-	content, err := json.Marshal(logs)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
-	outcomesDir := filepath.Join(dir, "outcomes")
-	writeOutcomeJSONL(outcomesDir, 42, []OutcomeReport{episodeObservation(42, "item-42", OutcomeStatusAccepted).OutcomeReport})
-	writeEpisodeAccountingFiles(t, filepath.Join(dir, "run-42"), map[string]string{
-		"usage/agent_usage.jsonl": episodeAccountingAWFRecord("relocated-run", 0.5, 0.5),
-	})
-	var stdout, stderr bytes.Buffer
-	require.NoError(t, runOutcomesEpisodes(logsPath, outcomesDir, dir, true, &stdout, &stderr))
-	var report EpisodeOutcomesData
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
-	require.Len(t, report.Episodes, 1)
-	require.NotNil(t, report.Episodes[0].ObservedAIC)
-	assert.InDelta(t, 0.5, *report.Episodes[0].ObservedAIC, 1e-9)
-	require.Empty(t, stderr.String())
 }
 
 func TestEpisodeAccountingPrefixedAgentDiscovery(t *testing.T) {

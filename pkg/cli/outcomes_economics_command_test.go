@@ -65,30 +65,19 @@ func TestRunOutcomesSupplementaryAIC(t *testing.T) {
 				require.NoError(t, os.Symlink(usageDir, filepath.Join(usageDir, "agent_usage.jsonl")))
 			}
 
-			stdout, err := os.Create(filepath.Join(dir, "stdout.json"))
-			require.NoError(t, err)
-			t.Cleanup(func() { _ = stdout.Close() })
-			originalStdout := os.Stdout
 			outcomesDir := filepath.Join(dir, "outcomes")
 			var runErr error
+			var reports []OutcomesData
 			stderr := testutil.CaptureStderr(t, func() {
-				os.Stdout = stdout
-				defer func() { os.Stdout = originalStdout }()
-				runErr = RunOutcomes(context.Background(), OutcomesConfig{
-					RunID:        42,
-					RepoOverride: "acme/repo",
-					OutputDir:    dir,
-					OutcomesDir:  outcomesDir,
-					JSONOutput:   true,
-				})
+				reports, runErr = collectLogsOutcomes(context.Background(), []ProcessedRun{{Run: WorkflowRun{
+					DatabaseID: 42, Repository: "acme/repo", LogsPath: runDir,
+				}}}, outcomesDir, false)
 			})
 			require.NoError(t, runErr)
-			require.NoError(t, stdout.Close())
-
-			output, err := os.ReadFile(stdout.Name())
+			require.Len(t, reports, 1)
+			data := reports[0]
+			output, err := json.Marshal(data)
 			require.NoError(t, err)
-			var data OutcomesData
-			require.NoError(t, json.Unmarshal(output, &data))
 			require.Len(t, data.Items, 2)
 			assert.Equal(t, 2, data.Summary.Accepted)
 			assert.InDelta(t, tc.cost, data.Summary.CostPerAcceptedOutcome, 1e-9)
