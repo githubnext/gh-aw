@@ -373,13 +373,39 @@ func TestUnifiedDebuggingInstructions(t *testing.T) {
 		assert.Contains(t, string(content), section)
 	}
 	assert.Contains(t, string(content), "gh aw mcp inspect WORKFLOW --server NAME")
-	assert.Contains(t, string(content), "gh aw audit RUN_ID RUN_ID_2 RUN_ID_3 --group --json")
+	assert.Contains(t, string(content), "gh aw audit RUN_ID RUN_ID_2 RUN_ID_3 --repo HOST/OWNER/REPO --group --json")
 	assert.Contains(t, string(content), "Explicit no-dispatch rules")
-	assert.Contains(t, string(content), "No automatic dispatch retries")
-	assert.Contains(t, string(content), "Docker unavailability does not block the gate")
-	assert.Contains(t, string(content), "gh aw validate WORKFLOW")
-	assert.Contains(t, string(content), "gh aw compile WORKFLOW --dry-run --zizmor --actionlint --poutine")
-	assert.Contains(t, string(content), "`validate` itself skips them")
+	for _, guide := range []struct {
+		file     string
+		contains []string
+	}{
+		{
+			file: "debug-live-testing.md",
+			contains: []string{
+				"## Live Debug Loop",
+				"No automatic dispatch retries",
+			},
+		},
+		{
+			file: "debug-compilation.md",
+			contains: []string{
+				"## Development Compilation",
+				"Docker-based scanners and `--validate-images` are opt-in",
+				"gh aw validate WORKFLOW",
+				"gh aw compile WORKFLOW --dry-run --zizmor --actionlint --poutine",
+				"`validate` uses `--no-emit`, which skips zizmor, actionlint and poutine",
+			},
+		},
+	} {
+		t.Run(guide.file, func(t *testing.T) {
+			assert.Contains(t, string(content), "]("+guide.file)
+			guideContent, err := os.ReadFile(filepath.Join(awDir, guide.file))
+			require.NoError(t, err)
+			for _, expected := range guide.contains {
+				assert.Contains(t, string(guideContent), expected)
+			}
+		})
+	}
 	_, err = os.Stat(filepath.Join(awDir, "local-debug.md"))
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
