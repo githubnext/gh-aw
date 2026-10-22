@@ -218,17 +218,17 @@ Check producer/version, record location, completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md); inspect read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
-work or bypass profiles/effect scopes.
+Read-only [queue playbook](work-queue.md): verify repo/branch/tip, epoch, fingerprint,
+Work/Claim/Delivery IDs, run binding/receipts.
+Pending projection != claim failure.
+Never rewrite history, fabricate evidence, reuse cross-work credentials/request IDs
+or bypass profiles/effect scopes.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
-| `unsupported_protocol`, `codec_invalid`, `invalid_json`, `invalid_utf8`, `invalid_unicode`, `duplicate_key`, `noncanonical_number` | Version, canonical bytes, keys, Unicode/numbers. | Align producer/reader; regenerate input, not history. |
+| `unsupported_protocol`, `codec_invalid`, `invalid_json`, `invalid_utf8`, `invalid_unicode`, `duplicate_key`, `noncanonical_number` | Version/canonical bytes/keys/Unicode/numbers. | Align producer/reader; regenerate input only. |
 | `ledger_invalid`, `ledger_foreign`, `ledger_nonextending` | Queue identity, DAG, ancestry. | Stop publication; recover trusted queue/tip via protocol. |
-| `queue_missing`, `policy_missing` | Queue location; trusted config. | Approved AW-managed bootstrap/deployment; no manual admin seeding. |
+| `queue_missing`, `policy_missing` | Queue/trusted config. | Approved AW-managed bootstrap/deployment; no manual admin seeding. |
 | `repository_unavailable`, `repository_scope_invalid`, `branch_invalid`, `git_transport_failed` | Repo/branch, checkout credentials, Git failure. | Restore authorized transport/target; reread uncertain publication tip. |
 | `actor_unauthorized`, `admission_unauthorized`, `unauthorized_operation`, `ownership_unauthorized`, `work_unauthorized`, `dependency_unauthorized`, `projection_unauthorized`, `resource_unauthorized` | Principal, role/profile, operation/resource scope. | Use authorized actor/path; no impersonation/scope expansion. |
 | `policy_invalid`, `policy_epoch_invalid`, `policy_proposal_mismatch`, `profile_invalid`, `pool_invalid`, `dispatcher_invalid` | Schema, approved revision, epoch, pools/dispatcher. | Correct trusted config via supported deployment/update. |
@@ -254,11 +254,12 @@ work or bypass profiles/effect scopes.
 | `result_invalid`, `completion_conflict`, `cancellation_conflict`, `ownership_terminal`, `work_terminal`, `work_missing` | Work/ownership state; finish/result intent. | Respect terminal transitions; reconcile duplicate/conflicting completion/cancellation. |
 | `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
-| `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
-| `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
-| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
-| `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Limit/count. | Bound/batch/compact via supported operations; retain limits. |
+| `issue_binding_invalid`, `issue_binding_conflict` | Binding/ownership. | Correct authorized binding; no cross-Work adoption. |
+| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity/scope/CAS. | Reconcile ledger/projection; preserve history. |
+| `projection_target_unavailable`, `projection_unavailable` | Target visibility/identity; safe HTTP status/request ID/journal. | Diagnose request/access failure; inaccessible != deleted. |
+| `projection_write_ambiguous` | Exact native acknowledgement/receipts. | Possibly executed: reconcile before retry; retain uncertain locks. |
+| `projection_receipt_pending`, `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint/pacing/pages; immutable Issue/canonical comment receipts. | Bounded reconciliation; no duplicate writes/recreated mirrors; never mistake pending for terminal failure. |
 
 ## Unmapped codes
 
