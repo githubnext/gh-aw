@@ -35,7 +35,7 @@ func mustWorkQueueOperation(t testing.TB, value any) workqueue.Operation {
 
 func TestWorkCommandClosedOperatorSurfaces(t *testing.T) {
 	command := NewWorkCommand()
-	for _, required := range []string{"compact", "trace", "explain", "state", "inspect", "cancel-claim", "reprioritize", "tui", "dispatch"} {
+	for _, required := range []string{"compact", "trace", "explain", "state", "inspect", "cancel-claim", "reprioritize", "sync-issues", "tui", "dispatch"} {
 		found := false
 		for _, subcommand := range command.Commands() {
 			if subcommand.Name() == required {
@@ -70,6 +70,9 @@ func TestWorkCommandClosedOperatorSurfaces(t *testing.T) {
 		{"explain", "--before-claim", "chosen", "--work-id", "work"},
 		{"explain", "--before-claim", "chosen", "--request-id", "request"},
 		{"cancel-claim"},
+		{"sync-issues", "--repo", "owner/repo"},
+		{"sync-issues", "--repo", "owner/repo", "--all"},
+		{"sync-issues", "--repo", "owner/repo", "--work-id", "chosen"},
 		{"cancel-claim", "--claim-id", "x,x", "--reason", "operator_cancelled"},
 		{"reprioritize", "--work-id", "work", "--priority", "6", "--reason", "operator_reprioritized"},
 		{"inspect", "--work-id", "work", "--claim-id", "claim"},

@@ -19,6 +19,11 @@ echo "🔍 Validating prompt placeholders..."
 # Strip inline code spans (`...`) before checking, since backtick-quoted occurrences
 # are documentation/code examples (e.g., in PR descriptions) and not actual placeholders.
 STRIPPED_PROMPT=$(sed 's/`[^`]*`//g' "$PROMPT_FILE")
+# Only compiler-declared late bindings may remain until the agent job.
+read -r -a DEFERRED_PLACEHOLDERS <<< "${GH_AW_DEFERRED_PLACEHOLDERS:-}"
+for placeholder in "${DEFERRED_PLACEHOLDERS[@]}"; do
+    STRIPPED_PROMPT=${STRIPPED_PROMPT//"$placeholder"/}
+done
 if printf '%s\n' "$STRIPPED_PROMPT" | grep -q "__GH_AW_"; then
     echo "❌ Error: Found unreplaced placeholders in prompt file:"
     echo ""

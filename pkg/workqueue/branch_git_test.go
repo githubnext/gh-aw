@@ -25,6 +25,25 @@ func disposableQueueGit(t *testing.T, remote string) *queueGit {
 	return q
 }
 
+func TestQueueGitExplicitHost(t *testing.T) {
+	t.Setenv("GH_HOST", "github.com")
+	t.Setenv("GH_ENTERPRISE_TOKEN", "host-specific-test-token")
+	t.Setenv("TMPDIR", ".")
+	branch := Branch{Remote: "owner/repo", Name: DefaultBranch, Host: "github.enterprise.example"}
+	branch, cleanup, err := branch.withLedger(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if branch.ledger.remote != "https://github.enterprise.example/owner/repo.git" {
+		t.Fatalf("queue ledger used a different host: %s", branch.ledger.remote)
+	}
+	branch.Host, branch.ledger = "invalid/host", nil
+	if _, _, err := branch.withLedger(context.Background()); err == nil || err.Error() != "invalid queue Git host" {
+		t.Fatalf("invalid explicit queue host was accepted: %v", err)
+	}
+}
+
 func TestQueueGitBoundsObjectOutputAndCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	output := &queueGitOutput{limit: 4, cancel: cancel}

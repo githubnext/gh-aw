@@ -246,6 +246,12 @@ func TestHealthOnlyNoJobFailuresRemainInsufficient(t *testing.T) {
 	}
 	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		switch {
+		case args[3] == "repos/org/repo":
+			return []byte(`{"full_name":"org/repo","default_branch":"main"}`), nil
+		case strings.Contains(args[3], "/contents/.github/workflows?"):
+			return []byte(`[{"path":".github/workflows/example.lock.yml","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"file"}]`), nil
+		case strings.Contains(args[3], "/git/blobs/"):
+			return []byte("jobs: {}"), nil
 		case strings.Contains(args[3], "/actions/workflows?"):
 			return []byte(`{"workflows":[{"id":1,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
 		case strings.Contains(args[3], "/actions/runs?status=failure"):

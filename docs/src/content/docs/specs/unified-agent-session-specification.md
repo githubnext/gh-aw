@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical traces, full unified artifacts, and bounded compact unified sessions.
 sidebar:
   order: 1365
-version: "2.1.0"
+version: "2.2.0"
 status: Draft
-publication_date: "2026-10-20"
+publication_date: "2026-10-21"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 2.1.0<br>
+**Version**: 2.2.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-20<br>
+**Publication Date**: 2026-10-21<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 2.1.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 2.2.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -957,8 +957,12 @@ Each payload has required non-empty strings `engine` and `role` (`main` or the
 sub-agent name) and `configured_model`; `resolved_model` and `provider` are
 strings or `null`; `status` is `resolved` (an alias resolved against the live
 catalogue), `exact` (an exact id passed through unchanged), or `failed`; and
-`cause` is `null` unless `status` is `failed`, when it is `model_unavailable` or
-`catalog_unavailable` and `resolved_model` is `null`. Unknown source fields are
+`cause` is `null` unless `status` is `failed`, when it is `model_unavailable`,
+`catalog_unavailable`, or `unsupported_endpoint` and `resolved_model` is `null`.
+`unsupported_endpoint` means the model is live, but its `/reflect`
+`supported_endpoints` on the configured provider do not include the endpoint the
+engine calls (for example `/responses` for Codex sub-agents), or the alias
+resolves only to such models. Unknown source fields are
 excluded; an absent record does not imply that a model was or was not resolved.
 
 #### Routing analytics
@@ -2388,6 +2392,11 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 2.2.0 — Draft (2026-10-21)
+
+- Added `model.resolution` cause `unsupported_endpoint` for a live model whose `/reflect` `supported_endpoints` do not include the endpoint the engine calls (T-UAS-074).
+- Retained serialization-format version 1.
 
 ### Version 2.1.0 - Draft (2026-10-20)
 

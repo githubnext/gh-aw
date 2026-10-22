@@ -169,7 +169,7 @@ func (b Branch) recoverDeploymentCheckpoint(ctx context.Context, head string, co
 	if !extending(original, repaired) {
 		return nil, queueError("ledger_invalid", "checkpoint recovery cannot change accepted history")
 	}
-	state, err := Replay(repaired)
+	state, err := ReplayForHost(repaired, b.Host)
 	if err != nil {
 		return nil, err
 	}

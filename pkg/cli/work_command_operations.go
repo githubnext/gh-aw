@@ -84,6 +84,14 @@ func workRunOperator(cmd *cobra.Command, selector string, claims, priority bool)
 	message := fmt.Sprintf("Cancelled %d selected Work; native reservations retained until definitive evidence", len(targets))
 	if priority {
 		message = fmt.Sprintf("Priority %d recorded for %d available Work; age and debt preserved", value, len(targets))
+	} else {
+		sync, err := workBranch(cmd).SynchronizeIssueTransition(cmd.Context(), id)
+		if err != nil {
+			return fmt.Errorf("queue cancellation committed; Issue synchronization pending; retry sync-issues --request-id %s: %w", id, err)
+		}
+		if !sync.Disabled {
+			message += fmt.Sprintf("; %d existing Issue mirrors synchronized", sync.Synchronized)
+		}
 	}
 	return workPrint(cmd, published, message+"; request="+id)
 }

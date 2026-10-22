@@ -1,0 +1,293 @@
+{
+  "endpoints": [
+    {
+      "provider": "openai",
+      "port": 10000,
+      "base_url": "http://api-proxy:10000",
+      "configured": false,
+      "models": null,
+      "models_url": "http://api-proxy:10000/v1/models"
+    },
+    {
+      "provider": "anthropic",
+      "port": 10001,
+      "base_url": "http://api-proxy:10001",
+      "configured": false,
+      "models": null,
+      "models_url": "http://api-proxy:10001/v1/models"
+    },
+    {
+      "provider": "copilot",
+      "port": 10002,
+      "base_url": "http://api-proxy:10002",
+      "configured": true,
+      "models": [
+        "claude-haiku-4.5",
+        "claude-haiku-5.5",
+        "claude-opus-5",
+        "claude-opus-5.5",
+        "claude-sonnet-5",
+        "claude-sonnet-5.5",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0613",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-4-o-preview",
+        "gpt-4.1",
+        "gpt-4.1-2025-04-14",
+        "gpt-41-copilot",
+        "gpt-4o",
+        "gpt-4o-2024-05-13",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-11-20",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-5.3-codex",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-utility",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-6-astra",
+        "gpt-6-luna",
+        "gpt-6-sol",
+        "gpt-6.1-sol",
+        "grok-4.6",
+        "grok-4.7",
+        "mai-code-1.1-flash",
+        "text-embedding-3-small",
+        "text-embedding-3-small-inference",
+        "text-embedding-ada-002",
+        "trajectory-compaction"
+      ],
+      "models_url": "http://api-proxy:10002/models",
+      "routing_models": [
+        {
+          "model_id": "claude-haiku-4.5",
+          "supported_endpoints": ["/chat/completions", "/v1/messages"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-haiku-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-opus-5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-opus-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-sonnet-5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-sonnet-5.5",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-3.5-turbo",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-3.5-turbo-0613",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4-0613",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4-o-preview",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4.1",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4.1-2025-04-14",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-41-copilot",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o-2024-05-13",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o-2024-08-06",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o-2024-11-20",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o-mini",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-4o-mini-2024-07-18",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-5.3-codex",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-luna",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-luna-utility",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "gpt-5.6-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-terra",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-astra",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-luna",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6.1-sol",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "grok-4.6",
+          "supported_endpoints": ["/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "grok-4.7",
+          "supported_endpoints": ["/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "mai-code-1.1-flash",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "text-embedding-3-small",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "text-embedding-3-small-inference",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "text-embedding-ada-002",
+          "supported_endpoints": [],
+          "candidate_metadata_complete": false
+        },
+        {
+          "model_id": "trajectory-compaction",
+          "supported_endpoints": ["/chat/completions"],
+          "candidate_metadata_complete": false
+        }
+      ]
+    },
+    {
+      "provider": "gemini",
+      "port": 10003,
+      "base_url": "http://api-proxy:10003",
+      "configured": false,
+      "models": null,
+      "models_url": "http://api-proxy:10003/v1beta/models"
+    },
+    {
+      "provider": "vertex",
+      "port": 10004,
+      "base_url": "http://api-proxy:10004",
+      "configured": false,
+      "models": null,
+      "models_url": null
+    }
+  ],
+  "models_fetch_complete": true,
+  "model_aliases": {
+    "agent": ["sonnet-6x", "gpt-6", "gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-5.3", "gemini-pro", "any"],
+    "any": ["copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"],
+    "auto": ["copilot/auto", "large"],
+    "claude": ["agent"],
+    "codex": ["agent"],
+    "coding": ["copilot/gpt-5*codex*", "openai/gpt-5*codex*", "gpt-5-codex", "kimi"],
+    "copilot": ["agent"],
+    "detection": ["small"],
+    "evals": ["small"],
+    "gemini": ["agent"],
+    "gpt-5": ["copilot/gpt-5*", "openai/gpt-5*"],
+    "gpt-5-codex": ["copilot/gpt-5*codex*", "openai/gpt-5*codex*"],
+    "gpt-5.3": ["copilot/gpt-5.3*", "openai/gpt-5.3*"],
+    "gpt-5.6": ["copilot/gpt-5.6*", "openai/gpt-5.6*"],
+    "gpt-6": ["copilot/gpt-6*", "openai/gpt-6*"],
+    "grok": ["copilot/*grok*", "openai/*grok*"],
+    "haiku": ["copilot/*haiku*", "anthropic/*haiku*"],
+    "large": ["sonnet", "gpt-6", "gpt-5-pro", "gpt-5", "gemini-pro"],
+    "mai-code": ["copilot/MAI-Code*", "copilot/mai-code*", "openai/MAI-Code*"],
+    "mini": ["haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"],
+    "opus": ["copilot/*opus*", "anthropic/*opus*"],
+    "opusplan": ["opus?effort=high"],
+    "small": ["mini"],
+    "small-agent": ["haiku", "gpt-5-mini", "gemini-flash"],
+    "sonnet": ["copilot/*sonnet*", "anthropic/*sonnet*"],
+    "sonnet-6x": ["copilot/*sonnet-4.5*", "copilot/*sonnet-4.6*", "copilot/*sonnet-5*", "copilot/*sonnet-4-5-*", "anthropic/*sonnet-4-5-*", "copilot/*sonnet-4-6*", "anthropic/*sonnet-4-6*", "anthropic/*sonnet-5*"],
+    "summarization": ["haiku", "gpt-5-mini", "gemini-flash-lite", "mini"]
+  }
+}

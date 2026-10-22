@@ -114,6 +114,20 @@ func renderIncompleteAuditIfTimedOut(cfg auditRunConfig, run WorkflowRun, result
 }
 
 func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
+	if opts.Search != "" {
+		if opts.SearchLimit == 0 {
+			opts.SearchLimit = defaultAuditSearchLimit
+		}
+		if err := validateAuditSearch(opts.Search, opts.SearchLimit); err != nil {
+			return auditRunConfig{}, err
+		}
+		if opts.Group || opts.JobID > 0 {
+			return auditRunConfig{}, errors.New("--search requires a single run without --group or job selection")
+		}
+		if len(opts.ArtifactSets) > 0 {
+			opts.ArtifactSets = append(append([]string(nil), opts.ArtifactSets...), "usage")
+		}
+	}
 	if err := ValidateArtifactSets(opts.ArtifactSets); err != nil {
 		return auditRunConfig{}, err
 	}
@@ -136,6 +150,8 @@ func newAuditRunConfig(runID int64, opts AuditOptions) (auditRunConfig, error) {
 		evalsOnly:              opts.EvalsOnly,
 		group:                  opts.Group,
 		noBaseline:             opts.NoBaseline,
+		search:                 opts.Search,
+		searchLimit:            opts.SearchLimit,
 		evalsArtifactRequested: isEvalsArtifactRequested(opts.EvalsOnly, opts.ArtifactSets),
 	}, nil
 }
@@ -208,16 +224,18 @@ func (cfg auditRunConfig) jobOptions() auditJobRunOptions {
 
 func (cfg auditRunConfig) auditOptions() AuditOptions {
 	return AuditOptions{
-		Owner:      cfg.owner,
-		Repo:       cfg.repo,
-		Hostname:   cfg.hostname,
-		OutputDir:  cfg.outputDir,
-		Verbose:    cfg.verbose,
-		Parse:      cfg.parse,
-		JSONOutput: cfg.jsonOutput,
-		EvalsOnly:  cfg.evalsOnly,
-		Group:      cfg.group,
-		NoBaseline: cfg.noBaseline,
+		Owner:       cfg.owner,
+		Repo:        cfg.repo,
+		Hostname:    cfg.hostname,
+		OutputDir:   cfg.outputDir,
+		Verbose:     cfg.verbose,
+		Parse:       cfg.parse,
+		JSONOutput:  cfg.jsonOutput,
+		EvalsOnly:   cfg.evalsOnly,
+		Group:       cfg.group,
+		NoBaseline:  cfg.noBaseline,
+		Search:      cfg.search,
+		SearchLimit: cfg.searchLimit,
 	}
 }
 
@@ -229,6 +247,15 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (done
 	summary, ok := loadRunSummary(cfg.outputDir, cfg.verbose)
 	if !ok {
 		return false, false, nil
+	}
+	if cfg.search != "" {
+		path, err := findUnifiedSessionPath(cfg.outputDir)
+		if err != nil {
+			return false, false, err
+		}
+		if path == "" {
+			return false, false, invalidateCompleteArtifactDownloadMarker(cfg.outputDir)
+		}
 	}
 	if cfg.includeWorkQueue && len(cfg.artifactFilter) > 0 && len(findMissingFilterEntries(cfg.artifactFilter, cfg.outputDir)) > 0 {
 		return false, false, nil
@@ -270,7 +297,7 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (done
 
 func invalidateCompleteArtifactDownloadMarker(runOutputDir string) error {
 	markerPath := filepath.Join(runOutputDir, downloadedArtifactsMarkerDir, string(ArtifactSetAll))
-	if err := os.Remove(markerPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(markerPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to invalidate complete artifact download marker: %w", err)
 	}
 	return nil

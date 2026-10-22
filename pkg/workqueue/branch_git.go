@@ -67,7 +67,10 @@ func (b Branch) withLedger(ctx context.Context) (Branch, func(), error) {
 	if b.ledgerRequestFn != nil || b.ledger != nil {
 		return b, func() {}, nil
 	}
-	host, _ := auth.DefaultHost()
+	host := b.Host
+	if host == "" {
+		host, _ = auth.DefaultHost()
+	}
 	if !resourceHostPattern.MatchString(strings.ToLower(host)) {
 		return b, nil, errors.New("invalid queue Git host")
 	}

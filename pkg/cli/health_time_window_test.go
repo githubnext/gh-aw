@@ -94,6 +94,7 @@ func TestHealthCommandTimeWindowFlags(t *testing.T) {
 
 func TestHealthTimeWindowReachesSamplingAndJSON(t *testing.T) {
 	stubHealthFailureCandidates(t)
+	stubHealthTimeWindowAPI(t)
 	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
 	t.Cleanup(func() { healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList })
 	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) {
@@ -167,6 +168,7 @@ func TestHealthRunListingPreservesTimeWindowAcrossPages(t *testing.T) {
 
 func TestHealthDaysOnlyPeriodThroughCommand(t *testing.T) {
 	stubHealthFailureCandidates(t)
+	stubHealthTimeWindowAPI(t)
 	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
 	t.Cleanup(func() { healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList })
 	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) {
@@ -186,6 +188,26 @@ func TestHealthDaysOnlyPeriodThroughCommand(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal([]byte(output), &report))
 	assert.Equal(t, "Current status (up to 7 days)", report.Period)
+}
+
+func stubHealthTimeWindowAPI(t *testing.T) {
+	t.Helper()
+	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+	}
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		switch args[3] {
+		case "repos/org/repo":
+			return []byte(`{"full_name":"org/repo","default_branch":"main"}`), nil
+		case "repos/org/repo/contents/.github/workflows?ref=main":
+			return []byte(`[]`), nil
+		default:
+			t.Fatalf("unexpected health API request: %v", args)
+			return nil, nil
+		}
+	}
 }
 
 func TestHealthTimeWindowTextOutput(t *testing.T) {

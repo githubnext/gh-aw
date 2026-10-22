@@ -50,7 +50,23 @@ func (c *Compiler) validatePromptNeedsAvailableBeforeActivation(data *WorkflowDa
 	}
 
 	allowed := c.activationDependencySetForPromptNeeds(data)
-	for _, jobName := range extractNeedsJobReferencesFromPrompt(c.collectRuntimeImportMarkdownForCompilerAnalysis(data)) {
+	runtimeMarkdown := c.collectRuntimeImportMarkdownForCompilerAnalysis(data)
+	promptMarkdown := data.MarkdownContent + "\n" + data.ImportedMarkdown + "\n" + runtimeMarkdown
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(wrapExpressionsInTemplateConditionals(promptMarkdown))
+	if err != nil {
+		return err
+	}
+	beforeActivation := make([]string, 0, len(allowed))
+	for jobName := range allowed {
+		beforeActivation = append(beforeActivation, jobName)
+	}
+	for _, mapping := range mappings {
+		if canDeferPromptExpression(mapping, mappings, data.Jobs, beforeActivation, promptMarkdown) {
+			runtimeMarkdown = strings.ReplaceAll(runtimeMarkdown, mapping.Original, "")
+		}
+	}
+	for _, jobName := range extractNeedsJobReferencesFromPrompt(runtimeMarkdown) {
 		if _, isCustomJob := data.Jobs[jobName]; !isCustomJob || setutil.Contains(allowed, jobName) {
 			continue
 		}

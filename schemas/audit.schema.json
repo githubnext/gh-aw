@@ -5490,6 +5490,341 @@
             "cost"
           ],
           "additionalProperties": false
+        },
+        "evidence_search": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "run_id": {
+              "type": "integer"
+            },
+            "source": {
+              "type": "string"
+            },
+            "query": {
+              "type": "string"
+            },
+            "indexed_events": {
+              "type": "integer"
+            },
+            "matching_events": {
+              "type": "integer"
+            },
+            "text_bytes": {
+              "type": "integer"
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "matches": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "bm25_score": {
+                    "type": "number"
+                  },
+                  "stage": {
+                    "type": "string"
+                  },
+                  "cluster_id": {
+                    "type": "integer"
+                  },
+                  "template": {
+                    "type": "string"
+                  },
+                  "occurrences": {
+                    "type": "integer"
+                  },
+                  "matching_occurrences": {
+                    "type": "integer"
+                  },
+                  "anomaly_score": {
+                    "type": "number"
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "properties": {
+                      "reference": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "type": [
+                              "null",
+                              "array"
+                            ],
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 255
+                            }
+                          },
+                          "agent_id": {
+                            "type": "string"
+                          },
+                          "component": {
+                            "type": "string"
+                          },
+                          "phase": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "index": {
+                            "type": [
+                              "null",
+                              "integer"
+                            ]
+                          },
+                          "native": {
+                            "type": [
+                              "null",
+                              "object"
+                            ],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "index": {
+                                "type": [
+                                  "null",
+                                  "integer"
+                                ]
+                              },
+                              "persistedPath": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "line",
+                          "type",
+                          "component"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "truncated": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "reference",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "references": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "line": {
+                          "type": "integer"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "timestamp": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 255
+                          }
+                        },
+                        "agent_id": {
+                          "type": "string"
+                        },
+                        "component": {
+                          "type": "string"
+                        },
+                        "phase": {
+                          "type": "string"
+                        },
+                        "path": {
+                          "type": "string"
+                        },
+                        "index": {
+                          "type": [
+                            "null",
+                            "integer"
+                          ]
+                        },
+                        "native": {
+                          "type": [
+                            "null",
+                            "object"
+                          ],
+                          "properties": {
+                            "path": {
+                              "type": "string"
+                            },
+                            "index": {
+                              "type": [
+                                "null",
+                                "integer"
+                              ]
+                            },
+                            "persistedPath": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "line",
+                        "type",
+                        "component"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "context": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "reference": {
+                          "type": "object",
+                          "properties": {
+                            "line": {
+                              "type": "integer"
+                            },
+                            "id": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "timestamp": {
+                              "type": [
+                                "null",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 255
+                              }
+                            },
+                            "agent_id": {
+                              "type": "string"
+                            },
+                            "component": {
+                              "type": "string"
+                            },
+                            "phase": {
+                              "type": "string"
+                            },
+                            "path": {
+                              "type": "string"
+                            },
+                            "index": {
+                              "type": [
+                                "null",
+                                "integer"
+                              ]
+                            },
+                            "native": {
+                              "type": [
+                                "null",
+                                "object"
+                              ],
+                              "properties": {
+                                "path": {
+                                  "type": "string"
+                                },
+                                "index": {
+                                  "type": [
+                                    "null",
+                                    "integer"
+                                  ]
+                                },
+                                "persistedPath": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "line",
+                            "type",
+                            "component"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "reference",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "bm25_score",
+                  "stage",
+                  "occurrences",
+                  "matching_occurrences",
+                  "evidence",
+                  "references"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "run_id",
+            "source",
+            "query",
+            "indexed_events",
+            "matching_events",
+            "text_bytes",
+            "truncated",
+            "matches"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

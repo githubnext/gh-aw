@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.98"
+//	const DefaultCopilotVersion Version = "1.0.101"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -32,14 +32,14 @@ func (v Version) IsValid() bool {
 type ModelName string
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI.
-const DefaultClaudeCodeVersion Version = "2.1.296"
+const DefaultClaudeCodeVersion Version = "2.1.300"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI.
 //
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.98"
+const DefaultCopilotVersion Version = "1.0.101"
 
 // CopilotSessionIDMinVersion is the minimum Copilot CLI version that supports
 // the exact session selector injected by the model-verification harness.

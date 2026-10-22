@@ -681,6 +681,7 @@ describe("Unified conclusion session", () => {
     const records = [
       { engine: "pi", role: "main", configured_model: "copilot/opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null },
       { engine: "pi", role: "reader", configured_model: "copilot/claude-opus-5", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" },
+      { engine: "pi", role: "writer", configured_model: "claude-sonnet-5.5", resolved_model: null, provider: "copilot", status: "failed", cause: "unsupported_endpoint" },
     ];
     write(
       "agent/model-resolution.json",
@@ -691,7 +692,7 @@ describe("Unified conclusion session", () => {
       records.map((data, index) => ({ type: "model.resolution", data, provenance: { component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", index } }))
     );
     expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
-    expect(events.at(-1).data.sources).toContainEqual({ component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", events: 2 });
+    expect(events.at(-1).data.sources).toContainEqual({ component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", events: 3 });
   });
 
   it.each([

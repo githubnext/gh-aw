@@ -15,8 +15,8 @@ func TestDefaultCLIMCPVersions(t *testing.T) {
 		got  Version
 		want Version
 	}{
-		{"Claude Code", DefaultClaudeCodeVersion, "2.1.296"},
-		{"Copilot CLI", DefaultCopilotVersion, "1.0.98"},
+		{"Claude Code", DefaultClaudeCodeVersion, "2.1.300"},
+		{"Copilot CLI", DefaultCopilotVersion, "1.0.101"},
 		{"Copilot SDK", DefaultCopilotSDKVersion, "1.0.16"},
 		{"Codex", DefaultCodexVersion, "0.163.0"},
 		{"Gemini CLI", DefaultGeminiVersion, "0.64.0"},

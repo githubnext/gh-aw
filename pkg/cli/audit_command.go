@@ -72,6 +72,8 @@ type auditCommandOptions struct {
 	group            bool
 	noBaseline       bool
 	timeout          time.Duration
+	search           string
+	searchLimit      int
 }
 
 // NewAuditCommand creates the audit command
@@ -104,6 +106,8 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("group", false, "Group audit findings by run and finding code, including occurrence counts and a representative entry")
 	cmd.Flags().Bool("no-baseline", false, "Skip baseline lookup and comparison for single-run audits")
 	cmd.Flags().Duration("timeout", 0, "Maximum audit duration (e.g., 50s or 5m; 0 means no additional deadline). JSON single-run audits return explicitly incomplete results on timeout")
+	cmd.Flags().String("search", "", "Retrieve relevant evidence from the unified session using local BM25 search (single-run only)")
+	cmd.Flags().Int("search-limit", defaultAuditSearchLimit, "Maximum evidence groups returned by --search (1-20)")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
@@ -115,6 +119,9 @@ func runAuditCommand(cmd *cobra.Command, args []string) error {
 	args, handled, err := resolveAuditCommandArgs(args, opts.stdin)
 	if err != nil || handled {
 		return err
+	}
+	if opts.search != "" && (len(args) != 1 || opts.group) {
+		return errors.New("--search requires a single run without --group")
 	}
 	auditCommandLog.Printf("Dispatching audit command: run_count=%d, format=%s, parse=%t, evals_only=%t", len(args), opts.format, opts.parse, opts.evalsOnly)
 	ctx := cmd.Context()
@@ -155,6 +162,13 @@ func getAuditCommandOptions(cmd *cobra.Command) (auditCommandOptions, error) {
 	opts.group, _ = cmd.Flags().GetBool("group")
 	opts.noBaseline, _ = cmd.Flags().GetBool("no-baseline")
 	opts.timeout, _ = cmd.Flags().GetDuration("timeout")
+	opts.search, _ = cmd.Flags().GetString("search")
+	opts.searchLimit, _ = cmd.Flags().GetInt("search-limit")
+	if cmd.Flags().Changed("search") || cmd.Flags().Changed("search-limit") {
+		if err := validateAuditSearch(opts.search, opts.searchLimit); err != nil {
+			return auditCommandOptions{}, err
+		}
+	}
 	if opts.timeout < 0 {
 		return auditCommandOptions{}, errors.New("--timeout must not be negative")
 	}
@@ -217,6 +231,9 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 	if err := applyAuditRepoFlag(opts.repoFlag, components); err != nil {
 		return err
 	}
+	if opts.search != "" && components.JobID > 0 {
+		return errors.New("--search is not supported with job or step URLs; provide a run ID or run URL")
+	}
 	auditCommandLog.Printf("Running single-run audit: run=%d, owner=%s, repo=%s, job_id=%d", components.Number, components.Owner, components.Repo, components.JobID)
 	_, err = AuditWorkflowRun(ctx, components.Number, AuditOptions{
 		Owner:            components.Owner,
@@ -235,6 +252,8 @@ func runAuditSingle(ctx context.Context, runIDOrURL string, opts auditCommandOpt
 		EvalsOnly:        opts.evalsOnly,
 		Group:            opts.group,
 		NoBaseline:       opts.noBaseline,
+		Search:           opts.search,
+		SearchLimit:      opts.searchLimit,
 	})
 	return err
 }

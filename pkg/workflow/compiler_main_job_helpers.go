@@ -96,8 +96,8 @@ func (c *Compiler) buildMainJobDependencies(data *WorkflowData, activationJobCre
 
 	referencedJobs := c.getReferencedCustomJobs(contentBuilder.String(), data.Jobs)
 	for _, jobName := range referencedJobs {
-		// Skip built-in jobs as they are handled separately and should not become custom dependencies.
-		if isBuiltinJobName(jobName) {
+		// References cannot make post-agent jobs available before the agent.
+		if isBuiltinJobName(jobName) || graph.DependsOn(jobName, string(constants.AgentJobName)) {
 			continue
 		}
 		if !slices.Contains(depends, jobName) {
