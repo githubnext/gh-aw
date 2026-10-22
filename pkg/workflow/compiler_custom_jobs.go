@@ -30,6 +30,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool
 		if c.shouldSkipCustomJob(jobName) {
 			continue
 		}
+		if isBuiltinJobName(normalizeBuiltinJobAlias(jobName)) {
+			return fmt.Errorf("jobs.%s: this name is reserved for a compiler-generated job; configure the corresponding feature to customize it, or rename this custom job", jobName)
+		}
 		configMap, ok := jobConfig.(map[string]any)
 		if !ok {
 			continue
