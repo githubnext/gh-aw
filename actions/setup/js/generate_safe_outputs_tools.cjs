@@ -318,7 +318,7 @@ async function main() {
       .map(normalizeToolName)
       .filter(name => sourceToolNames.has(name))
   );
-  /** @type {{ledger_append?: {ledgers?: Array<{name: string, type?: string}>}}} */
+  /** @type {{ledger_append?: {ledgers?: Array<{name: string, type?: string, schema?: Record<string, unknown>}>}}} */
   const ledgerConfig = config;
   const configuredLedgers = ledgerConfig.ledger_append?.ledgers;
   if (Array.isArray(configuredLedgers) && configuredLedgers.length > 0 && configuredLedgers.every(ledger => ledger.type === "map")) {
@@ -339,11 +339,20 @@ async function main() {
         throw new Error(`${ERR_CONFIG}: ` + "Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
       }
       if (tool.name === "ledger_append" && Array.isArray(configuredLedgers)) {
-        const generalNames = configuredLedgers.filter(ledger => ledger.type !== "map").map(ledger => ledger.name);
-        if (generalNames.length < configuredLedgers.length) {
+        const generalLedgers = configuredLedgers.filter(ledger => ledger.type !== "map");
+        const generalNames = generalLedgers.map(ledger => ledger.name);
+        if (generalNames.length > 0) {
           enhancedTool.inputSchema.properties.ledger.enum = generalNames;
           if (configuredLedgers.length > 1) {
             enhancedTool.inputSchema.required = [...new Set([...(enhancedTool.inputSchema.required || []), "ledger"])];
+          }
+          if (generalLedgers.every(ledger => !ledger.type)) {
+            enhancedTool.description = "Submit a custom record to a configured Git-backed ledger using record, not operation or value. Persistence follows trusted validation.";
+            enhancedTool.inputSchema.properties = Object.fromEntries(Object.entries(enhancedTool.inputSchema.properties).filter(([name]) => ["ledger", "temp_id", "record"].includes(name)));
+            enhancedTool.inputSchema.required = [...new Set([...(enhancedTool.inputSchema.required || []), "record"])];
+            if (generalLedgers.length === 1 && generalLedgers[0].schema) {
+              enhancedTool.inputSchema.properties.record = { ...enhancedTool.inputSchema.properties.record, ...generalLedgers[0].schema };
+            }
           }
         }
       }

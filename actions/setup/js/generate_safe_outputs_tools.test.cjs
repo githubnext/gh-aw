@@ -7,6 +7,7 @@ import { normalizeSafeOutputToolArguments } from "./safe_outputs_mcp_arguments.c
 import { normalizeClaimScope } from "./work_queue_claim_scope.cjs";
 import { loadTools, attachHandlers, registerPredefinedTools, registerDynamicTools } from "./safe_outputs_tools_loader.cjs";
 import { createServer, registerTool } from "./mcp_server_core.cjs";
+import { validateValueAgainstSchema } from "./schema-validation.cjs";
 
 const scriptPath = path.join(__dirname, "generate_safe_outputs_tools.cjs");
 
@@ -234,6 +235,43 @@ describe("generate_safe_outputs_tools", () => {
     expect(mixed.map((/** @type {{name: string}} */ tool) => tool.name)).toEqual(["ledger_append", "ledger_map_put"]);
     expect(mixed[0].inputSchema.properties.ledger.enum).toEqual(["events"]);
     expect(mixed[0].inputSchema.required).toContain("ledger");
+  });
+
+  it.each(["", undefined])("advertises the required custom record envelope for ledger type %s", type => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    const schema = { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } }, additionalProperties: false };
+    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "reviews", type, schema }] } }));
+    runScript();
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.inputSchema.required).toEqual(["record"]);
+    expect(tool.inputSchema.properties.ledger.enum).toEqual(["reviews"]);
+    expect(Object.keys(tool.inputSchema.properties)).toEqual(["ledger", "temp_id", "record"]);
+    expect(tool.inputSchema.properties.record).toMatchObject(schema);
+    expect(validateValueAgainstSchema({ ledger: "reviews", operation: "append", value: { run_id: "42" } }, tool.inputSchema)).toBeTruthy();
+    expect(validateValueAgainstSchema({ record: { run_id: 42 } }, tool.inputSchema)).toBeTruthy();
+    expect(validateValueAgainstSchema({ record: { run_id: "42" } }, tool.inputSchema)).toBeNull();
+  });
+
+  it("requires an explicit custom ledger when multiple record schemas are configured", () => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "reviews" }, { name: "findings" }] } }));
+    runScript();
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.inputSchema.required).toEqual(["ledger", "record"]);
+    expect(tool.inputSchema.properties.ledger.enum).toEqual(["reviews", "findings"]);
+    expect(tool.inputSchema.properties.record.type).toBe("object");
+    expect(tool.inputSchema.properties).not.toHaveProperty("operation");
+  });
+
+  it("preserves operation arguments when custom and built-in ledgers share the tool", () => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "reviews" }, { name: "events", type: "log" }] } }));
+    runScript();
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.inputSchema.required).toEqual(["ledger"]);
+    expect(tool.inputSchema.properties).toHaveProperty("record");
+    expect(tool.inputSchema.properties).toHaveProperty("operation");
+    expect(tool.inputSchema.properties).toHaveProperty("value");
   });
 
   it("preserves namespaced public names", () => {

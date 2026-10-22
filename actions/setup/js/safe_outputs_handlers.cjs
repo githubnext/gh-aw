@@ -673,6 +673,15 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const ledgers = config.ledger_append?.ledgers || [];
     const target = ledgers.find(ledger => ledger.name === args?.ledger) || (args?.ledger === undefined && ledgers.length === 1 ? ledgers[0] : null);
     if (target?.type === "notes") return buildIntentErrorResponse("Use ledger_note_add or ledger_note_vote for notes ledgers.");
+    if (!target) return buildIntentErrorResponse("Specify a configured ledger.");
+    if (!target.type) {
+      if (!args?.record || typeof args.record !== "object" || Array.isArray(args.record) || args.operation !== undefined) {
+        return buildIntentErrorResponse("Custom ledger requires a record object. Use { ledger, record: { ... } }, not operation or value.");
+      }
+      if (target.schema && validateValueAgainstSchema(args.record, target.schema)) {
+        return buildIntentErrorResponse("Custom ledger record does not match its configured schema.");
+      }
+    }
     return defaultHandler("ledger_append")(args);
   };
 
