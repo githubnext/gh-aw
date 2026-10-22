@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -72,4 +73,46 @@ func TestPRCodeQualityReviewerWorkflowToolContract(t *testing.T) {
 	assert.Contains(t, text, "run exactly `wc -c /tmp/gh-aw/agent/pr-review-comments.json`")
 	assert.Contains(t, text, "Use `glob` to check whether")
 	assert.Contains(t, text, "do not execute repository code, tests, package managers, or build commands")
+}
+
+func TestPRCodeQualityReviewerWorkflowReviewSequencingContract(t *testing.T) {
+	t.Parallel()
+	repoRoot, err := gitutil.FindGitRoot()
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "pr-code-quality-reviewer.md"))
+	require.NoError(t, err)
+	text := string(content)
+
+	// A pending specialist must be joined or explicitly excluded before any writes.
+	_, adjudication, ok := strings.Cut(text, "### Step 3: Judge Agent-to-Agent Findings")
+	require.True(t, ok)
+	barrier, publication, ok := strings.Cut(adjudication, "### Step 4: Write Review Comments")
+	require.True(t, ok)
+	assert.Contains(t, barrier, "use a bounded wait for completion")
+	assert.Contains(t, barrier, "ending no later than 10 minutes elapsed")
+	assert.Contains(t, barrier, "`completed`")
+	assert.Contains(t, barrier, "`unavailable`")
+	assert.Contains(t, barrier, "Empty output means no specialist findings only after completion")
+	assert.Contains(t, barrier, "launch/wait fails, output is invalid, or the 10-minute deadline expires")
+	assert.Contains(t, barrier, "note the concrete limitation in the overall review")
+	assert.Contains(t, barrier, "Do not enter Step 4 or Step 5 until")
+	assert.Contains(t, barrier, "freeze the final finding set and choose the overall verdict")
+	assert.Contains(t, barrier, "Late specialist output must not reopen adjudication")
+	assert.NotContains(t, text, "if it has not yet responded, continue without it")
+	assert.NotContains(t, text, "do not block if it has not responded")
+
+	comments, submission, ok := strings.Cut(publication, "### Step 5: Submit the Overall Review")
+	require.True(t, ok)
+	assert.Contains(t, comments, "Publish only the frozen, adjudicated findings")
+	assert.Contains(t, comments, "before the single overall review")
+	assert.Contains(t, submission, "Submit exactly one overall review, only after Step 3's completion barrier")
+	assert.Contains(t, submission, "never submit a provisional review or attempt a second review")
+	assert.Contains(t, submission, "The deadline is not permission to bypass the completion barrier")
+	assert.Contains(t, submission, "After a successful submission, publication is closed")
+	assert.Contains(t, submission, "or emit `report_incomplete` merely because late specialist output arrived")
+
+	assert.Contains(t, text, "submit-pull-request-review:\n    max: 1\n    allowed-events: [COMMENT, REQUEST_CHANGES]")
+	_, specialist, ok := strings.Cut(text, "## agent: `grumpy-coder`")
+	require.True(t, ok)
+	assert.Contains(t, specialist, "do not publish comments, submit reviews, or invoke safe outputs")
 }
