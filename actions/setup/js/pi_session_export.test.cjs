@@ -20,15 +20,23 @@ describe("Pi session export", () => {
     expect(() => sessionIDFromStream('{"type":"agent_settled"}')).toThrow("session header");
   });
 
-  it.each([undefined, "/runner/temp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl"])("exports from the compiler-selected streaming log (%s)", streamFile => {
+  it.each(["/tmp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl", "/runner/temp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl"])("exports from the compiler-selected streaming log (%s)", streamFile => {
     vi.stubEnv("GH_AW_PI_CONFIG", '{"session":{"enabled":true,"export":true}}');
+    vi.stubEnv("GH_AW_AGENT_OUTPUT", streamFile);
     const execute = vi.spyOn(childProcess, "execFileSync").mockReturnValue("");
     delete require.cache[require.resolve("./pi_session_export.cjs")];
     const { main } = require("./pi_session_export.cjs");
     const read = vi.spyOn(fs, "readFileSync").mockReturnValue('{"type":"session","id":"session-1"}\n');
     vi.spyOn(fs, "readdirSync").mockReturnValue(["timestamp_session-1.jsonl"]);
-    main(streamFile);
-    expect(read).toHaveBeenCalledWith(streamFile || "/tmp/gh-aw/sandbox/agent/logs/pi-streaming.jsonl", "utf8");
+    main();
+    expect(read).toHaveBeenCalledWith(streamFile, "utf8");
     expect(execute).toHaveBeenCalledWith(expect.any(String), ["--export", "/tmp/gh-aw/agent/pi-sessions/timestamp_session-1.jsonl", expect.stringContaining("/session.html")], expect.any(Object));
+  });
+
+  it("reports a missing streaming-log environment variable", () => {
+    vi.stubEnv("GH_AW_PI_CONFIG", '{"session":{"enabled":true,"export":true}}');
+    vi.stubEnv("GH_AW_AGENT_OUTPUT", undefined);
+    const { main } = require("./pi_session_export.cjs");
+    expect(() => main()).toThrow("GH_AW_AGENT_OUTPUT must point to the Pi streaming log");
   });
 });

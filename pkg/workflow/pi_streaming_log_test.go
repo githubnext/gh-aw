@@ -41,7 +41,8 @@ func TestCompilePiStreamingLogPaths(t *testing.T) {
 				assert.Contains(t, execution, "tee "+commandLog)
 				assert.NotContains(t, lock, "/gh-aw/pi-streaming.jsonl")
 				if driver == "" {
-					assert.Contains(t, execution, `/pi_session_export.cjs" `+commandLog)
+					assert.Contains(t, execution, `export GH_AW_AGENT_OUTPUT="`+commandLog+`"`)
+					assert.Contains(t, execution, `/pi_session_export.cjs")`)
 				} else {
 					assert.Contains(t, execution, "/"+driver)
 				}

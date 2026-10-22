@@ -489,7 +489,7 @@ func (e *PiEngine) buildPiCommand(workflowData *WorkflowData, commandName string
 			routingEnv, commandName, shellJoinArgs(piArgs), piBareWorkflowSkillArgs(workflowData), modelArg, PiStreamingLogFile)
 	}
 	if !driverConfigured && piSessionSettings(workflowData).Export {
-		piCommand += fmt.Sprintf(` && %s "%s/pi_session_export.cjs" %s`, nodeRuntimeResolutionCommand, SetupActionDestinationShell, PiStreamingLogFile)
+		piCommand += fmt.Sprintf(` && (export GH_AW_AGENT_OUTPUT="%s" && %s "%s/pi_session_export.cjs")`, PiStreamingLogFile, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
 	}
 	piRuntimeCommand := fmt.Sprintf(`%s "%s/pi_runtime.cjs"`, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
 	if isModelRoutingEnabled(workflowData) && piModelsJSONSetup != "" {
