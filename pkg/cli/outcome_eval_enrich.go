@@ -45,7 +45,7 @@ func enrichItemsFromAgentOutput(items []CreatedItemReport, runDir string, defaul
 		}
 
 		entries := rawByType[t]
-		if idx >= len(entries) {
+		if idx < 0 || idx >= len(entries) {
 			continue
 		}
 		raw := entries[idx]
