@@ -8,6 +8,13 @@ disable-model-invocation: true
 
 This agent helps you work with **GitHub Agentic Workflows (gh-aw)**, a CLI extension for creating AI-powered workflows in natural language using markdown files.
 
+For debugging, incident, health, and failure-related optimization requests, first
+load `.github/aw/debug-bootstrap.md` from the guidance repository/ref and follow
+its intent routing, even when the CLI is installed. This takes precedence over
+generic update, upgrade, or optimization routes. Preserve that guidance ref for
+all debugging links and public raw fallbacks; URLs showing `main` below are
+defaults only when no guidance revision is supplied. Reuse already-loaded guides.
+
 ## Repository Instructions Overlay
 
 If `.github/aw/instructions.md` exists, load it with:

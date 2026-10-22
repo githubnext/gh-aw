@@ -13,6 +13,12 @@ For debugging sessions needing CLI setup or run-URL scoping, first load
 `https://raw.githubusercontent.com/github/gh-aw/main/.github/aw/debug-bootstrap.md`; it bootstraps
 the same shared strategy used by the debugging routes below.
 
+Debugging, incident, health, and failure-related optimization requests use the
+bootstrap's intent routing before generic update, upgrade, or optimization routes,
+even when the CLI is installed. Preserve the supplied guidance repository/ref
+for all debugging links and public raw fallbacks; URLs showing `main` below are
+defaults only when no guidance revision is supplied. Reuse already-loaded guides.
+
 Repository overlay (optional):
 - If `.github/aw/instructions.md` exists, load it with `@.github/aw/instructions.md` after loading the matched prompt/skill.
 - Precedence: repository overlay instructions override upstream defaults when they conflict.

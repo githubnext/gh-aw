@@ -25,6 +25,62 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_persona_intents_have_explicit_routes_before_cli_setup(self):
+        guide = BOOTSTRAP.read_text()
+        routes = guide.split("## Select the Next Route\n", 1)[1].split("\n## ", 1)[0]
+        rows = {}
+        for line in routes.splitlines():
+            if line.startswith("|"):
+                _, intent, action, _ = line.split("|")
+                rows[intent.strip()] = action.strip()
+        for case in FIXTURES["debug_intent_routing"]:
+            with self.subTest(persona=case["id"], prompt=case["prompt"]):
+                self.assertIn(case["intent"], rows)
+                action = rows[case["intent"]]
+                self.assertIn(case["required"], action)
+                links = re.findall(r"\]\(([^)]+)\)", action)
+                self.assertEqual(links, [case["route"]] if case["route"] else [])
+        for required in (
+            "most specific matching intent",
+            "not simply the presence of a run URL",
+            "explanation-only stays read-only",
+            "compile-only\ndoes not authorize execution",
+            "Reuse loaded guides",
+            "never restart\nsetup",
+            "repeat a completed collection",
+            "Missing tool results remain unknown",
+        ):
+            self.assertIn(required, routes)
+        self.assertLess(guide.index("## Select the Next Route"), guide.index("gh extension install"))
+
+    def test_installed_routers_preserve_debug_ref_and_intent_precedence(self):
+        for path in (
+            SKILL / "SKILL.md",
+            ROOT / "pkg/cli/data/agentic_workflows_skill.md",
+            ROOT / ".github/agents/agentic-workflows.md",
+            ROOT / "pkg/cli/data/agentic_workflows_agent.md",
+        ):
+            with self.subTest(router=path):
+                text = path.read_text()
+                for required in (
+                    "incident, health, and failure-related optimization requests",
+                    "intent routing",
+                    "even when the CLI is installed",
+                    "generic update, upgrade, or optimization routes",
+                    "all debugging links and public raw fallbacks",
+                    "defaults only when no guidance revision is supplied",
+                    "Reuse already-loaded guides",
+                ):
+                    self.assertIn(required, text)
+
+    def test_legacy_authoring_entries_bypass_install_for_debugging(self):
+        root_skill = (ROOT / "SKILL.md").read_text()
+        self.assertLess(root_skill.index(".github/aw/debug-bootstrap.md"), root_skill.index("## Install"))
+        self.assertIn("guidance repository/ref", root_skill)
+        create = (ROOT / "create.md").read_text()
+        self.assertIn("For these authoring steps only", create)
+        self.assertNotIn("Always use the main branch, regardless", create)
+
     def test_remote_readers_get_explicit_api_paths_and_size_guidance(self):
         guide = BOOTSTRAP.read_text()
         router = (ROOT / ".github/skills/debugging-workflows/SKILL.md").read_text()

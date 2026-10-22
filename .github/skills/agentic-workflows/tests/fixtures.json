@@ -1,5 +1,65 @@
 {
+  "debug_intent_routing": [
+    {
+      "id": "patch_verification_without_runs",
+      "prompt": "Is my pushed fix healthy? The last green run predates the patch.",
+      "intent": "Is the pushed fix healthy?",
+      "route": "analyzing-runs.md#route",
+      "required": "an older green run cannot verify a new patch"
+    },
+    {
+      "id": "compile_dryrun_no_docker",
+      "prompt": "Only compile my patch. Docker is unavailable; here is the previous failed run URL.",
+      "intent": "Compile-only, including without Docker",
+      "route": "debug-agentic-workflow.md#development-compilation",
+      "required": "not audit or dispatch"
+    },
+    {
+      "id": "green_but_failed_subagent",
+      "prompt": "The parent run is green but its Claude child failed with endpoint 400. Pin an older model?",
+      "intent": "Endpoint/model errors or failed child under a green parent",
+      "route": "debug-agentic-workflow.md#model-and-engine-misconfiguration",
+      "required": "before model changes"
+    },
+    {
+      "id": "enterprise_job_step",
+      "prompt": "Explain this enterprise job failure using its full step URL. Do not edit.",
+      "intent": "Investigate a specific run/job/step",
+      "route": null,
+      "required": "preserving the full URL"
+    },
+    {
+      "id": "named_workflow_no_run_url",
+      "prompt": "repo-assist keeps failing in acme/widgets. I do not have a run link.",
+      "intent": "Named workflow without a run link",
+      "route": "analyzing-runs.md#collect",
+      "required": "scoped to that workflow and repository"
+    },
+    {
+      "id": "fleet_cost_timeout",
+      "prompt": "Our workflows keep timing out and burning credits. Find the biggest problem first.",
+      "intent": "Fleet failures, timeouts, or wasted credits",
+      "route": "analyzing-runs.md",
+      "required": "not an arbitrary workflow or premature prompt optimization"
+    },
+    {
+      "id": "beginner_missing_context",
+      "prompt": "Our AI bot failed. I only have the repository page and do not know a run ID.",
+      "intent": "No target or evidence",
+      "route": null,
+      "required": "Request the browser address or workflow/repository once"
+    }
+  ],
   "source_reading": [
+    {
+      "id": "root_skill_reader",
+      "source_path": "SKILL.md",
+      "guidance_ref": "feature/debugger",
+      "link": ".github/aw/debug-bootstrap.md",
+      "api_path": ".github/aw/debug-bootstrap.md",
+      "workflow_repo": "acme/widgets",
+      "workflow_ref": "release"
+    },
     {
       "id": "legacy_raw_reader",
       "source_path": "debug.md",

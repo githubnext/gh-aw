@@ -45,7 +45,9 @@ You should see version information displayed. If you encounter an error, check t
 
 Fetch (download) the full content of the appropriate prompt file based on the user's request, then follow its instructions carefully. Read ALL the instructions in the prompt file before taking any action.
 
-Below, ROOT is the location where you found this file. Always use the main branch, regardless of the URL you fetched this file from:
+For these authoring steps only, use the main branch as ROOT.
+Debugging requests already delegated above keep their supplied guidance repository/ref
+and do not enter these steps:
 
 - ROOT is `https://raw.githubusercontent.com/github/gh-aw/main`
 
