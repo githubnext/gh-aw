@@ -125,9 +125,10 @@ Use the `view`/`grep` tools for file reads. Do not use `stat`, `awk`, shell test
 Sub-agent invocation contract:
 - Start `grumpy-coder` once — immediately after the PR diff is available — and let it run in the background while you do your own analysis in Step 2.
 - Require `grumpy-coder` to return strict JSONL (one finding per line).
-- Collect its output before Step 3 (adjudication). Make one read attempt for its result; if it has not yet responded, continue without it.
+- Resolve its status in Step 3 before adjudication or publication. A still-running specialist is not a completed review with zero findings.
 - If sub-agent output is invalid/unparseable, continue with your own review and note that the sub-agent output was discarded.
 - Treat `grumpy-coder` output as advisory (not authoritative).
+- The specialist returns findings only: it must not publish comments, submit reviews, or invoke safe outputs.
 
 ### Step 2: Analyze the Code
 
@@ -147,7 +148,13 @@ This is a static review: do not execute repository code, tests, package managers
 
 ### Step 3: Judge Agent-to-Agent Findings
 
-Before adjudicating, collect `grumpy-coder` output (started in Step 1). Check once for its result — do not block if it has not responded. Parse its JSONL findings, discarding any that are malformed or outside changed lines.
+**Completion barrier:** Before adjudicating, collect `grumpy-coder` output (started in Step 1). If it is still running, use a bounded wait for completion, ending no later than 10 minutes elapsed for the whole review. Do not repeatedly poll, restart the specialist, or publish while waiting.
+
+Record exactly one terminal specialist disposition:
+- `completed` — collect its final output and parse the JSONL findings, discarding any that are malformed or outside changed lines. Empty output means no specialist findings only after completion.
+- `unavailable` — if launch/wait fails, output is invalid, or the 10-minute deadline expires, explicitly close the specialist pass without its findings and note the concrete limitation in the overall review. Stop it if supported; otherwise ignore any later output.
+
+Do not enter Step 4 or Step 5 until the specialist is `completed` or explicitly `unavailable`. Never treat a nonblocking read of a running specialist as permission to submit early.
 
 Adjudicate each candidate issue from `grumpy-coder` plus your own second pass using strict A2A triage:
 - `KEEP` — valid issue, comment on PR
@@ -156,7 +163,11 @@ Adjudicate each candidate issue from `grumpy-coder` plus your own second pass us
 
 You may use compact pseudo-language/encoding during private reasoning (examples: `[KEEP:racy-map-write]`, `[HARDEN:nil-deref]`, `[DROP:out-of-diff]`), but never publish those tags in PR comments or review bodies.
 
+After adjudication, freeze the final finding set and choose the overall verdict using Step 5's criteria before publishing anything. Late specialist output must not reopen adjudication or trigger corrective comments or another review.
+
 ### Step 4: Write Review Comments
+
+Publish only the frozen, adjudicated findings from Step 3, before the single overall review in Step 5. Do not start new analysis or collect specialist output during publication.
 
 For each significant issue, create a `create-pull-request-review-comment` with the file path and line number using the `safeoutputs` CLI from bash (do not call the safeoutputs MCP tool directly). Send the JSON arguments on stdin, for example:
 
@@ -185,7 +196,9 @@ Encode every apostrophe in JSON string values as `\u0027` before shell single-qu
 
 ### Step 5: Submit the Overall Review
 
-Always submit a review before the 15-minute timeout, including when there are zero findings. At about 10 minutes elapsed, stop analyzing and submit; do not replace the review with another output. Use the `safeoutputs` CLI from bash, not its MCP tool directly:
+Submit exactly one overall review, only after Step 3's completion barrier and adjudication and Step 4's inline comments. `submit_pull_request_review` is write-once (`max: 1`); never submit a provisional review or attempt a second review to change the verdict.
+
+Always submit a review before the 15-minute timeout, including when there are zero findings. At about 10 minutes elapsed, stop analysis, explicitly close any unfinished specialist pass as `unavailable`, then adjudicate, freeze the findings/verdict, publish inline comments, and submit once. The deadline is not permission to bypass the completion barrier. Use the `safeoutputs` CLI from bash, not its MCP tool directly:
 
 ```bash
 printf '%s' '{"pull_request_number":123,"event":"COMMENT","body":"Review summary"}' | safeoutputs submit_pull_request_review .
@@ -210,6 +223,8 @@ Use `REQUEST_CHANGES` when any of the following are true:
 - Sub-agent output is invalid and your second pass still finds at least one clearly actionable correctness/security/performance issue.
 
 Use `COMMENT` when all findings are non-blocking. Keep the overall review body concise and focused on blocking themes. Use h3 (###) or lower for any headers, and structure the body as verdict + one-line summary (always visible) → themes/highlights (in `<details>`).
+
+After a successful submission, publication is closed: do not add corrective inline comments, submit another review, or emit `report_incomplete` merely because late specialist output arrived. Proceed only to Step 6 and finish.
 
 ### Step 6: Update PR Continuity Memory
 
@@ -238,6 +253,7 @@ model: small
 You are a grumpy senior engineer doing a hostile first-pass code review.
 
 Rules:
+- Return findings only to the parent reviewer; do not publish comments, submit reviews, or invoke safe outputs.
 - Review only changed lines in the provided diff context.
 - Prioritize correctness, security, race conditions, error handling, and perf regressions; be very critical and risk-focused.
 - Ignore nits unless they materially increase bug risk.
