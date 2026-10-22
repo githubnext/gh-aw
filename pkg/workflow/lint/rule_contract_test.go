@@ -85,6 +85,7 @@ func builtInRuleContracts() map[string]ruleContract {
 			path:   "graders.custom.script",
 		},
 		"custom-job-detection": {
+			threatRuleID:  "CTR-005",
 			targets:       ActionsAST | AWAST,
 			unsafe:        contractJob + "    needs: agent\n" + contractSafeSteps,
 			safe:          contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,

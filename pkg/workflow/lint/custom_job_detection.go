@@ -17,7 +17,8 @@ import (
 func CustomJobDetectionRule() Rule {
 	return Rule{
 		ID: "custom-job-detection", Description: "Require custom jobs downstream of agent to wait for successful threat detection",
-		Severity: Error, Targets: ActionsAST | AWAST, Check: checkCustomJobDetection,
+		ThreatRuleID: "CTR-005",
+		Severity:     Error, Targets: ActionsAST | AWAST, Check: checkCustomJobDetection,
 	}
 }
 
