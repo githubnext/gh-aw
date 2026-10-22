@@ -100,12 +100,14 @@ frontmatter. Configure the actions the workflow may take under
 after a run:
 
 ```bash wrap
-gh aw outcomes 1234567890
+printf '%s\n' 1234567890 | gh aw logs --stdin --repo owner/repo --outcomes
 ```
 
-The command downloads the run's safe-output artifacts, queries the current
-state of each affected GitHub object, and prints the item-level classifications
-and summary. Use a run ID from the repository's GitHub Actions page. Specify
+The command downloads executed safe-output manifests and compact agent-output
+fallback evidence, without downloading workflow logs by default. It queries the
+current state of each affected GitHub object and includes per-run outcome summaries in
+the logs output. Use `--json` for item-level classifications. Use a run ID from
+the repository's GitHub Actions page. Specify
 `--repo owner/repo` when running outside the target repository.
 
 Evaluation is a snapshot, not a permanent verdict. Run it after the workflow
@@ -114,18 +116,27 @@ output type, and evaluate it again while results remain `pending`. A pull
 request may remain pending until review and become accepted when merged; a
 comment may need time to receive a reply or reaction.
 
-`gh aw outcomes` is the sole outcome-evaluation entry point. Workflow execution
+`gh aw logs --outcomes` is the live outcome-evaluation entry point, including
+`gh aw logs episode <run-id-or-url> --outcomes`. Workflow execution
 records safe-output evidence; it does not decide whether those outputs were
 accepted. `gh aw audit` reports execution evidence without checking live outcome
 state. There is no built-in scheduled collector or automatic reevaluation.
-Rerun `gh aw outcomes` later for unresolved items; each invocation checks current
+Rerun logs with `--outcomes` later for unresolved items; each invocation checks current
 GitHub state rather than reusing a cached classification.
+
+Within one collection, identical successful REST and GraphQL reads are shared
+across actions and runs. Labels already present in an issue or pull request
+response do not require a separate label request. Paginated REST reads request
+100 items per page and still fetch all pages. Each action retains its own
+timestamp-dependent classification.
+This response cache is in memory only: later invocations check GitHub again,
+and failed or partial responses are not retained.
 
 Use JSON output to feed a report or inspect the summary:
 
 ```bash wrap
-gh aw outcomes 1234567890 --json |
-  jq '.summary | {total, accepted, rejected, ignored, pending, acceptance_rate}'
+gh aw logs weekly-research --outcomes --json |
+  jq '.outcomes[] | {run_id, summary}'
 ```
 
 Repeat this for comparable runs over a stable time window rather than drawing
@@ -148,7 +159,7 @@ For the span-level attribute inventory, see [OpenTelemetry attribute reference](
 To write per-item outcome JSONL for an OTLP reporting pipeline, use:
 
 ```bash wrap
-gh aw outcomes 1234567890 --outcomes-dir ./outcomes
+gh aw logs weekly-research --outcomes --outcomes-dir ./outcomes
 ```
 
 For repository-wide or organization-wide reporting, collect these records on a
@@ -163,7 +174,7 @@ The basic dashboard for outcomes is therefore intentionally small: total AIC, to
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 
-`gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
+`gh aw logs --outcomes` populates `.outcomes[].summary.cost_per_accepted_outcome` when positive AIC
 usage and at least one accepted outcome are available. This is the full
 observed run AIC, including detection usage, divided by accepted output items,
 not a per-item allocation. Cost is computed from usage artifacts independently
@@ -176,38 +187,44 @@ For orchestrated workflows, multiple runs can belong to one logical execution. I
 
 ### Episode Outcome Summaries
 
-`gh aw outcomes episodes` joins recorded outcome observations to the episode
-membership from a logs report. It is an offline report, not another evaluator:
+`gh aw logs --outcomes` includes per-run observations in `.outcomes[]` and joins
+them with selected episode membership and cost in `.episode_outcomes`.
+Use `gh aw logs --episodes --outcomes` to include recorded episode membership
+and hops in text output alongside these summaries. The combined flags perform
+the episode-outcome join in memory, without a second command, JSONL export,
+or additional GitHub requests for the join itself. Standard logs JSON membership
+and outcome summaries are preserved without the explicit `--episodes` flag.
+Manifests are collected alongside usage artifacts; full agent artifacts and
+workflow logs are not required. Episode membership remains bounded to selected
+runs. `gh aw logs episode <seed> --outcomes` also checks outcomes live when
+membership comes from a cached snapshot; its retrieval API cap covers artifacts
+and discovery, not the additional live outcome queries.
 
 ```bash wrap
-gh aw logs --verbose --json > logs.json
-gh aw outcomes 1234567890 --outcomes-dir ./outcomes
-gh aw outcomes 1234567891 --outcomes-dir ./outcomes
-gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --json
+gh aw logs --episodes --outcomes --json > logs.json
 ```
 
-Record outcomes for each selected source run. Use `--output <directory>` on
-both commands when downloaded `run-*` artifacts are outside the default
-`.github/aw/logs` directory. The episode command reads usage artifacts directly,
+The join reads each selected run's downloaded usage artifacts directly,
 including detection usage, rather than summing agent-only cached cost.
 Accounting sources are selected separately for each execution phase before
 summing independent stream totals. Agent JSON remains a fallback when agent
 JSONL has no usable cost; an executed phase without accounting qualifies cost
 coverage as partial.
 Both compact and verbose logs JSON retain all canonical episodes, including standalone episodes.
+A successfully evaluated empty or all-skipped manifest establishes outcome coverage
+for that selected run. A missing manifest does not establish zero outputs and
+keeps outcome coverage partial.
 
 Membership can also come from [`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
 Its bounded retrieval report uses the same episode contract. The outcome join
-reads each run's recorded `logs_path` beneath `--output`, including isolated
-repository/attempt directories; conflicting paths or paths outside that root
-are errors. Collection limits remain membership gaps and suppress efficiency
-claims; this offline join does not perform additional discovery.
+uses the collected run directories, including isolated repository/attempt
+directories. Collection limits remain membership gaps and suppress efficiency
+claims; the join does not perform additional discovery.
 
-The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
-per-item records include `item_id` (a SHA-256 digest of the source action record,
+Exported per-item JSONL records include `item_id` (a SHA-256 digest of the source action record,
 with an occurrence number for indistinguishable records) and
 `run_item_count` (the number of evaluated actions). The join matches `run_id`
-against episode `run_ids`, selects the latest `checked_at` for each source-run
+against episode `run_ids`, selects the latest collected `checked_at` for each source-run
 item, and reuses CLI outcome classifications. Repeated snapshots do not add
 accepted outcomes, and a later rejection replaces a previous acceptance.
 Conflicting evaluation fields at the latest observation time, including
@@ -216,7 +233,8 @@ than an arbitrary verdict. A newer observation supersedes older conflicts.
 Reordering or reserializing unchanged source records does not change action
 identities; distinct actions against the same object remain distinct items.
 
-JSON returns `episodes[]` and `unmatched_outcome_run_ids`. Each episode contains
+The `.episode_outcomes` JSON field contains `episodes[]` and
+`unmatched_outcome_run_ids`. Each episode contains
 the selected `run_ids`, latest `items`, the existing outcome `summary`, and:
 
 | Field | Meaning |
@@ -238,21 +256,9 @@ efficiency verdict. Partial AIC is never divided by accepted items to imply a
 complete cost result. Outcomes whose source runs are outside selected
 membership are listed separately and excluded from all episode counts.
 
-Older JSONL without `item_id` is conservatively coalesced by source run, action
-type, repository, target, and creation time only when no precise item identities
-exist for that group. Precise observations supersede matching legacy rows once
-each item's latest observation is at least as recent as the latest legacy row.
-A newer legacy row produces an error requiring reevaluation rather than
-overriding ambiguous precise items or adding an extra item.
-Indistinguishable legacy-only actions can be undercounted, so these reports are
-qualified and efficiency is unavailable; reevaluate those runs to record action
-identities and counts. Earlier positional IDs (`item-1`, `item-2`, and so on)
-also lack reorder-stable identity and disable efficiency when retained.
-Content-derived identities supersede matching positional observations under
-the same timestamp rule, rather than counting them again. The report does
-not infer missing episode members, reevaluate GitHub objects, or automatically
-schedule observations. Generate its schema with
-`gh aw json-schema outcomes-episodes`.
+The join does not infer missing episode members or automatically schedule
+observations. Outcome evaluation happens through `--outcomes` during collection.
+Generate the schema, including `.episode_outcomes`, with `gh aw json-schema logs`.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.
 

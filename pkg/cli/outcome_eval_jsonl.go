@@ -11,21 +11,19 @@ import (
 
 // writeOutcomeJSONL writes outcome reports as JSONL to the given directory.
 // Each line is a JSON object suitable for OTLP span conversion or downstream processing.
-func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
+func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) (err error) {
 	if err := os.MkdirAll(dir, constants.DirPermPublic); err != nil {
-		outcomeEvalLog.Printf("Failed to create outcomes dir %s: %v", dir, err)
-		return
+		return fmt.Errorf("create outcomes directory: %w", err)
 	}
 
 	filePath := filepath.Join(dir, fmt.Sprintf("outcomes-%d.jsonl", runID))
 	f, err := os.Create(filePath)
 	if err != nil {
-		outcomeEvalLog.Printf("Failed to create outcomes file %s: %v", filePath, err)
-		return
+		return fmt.Errorf("create outcomes file: %w", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			outcomeEvalLog.Printf("Failed to close outcomes file %s: %v", filePath, err)
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close outcomes file: %w", closeErr)
 		}
 	}()
 
@@ -55,17 +53,16 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 		}
 		line, err := json.Marshal(entry)
 		if err != nil {
-			continue
+			return fmt.Errorf("encode outcome observation: %w", err)
 		}
 		if _, err := f.Write(line); err != nil {
-			outcomeEvalLog.Printf("Failed to write outcome entry to %s: %v", filePath, err)
-			return
+			return fmt.Errorf("write outcome observation: %w", err)
 		}
 		if _, err := f.WriteString("\n"); err != nil {
-			outcomeEvalLog.Printf("Failed to write newline to %s: %v", filePath, err)
-			return
+			return fmt.Errorf("write outcome observation: %w", err)
 		}
 	}
 
 	outcomeEvalLog.Printf("Wrote %d outcome entries to %s", len(reports), filePath)
+	return nil
 }

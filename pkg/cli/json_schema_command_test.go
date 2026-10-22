@@ -23,13 +23,6 @@ func TestJSONSchemaCommand(t *testing.T) {
 		validOutput []any
 	}{
 		{
-			name:       "outcomes-episodes",
-			schemaName: "outcomes-episodes",
-			validOutput: []any{
-				EpisodeOutcomesData{Episodes: []EpisodeOutcomeData{{EpisodeID: "ep-1", MembershipScope: "selected_runs"}}},
-			},
-		},
-		{
 			name:       "audit",
 			schemaName: "audit",
 			oneOfCount: 4,
@@ -287,10 +280,21 @@ func TestJSONSchemaCommandRejectsInvalidArguments(t *testing.T) {
 	}
 }
 
+func TestJSONSchemaRemovedEpisodeOutcomes(t *testing.T) {
+	t.Parallel()
+	stdout, _, err := executeJSONSchemaCommand("outcomes-episodes")
+	if err == nil || !strings.Contains(err.Error(), "unsupported schema: outcomes-episodes") {
+		t.Fatalf("expected removed schema to be unsupported, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("removed schema wrote output: %q", stdout)
+	}
+}
+
 func TestGeneratedOutputSchemasAreCurrent(t *testing.T) {
 	t.Parallel()
 
-	for _, schemaName := range []string{"audit", "logs", "logs-jsonl", "outcomes-episodes"} {
+	for _, schemaName := range []string{"audit", "logs", "logs-jsonl"} {
 		t.Run(schemaName, func(t *testing.T) {
 			t.Parallel()
 

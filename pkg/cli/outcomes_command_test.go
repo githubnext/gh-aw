@@ -10,25 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewOutcomesCommand_DoesNotShadowGlobalVerboseFlag(t *testing.T) {
+func TestLogsOutcomesDoesNotShadowGlobalVerboseFlag(t *testing.T) {
 	t.Parallel()
-	cmd := NewOutcomesCommand()
+	cmd := NewLogsCommand()
 	require.NotNil(t, cmd)
 
-	assert.Nil(t, cmd.Flags().Lookup("verbose"), "outcomes should not define a local --verbose flag")
+	assert.Nil(t, cmd.Flags().Lookup("verbose"), "logs should not define a local --verbose flag")
 
 	root := &cobra.Command{Use: "gh aw"}
 	root.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output showing detailed information")
 	root.AddCommand(cmd)
 
 	inherited := cmd.InheritedFlags().Lookup("verbose")
-	require.NotNil(t, inherited, "outcomes should inherit global --verbose flag")
+	require.NotNil(t, inherited, "logs should inherit global --verbose flag")
 	assert.Equal(t, "Enable verbose output showing detailed information", inherited.Usage)
 }
 
-func TestNewOutcomesCommand_OutputFlagShowsDefault(t *testing.T) {
+func TestLogsOutcomesOutputFlagShowsDefault(t *testing.T) {
 	t.Parallel()
-	cmd := NewOutcomesCommand()
+	cmd := NewLogsCommand()
 	require.NotNil(t, cmd)
 
 	outputFlag := cmd.Flags().Lookup("output")

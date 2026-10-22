@@ -272,6 +272,14 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}
+	processedRuns = sortAndLimitLogsTargetRuns(processedRuns, opts.Count, opts.Verbose)
+	var outcomeReports []OutcomesData
+	if opts.Outcomes {
+		outcomeReports, err = collectLogsOutcomes(ctx, processedRuns, opts.OutcomesDir, opts.Verbose)
+		if err != nil {
+			return err
+		}
+	}
 	finishGitHubAPIRateLimitReports(activeCtx, allAPIRateLimits, opts.JSONOutput)
 	cacheGitHubAPIRateLimitReports(opts.cachedJSONLWriter, allAPIRateLimits...)
 	apiRateLimit, apiRateLimits := partitionGitHubAPIRateLimitReports(allAPIRateLimits)
@@ -284,7 +292,6 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 		return err
 	}
 
-	processedRuns = sortAndLimitLogsTargetRuns(processedRuns, opts.Count, opts.Verbose)
 	artifactFilter, err := resolveLogsArtifactFilter(opts.ArtifactSets, opts.Verbose)
 	if err != nil {
 		return err
@@ -295,6 +302,7 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 		format:            opts.Format,
 		reportFile:        opts.ReportFile,
 		jsonOutput:        opts.JSONOutput,
+		episodes:          opts.Episodes,
 		toolGraph:         opts.ToolGraph,
 		train:             opts.Train,
 		drain3Weights:     opts.Drain3Weights,
@@ -312,6 +320,7 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 		apiRateLimit:      apiRateLimit,
 		apiRateLimits:     apiRateLimits,
 		cachedJSONLWriter: opts.cachedJSONLWriter,
+		outcomeReports:    outcomeReports,
 	})
 }
 
