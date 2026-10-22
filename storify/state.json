@@ -1,29 +1,28 @@
 {
-  "last_run_date": "2026-10-21",
+  "last_run_date": "2026-10-22",
   "last_window": {
-    "start": "2026-10-20T07:59:30Z",
-    "end": "2026-10-21T07:59:30Z"
+    "start": "2026-10-21T07:58:53Z",
+    "end": "2026-10-22T07:58:53Z"
   },
   "observed_window": {
-    "coverage": "three MCP log slices; continuation completed",
-    "run_records_across_slices": 640
+    "coverage": "cached 312 runs from 2026-10-21T16:56:57Z onward; earlier continuation unavailable because agentic-workflows MCP was not exposed",
+    "run_records_in_cached_slice": 312
   },
   "key_themes": [
-    "Scheduled activation AIC restore failures affected nine workflows before agent execution",
-    "PR reviewer fanout produced repeated checkout failures across five workflows and distinct PRs",
-    "Smoke validation failures recurred across Pi, Copilot sub-agents, and Aider"
+    "PR review fan-out at checkout",
+    "Reviewer-led Copilot sub-agent smoke validation and merge",
+    "Work-queue agents succeeded but conclusion issue projection failed"
   ],
   "carry_forward_questions": [
-    "Which PR checkout inputs distinguish failing PRs 70585 and 70775 from successful PR 70581?",
-    "Was the AIC restore interruption transient, and did the same SHA succeed after the failed schedule?",
-    "Did engine smoke validation pass after the reported failures?",
-    "What review or merge actions occurred around these runs? GitHub reads were unavailable in this session."
+    "What failed in the Checkout PR branch step across the three affected PRs?",
+    "Did work-queue issue projection recover after runs 39717769293, 39717795818, and 39717823226?",
+    "What occurred in the uncached first nine hours of this window?"
   ],
   "representative_runs": [
-    39408730613,
-    39471461624,
-    39472548266,
-    39545043201,
-    39518720281
+    39674517138,
+    39709752322,
+    39698253184,
+    39717795818,
+    39717823226
   ]
 }
