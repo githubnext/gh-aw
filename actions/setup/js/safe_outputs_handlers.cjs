@@ -678,8 +678,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       if (!args?.record || typeof args.record !== "object" || Array.isArray(args.record) || args.operation !== undefined) {
         return buildIntentErrorResponse("Custom ledger requires a record object. Use { ledger, record: { ... } }, not operation or value.");
       }
-      if (target.schema && validateValueAgainstSchema(args.record, target.schema)) {
-        return buildIntentErrorResponse("Custom ledger record does not match its configured schema.");
+      if (target.schema) {
+        const schemaError = validateValueAgainstSchema(args.record, target.schema);
+        if (schemaError) {
+          const errorPath = schemaError.path ? `.${schemaError.path}` : "";
+          return buildIntentErrorResponse(`Custom ledger record${errorPath} ${schemaError.message}`);
+        }
       }
     }
     return defaultHandler("ledger_append")(args);

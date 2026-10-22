@@ -211,20 +211,25 @@ describe("generate_safe_outputs_tools", () => {
     expect(tool.inputSchema.properties.milestone.description).toContain("Use null to clear.");
   });
 
-  it("mounts dedicated built-in ledger tools without exposing the low-level append tool", () => {
+  it.each(["map", "notes"])("mounts dedicated %s ledger tools without exposing the low-level append tool", type => {
     fs.writeFileSync(toolsSourcePath, JSON.stringify([...sampleSourceTools, { name: "ledger_append", inputSchema: { type: "object", properties: { ledger: { type: "string" } } } }]));
-    const builtin = { name: "ledger_map_put", _ledger_type: "map", _ledger_operation: "put", inputSchema: { type: "object", properties: { key: { type: "string" } } } };
-    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "cache", type: "map" }] } }));
+    const builtin = {
+      name: type === "map" ? "ledger_map_put" : "ledger_note_add",
+      _ledger_type: type,
+      _ledger_operation: type === "map" ? "put" : "note",
+      inputSchema: { type: "object", properties: { key: { type: "string" } } },
+    };
+    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "cache", type }] } }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ dynamic_tools: [builtin] }));
     runScript();
-    expect(JSON.parse(fs.readFileSync(outputPath, "utf8")).map((/** @type {{name: string}} */ tool) => tool.name)).toEqual(["ledger_map_put"]);
+    expect(JSON.parse(fs.readFileSync(outputPath, "utf8")).map((/** @type {{name: string}} */ tool) => tool.name)).toEqual([builtin.name]);
 
     fs.writeFileSync(
       configPath,
       JSON.stringify({
         ledger_append: {
           ledgers: [
-            { name: "cache", type: "map" },
+            { name: "cache", type },
             { name: "events", type: "log" },
           ],
         },
@@ -232,7 +237,7 @@ describe("generate_safe_outputs_tools", () => {
     );
     runScript();
     const mixed = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    expect(mixed.map((/** @type {{name: string}} */ tool) => tool.name)).toEqual(["ledger_append", "ledger_map_put"]);
+    expect(mixed.map((/** @type {{name: string}} */ tool) => tool.name)).toEqual(["ledger_append", builtin.name]);
     expect(mixed[0].inputSchema.properties.ledger.enum).toEqual(["events"]);
     expect(mixed[0].inputSchema.required).toContain("ledger");
   });
@@ -250,6 +255,48 @@ describe("generate_safe_outputs_tools", () => {
     expect(validateValueAgainstSchema({ ledger: "reviews", operation: "append", value: { run_id: "42" } }, tool.inputSchema)).toBeTruthy();
     expect(validateValueAgainstSchema({ record: { run_id: 42 } }, tool.inputSchema)).toBeTruthy();
     expect(validateValueAgainstSchema({ record: { run_id: "42" } }, tool.inputSchema)).toBeNull();
+  });
+
+  it.each(["map", "notes"])("advertises only the custom record envelope alongside a %s ledger", type => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    const schema = { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } }, additionalProperties: false };
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        ledger_append: {
+          ledgers: [
+            { name: "reviews", schema },
+            { name: "cache", type },
+          ],
+        },
+      })
+    );
+    runScript();
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.inputSchema.required).toEqual(["ledger", "record"]);
+    expect(tool.inputSchema.properties.ledger.enum).toEqual(["reviews"]);
+    expect(Object.keys(tool.inputSchema.properties)).toEqual(["ledger", "temp_id", "record"]);
+    expect(tool.inputSchema.properties.record).toMatchObject(schema);
+    expect(validateValueAgainstSchema({ ledger: "reviews", record: { run_id: "42" } }, tool.inputSchema)).toBeNull();
+    expect(validateValueAgainstSchema({ ledger: "cache", record: { run_id: "42" } }, tool.inputSchema)).toBeTruthy();
+  });
+
+  it.each([
+    { $ref: "#/$defs/record", $defs: { record: { type: "object" } } },
+    { type: "object", properties: { run_id: { $ref: "#/$defs/runId" } }, $defs: { runId: { type: "string" } } },
+    { type: "object", allOf: [{ properties: { run_id: { $ref: "#/$defs/runId" } } }], $defs: { runId: { type: "string" } } },
+  ])("preserves the generic record schema when a custom schema contains references: %j", schema => {
+    fs.copyFileSync(path.join(__dirname, "safe_outputs_tools.json"), toolsSourcePath);
+    const sourceTools = JSON.parse(fs.readFileSync(toolsSourcePath, "utf8"));
+    const sourceRecordSchema = sourceTools.find(tool => tool.name === "ledger_append").inputSchema.properties.record;
+    fs.writeFileSync(configPath, JSON.stringify({ ledger_append: { ledgers: [{ name: "reviews", schema }] } }));
+    runScript();
+    const [tool] = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(tool.inputSchema.required).toEqual(["record"]);
+    expect(Object.keys(tool.inputSchema.properties)).toEqual(["ledger", "temp_id", "record"]);
+    expect(tool.inputSchema.properties.record).toEqual(sourceRecordSchema);
+    expect(validateValueAgainstSchema({ record: { run_id: "42" } }, tool.inputSchema)).toBeNull();
+    expect(validateValueAgainstSchema({}, tool.inputSchema)).toBeTruthy();
   });
 
   it("requires an explicit custom ledger when multiple record schemas are configured", () => {

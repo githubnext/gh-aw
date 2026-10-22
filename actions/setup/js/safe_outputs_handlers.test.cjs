@@ -191,6 +191,49 @@ describe("safe_outputs_handlers", () => {
     }
   });
 
+  it.each([
+    {
+      name: "nested array item type",
+      schema: {
+        type: "object",
+        properties: {
+          review: { type: "object", properties: { feature_ids: { type: "array", items: { type: "string" } } } },
+        },
+      },
+      record: { review: { feature_ids: [{ token: "private-payload-value" }] } },
+      error: "Custom ledger record.review.feature_ids[0] must be a string",
+    },
+    {
+      name: "nested required field",
+      schema: { type: "object", properties: { review: { type: "object", required: ["run_id"] } } },
+      record: { review: { token: "private-payload-value" } },
+      error: "Custom ledger record.review.run_id is required",
+    },
+    {
+      name: "enum mismatch",
+      schema: { type: "object", properties: { outcome: { enum: ["issue_created", "noop"] } } },
+      record: { outcome: "private-payload-value" },
+      error: "Custom ledger record.outcome must be one of: issue_created, noop",
+    },
+    {
+      name: "root schema mismatch",
+      schema: { oneOf: [{ type: "object" }, { type: "object" }] },
+      record: { token: "private-payload-value" },
+      error: "Custom ledger record must match exactly one schema option",
+    },
+  ])("reports the custom ledger $name without echoing payload values or queuing", ({ schema, record, error }) => {
+    const configured = createHandlers(mockServer, mockAppendSafeOutput, {
+      ledger_append: { ledgers: [{ name: "reviews", schema }] },
+    });
+
+    const rejected = configured.ledgerAgentAppendHandler({ ledger: "reviews", record });
+
+    expect(rejected.isError).toBe(true);
+    expect(JSON.parse(rejected.content[0].text)).toEqual({ result: "error", error });
+    expect(JSON.stringify(rejected)).not.toContain("private-payload-value");
+    expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+  });
+
   it("validates each custom ledger schema even when the tool also supports built-in operations", () => {
     const configured = createHandlers(mockServer, mockAppendSafeOutput, {
       ledger_append: {
