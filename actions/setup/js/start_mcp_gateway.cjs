@@ -507,16 +507,16 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
  * @returns {string[]}
  */
 function injectProxyEnvArgs(args, env = process.env) {
-  const hasProxy = proxyEnvNames.some(name => name.toLowerCase() !== "no_proxy" && env[name]);
-  if (hasProxy && env.NO_PROXY === undefined && env.no_proxy === undefined) {
-    env.NO_PROXY = "";
+  const noProxyNames = proxyEnvNames.filter(name => name.toLowerCase() === "no_proxy" && env[name] !== undefined);
+  if (proxyEnvNames.some(name => name.toLowerCase() !== "no_proxy" && env[name]) && noProxyNames.length === 0) {
+    noProxyNames.push("NO_PROXY");
   }
-  for (const name of ["NO_PROXY", "no_proxy"]) {
-    if (env[name] === undefined) continue;
-    const exclusions = new Set(env[name].split(",").map(host => host.trim().toLowerCase()));
+  for (const name of noProxyNames) {
+    const value = env[name] || "";
+    const exclusions = new Set(value.split(",").map(host => host.trim().toLowerCase()));
     const missingHosts = gatewayInternalProxyHosts.filter(host => !exclusions.has(host));
     if (missingHosts.length > 0) {
-      env[name] = `${env[name]}${env[name] && !env[name].endsWith(",") ? "," : ""}${missingHosts.join(",")}`;
+      env[name] = `${value}${value && !value.endsWith(",") ? "," : ""}${missingHosts.join(",")}`;
     }
   }
   const proxyArgs = proxyEnvNames.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
