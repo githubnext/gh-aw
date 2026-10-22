@@ -2,10 +2,12 @@ package workflow
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 )
 
 var compilerGitHubActionsStepsLog = logger.New("workflow:compiler_github_actions_steps")
@@ -61,6 +63,32 @@ func generatePlaceholderSubstitutionStepForFile(yaml *strings.Builder, expressio
 	generatePlaceholderSubstitutionScript(yaml, expressionMappings, indent)
 }
 
+type inlineArtifactSubstitutionTarget struct {
+	Directory string
+	Extension string
+}
+
+func (c *Compiler) generateDeferredPromptSubstitutionStep(yaml *strings.Builder, data *WorkflowData) {
+	if len(data.DeferredPromptExpressions) == 0 {
+		return
+	}
+	yaml.WriteString("      - name: " + constants.DeferredPromptStepName + "\n")
+	yaml.WriteString("        id: " + constants.DeferredPromptStepID.String() + "\n")
+	fmt.Fprintf(yaml, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	yaml.WriteString("        env:\n")
+	fmt.Fprintf(yaml, "          GH_AW_PROMPT: %s\n", constants.AwPromptsFile) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	generatePlaceholderEnvironment(yaml, data.DeferredPromptExpressions, "      ")
+	engineID := ""
+	if data.EngineConfig != nil {
+		engineID = data.EngineConfig.ID
+	}
+	baseDir := engineConfigBaseDirForRegistry(c.engineRegistry, engineID)
+	generatePlaceholderSubstitutionScript(yaml, data.DeferredPromptExpressions, "      ",
+		inlineArtifactSubstitutionTarget{Directory: path.Join(baseDir, "agents"), Extension: parser.GetEngineSubAgentExt(engineID)},
+		inlineArtifactSubstitutionTarget{Directory: path.Join(baseDir, "skills"), Extension: engineInlineSkillExt(engineID)},
+	)
+}
+
 func generatePlaceholderEnvironment(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
 	// Add all environment variables
 	// For static values (wrapped in quotes), output them directly without ${{ }}
@@ -89,7 +117,7 @@ func generatePlaceholderEnvironment(yaml *strings.Builder, expressionMappings []
 	}
 }
 
-func generatePlaceholderSubstitutionScript(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string) {
+func generatePlaceholderSubstitutionScript(yaml *strings.Builder, expressionMappings []*ExpressionMapping, indent string, inlineArtifacts ...inlineArtifactSubstitutionTarget) {
 	yaml.WriteString(indent + "  with:\n")
 	yaml.WriteString(indent + "    script: |\n")
 
@@ -103,6 +131,13 @@ func generatePlaceholderSubstitutionScript(yaml *strings.Builder, expressionMapp
 	yaml.WriteString(indent + "      // Call the substitution function\n")
 	yaml.WriteString(indent + "      return await substitutePlaceholders({\n")
 	yaml.WriteString(indent + "        file: process.env.GH_AW_PROMPT,\n")
+	if len(inlineArtifacts) > 0 {
+		targets := make([]string, 0, len(inlineArtifacts))
+		for _, target := range inlineArtifacts {
+			targets = append(targets, fmt.Sprintf(`{"directory":%q,"extension":%q}`, target.Directory, target.Extension))
+		}
+		fmt.Fprintf(yaml, indent+"        inlineArtifacts: [%s],\n", strings.Join(targets, ",")) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	}
 	yaml.WriteString(indent + "        substitutions: {\n")
 
 	for i, mapping := range expressionMappings {

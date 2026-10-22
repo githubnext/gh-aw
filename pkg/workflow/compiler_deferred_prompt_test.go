@@ -72,6 +72,119 @@ func TestDeferredPromptDoesNotChangeRendering(t *testing.T) {
 	}
 }
 
+func TestDeferredPromptReferenceBoundaries(t *testing.T) {
+	jobs := map[string]any{"release": map[string]any{
+		"needs": "activation",
+		"outputs": map[string]any{
+			"release_id": "public", "release_id_extra": "public", "id": "public", "id_set": "public",
+		},
+	}}
+	for _, tt := range []struct {
+		name     string
+		markdown string
+		want     []string
+	}{
+		{"sibling outputs", "${{ needs.release.outputs.release_id }} ${{ needs.release.outputs.release_id_extra }}", []string{"needs.release.outputs.release_id", "needs.release.outputs.release_id_extra"}},
+		{"sibling fallback", "${{ needs.release.outputs.release_id }} ${{ needs.release.outputs.release_id_extra || 'none' }}", []string{"needs.release.outputs.release_id"}},
+		{"sibling condition", "${{ needs.release.outputs.id }} {{#if needs.release.outputs.id_set}}yes{{/if}}", []string{"needs.release.outputs.id"}},
+		{"sibling expression condition", "${{ needs.release.outputs.id }} {{#if ${{ needs.release.outputs.id_set }} }}yes{{/if}}", []string{"needs.release.outputs.id"}},
+		{"sibling elseif", "${{ needs.release.outputs.id }} {{#if false}}no{{#elseif needs.release.outputs.id_set}}yes{{/if}}", []string{"needs.release.outputs.id"}},
+		{"actual fallback operand", "${{ needs.release.outputs.id }} ${{ needs.release.outputs.id || 'none' }}", nil},
+		{"actual condition", "${{ needs.release.outputs.id }} {{#if needs.release.outputs.id}}yes{{/if}}", nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			mappings, err := NewExpressionExtractor().ExtractExpressions(wrapExpressionsInTemplateConditionals(tt.markdown))
+			require.NoError(t, err)
+			_, deferred := rewriteDeferredPromptExpressions(mappings, jobs, nil, tt.markdown)
+			var contents []string
+			for _, mapping := range deferred {
+				contents = append(contents, mapping.Content)
+			}
+			assert.ElementsMatch(t, tt.want, contents)
+		})
+	}
+}
+
+func TestDeferredPromptCompilationPreservesCompoundMappings(t *testing.T) {
+	for _, mode := range []string{"runtime", "inline", "inlined-imports"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			frontmatter := ""
+			if mode == "inlined-imports" {
+				frontmatter = "inlined-imports: true\n"
+			}
+			source := "---\non: workflow_dispatch\nengine: copilot\n" + frontmatter + `jobs:
+  release:
+    needs: activation
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+    steps:
+      - id: release
+        run: echo "id=123" >> "$GITHUB_OUTPUT"
+---
+Release ID: ${{ needs.release.outputs.id || 'none' }}
+{{#if needs.release.outputs.id}}
+Release exists
+{{/if}}
+`
+			path := filepath.Join(dir, "release.md")
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			compiler := NewCompiler()
+			compiler.SetQuiet(true)
+			compiler.inlinePrompt = mode == "inline"
+			require.NoError(t, compiler.CompileWorkflow(path))
+			content, err := os.ReadFile(filepath.Join(dir, "release.lock.yml"))
+			require.NoError(t, err)
+			activation := strings.SplitN(string(content), "\n  agent:", 2)[0]
+			mappings, err := NewExpressionExtractor().ExtractExpressions(source[strings.LastIndex(source, "\n---\n")+5:])
+			require.NoError(t, err)
+			for _, mapping := range mappings {
+				assert.Contains(t, activation, mapping.EnvVar+": ${{ "+mapping.Content+" }}")
+			}
+			assert.NotContains(t, activation, "GH_AW_DEFERRED_")
+		})
+	}
+}
+
+func TestDeferredPromptImportedCompilation(t *testing.T) {
+	for _, inline := range []bool{false, true} {
+		t.Run(map[bool]string{false: "runtime", true: "inline"}[inline], func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), ".github", "workflows")
+			require.NoError(t, os.MkdirAll(dir, 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "prompt.md"), []byte("Release: ${{ needs.release.outputs.id }}"), 0o600))
+			source := `---
+on: workflow_dispatch
+engine: copilot
+jobs:
+  release:
+    needs: activation
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+    steps:
+      - id: release
+        run: echo "id=123" >> "$GITHUB_OUTPUT"
+---
+{{#runtime-import prompt.md}}
+`
+			path := filepath.Join(dir, "release.md")
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			compiler := NewCompiler()
+			compiler.SetQuiet(true)
+			compiler.inlinePrompt = inline
+			require.NoError(t, compiler.CompileWorkflow(path))
+			content, err := os.ReadFile(filepath.Join(dir, "release.lock.yml"))
+			require.NoError(t, err)
+			parts := strings.SplitN(string(content), "\n  agent:", 2)
+			require.Len(t, parts, 2)
+			assert.NotContains(t, parts[0], "${{ needs.release.outputs.id }}")
+			assert.Contains(t, parts[0], "GH_AW_DEFERRED_PLACEHOLDERS:")
+			assert.Contains(t, parts[1], "${{ needs.release.outputs.id }}")
+		})
+	}
+}
+
 func TestDeferredPromptCompilation(t *testing.T) {
 	for _, inline := range []bool{false, true} {
 		t.Run(map[bool]string{false: "runtime", true: "inline"}[inline], func(t *testing.T) {

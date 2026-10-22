@@ -18,30 +18,8 @@ func rewriteDeferredPromptExpressions(mappings []*ExpressionMapping, jobs map[st
 	rewritten := make([]*ExpressionMapping, 0, len(mappings))
 	var deferred []*ExpressionMapping
 	seen := make(map[string]struct{})
-	postAgentJobs := getJobsDependingOnAgent(jobs)
 	for _, mapping := range mappings {
-		parts := deferredPromptOutputPattern.FindStringSubmatch(mapping.Content)
-		if len(parts) < 3 {
-			rewritten = append(rewritten, mapping)
-			continue
-		}
-		producer, output := parts[1], parts[2] //nolint:uncheckedsliceindex // The guard above requires all three regex captures.
-		if slices.Contains(beforeActivation, producer) || isBuiltinJobName(producer) {
-			rewritten = append(rewritten, mapping)
-			continue
-		}
-		job, ok := jobs[producer].(map[string]any)
-		if !ok || setutil.Contains(postAgentJobs, producer) {
-			rewritten = append(rewritten, mapping)
-			continue
-		}
-		outputs, hasOutputs := job["outputs"].(map[string]any)
-		_, declared := outputs[output]
-		if output != "" && (!hasOutputs || !declared) {
-			rewritten = append(rewritten, mapping)
-			continue
-		}
-		if deferredPromptControlsRendering(mapping, mappings, markdown) {
+		if !canDeferPromptExpression(mapping, mappings, jobs, beforeActivation, markdown) {
 			rewritten = append(rewritten, mapping)
 			continue
 		}
@@ -65,18 +43,68 @@ func rewriteDeferredPromptExpressions(mappings []*ExpressionMapping, jobs map[st
 	return rewritten, deferred
 }
 
+func canDeferPromptExpression(mapping *ExpressionMapping, mappings []*ExpressionMapping, jobs map[string]any, beforeActivation []string, markdown string) bool {
+	parts := deferredPromptOutputPattern.FindStringSubmatch(mapping.Content)
+	if len(parts) < 3 {
+		return false
+	}
+	producer, output := parts[1], parts[2] //nolint:uncheckedsliceindex // The guard above requires all three regex captures.
+	if slices.Contains(beforeActivation, producer) || isBuiltinJobName(producer) {
+		return false
+	}
+	job, ok := jobs[producer].(map[string]any)
+	if !ok || setutil.Contains(getJobsDependingOnAgent(jobs), producer) {
+		return false
+	}
+	outputs, hasOutputs := job["outputs"].(map[string]any)
+	_, declared := outputs[output]
+	return (output == "" || (hasOutputs && declared)) && !deferredPromptControlsRendering(mapping, mappings, markdown)
+}
+
+// Inline chunks already contain placeholders. Keep mappings used by fallback
+// expressions and conditions so filtering cannot strand those placeholders.
+func filterPromptExpressionsForActivation(mappings []*ExpressionMapping, jobs map[string]any, beforeActivation []string, markdown string) []*ExpressionMapping {
+	activationMappings := filterExpressionsForActivation(mappings, jobs, beforeActivation)
+	for _, mapping := range mappings {
+		if !slices.Contains(activationMappings, mapping) &&
+			(!deferredPromptOutputPattern.MatchString(mapping.Content) || deferredPromptControlsRendering(mapping, mappings, markdown)) {
+			activationMappings = append(activationMappings, mapping)
+		}
+	}
+	return activationMappings
+}
+
 func deferredPromptControlsRendering(mapping *ExpressionMapping, mappings []*ExpressionMapping, markdown string) bool {
 	for _, other := range mappings {
-		if other.Content != mapping.Content && strings.Contains(other.Content, mapping.Content) {
+		if other.Content != mapping.Content && containsPromptReference(other.Content, mapping.Content) {
 			return true
 		}
 	}
 	for _, pattern := range []*regexp.Regexp{TemplateIfPattern, TemplateElseIfPattern} {
 		for _, conditional := range pattern.FindAllString(markdown, -1) {
-			if strings.Contains(conditional, mapping.Content) || strings.Contains(conditional, "__"+mapping.EnvVar+"__") {
+			if containsPromptReference(conditional, mapping.Content) || strings.Contains(conditional, "__"+mapping.EnvVar+"__") {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+func containsPromptReference(content, reference string) bool {
+	isReferenceChar := func(c byte) bool {
+		return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-' || c == '.'
+	}
+	for offset := 0; offset < len(content); {
+		index := strings.Index(content[offset:], reference)
+		if index < 0 {
+			return false
+		}
+		start := offset + index
+		end := start + len(reference)
+		if (start == 0 || !isReferenceChar(content[start-1])) && (end == len(content) || !isReferenceChar(content[end])) { //nolint:uncheckedsliceindex // strings.Index bounds the match; short-circuit checks guard its adjacent bytes.
+			return true
+		}
+		offset = end
 	}
 	return false
 }

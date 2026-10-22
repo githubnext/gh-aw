@@ -60,7 +60,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	userPromptChunks, expressionMappings = c.buildMainWorkflowPromptChunks(data, userPromptChunks, expressionMappings)
 	promptMarkdown := data.MarkdownContent + "\n" + data.ImportedMarkdown + "\n" + c.collectRuntimeImportMarkdownForCompilerAnalysis(data)
 	expressionMappings, data.DeferredPromptExpressions = rewriteDeferredPromptExpressions(expressionMappings, data.Jobs, beforeActivationJobs, promptMarkdown)
-	expressionMappings = filterExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs)
+	expressionMappings = filterPromptExpressionsForActivation(expressionMappings, data.Jobs, beforeActivationJobs, promptMarkdown)
 
 	// Enhance entity number expressions with || inputs.item_number fallback when the
 	// workflow has a workflow_dispatch trigger with item_number.

@@ -4,6 +4,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const substitutePlaceholders = require("./substitute_placeholders.cjs");
+const { processRuntimeImports } = require("./runtime_import.cjs");
+const { writeInlineSubAgents, getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
+const { writeInlineSkills, getEngineSkillTarget } = require("./extract_inline_skills.cjs");
 
 describe("substitutePlaceholders", () => {
   /** @type {string} */
@@ -155,5 +158,112 @@ describe("substitutePlaceholders", () => {
     expect(fs.readFileSync(systemPath, "utf8")).toBe("System __ACTOR__");
     expect(fs.readFileSync(userPath, "utf8")).toBe("User");
     expect(fs.readFileSync(testFile, "utf8")).toBe("Different __ACTOR__");
+  });
+
+  it.each(["copilot", "claude", "codex", "gemini", "pi"])("resolves runtime-import outputs in extracted staged agents and skills (%s)", async engine => {
+    const artifactRoot = path.join(tempDir, "artifact");
+    const promptDir = path.join(artifactRoot, "aw-prompts");
+    fs.mkdirSync(promptDir, { recursive: true });
+    const promptPath = path.join(promptDir, "prompt.txt");
+    const envKey = "GH_AW_NEEDS_RELEASE_OUTPUTS_RELEASE_ID";
+    const previous = process.env[envKey];
+    process.env[envKey] = "__GH_AW_DEFERRED_RELEASE__";
+    fs.mkdirSync(path.join(tempDir, ".github", "workflows"), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, ".github", "workflows", "release.md"), "Release: ${{ needs.release.outputs.release_id }}");
+    const markdown = [
+      "# Main",
+      "## agent: `reader`",
+      "---",
+      "description: Read the release",
+      "---",
+      "{{#runtime-import release.md}}",
+      "## end agent: `reader`",
+      "## skill: `release`",
+      "---",
+      "description: Read the release",
+      "---",
+      "{{#runtime-import release.md}}",
+      "## end skill: `release`",
+    ].join("\n");
+    let imported;
+    try {
+      imported = await processRuntimeImports(markdown, tempDir);
+    } finally {
+      if (previous === undefined) delete process.env[envKey];
+      else process.env[envKey] = previous;
+    }
+    let main = writeInlineSubAgents(imported, tempDir, artifactRoot, engine);
+    main = writeInlineSkills(main, tempDir, artifactRoot, engine);
+    expect(main).not.toContain("__GH_AW_DEFERRED_RELEASE__");
+    const { dir: agentDir, ext: agentExt } = getEngineSubAgentTarget(engine);
+    const { dir: skillDir, ext: skillExt } = getEngineSkillTarget(engine);
+    const agentPath = path.join(artifactRoot, agentDir, "reader" + agentExt);
+    const skillPath = path.join(artifactRoot, skillDir, "release" + skillExt);
+    const stagedAgent = fs.readFileSync(agentPath, "utf8");
+    const stagedSkill = fs.readFileSync(skillPath, "utf8");
+    expect(stagedAgent).toContain("__GH_AW_DEFERRED_RELEASE__");
+    expect(stagedSkill).toContain("__GH_AW_DEFERRED_RELEASE__");
+    fs.writeFileSync(promptPath, main);
+    fs.writeFileSync(path.join(promptDir, "system.txt"), main);
+    fs.writeFileSync(path.join(promptDir, "user.txt"), "");
+    const unrelated = path.join(artifactRoot, "unrelated.txt");
+    fs.writeFileSync(unrelated, "__GH_AW_DEFERRED_RELEASE__");
+
+    for (const value of ["", "line one\n${{ literal }} $(literal) $& __GH_AW_DEFERRED_OTHER__"]) {
+      fs.writeFileSync(agentPath, stagedAgent);
+      fs.writeFileSync(skillPath, stagedSkill);
+      await substitutePlaceholders({
+        file: promptPath,
+        substitutions: { GH_AW_DEFERRED_RELEASE: value, GH_AW_DEFERRED_OTHER: "must not replace literal value" },
+        inlineArtifacts: [
+          { directory: agentDir, extension: agentExt },
+          { directory: skillDir, extension: skillExt },
+        ],
+      });
+      expect(fs.readFileSync(agentPath, "utf8")).toBe(stagedAgent.replace("__GH_AW_DEFERRED_RELEASE__", () => value));
+      expect(fs.readFileSync(skillPath, "utf8")).toBe(stagedSkill.replace("__GH_AW_DEFERRED_RELEASE__", () => value));
+      expect(fs.readFileSync(promptPath, "utf8")).toBe(main);
+      expect(fs.readFileSync(unrelated, "utf8")).toBe("__GH_AW_DEFERRED_RELEASE__");
+    }
+  });
+
+  it("rejects traversal and symlinked inline artifact directories without writing prompts", async () => {
+    const artifactRoot = path.join(tempDir, "artifact");
+    const promptPath = path.join(artifactRoot, "aw-prompts", "prompt.txt");
+    fs.mkdirSync(path.dirname(promptPath), { recursive: true });
+    fs.writeFileSync(promptPath, "__NAME__");
+    fs.symlinkSync(tempDir, path.join(artifactRoot, ".github"));
+    for (const directory of ["../outside", "/outside", ".github/agents"]) {
+      await expect(
+        substitutePlaceholders({
+          file: promptPath,
+          substitutions: { NAME: "resolved" },
+          inlineArtifacts: [{ directory, extension: ".agent.md" }],
+        })
+      ).rejects.toThrow("ERR_VALIDATION");
+      expect(fs.readFileSync(promptPath, "utf8")).toBe("__NAME__");
+    }
+  });
+
+  it("does not follow symlinked staged instruction files or skill folders", async () => {
+    const artifactRoot = path.join(tempDir, "artifact");
+    const promptPath = path.join(artifactRoot, "aw-prompts", "prompt.txt");
+    const agentDir = path.join(artifactRoot, ".github", "agents");
+    const skillDir = path.join(artifactRoot, ".github", "skills");
+    for (const dir of [path.dirname(promptPath), agentDir, skillDir]) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(promptPath, "__NAME__");
+    fs.writeFileSync(testFile, "__NAME__");
+    fs.symlinkSync(testFile, path.join(agentDir, "reader.agent.md"));
+    fs.symlinkSync(tempDir, path.join(skillDir, "release"));
+    await substitutePlaceholders({
+      file: promptPath,
+      substitutions: { NAME: "resolved" },
+      inlineArtifacts: [
+        { directory: ".github/agents", extension: ".agent.md" },
+        { directory: ".github/skills", extension: "/SKILL.md" },
+      ],
+    });
+    expect(fs.readFileSync(promptPath, "utf8")).toBe("resolved");
+    expect(fs.readFileSync(testFile, "utf8")).toBe("__NAME__");
   });
 });

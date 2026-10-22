@@ -16,6 +16,8 @@ The compiler defers direct references to declared custom-job outputs (`needs.<jo
 
 References inside compound expressions or `{{#if}}`/`{{else if}}` template conditionals are not rewritten, because that would change rendering semantics. The `needs-consistency` AST rule reports references unavailable during prompt rendering, including unsupported post-activation references, and undeclared outputs. In compiled lock files, the rule checks generated late bindings against the agent job's dependencies rather than activation's.
 
+The same eligibility check permits direct references in imported prompts before YAML generation. Deferred substitution updates combined and split prompts and extracted agent/skill instructions before workspace restoration or comment-memory preparation. Inline expressions that are not late-bound retain their activation mappings so fallback and conditional evaluation do not leave orphan placeholders.
+
 ### Alternatives Considered
 
 #### Alternative 1: Lint-only — forbid prompt references to post-activation jobs
@@ -40,7 +42,7 @@ Require authors to make producer jobs run before activation. This remains the gu
 #### Negative
 - Prompt substitution now happens in two places (activation and agent). This adds a compiler code path, generated steps, and an allowlist exception in placeholder validation.
 - Compound expressions and template conditionals that reference post-activation outputs are still unsupported. Authors must restructure them after a lint diagnostic.
-- The lint rule identifies late bindings by matching the generated step name ("Resolve deferred prompt expressions"), script content, and `GH_AW_DEFERRED_` environment bindings. This couples the linter to the compiler's output format; changes to that format must update the detection logic together.
+- The lint rule identifies late bindings through a shared, stable generated step ID and direct `GH_AW_DEFERRED_` environment bindings, rather than the display name or script text. This remains a compiler/linter contract, covered by compilation-based regression tests.
 
 #### Neutral
 - Generated workflow lock files reflect the additional substitution step where needed. `release.md` was changed to read release metadata from staged JSON instead of interpolating the release job output.

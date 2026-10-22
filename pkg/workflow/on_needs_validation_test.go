@@ -148,6 +148,44 @@ func TestValidateOnGitHubAppNeedsExpressions(t *testing.T) {
 }
 
 func TestValidatePromptNeedsAvailableBeforeActivation(t *testing.T) {
+	t.Run("shares deferred expression eligibility", func(t *testing.T) {
+		for _, tt := range []struct {
+			name   string
+			prompt string
+			needs  string
+			valid  bool
+		}{
+			{"direct output", "${{ needs.release.outputs.id }}", "activation", true},
+			{"direct result", "${{ needs.release.result }}", "activation", true},
+			{"undeclared output", "${{ needs.release.outputs.unknown }}", "activation", false},
+			{"compound", "${{ needs.release.outputs.id || 'none' }}", "activation", false},
+			{"raw condition", "{{#if needs.release.outputs.id}}yes{{/if}}", "activation", false},
+			{"expression condition", "{{#if ${{ needs.release.outputs.id }} }}yes{{/if}}", "activation", false},
+			{"direct and compound", "${{ needs.release.outputs.id }} ${{ needs.release.outputs.id || 'none' }}", "activation", false},
+			{"after agent", "${{ needs.release.outputs.id }}", "agent", false},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				dir := filepath.Join(t.TempDir(), ".github", "workflows")
+				require.NoError(t, os.MkdirAll(dir, 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "prompt.md"), []byte(tt.prompt), 0o600))
+				c := NewCompiler()
+				c.markdownPath = filepath.Join(dir, "workflow.md")
+				data := &WorkflowData{
+					MarkdownContent: "{{#runtime-import prompt.md}}",
+					Jobs: map[string]any{
+						"release": map[string]any{"needs": tt.needs, "outputs": map[string]any{"id": "value"}},
+					},
+				}
+				err := c.validateOnNeeds(data)
+				if tt.valid {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, "not available before activation")
+				}
+			})
+		}
+	})
+
 	t.Run("rejects runtime-import reference to explicit-needs job not in activation needs", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		workflowsDir := filepath.Join(tmpDir, ".github", "workflows")

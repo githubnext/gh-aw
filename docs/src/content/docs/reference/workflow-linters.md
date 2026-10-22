@@ -103,6 +103,8 @@ The compiled Actions graph takes precedence over companion AW source. AW-only ch
 
 Prompt checks use activation's dependencies and report prompt-relative lines. Authored AW analysis recognizes independent prompt producers, `on.needs`, and jobs that depend on `pre_activation` without depending on `activation`. A reference such as `${{ needs.release.outputs.release_id }}` is flagged when `release` runs after activation. Prefer reading data staged by agent steps; use `on.needs` only for producers that can safely run before activation. The compiler automatically defers direct, declared custom-job output and result interpolations to the agent job when their producer runs between activation and the agent. Compiled graph analysis recognizes those late bindings and checks them against the agent's dependencies. Compound expressions and template conditions are not late-bound; stage their data explicitly instead.
 
+Bare `if` and `elseif` template conditions receive the same dependency and declared-output checks as interpolations. Prompt syntax errors remain the responsibility of `prompt-expression` and do not suppress independent job-graph diagnostics from `needs-consistency`.
+
 ```bash wrap
 gh aw lint --rules needs-consistency .github/workflows/example.md
 ```

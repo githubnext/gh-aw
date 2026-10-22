@@ -673,6 +673,7 @@ jobs:
           name: activation
           path: /tmp/gh-aw
       - name: Resolve deferred prompt expressions
+        id: resolve_deferred_prompt
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -691,6 +692,7 @@ jobs:
             // Call the substitution function
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
+              inlineArtifacts: [{"directory":".claude/agents","extension":".md"},{"directory":".claude/skills","extension":".md"}],
               substitutions: {
                 GH_AW_DEFERRED_386607E053D03E85: process.env.GH_AW_DEFERRED_386607E053D03E85,
                 GH_AW_DEFERRED_B328D8C5111E544F: process.env.GH_AW_DEFERRED_B328D8C5111E544F,
