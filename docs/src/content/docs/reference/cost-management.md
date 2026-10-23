@@ -348,7 +348,10 @@ Use an admission authority when static per-run and daily limits are not enough�
      admission: true
    ```
 
-   Alternatively, set `"admission": true` in the existing `.github/workflows/aw.json` object to opt in repository-wide. Preserve other settings. A workflow-level `false` cannot override repository-level `true`.
+   Alternatively, set `"admission": true` in the existing `.github/workflows/aw.json` object to opt in repository-wide. Preserve other settings.
+
+   > [!IMPORTANT]
+   > A workflow-level `false` cannot override repository-level `true`.
 
 2. Recompile affected workflows with `gh aw compile` and commit the updated Markdown or repository configuration and generated `.lock.yml` files. Admission jobs are omitted by default; setting an endpoint alone does not add them.
 
@@ -402,7 +405,7 @@ For the medium tier, the authority could return `200 OK` with `content-type: app
 }
 ```
 
-`max_ai_credits` is required. The threat-detection and evals fields are independently optional; omitted fields retain the existing component limits. Each supplied allowance must be a plain positive JSON integer from `1` through `2147483647`, not a string, decimal, exponent, or unlimited sentinel. The allowances replace their respective runtime limits—even if higher than the workflow's configured limit—and are not a pooled budget.
+`max_ai_credits` is required. The threat-detection and evals fields are independently optional; omitted fields retain the existing component limits. Each supplied allowance must be a plain positive JSON integer from `1` through `2147483647` (the maximum signed 32-bit integer), not a string, decimal, exponent, or unlimited sentinel. The allowances replace their respective runtime limits—even if higher than the workflow's configured limit—and are not a pooled budget.
 
 Valid approval supersedes the local daily-credit check for that activation, so implement any required shared-budget checks in the authority. Keep size-tier allowances independent of hidden remaining balances; exhausted budgets produce a uniform empty `403`, not a reduced remaining-balance response. Monitor subsequent usage with `gh aw logs` and `gh aw audit` and reconcile provider billing separately.
 
