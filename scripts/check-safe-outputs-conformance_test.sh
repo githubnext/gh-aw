@@ -53,6 +53,8 @@ trap 'rm -f "$OUTPUT"; rm -rf "$FIXTURE_ROOT"' EXIT
     fi
 )
 
+bash "$SCRIPT_DIR/check-safe-outputs-transport-integrity_test.sh"
+
 (cd "$REPO_ROOT" && bash "$SCRIPT_DIR/check-safe-outputs-conformance.sh" >"$OUTPUT" 2>&1) || true
 
 if ! grep -q 'SEC-005: All cross-repo handlers validate allowlists' "$OUTPUT" ||
