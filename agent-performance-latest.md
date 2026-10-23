@@ -67,3 +67,6 @@ metrics/latest.json refreshed (2026-10-21T03:05Z, partial: per-workflow safe-out
 
 ## Run 2026-10-22T13:00Z
 metrics/latest.json (2026-10-22T03:01Z) complete 24h: 500 executed runs across 152 workflows, 81.6% success, 420 safe outputs accepted/0 rejected. Weakest PR reviewers: pr-code-quality-reviewer 72%, mattpocock-skills-reviewer 76%, design-decision-gate 76%, ponytail-reviewer 78%; all share max duration 9720s (common event, not prompt). Discussion posted; root causes from older shared-alerts still unverified.
+
+## Run 2026-10-23T12:55Z
+metrics/latest.json now dated 2026-10-23 but partial (4.56h of logs, null quality/outcome values). Ranking deferred; no discussion/issue filed.
