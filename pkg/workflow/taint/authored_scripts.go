@@ -254,9 +254,16 @@ func (a *analyzer) authoredScriptEnvironment(ctx context.Context, document *aw.D
 	if err != nil {
 		return nil, err
 	}
+	if shorthand, ok := document.Frontmatter["sandbox"].(string); ok && (shorthand == "awf" || shorthand == "default") {
+		return bindings, nil
+	}
 	sandbox, err := optionalField[map[string]any](document.Frontmatter, "sandbox", "workflow")
 	if err != nil {
 		return nil, err
+	}
+	switch sandbox["agent"].(type) {
+	case nil, string, bool:
+		return bindings, nil
 	}
 	agent, err := optionalField[map[string]any](sandbox, "agent", "sandbox")
 	if err != nil {

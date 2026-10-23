@@ -304,6 +304,28 @@ func TestAuthoredEngineEnvironmentPrecedence(t *testing.T) {
 	}
 }
 
+func TestAuthoredEngineEnvironmentSandboxShorthands(t *testing.T) {
+	t.Parallel()
+	analyzer := &analyzer{rule: SecretLeakRule()}
+	for _, sandbox := range []any{
+		"awf", "default",
+		map[string]any{"agent": false},
+		map[string]any{"agent": "awf"},
+	} {
+		document := &aw.Document{Frontmatter: map[string]any{
+			"engine": map[string]any{
+				"env":    map[string]any{"TOKEN": "${{ secrets.ENGINE }}"},
+				"driver": map[string]any{"node": "console.log(process.env.TOKEN);"},
+			},
+			"sandbox": sandbox,
+		}}
+		bindings, err := analyzer.authoredScriptEnvironment(t.Context(), document, authoredScript{path: "engine.driver.node"}, scope{}, nil)
+		require.NoError(t, err)
+		require.Len(t, bindings["shell.TOKEN"], 1)
+		assert.Equal(t, "secrets.engine", bindings["shell.TOKEN"][0].Reference)
+	}
+}
+
 func TestAuthoredHookWriteEnvironment(t *testing.T) {
 	options := nativeJavaScriptOptions(t)
 	rule := SecretLeakRule()
