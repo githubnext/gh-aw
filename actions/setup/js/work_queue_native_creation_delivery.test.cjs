@@ -180,10 +180,18 @@ describe("native creation Claim delivery", () => {
         await closeDiscussionAsOutdated(wrapped, "owner", "repo", discussion.id, cleanup);
       }
       expect(cleanup).toHaveLength(2 * count);
+      for (const entry of cleanup) {
+        expect(entry).toMatchObject({ type: expect.stringMatching(/^(comment|close)$/), id: expect.any(String), discussionId: expect.any(String), effectId: expect.stringMatching(/^[a-f0-9]{64}$/) });
+      }
       await f.capture({ cleanup: cleanup.slice(0, receiptCount) });
+      const repositoryReads = vi.spyOn(f.client.rest.repos, "get");
+      const proof = await verifyBuiltinDeliveryOutput({ claim: f.member, message: f.message, result: f.result, github: f.client, effects: f.effects });
+      expect(proof.verified).toBe(receiptCount === 2 * MAX_CLOSE_COUNT);
+      expect(repositoryReads).toHaveBeenCalledTimes(receiptCount === 2 * MAX_CLOSE_COUNT ? 1 : 0);
+      repositoryReads.mockRestore();
       expect((await f.settle()).verification).toBe(receiptCount === 2 * MAX_CLOSE_COUNT ? "verified" : "unknown");
     });
-    expect(f.client.graphql.mock.calls.filter(([query]) => query.includes("ClaimDiscussionCleanup"))).toHaveLength(receiptCount === 2 * MAX_CLOSE_COUNT ? receiptCount : 0);
+    expect(f.client.graphql.mock.calls.filter(([query]) => query.includes("ClaimDiscussionCleanup"))).toHaveLength(receiptCount === 2 * MAX_CLOSE_COUNT ? 2 * receiptCount : 0);
   });
 
   it.each([null, {}, "invalid", false, 0])("rejects a malformed cleanup receipt container (%j) before readback", async cleanup => {
@@ -195,7 +203,45 @@ describe("native creation Claim delivery", () => {
     expect(f.client.graphql).not.toHaveBeenCalled();
   });
 
-  it.each(["verified", "missing_receipts", "comment_changed", "reopened", "reason_changed", "foreign_repository", "unavailable"])("replays Refiner's close-older effects with %s evidence", async evidence => {
+  it.each([
+    null,
+    "invalid",
+    false,
+    0,
+    [],
+    {},
+    { type: "invalid" },
+    ...["id", "discussionId"].flatMap(field => [undefined, null, 7, "", "x".repeat(257), "private\nid"].map(value => ({ type: "close", id: "D_old", discussionId: "D_old", effectId: "a".repeat(64), [field]: value }))),
+    ...[undefined, null, 7, "", "a".repeat(63), "a".repeat(65), "A".repeat(64), "g".repeat(64)].map(effectId => ({ type: "close", id: "D_old", discussionId: "D_old", effectId })),
+    { type: "comment", id: "DC_old", discussionId: "D_old", effectId: "a".repeat(64) },
+  ])("rejects malformed private cleanup entries before readback: %j", async entry => {
+    const f = fixture("create_discussion");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    delete process.env.DEBUG;
+    await f.execute(async () => {
+      await f.capture({ cleanup: [{ type: "close", id: "D_old", discussionId: "D_old", effectId: "a".repeat(64) }, entry] });
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+    expect(f.client.graphql).not.toHaveBeenCalled();
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    expect(output).toContain("discussion.cleanup.readback.mismatch receipt_valid=false");
+    expect(output).not.toContain("creation.readback.unverified");
+    expect(output).not.toContain("private");
+  });
+
+  it.each([
+    ["verified"],
+    ["missing_receipts"],
+    ["comment_changed"],
+    ["reopened"],
+    ["reason_changed"],
+    ["foreign_repository"],
+    ["repository_node_changed"],
+    ["repository_id_changed"],
+    ["repository_id_missing"],
+    ...[undefined, null, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "", "007", "invalid"].map(number => ["invalid_number", number]),
+    ["unavailable"],
+  ])("replays Refiner's close-older effects with %s evidence (%j)", async (evidence, number) => {
     const f = fixture("create_discussion");
     const stderr = evidence === "comment_changed" ? vi.spyOn(process.stderr, "write").mockReturnValue(true) : null;
     if (stderr) delete process.env.DEBUG;
@@ -229,6 +275,10 @@ describe("native creation Claim delivery", () => {
       if (evidence === "reopened") oldDiscussion.closed = false;
       if (evidence === "reason_changed") oldDiscussion.stateReason = "RESOLVED";
       if (evidence === "foreign_repository") oldDiscussion.repository.nameWithOwner = "foreign/repo";
+      if (evidence === "repository_node_changed") oldDiscussion.repository.id = "R_8";
+      if (evidence === "repository_id_changed") oldDiscussion.repository.databaseId = 8;
+      if (evidence === "repository_id_missing") delete oldDiscussion.repository.databaseId;
+      if (evidence === "invalid_number") oldDiscussion.number = number;
       const delivery = await f.settle();
       expect(delivery.verification).toBe(evidence === "verified" ? "verified" : "unknown");
       if (evidence === "missing_receipts") expect(delivery.reason).toContain("auxiliary or ambiguous effect");

@@ -4,7 +4,7 @@
 
 const { canonical, digest } = require("./work_queue_codec.cjs");
 const { currentClaimHandle, claimIdentity, receiptMatchesClaim, createClaimResourceVerification } = require("./work_queue_claim_scope.cjs");
-const { resolveRepositoryTarget, resolveParentResourceTarget, nativeDecimalIdentity } = require("./work_queue_effect_resource.cjs");
+const { canonicalResourceTarget, resolveRepositoryTarget, resolveParentResourceTarget, nativeDecimalIdentity } = require("./work_queue_effect_resource.cjs");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("native_delivery");
 const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
 const { MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
@@ -97,6 +97,22 @@ async function verifyDiscussion(options, receipt) {
   const { github, claim } = options;
   // Each older discussion can produce both a comment receipt and a close receipt.
   if (receipt.cleanup !== undefined && (!Array.isArray(receipt.cleanup) || receipt.cleanup.length > 2 * MAX_CLOSE_COUNT)) return { verified: false };
+  if (
+    (receipt.cleanup || []).some(
+      cleanup =>
+        !cleanup ||
+        typeof cleanup !== "object" ||
+        Array.isArray(cleanup) ||
+        !["comment", "close"].includes(cleanup.type) ||
+        [cleanup.id, cleanup.discussionId].some(id => typeof id !== "string" || !id || Buffer.byteLength(id) > 256 || /[\x00-\x1f\x7f]/.test(id)) ||
+        typeof cleanup.effectId !== "string" ||
+        !/^[a-f0-9]{64}$/.test(cleanup.effectId) ||
+        (cleanup.type === "comment" && typeof cleanup.body !== "string")
+    )
+  ) {
+    log.diagnostic("discussion.cleanup.readback.mismatch", { receipt_valid: false });
+    return { verified: false };
+  }
   const response = await readQueueMetadata(
     () =>
       github.graphql(
@@ -171,7 +187,6 @@ async function verifyDiscussion(options, receipt) {
     );
     const discussion = comment ? resource?.discussion : resource;
     if (
-      !["comment", "close"].includes(cleanup.type) ||
       resource?.__typename !== (comment ? "DiscussionComment" : "Discussion") ||
       resource.id !== cleanup.id ||
       discussion?.id !== cleanup.discussionId ||
@@ -185,7 +200,7 @@ async function verifyDiscussion(options, receipt) {
       log.diagnostic("discussion.cleanup.readback.mismatch", { comment, resource_present: !!resource });
       return { verified: false };
     }
-    authorities.push(await resolveRepositoryTarget(github, { repository: receipt.repository, repository_id: authority.repository_id, number: discussion.number }));
+    authorities.push(canonicalResourceTarget({ ...authority, number: discussion.number }));
     effects.push({ kind: "graphql", repository: receipt.repository, id: cleanup.effectId });
   }
   return createClaimResourceVerification({
