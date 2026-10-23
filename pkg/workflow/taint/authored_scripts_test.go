@@ -326,8 +326,9 @@ func TestAuthoredEngineEnvironmentSandboxShorthands(t *testing.T) {
 		{"typo agent", map[string]any{"agent": "PRIVATE_VALUE"}, true},
 		{"default agent", map[string]any{"agent": "default"}, true},
 		{"true agent", map[string]any{"agent": true}, true},
-		{"numeric agent", map[string]any{"agent": 42}, true},
+		{"numeric agent", map[string]any{"agent": 123}, true},
 		{"list agent", map[string]any{"agent": []any{"awf"}}, true},
+		{"invalid agent environment", map[string]any{"agent": map[string]any{"env": 123}}, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			document := &aw.Document{Frontmatter: map[string]any{
@@ -342,7 +343,7 @@ func TestAuthoredEngineEnvironmentSandboxShorthands(t *testing.T) {
 			}
 			bindings, err := analyzer.authoredScriptEnvironment(t.Context(), document, authoredScript{path: "engine.driver.node"}, scope{}, nil)
 			if test.invalid {
-				require.Error(t, err)
+				require.ErrorContains(t, err, "sandbox")
 				assert.NotContains(t, err.Error(), "PRIVATE_VALUE")
 				return
 			}

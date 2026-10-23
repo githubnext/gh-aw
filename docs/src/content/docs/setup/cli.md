@@ -406,6 +406,8 @@ Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `-
 
 `add`, `update`, and `validate` also run built-in lint whenever they recompile workflows. Only `compile` exposes `--skip-lint`; fix the reported findings before using other recompiling commands.
 
+To migrate existing workflows, run `gh aw compile --no-emit`, fix findings in the authored source, then rerun the original command. `--skip-lint` is a per-compilation escape hatch, not a persistent setting for other commands.
+
 Compile-time lint is Actions/AW AST-only and does not require a native JavaScript parser. Run standalone `gh aw lint --javascript-module <module-path>` for deeper authored JavaScript driver and custom-grader checks. Missing-parser coverage warnings remain advisory and do not block compiler dry-run; successful compilation does not establish complete JavaScript analysis.
 
 **`--no-logo` flag:** Omit the ASCII logo from generated workflow headers without removing metadata or regeneration instructions. To persist this setting for all compiles, including upgrades, set [`"lock_file_logo": false` in `.github/workflows/aw.json`](/gh-aw/reference/compilation-process/#repository-configuration-awjson). Either opt-out disables the logo; `--banner` only controls terminal output.

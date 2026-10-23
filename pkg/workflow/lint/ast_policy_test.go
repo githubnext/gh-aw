@@ -89,6 +89,8 @@ func TestAdditionalASTPolicyFailures(t *testing.T) {
 		{"sandbox-config", "sandbox: PRIVATE_VALUE"},
 		{"sandbox-config", "sandbox: true"},
 		{"sandbox-config", "sandbox: [PRIVATE_VALUE]"},
+		{"sandbox-config", "sandbox: {agent: 123}"},
+		{"sandbox-config", "sandbox: {agent: {env: 123}}"},
 		{"tool-scope", "imports: {aw: PRIVATE_VALUE}\ntools: {}"},
 		{"fork-association", "on: {pull_request: {forks: {author-association: PRIVATE_VALUE}}}"},
 		{"checkout-mode", "checkout: PRIVATE_VALUE"},

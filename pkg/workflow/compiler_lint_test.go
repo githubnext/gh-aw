@@ -145,10 +145,53 @@ func TestCompilerLintUnavailableJavaScriptDoesNotCountAsWarning(t *testing.T) {
 	t.Parallel()
 	document, err := aw.Parse("---\non: workflow_dispatch\ngraders:\n  quality:\n    script: 'return 1;'\n---\nTest.\n")
 	require.NoError(t, err)
-	compiler := NewCompiler(WithLint(true))
-	require.NoError(t, compiler.lintCompiledWorkflow(&WorkflowData{SourceDocument: document},
-		"on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n", "test.md"))
-	require.Zero(t, compiler.GetWarningCount())
+	for _, dryRun := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dry-run=%t", dryRun), func(t *testing.T) {
+			t.Parallel()
+			compiler := NewCompiler(WithLint(true))
+			compiler.SetDryRun(dryRun)
+			require.NoError(t, compiler.lintCompiledWorkflow(&WorkflowData{SourceDocument: document},
+				"on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n", "test.md"))
+			require.Zero(t, compiler.GetWarningCount())
+		})
+	}
+}
+
+func TestCompilerLintSupportedWorkflowShapes(t *testing.T) {
+	t.Parallel()
+	for _, shape := range []struct {
+		name, frontmatter string
+	}{
+		{"custom-grader", "graders:\n  quality:\n    script: 'return 1;'\n"},
+		{"sandbox-awf", "sandbox: awf\n"},
+		{"sandbox-default", "sandbox: default\n"},
+		{"object-imports", "imports: {aw: [shared.md]}\n"},
+		{"empty-object-imports", "imports: {}\n"},
+		{"empty-aw-imports", "imports: {aw: []}\n"},
+	} {
+		for _, mode := range []string{"normal", "no-emit", "dry-run"} {
+			t.Run(shape.name+"/"+mode, func(t *testing.T) {
+				t.Parallel()
+				dir := t.TempDir()
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte("---\ntools:\n  bash: [echo]\n---\nShared instructions.\n"), 0o600))
+				path := filepath.Join(dir, "test.md")
+				source := "---\non: workflow_dispatch\nengine: copilot\npermissions:\n  contents: read\ntools:\n  github: false\n" + shape.frontmatter + "---\nTest supported source shapes.\n"
+				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+				compiler := NewCompiler(WithLint(true), WithNoEmit(mode == "no-emit"))
+				compiler.gitRoot = dir
+				compiler.SetReadOnly(true)
+				compiler.SetSkipValidation(true)
+				compiler.SetDryRun(mode == "dry-run")
+				require.NoError(t, compiler.CompileWorkflow(path))
+				lock := filepath.Join(dir, "test.lock.yml")
+				if mode == "no-emit" {
+					require.NoFileExists(t, lock)
+				} else {
+					require.FileExists(t, lock)
+				}
+			})
+		}
+	}
 }
 
 func TestCompilerLintRunsBeforeEmission(t *testing.T) {
