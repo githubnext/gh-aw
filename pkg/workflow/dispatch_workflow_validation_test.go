@@ -350,7 +350,7 @@ func TestDispatchWorkflowErrorMessage_SelfReference(t *testing.T) {
 	err = os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "Failed to create workflows directory")
 
-	workerWorkflow := `---
+	targetWorkflow := `---
 on: workflow_dispatch
 tools:
   work-queue:
@@ -359,7 +359,7 @@ tools:
 
 # Worker Workflow
 `
-	err = os.WriteFile(filepath.Join(workflowsDir, "dispatcher.md"), []byte(workerWorkflow), 0644)
+	err = os.WriteFile(filepath.Join(workflowsDir, "dispatcher.md"), []byte(targetWorkflow), 0644)
 	require.NoError(t, err, "Failed to write target worker workflow")
 
 	// Create a dispatcher workflow that references itself
