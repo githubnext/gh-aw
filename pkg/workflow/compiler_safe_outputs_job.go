@@ -693,6 +693,9 @@ func addHandlerManagerOutputs(data *WorkflowData, outputs map[string]string) {
 // exposed when the corresponding safe-output type (assign_to_agent, create_agent_session, or
 // upload_artifact) is configured.
 func addConditionalHandlerManagerOutputs(data *WorkflowData, outputs map[string]string) {
+	if isWorkQueueParticipant(data) && data.WorkQueuePolicy != nil {
+		outputs["work_queue_requests"] = "${{ steps.work_queue_controls.outputs.work_queue_requests }}"
+	}
 	if isWorkQueueWorker(data) {
 		outputs["work_queue_outcome"] = "${{ steps.process_safe_outputs.outputs.work_queue_outcome }}"
 	}

@@ -666,6 +666,9 @@ func workQueuePolicyEnvironment(data *WorkflowData) []string {
 		"          GH_AW_WORK_QUEUE_ENABLED: \"true\"\n",
 		"          GH_AW_WORK_QUEUE_ROLE: " + fmt.Sprintf("%q", workQueueRuntimeRole(data)) + "\n",
 	}
+	if isWorkQueueDualRole(data) {
+		lines = append(lines, "          GH_AW_WORK_QUEUE_DUAL_ROLE: \"true\"\n")
+	}
 	lines = append(lines, workQueueIssuesEnvironment(data)...)
 	if data.WorkQueuePolicy.WorkerContract != "" {
 		lines = append(lines, "          GH_AW_WORK_QUEUE_CONTRACT: "+fmt.Sprintf("%q", data.WorkQueuePolicy.WorkerContract)+"\n")

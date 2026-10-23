@@ -1,5 +1,5 @@
 // @ts-check
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizeWorkQueueContext, readInboundWorkQueueAssignment, readWorkQueueAssignment, resolveWorkQueueRuntime } from "./aw_context.cjs";
 
 const assignment = {
@@ -14,6 +14,27 @@ const assignment = {
 };
 
 describe("current-only work queue assignment context", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("accepts an empty manual assignment default only for opted-in dual-role workflows", () => {
+    const payload = { inputs: { aw_context: "", work_queue_assignment: "" } };
+    vi.stubEnv("GH_AW_WORK_QUEUE_ROLE", "dispatcher");
+    vi.stubEnv("GH_AW_WORK_QUEUE_DUAL_ROLE", "false");
+    expect(() => resolveWorkQueueRuntime(payload)).toThrow(/codec_invalid/);
+    vi.stubEnv("GH_AW_WORK_QUEUE_DUAL_ROLE", "true");
+    expect(readInboundWorkQueueAssignment(payload)).toBeNull();
+    expect(resolveWorkQueueRuntime(payload)).toEqual({ role: "dispatcher", assignment: null });
+    expect(() => resolveWorkQueueRuntime(payload, { role: "worker" })).toThrow(/assignment_required/);
+    expect(() => resolveWorkQueueRuntime(payload, { role: "worker", requireAssignment: true })).toThrow(/assignment_required/);
+    expect(resolveWorkQueueRuntime({ inputs: { work_queue_assignment: JSON.stringify(assignment) } }, { role: "worker" })).toEqual({ role: "worker", assignment });
+    for (const value of [null, " ", "{", "null", "{}", '{"version":3,"version":2}']) {
+      expect(() => resolveWorkQueueRuntime({ inputs: { work_queue_assignment: value } })).toThrow();
+    }
+    expect(() => readInboundWorkQueueAssignment({ client_payload: { work_queue_assignment: "" } })).toThrow();
+    expect(() => readInboundWorkQueueAssignment({ inputs: { aw_context: '{"work_queue_assignment":""}' } })).toThrow();
+    expect(() => readInboundWorkQueueAssignment({ inputs: { work_queue_assignment: assignment }, client_payload: { work_queue_assignment: assignment } })).toThrow(/exactly one source/);
+  });
+
   it("reads immutable Claim arrays without changing stored payload or provenance", () => {
     const parsed = readInboundWorkQueueAssignment({ inputs: { work_queue_assignment: JSON.stringify(assignment) } });
     expect(parsed).toEqual(assignment);

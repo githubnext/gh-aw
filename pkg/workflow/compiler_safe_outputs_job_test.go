@@ -1060,6 +1060,30 @@ func TestWorkQueueOutcomeOutputIsWorkerOnly(t *testing.T) {
 	}
 }
 
+func TestWorkQueueRequestsOutputRequiresTrustedControls(t *testing.T) {
+	for _, participant := range []bool{false, true} {
+		for _, policy := range []bool{false, true} {
+			data := &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{DispatchWorkflow: &DispatchWorkflowConfig{Workflows: []string{"worker"}}},
+				Tools:       map[string]any{},
+			}
+			if participant {
+				data.Tools["work-queue"] = true
+			}
+			if policy {
+				data.WorkQueuePolicy = &WorkQueuePolicyConfig{}
+			}
+			outputs := map[string]string{}
+			addConditionalHandlerManagerOutputs(data, outputs)
+			if participant && policy {
+				assert.Equal(t, "${{ steps.work_queue_controls.outputs.work_queue_requests }}", outputs["work_queue_requests"])
+			} else {
+				assert.NotContains(t, outputs, "work_queue_requests")
+			}
+		}
+	}
+}
+
 // TestJobDependencies tests that job dependencies are correctly set
 func TestJobDependencies(t *testing.T) {
 	tests := []struct {

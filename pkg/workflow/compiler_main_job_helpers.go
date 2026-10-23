@@ -285,6 +285,9 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string { //nol
 		}
 		env["GH_AW_WORK_QUEUE_ENABLED"] = `"true"`
 		env["GH_AW_WORK_QUEUE_ROLE"] = fmt.Sprintf("%q", workQueueRuntimeRole(data))
+		if isWorkQueueDualRole(data) {
+			env["GH_AW_WORK_QUEUE_DUAL_ROLE"] = `"true"`
+		}
 		if isWorkQueueParticipant(data) {
 			env["GH_AW_WORK_QUEUE_INTENT_ORIGIN"] = `"${{ needs.activation.outputs.work_queue_origin }}"`
 		}

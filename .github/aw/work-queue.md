@@ -39,6 +39,9 @@ Prefer separate dispatcher and worker workflows. A workflow cannot trigger itsel
 with the built-in GitHub Actions token; the compiler warns and rejects self-targets.
 Required workers remain assignment-only by default. Never submit new Work from the
 Claim-consuming branch of a smoke test.
+Opted-in dual-role workers (`require-assignment: false` plus a dispatch allowlist)
+treat only the compiler's empty manual assignment input as unassigned; malformed
+nonempty assignments still fail validation.
 
 `aw.json` `work_queue` optionally configures concurrency, pending limit, retries,
 pools, fairness, Issue label and title prefix.

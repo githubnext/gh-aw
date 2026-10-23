@@ -21,6 +21,24 @@ tools:
   cli-proxy: true
 safe-outputs:
   threat-detection: false
+jobs:
+  verify_smoke_completion:
+    needs: [safe_outputs]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 3
+    permissions: {}
+    steps:
+      - name: Verify original smoke Claim completion
+        env:
+          SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
+          WORK_QUEUE_OUTCOME: ${{ needs.safe_outputs.outputs.work_queue_outcome }}
+        run: |
+          test "$SAFE_OUTPUTS_RESULT" = success
+          if test "$WORK_QUEUE_OUTCOME" != completed; then
+            echo "::error::Smoke worker must complete its original Claim"
+            exit 1
+          fi
 timeout-minutes: 10
 strict: true
 ---
@@ -36,3 +54,7 @@ for worker profile `smoke-work-queue-e2e-worker` with
 instructions. Call `work_queue_claim_finish` once with that Claim's original
 `claim_handle` and `outcome: "completed"`, then stop. Do not submit Work or request
 another dispatch. Reject malformed or unexpected assignments.
+
+Report only that the finish intent was staged. The trusted verification job
+requires the original Claim's verified `completed` outcome; missing finish
+intents and cancellation are not smoke success.

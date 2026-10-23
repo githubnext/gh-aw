@@ -205,7 +205,9 @@ function readInboundWorkQueueAssignment(payload) {
     if (!source) continue;
     if (!isRecord(source)) throw new TypeError("work queue input context must be an object");
     if (["work_queue_claim", "work_claim", "work_queue"].some(key => Object.hasOwn(source, key))) throw new TypeError("legacy scalar work queue assignments are unsupported");
-    if (Object.hasOwn(source, "work_queue_assignment")) assignments.push(parseWorkQueueAssignment(source.work_queue_assignment));
+    // Only opted-in dual-role workflows can receive an unassigned manual input default.
+    const emptyManualDefault = process.env.GH_AW_WORK_QUEUE_DUAL_ROLE === "true" && source === payload?.inputs && source.work_queue_assignment === "";
+    if (Object.hasOwn(source, "work_queue_assignment") && !emptyManualDefault) assignments.push(parseWorkQueueAssignment(source.work_queue_assignment));
     if (source.aw_context !== undefined && source.aw_context !== null && source.aw_context !== "") {
       const embeddedContext = typeof source.aw_context === "string" ? parseStrictJSON(source.aw_context) : source.aw_context;
       if (!isRecord(embeddedContext)) throw new TypeError("work queue input context must be an object");

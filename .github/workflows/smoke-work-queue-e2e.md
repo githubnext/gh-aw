@@ -26,6 +26,31 @@ safe-outputs:
   dispatch-workflow:
     workflows: [smoke-work-queue-e2e-worker]
     max: 1
+jobs:
+  verify_smoke_dispatch:
+    needs: [safe_outputs]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 3
+    permissions: {}
+    steps:
+      - name: Verify native smoke dispatch
+        env:
+          SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
+          WORK_QUEUE_REQUESTS: ${{ needs.safe_outputs.outputs.work_queue_requests }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          assert.equal(process.env.SAFE_OUTPUTS_RESULT, 'success');
+          const result = JSON.parse(process.env.WORK_QUEUE_REQUESTS);
+          assert.equal(result.version, 3);
+          assert.equal(result.status, 'ok');
+          assert.equal(result.success, true);
+          const launches = result.receipts.flatMap(receipt => receipt.launches || []);
+          assert.equal(launches.length, 1, 'Smoke test requires exactly one native worker dispatch');
+          assert.equal(launches[0].state, 'bound', 'Smoke worker must be bound to its native run');
+          assert.equal(launches[0].dispatched, true);
+          NODE
 timeout-minutes: 10
 strict: true
 ---
@@ -46,3 +71,7 @@ Then call `work_queue_dispatch_next` once with
 select and launch the separate worker workflow; do not call `dispatch_workflow` directly.
 Report only that the intents were staged, not that a Claim or Result was verified.
 Surface any tool failure and stop; do not emit `noop` or retry uncertain writes.
+
+The trusted verification job requires exactly one bound native worker dispatch;
+an empty grant or staged preview is not smoke success. Worker Claim completion is
+verified separately by the worker workflow, not by this agent.

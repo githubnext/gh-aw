@@ -261,6 +261,9 @@ func TestWorkQueueDualRoleRequiresExplicitOptInAndDispatchAllowlist(t *testing.T
 	require.NoError(t, validateWorkQueueConfiguration(data))
 	require.True(t, workQueueRequiresAssignment(data))
 	require.Equal(t, "worker", workQueueRuntimeRole(data))
+	require.NotContains(t, strings.Join(workQueuePolicyEnvironment(data), ""), "GH_AW_WORK_QUEUE_DUAL_ROLE")
+	require.NotContains(t, NewCompiler().buildMainJobEnv(data), "GH_AW_WORK_QUEUE_DUAL_ROLE")
+	require.NotContains(t, NewCompiler().buildJobLevelSafeOutputEnvVars(data, "worker"), "GH_AW_WORK_QUEUE_DUAL_ROLE")
 
 	data.Tools["work-queue"].(map[string]any)["require-assignment"] = false
 	require.NoError(t, validateWorkQueueConfiguration(data))
@@ -268,6 +271,9 @@ func TestWorkQueueDualRoleRequiresExplicitOptInAndDispatchAllowlist(t *testing.T
 	require.True(t, isWorkQueueParticipant(data))
 	require.False(t, workQueueRequiresAssignment(data))
 	require.Equal(t, "${{ github.event_name == 'workflow_dispatch' && inputs.work_queue_assignment != '' && 'worker' || 'dispatcher' }}", workQueueRuntimeRole(data))
+	require.Contains(t, strings.Join(workQueuePolicyEnvironment(data), ""), `GH_AW_WORK_QUEUE_DUAL_ROLE: "true"`)
+	require.Equal(t, `"true"`, NewCompiler().buildMainJobEnv(data)["GH_AW_WORK_QUEUE_DUAL_ROLE"])
+	require.Equal(t, `"true"`, NewCompiler().buildJobLevelSafeOutputEnvVars(data, "worker")["GH_AW_WORK_QUEUE_DUAL_ROLE"])
 	data.WorkQueuePolicy.Policy.Authorization = "aw"
 	require.Contains(t, strings.Join(workQueuePolicyEnvironment(data), ""), "GH_AW_WORK_QUEUE_POLICY:")
 	require.NotEmpty(t, NewCompiler().buildWorkQueueTerminationStep(data))

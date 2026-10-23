@@ -150,6 +150,55 @@ Finish an original Claim when assigned; otherwise submit and dispatch once.
 	require.Contains(t, conclusion, "contents: write")
 	require.Contains(t, conclusion, "Terminate work queue worker")
 	require.Contains(t, conclusion, "always()")
+
+	var document struct {
+		On struct {
+			WorkflowDispatch struct {
+				Inputs map[string]struct {
+					Default any `yaml:"default"`
+				} `yaml:"inputs"`
+			} `yaml:"workflow_dispatch"`
+		} `yaml:"on"`
+		Jobs map[string]struct {
+			Env   map[string]string `yaml:"env"`
+			Steps []struct {
+				ID  string            `yaml:"id"`
+				Env map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &document))
+	inputs := map[string]any{}
+	for name, input := range document.On.WorkflowDispatch.Inputs {
+		inputs[name] = input.Default
+	}
+	require.Equal(t, "", inputs[WorkQueueAssignmentInputName])
+	for _, job := range []string{string(constants.AgentJobName), string(constants.SafeOutputsJobName)} {
+		require.Equal(t, "true", document.Jobs[job].Env["GH_AW_WORK_QUEUE_DUAL_ROLE"])
+	}
+	checkedSnapshot := false
+	for _, step := range document.Jobs[string(constants.ActivationJobName)].Steps {
+		if step.ID != "work_queue_snapshot" {
+			continue
+		}
+		require.Equal(t, "true", step.Env["GH_AW_WORK_QUEUE_DUAL_ROLE"])
+		checkedSnapshot = true
+		payload, err := json.Marshal(map[string]any{"inputs": inputs})
+		require.NoError(t, err)
+		runtimePath, err := filepath.Abs("../../actions/setup/js/aw_context.cjs")
+		require.NoError(t, err)
+		command := exec.Command("node", "-e", `
+const assert = require("node:assert/strict");
+const { resolveWorkQueueRuntime } = require(process.argv[1]);
+const payload = JSON.parse(process.argv[2]);
+assert.deepEqual(resolveWorkQueueRuntime(payload), { role: "dispatcher", assignment: null });
+assert.throws(() => resolveWorkQueueRuntime(payload, { role: "worker", requireAssignment: true }), /assignment_required/);
+`, runtimePath, string(payload))
+		command.Env = append(os.Environ(), "GH_AW_WORK_QUEUE_ROLE=dispatcher", "GH_AW_WORK_QUEUE_DUAL_ROLE="+step.Env["GH_AW_WORK_QUEUE_DUAL_ROLE"])
+		output, err := command.CombinedOutput()
+		require.NoError(t, err, "%s", output)
+	}
+	require.True(t, checkedSnapshot)
 }
 
 func TestWorkQueueCompilationPhases(t *testing.T) {
