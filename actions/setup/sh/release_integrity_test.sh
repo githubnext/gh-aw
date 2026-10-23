@@ -173,8 +173,28 @@ test -x "$TEMP_DIR/runner/gh-aw/nvx-engine/copilot"
 if grep -q CACHED_EXECUTED "$TEMP_DIR/executions"; then
   echo "FAIL: explicit pin was bypassed by an unverified cache hit" >&2; exit 1
 fi
+rm -f "$TEMP_DIR/curl.log" "$TEMP_DIR/executions"
+run_copilot 9.9.9 --rootless --checksums-sha256 "$copilot_digest" --prefer-toolcache
+grep -q 'installation complete (cached)' "$TEMP_DIR/output"
+grep -q CACHED_EXECUTED "$TEMP_DIR/executions"
+test ! -e "$TEMP_DIR/curl.log"
+echo "PASS: prefer-toolcache reuses the pinned version without downloading the host archive"
+rm -f "$TEMP_DIR/executions"
+PIN_TEST_GUEST_LIBC=musl run_copilot 9.9.9 --rootless --checksums-sha256 "$copilot_digest" --prefer-toolcache
+grep -q CACHED_EXECUTED "$TEMP_DIR/executions"
+grep -q '/v9.9.9/copilot-linuxmusl-x64.tar.gz' "$TEMP_DIR/curl.log"
+if grep -q '/copilot-linux-x64.tar.gz' "$TEMP_DIR/curl.log"; then
+  echo "FAIL: cached host unnecessarily downloaded" >&2; exit 1
+fi
+echo "PASS: a cached host still uses the supplied pin to authenticate the musl guest"
+rm -f "$TEMP_DIR/curl.log" "$TEMP_DIR/executions"
+run_copilot 9.9.8 --rootless --checksums-sha256 "$copilot_digest" --prefer-toolcache
+grep -q '/v9.9.8/copilot-linux-x64.tar.gz' "$TEMP_DIR/curl.log"
+if grep -q CACHED_EXECUTED "$TEMP_DIR/executions"; then
+  echo "FAIL: prefer-toolcache selected a different version" >&2; exit 1
+fi
+echo "PASS: a cache miss downloads the exact version with checksum verification"
 rm -f "$cache_bin/copilot" "$TEMP_DIR/home/.local/bin/copilot"
-echo "PASS: explicit Copilot pin verifies both host/musl archives and bypasses toolcache"
 
 rm -f "$TEMP_DIR/curl.log" "$TEMP_DIR/executions"
 for bad_pin in "" abc "${copilot_digest^^}" '${{ inputs.pin }}'; do
@@ -198,7 +218,8 @@ echo "PASS: malformed, duplicate and unbound explicit pins fail before network a
 
 wrong_pin="$(printf '0%.0s' {1..64})"
 if run_awf v9.9.9 --rootless --checksums-sha256 "$wrong_pin" ||
-  run_copilot 9.9.9 --rootless --checksums-sha256 "$wrong_pin"; then
+  run_copilot 9.9.9 --rootless --checksums-sha256 "$wrong_pin" ||
+  run_copilot 9.9.9 --rootless --checksums-sha256 "$wrong_pin" --prefer-toolcache; then
   echo "FAIL: mismatched explicit manifest pin accepted" >&2; exit 1
 fi
 test ! -e "$TEMP_DIR/executions"
@@ -248,6 +269,25 @@ if run_copilot latest --rootless; then
 fi
 test ! -e "$TEMP_DIR/curl.log"
 echo "PASS: unreviewed/latest release downloads fail before network access"
+
+for repository in github/copilot-cli github/gh-aw-firewall; do
+  manifest=SHA256SUMS.txt
+  config_field=engine
+  if [ "$repository" = github/gh-aw-firewall ]; then
+    manifest=checksums.txt
+    config_field=sandbox.agent
+  fi
+  if release_artifact_sha256 "$repository" v9.9.9 "$manifest" >"$TEMP_DIR/pin-output" 2>"$TEMP_DIR/pin-error"; then
+    echo "FAIL: unreviewed pin unexpectedly resolved" >&2; exit 1
+  fi
+  test ! -s "$TEMP_DIR/pin-output"
+  grep -q 'gh extension upgrade gh-aw' "$TEMP_DIR/pin-error"
+  grep -q 'gh aw compile <workflow.md>' "$TEMP_DIR/pin-error"
+  grep -q "${config_field}.checksums-sha256" "$TEMP_DIR/pin-error"
+  grep -q "SHA256 of ${manifest} (not the CLI archive)" "$TEMP_DIR/pin-error"
+  grep -q "scripts/update-release-pins.sh ${repository} v9.9.9 ${manifest}" "$TEMP_DIR/pin-error"
+done
+echo "PASS: missing-pin errors explain upgrade, recompile, and independently trusted manifest overrides"
 
 test -n "$(release_artifact_sha256 github/gh-aw-firewall v0.28.62 checksums.txt)"
 test "$(release_artifact_sha256 github/copilot-cli v1.0.101 SHA256SUMS.txt)" = \
