@@ -2672,7 +2672,9 @@ check_transport_integrity() {
         failed=1
     fi
 
-    if [ ! -f "$recovery" ] || ! grep -qE 'error\?\.code === "ERR_TRANSPORT_INTEGRITY" \|\| !fullConfig\.shouldRetry\(error\)' "$recovery"; then
+    # Allow the deadline guard, but keep integrity first and both guards short-circuiting.
+    local retry_guard='if \(error\?\.code === "ERR_TRANSPORT_INTEGRITY" \|\| (\(fullConfig\.deadline !== undefined && now\(\) >= fullConfig\.deadline\) \|\| )?!fullConfig\.shouldRetry\(error\)\) \{'
+    if [ ! -f "$recovery" ] || ! grep -qE "$retry_guard" "$recovery"; then
         log_high "PTI-005: Retry loop does not reject integrity failures before invoking custom retry classifiers"
         failed=1
     fi
