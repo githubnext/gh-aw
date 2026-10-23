@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-10-23T00:56:14Z",
-  "run_id": "39880855774",
+  "run_date": "2026-10-23T06:38:15Z",
+  "run_id": "39912526009",
   "source": "pr-triage",
   "eligible_total": 0,
   "cooldown_skipped": 2,
@@ -11,9 +11,6 @@
   "action_counts": {},
   "batches": [],
   "selected_candidates": [],
-  "skipped_prs": [
-    70952,
-    69586
-  ],
+  "skipped_prs": [70952, 69586],
   "notes": "No eligible app/github-copilot PRs remained after the 1-hour cooldown; both open Copilot PRs were updated within the last hour."
 }
