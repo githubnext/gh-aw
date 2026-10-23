@@ -13,6 +13,7 @@ const { readDeliveryControlInventory, createClaimDeliveryVerifier, verifyBuiltin
 const { captureDiscussionDelivery, preparePullRequestDelivery, capturePullRequestDelivery } = require("./work_queue_native_creation_delivery.cjs");
 const { settleClaimDelivery } = require("./safe_output_handler_manager.cjs");
 const { wrapClaimEffectClient } = require("./work_queue_effect_client.cjs");
+const { addDiscussionComment, closeDiscussionAsOutdated } = require("./close_older_discussions.cjs");
 
 const TREE = "b".repeat(40);
 const COMMIT = "c".repeat(40);
@@ -98,7 +99,7 @@ function fixture(type) {
   Object.assign(client.rest, { pulls: { get: vi.fn(async () => ({ data: pull })), create: vi.fn(async () => ({ data: pull })) } });
   client.graphql = vi.fn(async () => ({ node: discussion }));
   const execute = callback => withClaimExecution({ assignment, claim_handle: member.handle, effects, authorize }, callback);
-  const capture = async ({ baseBranch = "main", transportBaseBranch = baseBranch } = {}) => {
+  const capture = async ({ baseBranch = "main", transportBaseBranch = baseBranch, cleanup = [] } = {}) => {
     if (type === "create_discussion") {
       recordClaimEffect({ repository: REPOSITORY, kind: "graphql", id: "discussion-effect", outcome: "succeeded" });
       return captureDiscussionDelivery(result, message, {
@@ -112,6 +113,7 @@ function fixture(type) {
         body: "Final body",
         labels: [],
         effectIds: ["discussion-effect"],
+        cleanup,
       });
     }
     const wrapped = wrapClaimEffectClient(client, { claim_handle: member.handle, authorize, context: runtime.context });
@@ -150,6 +152,68 @@ function fixture(type) {
 }
 
 describe("native creation Claim delivery", () => {
+  it.each(["verified", "missing_receipts", "comment_changed", "reopened", "reason_changed", "foreign_repository", "unavailable"])("replays Refiner's close-older effects with %s evidence", async evidence => {
+    const f = fixture("create_discussion");
+    const oldDiscussion = {
+      __typename: "Discussion",
+      id: "D_old",
+      number: 18,
+      closed: true,
+      stateReason: "OUTDATED",
+      repository: { id: "R_7", databaseId: 7, nameWithOwner: REPOSITORY },
+    };
+    const comment = { __typename: "DiscussionComment", id: "DC_old", body: "Superseded by this run", discussion: oldDiscussion };
+    f.client.graphql.mockImplementation(async (query, variables) => {
+      if (query.includes("WorkQueueEffectTargets")) return { nodes: [oldDiscussion] };
+      if (query.includes("addDiscussionComment")) return { addDiscussionComment: { comment: { id: comment.id, url: "https://github.com/owner/repo/discussions/18#discussioncomment-1" } } };
+      if (query.includes("closeDiscussion")) return { closeDiscussion: { discussion: { id: oldDiscussion.id, url: "https://github.com/owner/repo/discussions/18" } } };
+      if (query.includes("ClaimDiscussionCleanup")) {
+        if (evidence === "unavailable") throw new Error("private readback failure");
+        return { node: variables.id === comment.id ? comment : oldDiscussion };
+      }
+      return { node: f.discussion };
+    });
+    await f.execute(async () => {
+      const wrapped = wrapClaimEffectClient(f.client, { claim_handle: f.member.handle, authorize: f.authorize, context: f.context });
+      const cleanup = [];
+      await addDiscussionComment(wrapped, "owner", "repo", oldDiscussion.id, comment.body, cleanup);
+      await closeDiscussionAsOutdated(wrapped, "owner", "repo", oldDiscussion.id, cleanup);
+      expect(cleanup).toHaveLength(2);
+      await f.capture({ cleanup: evidence === "missing_receipts" ? [] : cleanup });
+      if (evidence === "comment_changed") comment.body = "Changed after publication";
+      if (evidence === "reopened") oldDiscussion.closed = false;
+      if (evidence === "reason_changed") oldDiscussion.stateReason = "RESOLVED";
+      if (evidence === "foreign_repository") oldDiscussion.repository.nameWithOwner = "foreign/repo";
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe(evidence === "verified" ? "verified" : "unknown");
+      if (evidence === "missing_receipts") expect(delivery.reason).toContain("auxiliary or ambiguous effect");
+    });
+    const mutationCount = f.client.graphql.mock.calls.filter(([query]) => /\bmutation\b/.test(query)).length;
+    expect(mutationCount).toBe(2);
+    if (evidence === "verified") {
+      const result = await f.finalize();
+      expect(result.claims.h1).toMatchObject({ state: "result", effects: "partial" });
+      expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
+      expect(f.client.graphql.mock.calls.filter(([query]) => /\bmutation\b/.test(query))).toHaveLength(2);
+      expect((await f.finalize()).claims.h1.state).toBe("result");
+      expect(f.queue.transactions.flatMap(commit => commit.operations).filter(operation => operation.kind === "Result")).toHaveLength(1);
+    } else {
+      expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("pending");
+      expect(f.queue.transactions.flatMap(commit => commit.operations).some(operation => operation.kind === "Result")).toBe(false);
+    }
+  });
+
+  it("recovers a transient discussion read without replaying the successful creation", async () => {
+    const f = fixture("create_discussion");
+    await f.execute(async () => {
+      await f.capture();
+      f.client.graphql.mockRejectedValueOnce({ status: 500 }).mockResolvedValue({ node: f.discussion });
+      expect((await f.settle()).verification).toBe("verified");
+    });
+    expect(f.client.graphql).toHaveBeenCalledTimes(2);
+    expect(f.client.graphql.mock.calls.every(([query]) => !/\bmutation\b/.test(query))).toBe(true);
+  });
+
   it.each([
     ["labels_matches", "labels", { nodes: [{ name: "private-label" }], pageInfo: { hasNextPage: false } }],
     ["url_matches", "url", "https://github.com/private-repository/discussions/987654321"],

@@ -431,7 +431,7 @@ async function inspectClaimDelivery(options) {
     log.debug("delivery.controls.uncovered", { controls: controlInventory.controls.length, verified_controls: verifiedControls.size });
     return { ...receipt, reason: "An undeclared durable queue-control effect is outside the complete output contract" };
   }
-  for (const effect of options.effects || []) {
+  for (const [index, effect] of (options.effects || []).entries()) {
     const covered =
       effect.claim_handle === claim_handle &&
       effect.claim_id === claim.claim_id &&
@@ -442,7 +442,11 @@ async function inspectClaimDelivery(options) {
         return resource && effect.kind === resource.kind && effect.repository === resource.repository && (effect.id ? effect.id === resource.id : Number.isSafeInteger(effect.number) && effect.number === resource.number);
       });
     if (!covered) {
-      log.debug("delivery.effect.uncovered", {
+      log.diagnostic("delivery.effect.uncovered", {
+        index,
+        effects: options.effects.length,
+        graphql: effect.kind === "graphql",
+        git: ["git_blob", "git_tree", "git_commit", "git_ref"].includes(effect.kind),
         succeeded: effect.outcome === "succeeded",
         claim_matches: effect.claim_handle === claim_handle && effect.claim_id === claim.claim_id,
         work_matches: effect.work_id === claim.work_id,
