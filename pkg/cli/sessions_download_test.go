@@ -299,17 +299,19 @@ func TestSessionsDownloadLegacyAgentUsesInfo(t *testing.T) {
 
 func TestSessionsDownloadWithoutEngineMetadata(t *testing.T) {
 	requireSessionTestNode(t)
-	output, err := func() (string, error) {
-		installSessionTestGH(t, map[string]map[string]string{
-			"agent": {
-				"pi-streaming.jsonl": `{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Metadata-free Pi session"}]}}` + "\n",
-			},
+	for _, logFile := range []string{"sandbox/agent/logs/pi-streaming.jsonl", "pi-streaming.jsonl"} {
+		t.Run(logFile, func(t *testing.T) {
+			installSessionTestGH(t, map[string]map[string]string{
+				"agent": {
+					logFile: `{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Metadata-free Pi session"}]}}` + "\n",
+				},
+			})
+			output, err := executeSessionTestCommand(t, "123", "--repo", "owner/repo")
+			require.NoError(t, err)
+			require.NoError(t, validateSessionJSONL([]byte(output)))
+			require.Contains(t, output, "Metadata-free Pi session")
 		})
-		return executeSessionTestCommand(t, "123", "--repo", "owner/repo")
-	}()
-	require.NoError(t, err)
-	require.NoError(t, validateSessionJSONL([]byte(output)))
-	require.Contains(t, output, "Metadata-free Pi session")
+	}
 }
 
 func TestSessionsDownloadPreviousVersions(t *testing.T) {
