@@ -34,5 +34,14 @@
     "experiment_name": "deterministic_precondition_v1",
     "pr_or_issue": "issue",
     "decision": null
+  },
+  {
+    "date": "2026-10-23",
+    "workflow_id": "go-fan",
+    "primary_dimension": "tool interaction",
+    "subtype": "deterministic_precondition",
+    "experiment_name": "deterministic_precondition_v1",
+    "pr_or_issue": "issue",
+    "decision": null
   }
 ]
