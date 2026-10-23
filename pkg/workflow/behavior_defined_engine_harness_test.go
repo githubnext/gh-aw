@@ -136,8 +136,10 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		assert.NotContains(t, execStepContent, "/tmp/overridden")
 		assert.NotContains(t, execStepContent, "/tmp/engine-overridden")
 		assert.NotContains(t, execStepContent, "/tmp/agent-overridden")
-		assert.Contains(t, execStepContent, `GH_AW_PROTECTED_LOG_DIR="${RUNNER_TEMP:?RUNNER_TEMP must be set}/gh-aw-protected-capture"`)
-		assert.Contains(t, execStepContent, `tee -a "$GH_AW_PROTECTED_LOG_FILE"`)
+		assert.Contains(t, execStepContent, `--capture-command-output "${RUNNER_TEMP}/gh-aw-protected-capture-${GH_AW_PROTECTED_CAPTURE_ID}"`)
+		assert.Contains(t, execStepContent, "GH_AW_PROTECTED_CAPTURE_ID: "+protectedSessionCaptureID)
+		assert.Contains(t, execStepContent, `exec "$GH_AW_NODE_EXEC"`)
+		assert.NotContains(t, execStepContent, "tee ")
 		assert.Contains(t, execStepContent, `printf "%s" "$gh_aw_exit_code" > /tmp/gh-aw/agent_execution_exit_code.txt`)
 		assert.NotContains(t, execStepContent, "tee -a /tmp/gh-aw/agent-stdio.log")
 		assert.Equal(t, protectedSessionCaptureLogPath, protectedEngine.GetLogFileForParsing())
@@ -284,6 +286,7 @@ func TestBehaviorDefinedEngineNoHarnessScript(t *testing.T) {
 	assert.Contains(t, protectedStepContent, "GH_AW_PROTECTED_SESSION_CAPTURE: 1")
 	assert.Contains(t, protectedStepContent, "awf --config")
 	assert.Contains(t, protectedStepContent, "gh-aw-protected-capture")
+	assert.Contains(t, protectedStepContent, "exec noharness-cli run")
 }
 
 func TestBehaviorDefinedEngineProtectedSessionCaptureValidation(t *testing.T) {
@@ -299,13 +302,48 @@ func TestBehaviorDefinedEngineProtectedSessionCaptureValidation(t *testing.T) {
 	require.NoError(t, validateProtectedSessionCaptureSandbox(engine, nil))
 	require.ErrorContains(
 		t,
-		validateProtectedSessionCaptureSandbox(engine, &SandboxConfig{Agent: &AgentSandboxConfig{Disabled: true}}),
+		validateProtectedSessionCaptureSandbox(engine, &WorkflowData{SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{Disabled: true}}}),
 		"protected-session-capture requires sandbox.agent to be enabled",
 	)
 
 	def.Behaviors.LogParser = "function parseLog() {}\n" + logParserHeredocDelimiter + "\n"
 	_, err = NewBehaviorDefinedEngine(def)
 	require.ErrorContains(t, err, "protected-session-capture without a usable log-parser")
+}
+
+func TestProtectedSessionCaptureRequiresNativeAWF(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		version string
+		runtime AgentRuntime
+		args    []string
+		wantErr string
+	}{
+		{name: "default"},
+		{name: "first_supported", version: "v0.28.67"},
+		{name: "old", version: "v0.28.66", wantErr: "requires AWF v0.28.67"},
+		{name: "cloud_hypervisor", runtime: AgentRuntimeCloudHypervisor, wantErr: "does not support microVM"},
+		{name: "nvx", runtime: AgentRuntimeNVX, wantErr: "does not support microVM"},
+		{name: "legacy_docker", runtime: AgentRuntimeDockerSudoIptables},
+		{name: "tty_argument", args: []string{"--tty"}, wantErr: "does not support sandbox.agent.args flag --tty"},
+		{name: "tty_equals_argument", args: []string{"--tty=true"}, wantErr: "does not support sandbox.agent.args flag --tty"},
+		{name: "dind_argument", args: []string{"--enable-dind"}, wantErr: "does not support sandbox.agent.args flag --enable-dind"},
+		{name: "runtime_argument", args: []string{"--container-runtime", "nvx"}, wantErr: "does not support sandbox.agent.args flag --container-runtime"},
+		{name: "runtime_equals_argument", args: []string{"--container-runtime=nvx"}, wantErr: "does not support sandbox.agent.args flag --container-runtime"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			data := &WorkflowData{SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{Version: test.version, Runtime: test.runtime, Args: test.args}}}
+			err := validateNativeSessionCapture(data)
+			if test.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, test.wantErr)
+				command := BuildAWFCommand(AWFCommandConfig{ProtectLogCapture: true, WorkflowData: data})
+				assert.NotContains(t, command, "tee ")
+				assert.Contains(t, command, "exit 1")
+			}
+		})
+	}
 }
 
 func TestBehaviorDefinedEngineConfigFileDisablesSC2016(t *testing.T) {

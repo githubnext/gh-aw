@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -34,10 +35,8 @@ var otlpSandboxExcludedEnvVarNames = []string{
 //   - string: Complete AWF command with arguments and wrapped engine command
 func BuildAWFCommand(config AWFCommandConfig) string {
 	awfHelpersLog.Printf("Building AWF command for engine: %s", config.EngineName)
-	if isNVXRuntime(config.WorkflowData) {
-		if err := validateNVXRuntimeConfig(config.WorkflowData, getAgentConfig(config.WorkflowData)); err != nil {
-			return "echo " + shellEscapeArg("NVX configuration is invalid: "+err.Error()) + " >&2; exit 1"
-		}
+	if err := validateAWFCommandConfig(config); err != nil {
+		return "echo " + shellEscapeArg(err.Error()) + " >&2; exit 1"
 	}
 	isArcDind := isArcDindTopology(config.WorkflowData)
 	awfCommand := GetAWFCommandPrefix(config.WorkflowData)
@@ -64,7 +63,10 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		modelsJSONPathExport += "\n" + buildNVXAssetSetup()
 	}
 	shellWrappedCommand := WrapCommandInShell(engineCommand)
-	preCreateLog, captureLogFileArg := buildAWFCaptureLogSettings(config)
+	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
+	if config.ProtectLogCapture {
+		preCreateLog = ""
+	}
 	writeAgentCLIStartMs := "printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
 	command := buildAWFCommandScript(buildAWFCommandScriptInput{
 		writeAgentCLIStartMs:   writeAgentCLIStartMs,
@@ -82,7 +84,7 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 		awfArgs:                awfArgs,
 		shellWrappedCommand:    shellWrappedCommand,
 		logFile:                config.LogFile,
-		captureLogFileArg:      captureLogFileArg,
+		protectLogCapture:      config.ProtectLogCapture,
 		engineName:             config.EngineName,
 		retryStartupFailures:   config.RetryStartupFailures || usesBuiltInEngineHarness(config.EngineName, config.EngineCommand),
 	})
@@ -91,18 +93,19 @@ func BuildAWFCommand(config AWFCommandConfig) string {
 	return command
 }
 
-func buildAWFCaptureLogSettings(config AWFCommandConfig) (preCreateLog, captureLogFileArg string) {
-	preCreateLog = fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
-	captureLogFileArg = shellEscapeArg(config.LogFile)
-	if config.ProtectLogCapture {
-		preCreateLog = `GH_AW_PROTECTED_LOG_DIR="${RUNNER_TEMP:?RUNNER_TEMP must be set}/gh-aw-protected-capture"
-rm -rf -- "$GH_AW_PROTECTED_LOG_DIR"
-mkdir -m 700 "$GH_AW_PROTECTED_LOG_DIR"
-GH_AW_PROTECTED_LOG_FILE="$GH_AW_PROTECTED_LOG_DIR/agent-stdio.log"
-(umask 177 && touch "$GH_AW_PROTECTED_LOG_FILE")`
-		captureLogFileArg = `"$GH_AW_PROTECTED_LOG_FILE"`
+func validateAWFCommandConfig(config AWFCommandConfig) error {
+	if isNVXRuntime(config.WorkflowData) {
+		if err := validateNVXRuntimeConfig(config.WorkflowData, getAgentConfig(config.WorkflowData)); err != nil {
+			return fmt.Errorf("NVX configuration is invalid: %w", err)
+		}
 	}
-	return
+	if !config.ProtectLogCapture {
+		return nil
+	}
+	if config.UsesTTY {
+		return errors.New("protected-session-capture does not support TTY mode")
+	}
+	return validateNativeSessionCapture(config.WorkflowData)
 }
 
 func usesBuiltInEngineHarness(engineName, engineCommand string) bool {
@@ -442,7 +445,7 @@ type buildAWFCommandScriptInput struct {
 	awfArgs                []string
 	shellWrappedCommand    string
 	logFile                string
-	captureLogFileArg      string
+	protectLogCapture      bool
 	engineName             string
 	retryStartupFailures   bool
 }
@@ -478,21 +481,26 @@ func buildAWFInvocationCommand(input buildAWFCommandScriptInput) string {
 	}
 	safeEngineName := safeAWFTempFileNamePart(engineName)
 	harnessMarker := shellEscapeArg(fmt.Sprintf("[%s-harness]", engineName))
-	command := fmt.Sprintf(`%s %s %s %s %s \
+	captureArgs := ""
+	if input.protectLogCapture {
+		captureArgs = ` --work-dir "${RUNNER_TEMP:?RUNNER_TEMP must be set}/gh-aw-awf-${GH_AW_PROTECTED_CAPTURE_ID:?GH_AW_PROTECTED_CAPTURE_ID must be set}" --capture-command-output "${RUNNER_TEMP}/gh-aw-protected-capture-${GH_AW_PROTECTED_CAPTURE_ID}"`
+	}
+	command := fmt.Sprintf(`%s %s %s %s %s%s \
   -- %s`,
 		input.awfCommand,
 		input.expandableArgs,
 		input.toolCacheMountRef,
 		input.arcDindDockerHostRef,
 		shellJoinArgs(input.awfArgs),
+		captureArgs,
 		input.shellWrappedCommand,
 	)
-	captureLogFileArg := input.captureLogFileArg
-	if captureLogFileArg == "" {
-		captureLogFileArg = shellEscapeArg(input.logFile)
+	if input.protectLogCapture {
+		// AWF owns directory isolation, bounded capture and its internal attempts.
+		return command
 	}
 	if !input.retryStartupFailures {
-		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, captureLogFileArg)
+		return fmt.Sprintf("%s 2>&1 | tee -a %s", command, shellEscapeArg(input.logFile))
 	}
 
 	return fmt.Sprintf(`GH_AW_AWF_ENGINE_NAME=%s \
@@ -503,7 +511,7 @@ bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" -- \
   %s`,
 		shellEscapeArg(engineName),
 		harnessMarker,
-		captureLogFileArg,
+		shellEscapeArg(input.logFile),
 		shellEscapeArg(safeEngineName),
 		command,
 	)

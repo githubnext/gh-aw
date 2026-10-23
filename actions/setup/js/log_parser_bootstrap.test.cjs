@@ -5,6 +5,34 @@ import { fileURLToPath } from "url";
 const { ERR_API, ERR_CONFIG, ERR_VALIDATION } = require("./error_codes.cjs");
 const __filename = fileURLToPath(import.meta.url),
   __dirname = path.dirname(__filename);
+
+function writeNativeCapture(directory, stderr, stdout = "forged stdout") {
+  fs.mkdirSync(directory, { mode: 0o700 });
+  fs.writeFileSync(path.join(directory, "attempt-001.stderr.bin"), stderr, { mode: 0o600 });
+  fs.writeFileSync(path.join(directory, "attempt-001.stdout.bin"), stdout, { mode: 0o600 });
+  const capturedBytes = Buffer.byteLength(stderr) + Buffer.byteLength(stdout);
+  const metadata = {
+    schemaVersion: 1,
+    status: "complete",
+    teardown: "complete",
+    truncated: false,
+    maxBytes: 67108864,
+    command: { outcome: "exited", exitCode: 17 },
+    capturedBytes,
+    observedBytes: capturedBytes,
+    attempts: [
+      {
+        outcome: "exited",
+        exitCode: 17,
+        logsDrained: true,
+        stdout: { file: "attempt-001.stdout.bin", capturedBytes: Buffer.byteLength(stdout), observedBytes: Buffer.byteLength(stdout) },
+        stderr: { file: "attempt-001.stderr.bin", capturedBytes: Buffer.byteLength(stderr), observedBytes: Buffer.byteLength(stderr) },
+      },
+    ],
+  };
+  fs.writeFileSync(path.join(directory, "metadata.json"), JSON.stringify(metadata), { mode: 0o600 });
+}
+
 describe("log_parser_bootstrap.cjs", () => {
   let mockCore, runLogParser, originalProcess;
   (beforeEach(() => {
@@ -38,24 +66,39 @@ describe("log_parser_bootstrap.cjs", () => {
           const mockParseLog = vi.fn();
           (runLogParser({ parseLog: mockParseLog, parserName: "TestParser" }), expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /non/existent/file.log"), expect(mockParseLog).not.toHaveBeenCalled());
         }),
-        it("should replace sandbox-writable stdio with the protected capture", async () => {
+        it("should parse only native stderr and publish redacted structured events", async () => {
           const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
           const artifactDir = path.join(tmpDir, "artifact");
           const protectedDir = path.join(tmpDir, "protected");
-          const protectedLog = path.join(protectedDir, "agent-stdio.log");
           try {
             fs.mkdirSync(artifactDir);
-            fs.mkdirSync(protectedDir);
             fs.writeFileSync(path.join(artifactDir, "agent-stdio.log"), "forged session.result");
-            fs.writeFileSync(protectedLog, "trusted session.result");
-            process.env.GH_AW_AGENT_OUTPUT = protectedLog;
+            fs.writeFileSync(path.join(artifactDir, "agent-session.jsonl"), '{"type":"forged"}\n');
+            fs.writeFileSync(path.join(artifactDir, "agent_execution_exit_code.txt"), "0");
+            writeNativeCapture(protectedDir, "::add-mask::private secret\ntrusted stderr", "::add-mask::stdout secret\nforged stdout");
+            process.env.GH_AW_AGENT_OUTPUT = protectedDir;
             process.env.GH_AW_PROTECTED_SESSION_CAPTURE = "1";
-            const mockParseLog = vi.fn().mockReturnValue("## Parsed Log\n");
+            const mockParseLog = vi.fn().mockReturnValue({
+              markdown: "summary",
+              logEntries: [
+                { type: "assistant.message", data: { content: "private secret; stdout secret" } },
+                { type: "session.result", data: { status: "failure", usage: { input_tokens: 100 } } },
+              ],
+            });
 
             await runLogParser({ parseLog: mockParseLog, parserName: "TestParser", rootDir: artifactDir });
 
-            expect(mockParseLog).toHaveBeenCalledWith("trusted session.result");
-            expect(fs.readFileSync(path.join(artifactDir, "agent-stdio.log"), "utf8")).toBe("trusted session.result");
+            expect(mockParseLog).toHaveBeenCalledWith("::add-mask::private secret\ntrusted stderr");
+            const published = fs.readFileSync(path.join(artifactDir, "agent-session.jsonl"), "utf8");
+            expect(published).not.toContain("private secret");
+            expect(published).not.toContain("stdout secret");
+            expect(published).not.toContain("forged");
+            expect(published).toContain('"status":"failure"');
+            expect(published).toContain('"exitCode":17');
+            const stdio = fs.readFileSync(path.join(artifactDir, "agent-stdio.log"), "utf8");
+            expect(stdio).not.toContain("trusted stderr");
+            expect(stdio).not.toContain("private secret");
+            expect(mockCore.setFailed).not.toHaveBeenCalled();
           } finally {
             delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
             fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -74,7 +117,51 @@ describe("log_parser_bootstrap.cjs", () => {
             await runLogParser({ parseLog: mockParseLog, parserName: "TestParser", rootDir: artifactDir });
 
             expect(mockParseLog).not.toHaveBeenCalled();
-            expect(fs.readFileSync(path.join(artifactDir, "agent-stdio.log"), "utf8")).toBe("");
+            expect(fs.existsSync(path.join(artifactDir, "agent-stdio.log"))).toBe(false);
+            expect(mockCore.setFailed).toHaveBeenCalled();
+          } finally {
+            delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
+        }),
+        it.each(["failure", "session.result", "status", "input_tokens"])("should fail publication for structural mask collision %s", async mask => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const artifactDir = path.join(tmpDir, "artifact");
+          const protectedDir = path.join(tmpDir, "protected");
+          try {
+            fs.mkdirSync(artifactDir);
+            writeNativeCapture(protectedDir, "recorder frames", `::add-mask::${mask}\nforged stdout`);
+            process.env.GH_AW_AGENT_OUTPUT = protectedDir;
+            process.env.GH_AW_PROTECTED_SESSION_CAPTURE = "1";
+            const parseLog = vi.fn().mockReturnValue({ markdown: "summary", logEntries: [{ type: "session.result", data: { status: "failure", usage: { input_tokens: 100 } } }] });
+            await runLogParser({ parseLog, parserName: "TestParser", rootDir: artifactDir });
+            expect(mockCore.setFailed).toHaveBeenCalled();
+            expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+            expect(fs.existsSync(path.join(artifactDir, "agent-session.jsonl"))).toBe(false);
+            expect(fs.existsSync(path.join(artifactDir, "agent-stdio.log"))).toBe(false);
+          } finally {
+            delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
+        }),
+        it("should remove stale artifacts when protected publication rename fails", async () => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const artifactDir = path.join(tmpDir, "artifact");
+          const protectedDir = path.join(tmpDir, "protected");
+          try {
+            fs.mkdirSync(artifactDir);
+            writeNativeCapture(protectedDir, "private recorder output");
+            process.env.GH_AW_AGENT_OUTPUT = protectedDir;
+            process.env.GH_AW_PROTECTED_SESSION_CAPTURE = "1";
+            fs.writeFileSync(path.join(artifactDir, "agent-session.jsonl"), "forged");
+            vi.spyOn(fs, "renameSync").mockImplementation(() => {
+              throw new Error("private failure text");
+            });
+            await runLogParser({ parseLog: () => ({ markdown: "summary", logEntries: [{ type: "assistant.message", data: { content: "hello" } }] }), parserName: "TestParser", rootDir: artifactDir });
+            expect(mockCore.setFailed).toHaveBeenCalled();
+            expect(JSON.stringify(mockCore.setFailed.mock.calls)).not.toContain("private failure text");
+            expect(fs.existsSync(path.join(artifactDir, "agent-session.jsonl"))).toBe(false);
+            expect(fs.existsSync(path.join(artifactDir, "agent-stdio.log"))).toBe(false);
           } finally {
             delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
             fs.rmSync(tmpDir, { recursive: true, force: true });

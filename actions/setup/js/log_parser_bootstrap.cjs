@@ -14,6 +14,7 @@ const { collectCodexJSONRecords } = require("./codex_log_framing.cjs");
 const { collectAgentExecution, parseAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { hasCopilotConversation, hasMalformedJsonl, deduplicateCopilotFallback } = require("./copilot_session.cjs");
 const { isUnifiedSessionTrace } = require("./unified_session_render.cjs");
+const { readProtectedCommandOutput, discardUntrustedSessionArtifacts } = require("./protected_command_output.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -172,6 +173,7 @@ async function runLogParser(options) {
   const path = require("path");
   const { parseLog, parserName, supportsDirectories = false, rootDir = options.artifactDir ?? "/tmp/gh-aw" } = options;
   const stdioLogPath = path.join(rootDir, "agent-stdio.log");
+  const protectedCapture = process.env.GH_AW_PROTECTED_SESSION_CAPTURE === "1";
 
   /**
    * Recursively searches a directory tree for the first events.jsonl file.
@@ -243,30 +245,18 @@ async function runLogParser(options) {
   }
 
   try {
+    if (protectedCapture) discardUntrustedSessionArtifacts(rootDir);
     const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
+      if (protectedCapture) throw new Error(`${ERR_VALIDATION}: AWF protected command output directory is required`);
       core.info("No agent log file specified");
       return;
     }
 
-    if (process.env.GH_AW_PROTECTED_SESSION_CAPTURE === "1") {
-      fs.mkdirSync(rootDir, { recursive: true });
-      const trustedContent = fs.existsSync(logPath) ? fs.readFileSync(logPath) : Buffer.alloc(0);
-      const publishDir = fs.mkdtempSync(path.join(rootDir, ".protected-session-capture-"));
-      const publishPath = path.join(publishDir, "agent-stdio.log");
-      try {
-        fs.writeFileSync(publishPath, trustedContent, { mode: 0o600 });
-        if (fs.existsSync(stdioLogPath) && fs.statSync(stdioLogPath).isDirectory()) {
-          fs.rmSync(stdioLogPath, { recursive: true, force: true });
-        }
-        fs.renameSync(publishPath, stdioLogPath);
-      } finally {
-        fs.rmSync(publishDir, { recursive: true, force: true });
-      }
-    }
+    const nativeCapture = protectedCapture ? readProtectedCommandOutput(logPath) : undefined;
 
-    const copilotStdioFallback = parserName === "Copilot" && supportsDirectories && fs.existsSync(stdioLogPath);
-    if (!fs.existsSync(logPath) && !copilotStdioFallback) {
+    const copilotStdioFallback = !protectedCapture && parserName === "Copilot" && supportsDirectories && fs.existsSync(stdioLogPath);
+    if (!nativeCapture && !fs.existsSync(logPath) && !copilotStdioFallback) {
       core.info(`Log path not found: ${logPath}`);
       return;
     }
@@ -274,11 +264,13 @@ async function runLogParser(options) {
     let copilotSessions = [];
     /** @type {Array<{source: string, read: () => string}>} */
     const candidates = [];
-    const publicationMasks = new Set();
+    const publicationMasks = new Set(nativeCapture?.maskedValues ?? []);
 
     // Check if logPath is a directory or a file
     const stat = fs.existsSync(logPath) ? fs.statSync(logPath) : undefined;
-    if (!stat || stat.isDirectory()) {
+    if (nativeCapture) {
+      candidates.push({ source: logPath, read: () => nativeCapture.content });
+    } else if (!stat || stat.isDirectory()) {
       if (!supportsDirectories) {
         core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
         return;
@@ -369,6 +361,9 @@ async function runLogParser(options) {
       mcpFailures = result.mcpFailures || [];
       maxTurnsHit = result.maxTurnsHit || false;
       logEntries = result.logEntries || null;
+    }
+    if (protectedCapture && (!Array.isArray(logEntries) || !logEntries.length)) {
+      throw new Error(`${ERR_VALIDATION}: Protected command stderr produced no structured session events`);
     }
     const supplementalEvents = deduplicateCopilotFallback(
       logEntries ?? [],
@@ -473,16 +468,17 @@ async function runLogParser(options) {
       try {
         const exitPath = path.join(rootDir, "agent_execution_exit_code.txt");
         const execution = collectAgentExecution({
-          content,
+          content: protectedCapture ? "" : content,
           ...(parserName === "Aider" ? { rawSourceEngine: "aider" } : {}),
           events: logEntries,
           observations: logEntries.filter(isAgentExecutionEvent).map(event => event.data),
-          ...(fs.existsSync(exitPath) ? { exitCode: parseAgentExitCode(fs.readFileSync(exitPath, "utf8")) } : {}),
+          ...(nativeCapture ? { exitCode: nativeCapture.exitCode } : fs.existsSync(exitPath) ? { exitCode: parseAgentExitCode(fs.readFileSync(exitPath, "utf8")) } : {}),
         });
         const canonicalEntries = [...conversationEntries.filter(event => event.type !== "agent.execution"), ...(execution ? [execution] : [])];
-        writeSessionArtifact(path.join(rootDir, "agent-session.jsonl"), canonicalEntries, [...publicationMasks]);
+        writeSessionArtifact(path.join(rootDir, "agent-session.jsonl"), canonicalEntries, [...publicationMasks], { rejectStructuralRedaction: protectedCapture });
         core.info(`[log-parser] Persisted ${canonicalEntries.length} canonical session events`);
       } catch (err) {
+        if (protectedCapture) throw err;
         core.warning(`[log-parser] Failed to persist canonical agent session: ${getErrorMessage(err)}`);
       }
     }
@@ -640,6 +636,16 @@ async function runLogParser(options) {
       core.setFailed(`${ERR_VALIDATION}: Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
     }
   } catch (error) {
+    if (protectedCapture) {
+      try {
+        discardUntrustedSessionArtifacts(rootDir);
+      } catch (cleanupError) {
+        core.setFailed(`${ERR_SYSTEM}: Failed to remove unverified protected session artifacts`);
+        return;
+      }
+      core.setFailed(`${ERR_VALIDATION}: AWF protected session capture could not be verified or published; no shared-log fallback is permitted`);
+      return;
+    }
     core.setFailed(`${ERR_API}: ${getErrorMessage(error)}`);
   }
 }

@@ -3456,8 +3456,10 @@ engine:
       # (optional)
       provider-env-mode: "example-value"
 
-      # Keep the live engine stdout/stderr capture outside the agent sandbox and publish
-      # it only after the sandbox exits.
+      # Parse only the final stderr attempt from native AWF protected command output
+      # (v0.28.67+, non-TTY Docker only). Requires an isolated recorder and verifying
+      # log parser; raw streams remain private and incomplete capture or structural
+      # redaction collisions fail publication.
       # (optional)
       protected-session-capture: true
 
@@ -22086,8 +22088,10 @@ safe-outputs:
           # (optional)
           provider-env-mode: "example-value"
 
-          # Keep the live engine stdout/stderr capture outside the agent sandbox and publish
-          # it only after the sandbox exits.
+          # Parse only the final stderr attempt from native AWF protected command output
+          # (v0.28.67+, non-TTY Docker only). Requires an isolated recorder and verifying
+          # log parser; raw streams remain private and incomplete capture or structural
+          # redaction collisions fail publication.
           # (optional)
           protected-session-capture: true
 

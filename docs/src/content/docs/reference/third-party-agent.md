@@ -65,3 +65,14 @@ A definition contains `engine.id`, metadata, and `engine.behaviors`. Its behavio
 Start from a sample with a matching transport rather than copying installation or configuration code into every workflow. Publish the definition with versioned changes and document its credentials, models, tool restrictions, supported platforms, and [unified session](/gh-aw/specs/unified-agent-session-specification/) coverage.
 
 See [imports](/gh-aw/reference/imports/) for resolution and pinning rules.
+
+### Protected session capture
+
+`engine.behaviors.execution.protected-session-capture: true` uses AWF's native `--capture-command-output` (AWF v0.28.67 or newer). It requires a Linux runner and an enabled, non-TTY Docker runtime; external microVM runtimes and agent access to a Docker socket are unsupported. AWF validates effective mount isolation before execution, including aliases and custom mounts. Capture paths are scoped to the workflow run, attempt, job, and matrix index, with a separate explicit AWF working directory. Outer startup retries are disabled; AWF owns native attempt boundaries.
+
+The parser receives only the final started attempt's **stderr**, selected from `metadata.json`. Stdout, runner presentation, and sandbox-written `agent-stdio.log` are never fallback sources. Missing, incomplete, undrained, or truncated capture fails publication. A nonzero command exit can still have a complete capture; the recorded exit code is retained. The 64 MiB capture limit applies to both streams and all attempts together. Raw captures remain private; only redacted structured events and normalized metrics are published. Mask requests from either native stream are collected solely for redaction, never as session observations. Redaction that would alter a structural field fails publication and removes stale session artifacts.
+
+> [!CAUTION]
+> Native capture protects storage, not the origin of guest-side bytes. The engine must isolate its recorder from same-UID tools and verify its session framing before returning events. A matching key prefix or a public-key header on an otherwise accessible pipe is not authentication. The compiler explicitly `exec`s the final harness, but the harness must replace remaining launchers, protect its key and capture descriptors, route ordinary tool output to stdout, and reject invalid or incomplete signed streams without a legacy-parser fallback. Pydantic's existing keyed-stdout integration must adapt before enabling this option.
+
+Engine authors can exercise the generated launcher's Linux descriptor boundary with `GH_AW_NATIVE_CAPTURE_E2E=1 go test -tags integration ./pkg/workflow -run '^TestProtectedSessionCaptureAWFDescriptorIsolation$' -count=1`. This opt-in regression requires the pinned `awf` CLI, Docker, and a `RUNNER_TEMP` outside agent-visible mounts. It uses a non-dumpable Python recorder reached through Node `execve`; it does not validate an engine's signing protocol.

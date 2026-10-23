@@ -230,8 +230,8 @@ type EngineExecutionDefinition struct {
 	MCPConfigFlag          string   `yaml:"mcp-config-flag,omitempty"`
 	WriteTimestamp         bool     `yaml:"write-timestamp,omitempty"`
 	ProviderEnvMode        string   `yaml:"provider-env-mode,omitempty"`
-	// ProtectedSessionCapture keeps the live stdout/stderr capture outside the
-	// agent sandbox and publishes it only after the sandbox exits.
+	// ProtectedSessionCapture parses the final stderr attempt from AWF's native
+	// host-only capture. Raw stdout/stderr are not published as artifacts.
 	ProtectedSessionCapture bool `yaml:"protected-session-capture,omitempty"`
 	// Env holds additional static environment variables to inject into the
 	// execution step.  Values are rendered verbatim and are not filtered

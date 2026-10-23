@@ -34,7 +34,8 @@ type BehaviorDefinedEngine struct {
 
 var _ CodingAgentEngine = (*BehaviorDefinedEngine)(nil)
 
-const protectedSessionCaptureLogPath = "${{ runner.temp }}/gh-aw-protected-capture/agent-stdio.log"
+const protectedSessionCaptureID = "${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index || 0 }}"
+const protectedSessionCaptureLogPath = "${{ runner.temp }}/gh-aw-protected-capture-" + protectedSessionCaptureID
 
 func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, error) {
 	if def == nil {
@@ -569,9 +570,16 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedEngineCommand(exec *EngineEx
 			harnessArgs = append(harnessArgs, shellJoinArgs(exec.Args))
 		}
 		harnessPath := path.Join(SetupActionDestinationShell, e.harnessScriptFilename())
-		return fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessArgs, " "))
+		nodeCommand := nodeRuntimeResolutionCommand
+		if exec.ProtectedSessionCapture {
+			nodeCommand = strings.TrimSuffix(nodeCommand, `"$GH_AW_NODE_EXEC"`) + `exec "$GH_AW_NODE_EXEC"`
+		}
+		return fmt.Sprintf("%s %s %s", nodeCommand, harnessPath, strings.Join(harnessArgs, " "))
 	}
 
+	if exec.ProtectedSessionCapture {
+		commandName = "exec " + commandName
+	}
 	commandParts := []string{commandName}
 	if len(exec.Args) > 0 {
 		commandParts = append(commandParts, shellJoinArgs(exec.Args))
@@ -640,6 +648,7 @@ func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExe
 	if exec.ProtectedSessionCapture && firewallEnabled {
 		env["RUNNER_TEMP"] = "${{ runner.temp }}"
 		env["GH_AW_PROTECTED_SESSION_CAPTURE"] = "1"
+		env["GH_AW_PROTECTED_CAPTURE_ID"] = protectedSessionCaptureID
 	}
 	return env
 }
