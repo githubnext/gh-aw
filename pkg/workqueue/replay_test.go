@@ -3,6 +3,7 @@ package workqueue
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -81,6 +82,84 @@ func testOperations(t *testing.T, commits []QueueCommit, actor Actor, id, kind s
 		t.Fatal(err)
 	}
 	return next
+}
+
+func TestAWPoolInstallPreservesPolicyEpochAndExistingState(t *testing.T) {
+	commits := testGenesis(t, func(policy *Policy) {
+		policy.Authorization = "aw"
+		policy.Producers = map[string]ProducerRule{}
+		pool := policy.Pools["default"]
+		profile := pool.Profiles["default"]
+		profile.Principal = ""
+		profile.LogicalContract = strings.Repeat("a", 64)
+		pool.Profiles["default"] = profile
+		policy.Pools["default"] = pool
+	})
+	node := testNode(t, commits, "existing")
+	commits = testSubmit(t, commits, "submit-existing", node)
+	before, err := Replay(commits)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := before.Policy.Pools["default"]
+	config.Profiles = map[string]WorkerProfile{}
+	maps.Copy(config.Profiles, before.Policy.Pools["default"].Profiles)
+	profile := config.Profiles["default"]
+	profile.LogicalContract = strings.Repeat("b", 64)
+	config.Profiles["default"] = profile
+	operation := mustOp(t, PoolInstallOperation{Kind: "PoolInstall", Pool: "smoke", Config: config})
+	commits = testOperations(t, commits, testActor("dispatcher"), "install-smoke", "pool_install", operation)
+	after, err := Replay(commits)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldPolicy, newPolicy := *before.Policy, *after.Policy
+	oldPolicy.Pools, newPolicy.Pools = nil, nil
+	if after.PolicyEpoch != before.PolicyEpoch || !sameJSON(oldPolicy, newPolicy) ||
+		!sameJSON(before.Policy.Pools["default"], after.Policy.Pools["default"]) ||
+		!sameJSON(before.Works, after.Works) {
+		t.Fatal("PoolInstall changed the policy epoch, existing policy, or accepted Work")
+	}
+	if !sameJSON(before.Deployments["default"]["default"], after.Deployments["default"]["default"]) {
+		t.Fatal("PoolInstall reset an existing worker deployment")
+	}
+	deployment := after.Deployments["smoke"]["default"]
+	if deployment == nil || deployment.CurrentContract != profile.LogicalContract {
+		t.Fatal("PoolInstall did not initialize the new worker deployment")
+	}
+
+	for name, mutate := range map[string]func(*WorkerProfile){
+		"foreign-effect-scope": func(profile *WorkerProfile) { profile.EffectScope = "other/repo" },
+		"fixed-principal":      func(profile *WorkerProfile) { profile.Principal = testPrincipal },
+	} {
+		t.Run(name, func(t *testing.T) {
+			invalid := config
+			invalid.Profiles = map[string]WorkerProfile{"default": config.Profiles["default"]}
+			invalidProfile := invalid.Profiles["default"]
+			mutate(&invalidProfile)
+			invalid.Profiles["default"] = invalidProfile
+			invalidOperation := mustOp(t, PoolInstallOperation{Kind: "PoolInstall", Pool: "invalid", Config: invalid})
+			request, err := NewRequest("invalid-"+name, "pool_install", testActor("dispatcher"), OperationsParameters{Operations: []Operation{invalidOperation}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, _, _, err := BuildCandidate(commits, testActor("dispatcher"), request, 5000); err == nil ||
+				!strings.Contains(err.Error(), "policy_invalid") {
+				t.Fatalf("unsafe PoolInstall accepted: %v", err)
+			}
+		})
+	}
+
+	request, err := NewRequest("duplicate-smoke", "pool_install", testActor("dispatcher"), OperationsParameters{Operations: []Operation{operation}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := BuildCandidate(commits, testActor("dispatcher"), request, 5000); err == nil ||
+		!strings.Contains(err.Error(), "policy_invalid") {
+		t.Fatalf("duplicate pool installation accepted: %v", err)
+	}
 }
 
 func TestEmptyLedgerReplayRequiresPolicyGenesis(t *testing.T) {

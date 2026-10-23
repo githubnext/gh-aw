@@ -8,9 +8,9 @@ const { expectedGitHubHost } = require("./work_queue_host.cjs");
 
 const ROLES = new Set(["administrator", "producer", "dispatcher", "worker", "reconciler", "projector"]);
 const ROLE_KINDS = {
-  administrator: ["policy", "deployment", "control", "submit", "dispatch_next", "observe", "cancel_work", "checkpoint"],
-  producer: ["deployment", "submit", "cancel_work"],
-  dispatcher: ["deployment", "submit", "dispatch_next", "observe", "dispatch"],
+  administrator: ["policy", "pool_install", "deployment", "control", "submit", "dispatch_next", "observe", "cancel_work", "checkpoint"],
+  producer: ["pool_install", "deployment", "submit", "cancel_work"],
+  dispatcher: ["pool_install", "deployment", "submit", "dispatch_next", "observe", "dispatch"],
   worker: ["submit", "dispatch_next", "observe", "finish", "dispatch"],
   reconciler: ["observe", "dispatch", "release", "result", "delivery_failure", "cancel_claim", "cancel_work"],
   projector: ["issue_link"],

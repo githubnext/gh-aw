@@ -26,6 +26,7 @@ const { normalizeDispatchCredential, createDispatchCredentialValidator, isDispat
 const { verifyWorkerRoute } = require("./work_queue_provisioning.cjs");
 const { futurePolicy } = require("./work_queue_deployment.cjs");
 const { approvedWorkerProfiles, synchronizeDeployments } = require("./work_queue_deployment_control.cjs");
+const { installWorkQueuePools } = require("./work_queue_pool_install.cjs");
 
 function assertQueueControlRole(options) {
   const runtime = resolveWorkQueueRuntime(options.context?.payload, { role: options.role, requireAssignment: options.requireAssignment });
@@ -463,7 +464,8 @@ async function dispatchQueueIntent(options) {
   const stableId = requestIdForIntent(trustedContext, message.intent_id);
   const prior = latest.projection.requests.get(stableId);
   if (!prior) {
-    if (!Object.hasOwn(latest.projection.policy.pools, requested.pool)) throw queueError("work_queue_pool_not_installed", "dispatch pool has no installed worker routes");
+    latest = (await installWorkQueuePools(configured, trustedContext, [requested.pool])) || latest;
+    latest = await loadQueue({ ...configured, policyProposal: undefined, initializationContext: undefined });
     await synchronizeDeployments(configured, trustedContext, [requested.pool]);
     latest = await loadQueue({ ...configured, policyProposal: undefined, initializationContext: undefined });
   }
@@ -588,6 +590,7 @@ async function processParsedWorkQueueIntents(options, runtime, intents, errors) 
         const prior = latest.projection.requests.get(requestIdForIntent(trustedContext, intent.intent_id));
         if (!prior) {
           if (!Array.isArray(intent.parameters.nodes)) throw new Error("work_queue_graph_limit");
+          latest = (await installWorkQueuePools(options, trustedContext, [...new Set(intent.parameters.nodes.map(node => node.pool ?? "default"))])) || latest;
           await synchronizeDeployments(options, trustedContext, [...new Set(intent.parameters.nodes.map(node => node.pool ?? "default"))]);
           latest = await loadQueue({ ...options, policyProposal: undefined, initializationContext: undefined });
         }

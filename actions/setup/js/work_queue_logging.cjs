@@ -71,7 +71,7 @@ function queueControlErrorExplanation(code) {
     case "work_queue_policy_proposal_mismatch":
       return "The proposed queue policy differs from the installed policy. Refresh compatible worker deployments, or use an explicit administrator policy update only after the queue is quiescent.";
     case "work_queue_pool_not_installed":
-      return "The requested pool is absent from the installed queue Policy. Publishing aw.json or recompiling workflows does not install new pools. An administrator must make the queue quiescent and apply policy --from-config --epoch EPOCH before submitting or dispatching to the pool; never reset or reseed the ledger.";
+      return "The requested pool is absent from the installed queue Policy and could not be added from the caller's compiled AW configuration. Check that the pool is declared in aw.json and its worker routes are approved; automatic installation adds only new pools and preserves the existing Policy epoch.";
     case "work_queue_profile_not_approved":
       return "The requested worker profile is absent from the installed pool. Verify the installed Policy and caller-approved worker routes; adding profiles requires an explicit administrator Policy update on a quiescent queue.";
     case "work_queue_worker_not_compiler_approved":

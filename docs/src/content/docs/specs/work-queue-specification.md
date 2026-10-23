@@ -510,8 +510,14 @@ and Actions already authorizes the trusted submission. Reads, controls and
 dispatch-only requests MUST NOT initialize an
 absent queue. Existing nonempty ledgers without a valid Policy, empty or
 malformed logs, and unsupported histories MUST fail closed rather than being
-overwritten. Later scheduling Policy epochs require an authorized, quiescent
-update; compatible worker deployments use the separate prospective transition.
+overwritten. On an existing AW-managed queue, first use MAY append a
+`PoolInstall` for a newly compiled pool when the proposal preserves every
+installed pool and all non-pool Policy fields. The operation MUST validate the
+new pool's immutable worker routes and repository-scoped effect authority, and
+MUST preserve existing Work and the Policy epoch. It MUST NOT edit an installed
+pool or scheduling economics. Later scheduling Policy epochs require an
+administrator-authorized, quiescent update; compatible worker deployments use
+the separate prospective transition.
 
 Automatic first-use bootstrap MUST NOT require repository-administration access
 or administrator seeding. GitHub enforces repository access rules independently;

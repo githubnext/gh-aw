@@ -2,6 +2,7 @@ package workqueue
 
 import (
 	"encoding/json"
+	"maps"
 	"slices"
 )
 
@@ -257,6 +258,8 @@ func (state *Projection) replayOperation(operation Operation, kind string, commi
 	switch kind {
 	case "Policy":
 		return state.installReplayPolicy(operation, commit, isPolicy, epochs)
+	case "PoolInstall":
+		return state.installReplayPool(operation, commit)
 	case "Deployment":
 		return state.applyDeployment(operation)
 	case "Control":
@@ -347,6 +350,34 @@ func (state *Projection) replayTerminalResult(operation Operation, kind string, 
 	if claim := state.Claims[value.ClaimID]; claim != nil && claim.KeepOpen {
 		state.TerminalBarriers[value.ClaimID] = operation
 	}
+	return nil
+}
+
+func (state *Projection) installReplayPool(operation Operation, commit QueueCommit) error {
+	var install PoolInstallOperation
+	if err := json.Unmarshal(operation, &install); err != nil {
+		return err
+	}
+	if install.Kind != "PoolInstall" || state.Policy == nil || state.Policy.Authorization != "aw" {
+		return queueError("policy_invalid", "only new pools can be installed into an AW-managed Policy")
+	}
+	if _, exists := state.Policy.Pools[install.Pool]; exists {
+		return queueError("policy_invalid", "only new pools can be installed into an AW-managed Policy")
+	}
+	for _, profile := range install.Config.Profiles {
+		if profile.EffectScope != commit.Actor.Repository || profile.Principal != "" {
+			return queueError("policy_invalid", "AW-managed pool routes must preserve repository-scoped authority")
+		}
+	}
+	policy := *state.Policy
+	policy.Pools = make(map[string]PoolPolicy, len(state.Policy.Pools)+1)
+	maps.Copy(policy.Pools, state.Policy.Pools)
+	policy.Pools[install.Pool] = install.Config
+	if err := validatePolicyWithHost(policy, state.resourceHost); err != nil {
+		return err
+	}
+	state.Policy = &policy
+	state.initializeDeployments(install.Pool)
 	return nil
 }
 

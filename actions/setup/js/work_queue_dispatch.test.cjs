@@ -20,6 +20,7 @@ import { appendCommit, compactTransactions, generateRequestOperations, newReques
 import { assignmentOnly } from "./work_queue_scheduler.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { validateStoredAssignment } from "./work_queue_binding.cjs";
+import { installWorkQueuePools } from "./work_queue_pool_install.cjs";
 import { authenticatePublisher } from "./work_queue_native.cjs";
 import { requestForIntent, stagePlanIntents } from "./work_queue_intents.cjs";
 import { canonical, digest } from "./work_queue_codec.cjs";
@@ -1908,8 +1909,8 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
-  it("reports a new pool missing from installed Policy without admitting Work, changing Policy, or launching", async () => {
-    const { fixture, options, post } = setup({
+  it("auto-installs a compiler-approved pool without changing installed routes or the Policy epoch", async () => {
+    const { fixture, options } = setup({
       granted: false,
       configurePolicy: policy => {
         policy.authorization = "aw";
@@ -1918,40 +1919,98 @@ describe("native queue launch fencing and conservative recovery", () => {
         policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
       },
     });
-    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-uninstalled-pool-"));
-    const filename = path.join(directory, "intents.jsonl");
-    const publish = vi.fn(options.publishWorkQueueRequest);
-    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
-    const before = canonical(fixture.transactions);
+    const beforePolicy = structuredClone(fixture.state.policy);
+    const beforeWorks = canonical([...fixture.state.works]);
+    const beforeEpoch = fixture.state.policy_epoch;
     const proposal = structuredClone(fixture.policy);
     proposal.pools.smoke = structuredClone(proposal.pools.default);
+    const workerContents = `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${"a".repeat(64)}"\n`;
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(workerContents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } }));
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+
+    await installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, ["smoke"]);
+
+    expect(fixture.state.policy.pools.smoke).toEqual(proposal.pools.smoke);
+    expect(fixture.state.policy.pools.default).toEqual(beforePolicy.pools.default);
+    expect(fixture.state.policy_epoch).toBe(beforeEpoch);
+    expect(canonical([...fixture.state.works])).toBe(beforeWorks);
+    expect(fixture.transactions.at(-1).operations).toEqual([{ kind: "PoolInstall", pool: "smoke", config: proposal.pools.smoke }]);
+  });
+
+  it("installs a new AW pool before admitting a first submission to it", async () => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+      },
+    });
+    const proposal = structuredClone(fixture.policy);
+    proposal.pools.smoke = structuredClone(proposal.pools.default);
+    const workerContents = "on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\n";
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(workerContents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } }));
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-first-use-pool-"));
+    const filename = path.join(directory, "intents.jsonl");
     try {
-      stagePlanIntents(filename, {
-        version: 1,
-        nodes: [{ pool: "smoke", worker_profile: "default", payload: { task: "private-smoke-task" } }],
-        dispatch: { pool: "smoke", max_claims: 1, max_dispatches: 1 },
-      });
-      const result = await publishQueueControls({
-        ...options,
-        assignment: null,
-        role: "dispatcher",
-        policyProposal: proposal,
-        intentPath: filename,
-        publishWorkQueueRequest: publish,
-        core,
-      });
-      expect(result).toMatchObject({ status: "recovery_required", success: false });
-      expect(result.receipts).toHaveLength(2);
-      expect(result.receipts).toEqual([expect.objectContaining({ status: "blocked", reason: "work_queue_pool_not_installed" }), expect.objectContaining({ status: "blocked", reason: "work_queue_pool_not_installed" })]);
-      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("policy --from-config --epoch EPOCH"));
-      expect(JSON.stringify(result)).not.toContain("private-smoke-task");
-      expect(publish).not.toHaveBeenCalled();
-      expect(post).not.toHaveBeenCalled();
-      expect(canonical(fixture.transactions)).toBe(before);
-      expect(fixture.state.policy.pools).not.toHaveProperty("smoke");
+      fs.writeFileSync(filename, `${JSON.stringify({ version: 3, intent_id: "first-smoke-use", kind: "submit", parameters: { nodes: [{ pool: "smoke", payload: { task: "approved" } }] } })}\n`);
+      const result = await processWorkQueueIntents({ ...options, assignment: null, role: "dispatcher", policyProposal: proposal, intentPath: filename });
+
+      expect(result.receipts).toMatchObject([{ status: "durable" }]);
+      expect(fixture.state.policy.pools.smoke).toEqual(proposal.pools.smoke);
+      expect([...fixture.state.works.values()].filter(work => work.pool === "smoke")).toHaveLength(1);
+      expect(fixture.transactions.slice(-2).map(commit => commit.operations[0].kind)).toEqual(["PoolInstall", "Work"]);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  it("does not auto-install a pool from a proposal that also changes installed Policy", async () => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const proposal = structuredClone(fixture.policy);
+    proposal.pools.smoke = structuredClone(proposal.pools.default);
+    proposal.pools.default.logical_limit += 1;
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    const before = canonical(fixture.transactions);
+
+    await expect(installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, ["smoke"])).rejects.toMatchObject({ code: "work_queue_policy_proposal_mismatch" });
+
+    expect(canonical(fixture.transactions)).toBe(before);
+    expect(fixture.state.policy.pools).not.toHaveProperty("smoke");
+  });
+
+  it("rejects automatic AW pool installation with a foreign effect scope", () => {
+    const { fixture } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const pool = structuredClone(fixture.policy.pools.default);
+    pool.profiles.default.effect_scope = "other/repo";
+    const before = canonical(fixture.transactions);
+
+    expect(() => fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "foreign", config: pool }] }, fixture.dispatcher)).toThrow(/repository-scoped authority/);
+
+    expect(canonical(fixture.transactions)).toBe(before);
+    expect(fixture.state.policy.pools).not.toHaveProperty("foreign");
   });
 
   it.each(["checkpoint_invalid", "secret-error-code"])("reports checkpoint corruption without leaking arbitrary error codes or messages: %s", async code => {

@@ -39,9 +39,12 @@ native runs; ignore moved `target-ref`.
 pools, fairness, Issue label and title prefix.
 Defaults: weighted-priority, one pool, concurrency 16, pending 4,096, singleton
 assignments, three attempts, 30-second backoff. First submit installs
-compiled Policy/Work. Standalone seeding is unsupported; AW/Actions authorize
-trusted submissions. Economic Policy updates require quiescence and explicit
-`policy --from-config --epoch EPOCH`; config edits never rewrite active state.
+compiled Policy/Work. On first use, AW-managed queues automatically add a new
+pool from the caller's compiled configuration without changing existing pools
+or the Policy epoch. Standalone seeding is unsupported; AW/Actions authorize
+trusted submissions. Economic or existing-pool Policy updates require
+quiescence and explicit `policy --from-config --epoch EPOCH`; config edits never
+rewrite active state.
 Compatible deployments need no drain. Never expose queue-write credentials to
 agents/snapshot MCP. Repository access rules are GitHub's responsibility.
 See [deployment](../../docs/src/content/docs/patterns/workqueue-ops.md#deploy-a-native-queue).

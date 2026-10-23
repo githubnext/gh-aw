@@ -33,7 +33,7 @@ PROFILE = {
 POLICY = {
     "mode": "weighted-priority", "class_weights": [8, 4, 2, 1, 1],
     "accounting_weights": {"": 1},
-    "producers": {"1001": {"pools": ["default"], "priorities": [1, 2, 3, 4, 5], "fairness_keys": [""]}},
+    "authorization": "aw", "producers": {},
     "pools": {"default": {
         "default_profile": "default", "profiles": {"default": PROFILE},
         "logical_limit": 16, "native_limit": 16, "allowed_repositories": ["owner/repo"],
@@ -196,6 +196,11 @@ def generate():
     append("administrator", "policy2", "policy", 5200, [{
         "kind": "Policy", "epoch": epoch, "policy": POLICY,
     }], reason="grants_paused")
+    new_pool = json.loads(json.dumps(POLICY["pools"]["default"]))
+    del new_pool["profiles"]["default"]["principal"]
+    append("dispatcher", "pool-install", "pool_install", 5300, [{
+        "kind": "PoolInstall", "pool": "smoke", "config": new_pool,
+    }], reason="grants_paused")
     assignment = {
         "version": 3, "dispatch_id": dispatch_id, "request_id": "grant", "commit_id": grant["id"],
         "policy_epoch": "epoch1", "pool": "default", "worker_profile": "default",
@@ -203,7 +208,7 @@ def generate():
                     "work": {"task": key}, "result_refs": []} for key, c in zip(["a", "b", "c"], claims)],
     }
     return {
-        "description": "Independent FIFO answers and all twelve operations; every causal prefix is checked.",
+        "description": "Independent FIFO answers and all thirteen operations; every causal prefix is checked.",
         "commits": commits, "canonical": "\n".join(canonical(c) for c in commits) + "\n",
         "prefixes": expected, "assignment": assignment,
     }

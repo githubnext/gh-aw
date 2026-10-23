@@ -46,6 +46,7 @@ const {
 
 const OP_FIELDS = {
   Policy: [["kind", "epoch", "policy"], []],
+  PoolInstall: [["kind", "pool", "config"], []],
   Deployment: [["kind", "pool", "worker_profile", "expected_ref", "expected_contract", "profile", "available", "reason"], ["activate"]],
   Control: [["kind", "control", "value", "reason"], []],
   Work: [
@@ -78,6 +79,7 @@ const OP_FIELDS = {
 
 const REQUEST_KINDS = {
   policy: ["Policy"],
+  pool_install: ["PoolInstall"],
   deployment: ["Deployment"],
   control: ["Control", "WorkPriority"],
   submit: ["Policy", "Work"],
@@ -96,6 +98,7 @@ const REQUEST_KINDS = {
 
 const OP_ROLES = {
   Policy: ["administrator", "producer", "dispatcher"],
+  PoolInstall: ["administrator", "producer", "dispatcher"],
   Deployment: ["administrator", "producer", "dispatcher"],
   Control: ["administrator"],
   Work: ["producer", "dispatcher", "worker", "administrator"],
@@ -158,6 +161,10 @@ function validateOperation(operation) {
     if (operation.authority_claim_id !== undefined) identity(operation.authority_claim_id, "authority Claim");
   }
   if (operation.kind === "Policy") validatePolicy(operation.policy);
+  if (operation.kind === "PoolInstall") {
+    identity(operation.pool, "pool");
+    if (!operation.config || typeof operation.config !== "object" || Array.isArray(operation.config)) throw queueError("policy_invalid", "pool installation requires a pool definition");
+  }
   if (operation.kind === "Deployment") validateDeployment(operation);
   if (operation.logical_contract !== undefined && !/^[a-f0-9]{64}$/.test(operation.logical_contract)) throw queueError("work_invalid", "invalid Work logical contract");
   if (operation.execution_ref !== undefined && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(operation.execution_ref)) throw queueError("work_invalid", "Work execution pin must be immutable");
@@ -1224,10 +1231,23 @@ function replayOrdered(ordered) {
           throw queueError("checkpoint_invalid", "checkpoint must be the sole root transaction");
         case "Policy":
           break;
+        case "PoolInstall": {
+          const installedPolicy = state.policy;
+          if (!installedPolicy || installedPolicy.authorization !== "aw" || Object.hasOwn(installedPolicy.pools, operation.pool)) throw queueError("policy_invalid", "only new pools can be installed into an AW-managed Policy");
+          const policy = structuredClone(installedPolicy);
+          policy.pools[operation.pool] = structuredClone(operation.config);
+          validatePolicy(policy);
+          if (Object.values(operation.config.profiles).some(profile => profile.effect_scope !== state.repository || Object.hasOwn(profile, "principal")))
+            throw queueError("policy_invalid", "automatically installed AW pools must preserve repository-scoped authority");
+          state.policy = policy;
+          initializeDeployments(state, [operation.pool]);
+          break;
+        }
         case "Deployment":
           applyDeployment(state, operation);
           break;
         case "Control":
+          if (!state.policy) throw queueError("policy_missing", "existing queue has no policy genesis");
           if (operation.control === "admission_paused") state.admission_paused = operation.value;
           if (operation.control === "grants_paused") state.grants_paused = operation.value;
           if (operation.control === "credential_generation") {
