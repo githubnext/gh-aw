@@ -7,25 +7,38 @@ sidebar:
 
 This guide shows you how to debug agentic workflow failures on **github.com** using the Copilot CLI, the `gh aw` debugging commands, and manual investigation techniques.
 
+All agent entry points use the same [debugging bootstrap and inventory](https://github.com/github/gh-aw/blob/main/.github/aw/debug-bootstrap.md)
+and [shared debugging strategy](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md).
+Start with existing evidence; diagnosis does not authorize dispatch. The shared
+strategy owns local execution, MCP startup review, compilation, and live-test
+authorization. For enterprise host configuration, retain the
+[GHE-specific guide](/gh-aw/troubleshooting/debug-ghe/).
+
 > [!TIP]
-> The fastest path to a fix is to let an AI agent debug it for you. Launch the Copilot CLI, invoke the `agentic-workflows` skill, and paste the failing run URL.
+> Share the bootstrap and failing run URL with your existing coding agent.
+> Copilot CLI is one option for a new assistant session, not a prerequisite.
 
 ## Debugging with the Copilot CLI
 
-The Copilot CLI is the recommended first step: it audits logs, traces failures, and suggests fixes interactively.
+Use this section only when choosing a new local Copilot assistant session.
+Otherwise continue with your existing agent and available evidence tools.
 
-Launch `copilot`, invoke **agentic-workflows** to enable `gh aw audit`, `gh aw logs`, and related debugging tools. Then paste the failing run URL:
+Launch `copilot` and invoke **agentic-workflows** to load the debugging
+instructions. Skills do not grant tool access; CLI/MCP capabilities depend on
+the client configuration and authorization. Then paste the failing run URL:
 
 ```text
 Debug this workflow run: https://github.com/OWNER/REPO/actions/runs/RUN_ID
 ```
 
-Copilot downloads the logs, identifies the root cause (missing tools, permission errors, network blocks), and suggests fixes or opens a PR. Follow-up questions like "What domains were blocked?" or "Why did the MCP server fail?" work too.
+With authorized access, Copilot can analyze existing logs and suggest a cause
+or fix. Cached/redacted evidence also works. Publication requires the user's
+scope and repository rules; a debugging request does not automatically open a PR.
 
 ### Alternative entry points
 
-- **Copilot Chat on GitHub.com** (requires [agentic authoring setup](/gh-aw/setup/working-with-workflows/#configuring-your-repository-for-agentic-authoring)): `agentic-workflows debug <run-url>`
-- **Any coding agent**: paste this prompt to install `gh aw` and run the standalone analysis:
+- **Copilot Chat on GitHub.com**: in repositories configured for [agentic authoring](/gh-aw/setup/working-with-workflows/#configuring-your-repository-for-agentic-authoring), use `agentic-workflows debug <run-url>`.
+- **Any coding agent**: paste this prompt to use available tools or cached evidence without mandatory installation:
 
   ```text
   Debug this workflow run using https://raw.githubusercontent.com/github/gh-aw/main/debug.md
@@ -35,16 +48,19 @@ Copilot downloads the logs, identifies the root cause (missing tools, permission
 
 ## Debugging with CLI Commands
 
+Use a matching target checkout; otherwise pass `--repo OWNER/REPO` for this
+github.com guide. Never substitute an unrelated checkout for the supplied target.
+
 ### Auditing a Specific Run
 
 `gh aw audit` breaks down a single run — failure analysis and root cause, behavior fingerprint (network/tool/cost profile), tool usage, MCP server status, firewall analysis, token/cost metrics, and safe-outputs. Accepts a run ID, run URL, job URL (extracts first failing step), or step URL.
 
 ```bash
-gh aw audit 12345678
+gh aw audit https://github.com/OWNER/REPO/actions/runs/12345678 --no-baseline --timeout 2m
 gh aw audit https://github.com/OWNER/REPO/actions/runs/123/job/456#step:7:1
-gh aw audit 12345678 --parse                          # parse to markdown
-gh aw audit 12345678 12345679                         # compare two runs
-gh aw audit 12345678 12345679 --format markdown
+gh aw audit 12345678 --repo OWNER/REPO --parse         # parse to markdown
+gh aw audit 12345678 12345679 --repo OWNER/REPO        # compare two runs
+gh aw audit 12345678 12345679 --repo OWNER/REPO --group --json  # recurrence findings
 ```
 
 For security and performance trends across multiple runs, use `gh aw logs --format`:
@@ -91,7 +107,10 @@ Health checks the target host's core API quota, reuses immutable revision lookup
 
 ### Inspecting MCP Configuration
 
-If you suspect MCP server issues, inspect the compiled configuration:
+If you suspect MCP server issues, first review declarations, startup commands,
+destinations, and credential references under the shared strategy. Commands that
+start or connect to a server require its MCP startup gate; use cached schemas
+when isolated test bindings are unavailable. Then inspect the configuration:
 
 ```bash
 gh aw mcp list                              # list workflows with MCP servers
@@ -103,11 +122,18 @@ gh aw mcp inspect my-workflow --inspector   # web-based inspector
 
 ### "Authentication failed"
 
-The Copilot token is missing, expired, or lacks the required permissions. Confirm you have an active Copilot subscription, that the token has **Copilot Requests** permission (fine-grained PATs), and that `gh auth status` reports it valid. See [Authentication Reference](/gh-aw/reference/auth/).
+Compare the failed operation's host, declared credential source and existing
+authentication logs before choosing a fix. `gh auth status` reports CLI
+authentication metadata, not proof that the workflow's Copilot token or
+entitlement is valid. Never retrieve token values or swap credentials after
+a denial. See [Authentication Reference](/gh-aw/reference/auth/).
 
 ### "Tool not found" or Missing Tool Calls
 
-The workflow references a tool that isn't configured or the MCP server failed to connect. Verify the `tools:` section in frontmatter, check the MCP server version, then run `gh aw mcp inspect my-workflow` and `gh aw audit <run-id>` to compare available vs. requested tools.
+Compare the requested name with cached registration/startup evidence and the
+failed revision's `tools:` declarations. A naming mismatch does not prove missing
+permissions or configuration. Follow the [finding-code playbook](https://github.com/github/gh-aw/blob/main/.github/aw/debug-playbook.md)
+and MCP startup gate before any command that starts or connects servers.
 
 ### Shell Commands Missing Inside the Agent Sandbox
 
@@ -133,7 +159,9 @@ Collect diagnostics with the repository's [debug.md guidance](https://github.com
 DENIED CONNECT registry.npmjs.org:443
 ```
 
-The agent reached a domain outside the firewall allow-list. Add it explicitly, or use an ecosystem shorthand:
+The agent reached a domain outside the firewall allow-list. First verify that
+the destination is intended and authorized; then add only the necessary domain
+or ecosystem entry, keeping the firewall enabled:
 
 ```aw
 network:
@@ -158,12 +186,15 @@ Increase `engine.harness.watchdog-timeout` for literal frontmatter values, or se
 
 ### Compilation Errors
 
-The frontmatter has schema validation errors or unsupported fields. Use `--verbose` to diagnose, `gh aw fix --write` to auto-correct, and `--validate` to check without writing the lock file. See [Error Reference](/gh-aw/troubleshooting/errors/) for specific messages.
+Inspect the schema error or unsupported field, then follow the
+[compilation guide](https://github.com/github/gh-aw/blob/main/.github/aw/debug-compilation.md)
+for diagnostic emission and preservation. `validate` does not emit locks;
+`compile --validate` can emit them. Apply codemods only for confirmed issues
+within the authorized edit scope. See [Error Reference](/gh-aw/troubleshooting/errors/).
 
 ```bash
-gh aw compile my-workflow --verbose
-gh aw fix --write
-gh aw compile --validate
+gh aw compile my-workflow --dry-run --verbose
+gh aw validate my-workflow  # Additional source checks; no emitted lock or scanners
 ```
 
 ## Advanced Debugging
@@ -173,9 +204,9 @@ gh aw compile --validate
 `DEBUG` enables detailed internal logging for any `gh aw` command. Output goes to `stderr` — capture it with `2>&1 | tee debug.log`.
 
 ```bash
-DEBUG=* gh aw compile my-workflow              # all logs
-DEBUG=cli:* gh aw audit 12345678               # CLI-specific
-DEBUG=workflow:*,cli:* gh aw compile           # multiple packages
+DEBUG=* gh aw compile my-workflow --dry-run     # all logs
+DEBUG=cli:* gh aw audit 12345678 --repo OWNER/REPO  # CLI-specific
+DEBUG=workflow:*,cli:* gh aw compile my-workflow --dry-run  # multiple packages
 ```
 
 ### Enable GitHub API Request Logging
@@ -183,12 +214,17 @@ DEBUG=workflow:*,cli:* gh aw compile           # multiple packages
 `gh aw` uses go-gh's native REST/GraphQL clients for many GitHub API calls. Setting `GH_DEBUG=api` prints verbose request/response details for calls made through those go-gh clients, with no extra flags needed:
 
 ```bash
-GH_DEBUG=api gh aw compile my-workflow
+GH_DEBUG=api gh aw compile my-workflow --dry-run
 ```
+
+Keep captured logs private and redact sensitive headers, payloads and URLs
+before sharing them.
 
 ### Enable GitHub Actions Debug Logging
 
-Add an `ACTIONS_STEP_DEBUG` repository secret set to `true` (**Settings → Secrets and variables → Actions**), then re-run the workflow for verbose step-level logging in the Actions UI.
+`ACTIONS_STEP_DEBUG=true` enables verbose step-level logging in the Actions UI.
+Changing repository secrets or rerunning a workflow is not part of read-only
+diagnosis; use the shared strategy's authorization and live gates before either.
 
 ### Inspecting Firewall Logs
 
@@ -216,11 +252,14 @@ Download from the Actions run page or `gh run download <run-id> --repo OWNER/REP
 
 ### Recompiling for a Quick Fix
 
-After editing the `.md` file, recompile, commit both files, and push:
+After editing the `.md` source, use the shared strategy's review and development
+compilation gates:
 
 ```bash
-gh aw compile my-workflow
-git add .github/workflows/my-workflow.md .github/workflows/my-workflow.lock.yml
-git commit -m "fix: update workflow configuration"
-git push
+gh aw compile my-workflow --dry-run
 ```
+
+This emits a diagnostic lock, not a live run or a normal production replacement.
+Preserve evidence and user changes using the strategy's snapshot/restore rules.
+Publication and live testing follow its feature-branch and exact-revision gates;
+do not infer permission to push or rerun from a successful compile.

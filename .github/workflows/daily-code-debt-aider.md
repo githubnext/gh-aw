@@ -20,6 +20,9 @@ model: copilot/auto
 strict: true
 network:
   allowed: []
+runtimes:
+  go:
+    version: "1.27.3"
 tools:
   edit:
   bash:
@@ -51,7 +54,7 @@ output. Follow the Aider execution constraints above: one shell command per line
 ## Step 1 — Find actionable TODO/FIXME comments
 
 ```bash
-grep -rn "TODO\|FIXME" --include="*.go" --exclude-dir=vendor --exclude-dir=.git . | grep -v "_test.go" | head -20
+grep -rnE '^[[:space:]]*//[[:space:]]*(TODO|FIXME)([[:space:]:]|$)' --include="*.go" --exclude="*_test.go" --exclude-dir=vendor --exclude-dir=.git --exclude-dir=testdata . | head -20
 ```
 
 From the output, identify at most **3 comments** that are:
@@ -60,11 +63,14 @@ From the output, identify at most **3 comments** that are:
 - In a single file
 
 Skip any comment that references an issue number (`#\d+`) or requires discussion.
+Only actual source comments are candidates, not identifiers, string literals, generated
+workflow templates, or test fixtures. Do not rename a symbol just because its name contains TODO.
 
 ## Step 2 — Resolve selected comments
 
 For each selected comment:
-1. Read the surrounding function to understand context.
+1. Read the surrounding function in a fenced `bash` command and consume its output
+   before proposing an edit. SEARCH must match the exact source, not a grep excerpt.
 2. Apply a minimal, correct fix with a *SEARCH/REPLACE* block.
 3. Remove or update the TODO/FIXME marker after the fix.
 
@@ -73,12 +79,11 @@ For each selected comment:
 If any code was changed, run these commands (one per line):
 
 ```bash
-make fmt || true
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && safeoutputs create_pull_request --title "Resolve actionable TODO/FIXME comments" --body "Automated cleanup of self-contained TODO and FIXME comments." --branch "code-debt-$GITHUB_RUN_ID" || safeoutputs noop --message "Could not build or commit the cleanup changes — no pull request created."
+make fmt-go && go build ./... && git checkout -b code-debt-$GITHUB_RUN_ID && git add -A && git commit -m "Resolve actionable TODO/FIXME comments" && safeoutputs create_pull_request --title "Resolve actionable TODO/FIXME comments" --body "Automated cleanup of self-contained TODO and FIXME comments." --branch "code-debt-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, build, commit, or submit the cleanup changes — no pull request confirmed."
 ```
 
-The trailing `|| safeoutputs noop ...` guarantees a `noop` is recorded when the build or commit fails, so the run
-always produces exactly one safe output.
+Formatting and build failures must stop publication and be reported as incomplete.
+Preserve TLS verification; do not retry certificate failures with insecure settings.
 
 If nothing was changed (no actionable items found), run instead:
 

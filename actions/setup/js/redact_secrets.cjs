@@ -364,7 +364,7 @@ function isValidJSONArtifact(content) {
  * @param {string} content
  * @param {string[]} secretValues
  * @param {string[]} maskedValues
- * @param {{decodedText?: boolean}} [options] - Treat already-decoded protocol payloads as literal text
+ * @param {{decodedText?: boolean, patternMatches?: Array<{start: number, end: number, value: string, replacement: string}>}} [options] - Treat already-decoded protocol payloads as literal text
  * @returns {{content: string, redactionCount: number}}
  */
 function redactArtifactContent(content, secretValues, maskedValues, options = {}) {
@@ -388,7 +388,12 @@ function redactArtifactContent(content, secretValues, maskedValues, options = {}
     return name || configured.has(value) ? "***REDACTED***" : "***";
   };
   // Protocol callbacks already receive decoded strings, not serialized artifacts.
-  const redacted = options.decodedText ? redactDecodedCredentialText(content, values, replacement) : redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
+  const redacted = options.decodedText
+    ? redactDecodedCredentialText(content, values, replacement)
+    : redactArtifactMaskedValues(content, values, undefined, replacement, {
+        textMode: !!options.patternMatches?.length || !isValidJSONArtifact(content),
+        patternMatches: options.patternMatches,
+      });
   return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
 }
 

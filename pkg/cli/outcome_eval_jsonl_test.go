@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,34 +38,30 @@ func TestOutcomeJSONLObjectiveRoundtrip(t *testing.T) {
 		reports = append(reports, report)
 	}
 	writeOutcomeJSONL(outcomesDir, 42, reports)
-	observations, err := readEpisodeOutcomeObservations(outcomesDir)
+	content, err := os.ReadFile(filepath.Join(outcomesDir, "outcomes-42.jsonl"))
 	require.NoError(t, err)
-	require.Len(t, observations, len(reports))
-	for i, observation := range observations {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	for i := range reports {
+		var observation EpisodeOutcomeObservation
+		require.NoError(t, decoder.Decode(&observation))
 		assert.Equal(t, reports[i], observation.OutcomeReport)
 		assert.Equal(t, int64(42), observation.RunID)
 		assert.Equal(t, len(reports), observation.RunItemCount)
 	}
+	var extra EpisodeOutcomeObservation
+	require.ErrorIs(t, decoder.Decode(&extra), io.EOF)
 
-	logsPath := filepath.Join(dir, "logs.json")
-	content, err := json.Marshal(episodeLogs(42))
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
 	usageDir := filepath.Join(dir, "run-42", "usage")
 	require.NoError(t, os.MkdirAll(usageDir, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(usageDir, "agent_usage.jsonl"), []byte("{\"aic\":1.25}\n"), 0o600))
 
-	var stdout, stderr bytes.Buffer
-	cmd := NewOutcomesCommand()
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
-	require.NoError(t, cmd.Execute())
-	assert.Empty(t, stderr.String())
-	var data EpisodeOutcomesData
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &data))
-	require.Len(t, data.Episodes, 1)
-	episode := data.Episodes[0]
+	logs := episodeLogs(42)
+	logs.Runs[0].LogsPath = filepath.Dir(usageDir)
+	data := LogsData{Runs: logs.Runs, Episodes: []EpisodeData{logs.Episodes[0].EpisodeData}}
+	require.NoError(t, attachLogsOutcomes(&data, []OutcomesData{{RunID: 42, Items: reports}}))
+	require.NotNil(t, data.EpisodeOutcomes)
+	require.Len(t, data.EpisodeOutcomes.Episodes, 1)
+	episode := data.EpisodeOutcomes.Episodes[0]
 	assert.Equal(t, "selected_runs", episode.MembershipScope)
 	assert.Equal(t, "complete", episode.OutcomeCoverage)
 	assert.Equal(t, 4, episode.Summary.Total)
@@ -87,13 +84,15 @@ func TestOutcomeJSONLObjectiveRoundtrip(t *testing.T) {
 		assert.Equal(t, reports[i].ObjectiveLabels, item.ObjectiveLabels)
 	}
 
-	schemaJSON, err := GenerateNamedOutputSchema("outcomes-episodes")
+	schemaJSON, err := GenerateNamedOutputSchema("logs")
 	require.NoError(t, err)
 	var schema jsonschema.Schema
 	require.NoError(t, json.Unmarshal(schemaJSON, &schema))
 	resolved, err := schema.Resolve(nil)
 	require.NoError(t, err)
 	var value any
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &value))
+	content, err = json.Marshal(data)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(content, &value))
 	require.NoError(t, resolved.Validate(value))
 }

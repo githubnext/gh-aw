@@ -98,6 +98,9 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	}
 
 	// Validate type-specific requirements
+	if _, err := parser.ParseMCPCACertFile(toolConfig, typeStr, toolName); err != nil {
+		return err
+	}
 	switch typeStr {
 	case "http":
 		// HTTP type requires 'url' property
@@ -236,6 +239,7 @@ var mcpSchemaTopLevelFields = map[string]bool{
 	"mounts":         true,
 	"env":            true,
 	"headers":        true,
+	"ca-cert-file":   true,
 	"network":        true,
 	"allowed":        true,
 	"version":        true,

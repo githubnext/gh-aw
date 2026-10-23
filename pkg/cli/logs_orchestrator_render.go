@@ -20,7 +20,7 @@ import (
 // renderLogsOutput finalizes processedRuns and renders them in the appropriate output
 // format: JSON, console metrics table, or cross-run audit report (pretty/markdown).
 // continuation is optional and only set when a timeout was reached during a paginated download.
-func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions) error {
+func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions) (err error) {
 	logsData, err := prepareLogsData(processedRuns, opts)
 	if err != nil {
 		return err
@@ -29,6 +29,17 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 	// Render output based on format preference.
 	if opts.suppressRender {
 		return nil
+	}
+	if !opts.jsonOutput && (opts.format != "markdown" || opts.reportFile == "") {
+		defer func() {
+			if err == nil {
+				out := os.Stdout
+				if opts.format == "tsv" || opts.format == "pretty" {
+					out = os.Stderr
+				}
+				err = renderLogsEpisodeOutcomes(out, logsData, opts.episodes)
+			}
+		}()
 	}
 	switch opts.format {
 	case "tsv":
@@ -78,6 +89,9 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 	logsData.Runs = workQueueReportRuns(logsData.Runs, opts.includeWorkQueue || len(opts.artifactFilter) == 0)
 	logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(opts.apiRateLimit)
 	logsData.GitHubAPIRateLimits = populatedGitHubAPIRateLimitReports(opts.apiRateLimits)
+	if err := attachLogsOutcomes(&logsData, opts.outcomeReports); err != nil {
+		return LogsData{}, err
+	}
 
 	// When no explicit start_date/end_date was requested and the newest run in the
 	// result is unexpectedly old, warn the caller so stale data is never served
@@ -92,16 +106,7 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 
 	// When only the usage artifact was downloaded, add a hint so consumers know how
 	// to fetch additional artifact sets (agent logs, firewall data, etc.).
-	var hints []string
-	if opts.message != "" {
-		hints = append(hints, opts.message)
-	}
-	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
-		hints = append(hints, usageOnlyArtifactHintMessage())
-	}
-	if len(hints) > 0 {
-		logsData.Message = strings.Join(hints, " ")
-	}
+	logsData.Message = logsCollectionMessage(opts)
 
 	// Write summary file if requested
 	if opts.summaryFile != "" {
@@ -118,6 +123,17 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 		}
 	}
 	return logsData, nil
+}
+
+func logsCollectionMessage(opts renderLogsOutputOptions) string {
+	var hints []string
+	if opts.message != "" {
+		hints = append(hints, opts.message)
+	}
+	if isUsageOnlyArtifactFilter(opts.artifactFilter) {
+		hints = append(hints, usageOnlyArtifactHintMessage())
+	}
+	return strings.Join(hints, " ")
 }
 
 func cacheLogsAuditData(processedRuns []ProcessedRun, writer *cachedLogsJSONLWriter) {
@@ -160,6 +176,13 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 	report.GitHubAPIRateLimit = logsData.GitHubAPIRateLimit
 	report.GitHubAPIRateLimits = logsData.GitHubAPIRateLimits
 	report.ModelRouting = logsData.ModelRouting
+	if opts.episodes {
+		report.Episodes = logsData.Episodes
+		report.Edges = logsData.Edges
+	}
+	// These fields are for JSON output; text is rendered separately by renderLogsEpisodeOutcomes.
+	report.Outcomes = logsData.Outcomes
+	report.EpisodeOutcomes = logsData.EpisodeOutcomes
 	report.FailureClusters = logsData.FailureClusters
 	report.FailureInvestigation = logsData.FailureInvestigation
 	if opts.jsonOutput {
@@ -185,7 +208,7 @@ func renderLogsOutputCrossRun(processedRuns []ProcessedRun, logsData LogsData, o
 				}
 			}()
 			renderCrossRunReportMarkdownToWriter(f, report)
-			return nil
+			return renderLogsEpisodeOutcomes(f, logsData, opts.episodes)
 		}(); err != nil {
 			return fmt.Errorf("failed to write report file: %w", err)
 		}

@@ -489,7 +489,7 @@ func (e *PiEngine) buildPiCommand(workflowData *WorkflowData, commandName string
 			routingEnv, commandName, shellJoinArgs(piArgs), piBareWorkflowSkillArgs(workflowData), modelArg, PiStreamingLogFile)
 	}
 	if !driverConfigured && piSessionSettings(workflowData).Export {
-		piCommand += fmt.Sprintf(` && %s "%s/pi_session_export.cjs"`, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
+		piCommand += fmt.Sprintf(` && (export GH_AW_AGENT_OUTPUT="%s" && %s "%s/pi_session_export.cjs")`, PiStreamingLogFile, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
 	}
 	piRuntimeCommand := fmt.Sprintf(`%s "%s/pi_runtime.cjs"`, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
 	if isModelRoutingEnabled(workflowData) && piModelsJSONSetup != "" {
@@ -500,7 +500,7 @@ func (e *PiEngine) buildPiCommand(workflowData *WorkflowData, commandName string
 		}
 		piCommand = piRuntimeCommand + " && " + piCommand
 	}
-	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + piCommand
+	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + "mkdir -p " + constants.TmpSandboxAgentLogsDir + " && " + piCommand
 }
 
 func (e *PiEngine) buildPiExecutionCommand(workflowData *WorkflowData, logFile, piCommand string, firewallEnabled, modelConfigured bool, profile universalLLMBackendProfile) string {
@@ -631,7 +631,7 @@ func (e *PiEngine) buildPiExecutionStep(workflowData *WorkflowData, command stri
 // PiStreamingLogFile is the path where Pi CLI writes its streaming JSONL event log.
 // All Pi tool calls, messages, and metrics are captured here for post-run analysis
 // and step summary rendering.
-const PiStreamingLogFile = "/tmp/gh-aw/pi-streaming.jsonl"
+const PiStreamingLogFile = constants.TmpSandboxAgentLogsDir + "pi-streaming.jsonl"
 
 const PiSessionDirectory = constants.TmpGhAwAgentDir + "pi-sessions"
 

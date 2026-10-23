@@ -13,7 +13,7 @@ const { getMissingInfoSections, getCollectedMissings, generateMissingInfoReportS
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatCompactInteger } = require("./compact_numbers.cjs");
-const { formatAIC } = require("./model_costs.cjs");
+const { formatEstimatedAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
@@ -121,7 +121,7 @@ function getAmbientContextFromEnv() {
  * @returns {{ value: number|undefined, formatted: string|undefined, suffix: string }}
  */
 function buildAICEntry(label, value, modelAlias) {
-  const formatted = typeof value === "number" ? formatAIC(value) : undefined;
+  const formatted = typeof value === "number" && value > 0 ? formatEstimatedAIC(value) : undefined;
   const prefix = [label, modelAlias].filter(Boolean).join(" ");
   return {
     value,
@@ -169,7 +169,7 @@ function getAICFromEnv() {
   const threatDetectionEntry = buildAICEntry("⌖", threatDetectionAIC);
   const useBreakdown = threatDetectionEntry.suffix.length > 0 || evalsEntry.suffix.length > 0;
   const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) + (evalsAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
-  const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
+  const aiCreditsFormatted = typeof aiCredits === "number" ? formatEstimatedAIC(aiCredits) : undefined;
   const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}${evalsEntry.suffix}` : buildAICEntry("", aiCredits, agentModelIdentifier).suffix;
 
   return {
@@ -264,7 +264,7 @@ function getFooterMessageParts(ctx) {
   let aiCreditsFormatted = envAICFormatted;
   let aiCreditsSuffix = envAICSuffix;
   if (hasExplicitContextAIC) {
-    aiCreditsFormatted = explicitContextAIC ? formatAIC(explicitContextAIC) : undefined;
+    aiCreditsFormatted = explicitContextAIC ? formatEstimatedAIC(explicitContextAIC) : undefined;
     aiCreditsSuffix = buildAICEntry("", explicitContextAIC, agentModelIdentifier).suffix;
   }
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${envAmbientContextSuffix}`;
@@ -511,7 +511,7 @@ function getFooterAgentFailureIssueTemplate(ctx) {
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
   const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
   const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
-  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatEstimatedAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? buildAICEntry("", explicitContextAIC, agentModelIdentifier).suffix : envAICSuffix;
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || undefined;
@@ -603,7 +603,7 @@ function getFooterAgentFailureCommentMessage(ctx) {
   const hasExplicitContextAIC = ctx.aiCredits !== undefined && ctx.aiCredits !== null;
   const explicitContextAIC = parseExplicitContextAIC(ctx.aiCredits);
   const aiCredits = hasExplicitContextAIC ? explicitContextAIC : envAIC;
-  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
+  const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatEstimatedAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? buildAICEntry("", explicitContextAIC, agentModelIdentifier).suffix : envAICSuffix;
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || undefined;

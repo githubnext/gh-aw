@@ -257,6 +257,19 @@ function formatAIC(value) {
   return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+/**
+ * Whole-credit footer estimates intentionally omit compact K/M notation.
+ * @param {number} value
+ * @returns {string}
+ */
+function formatEstimatedAIC(value) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  const nearestInteger = Math.round(value);
+  // Normalize arithmetic noise only for display, without rounding tiny costs to zero.
+  const normalized = nearestInteger > 0 && Math.abs(value - nearestInteger) <= Number.EPSILON * value ? nearestInteger : value;
+  return `~${Math.ceil(normalized)}`;
+}
+
 /** @type {Record<string, unknown> | null | undefined} */
 let _modelsJson = undefined;
 
@@ -314,6 +327,7 @@ module.exports = {
   computeInferenceCostUSD,
   findModelPricing,
   formatAIC,
+  formatEstimatedAIC,
   getModelsPath,
   loadCatalog,
   loadModelsJson,

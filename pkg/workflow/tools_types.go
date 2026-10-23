@@ -192,6 +192,9 @@ func mcpServerConfigToMap(config MCPServerConfig) map[string]any {
 	if config.Auth != nil {
 		result["auth"] = config.Auth
 	}
+	if config.CACertFile != "" {
+		result["ca-cert-file"] = config.CACertFile
+	}
 
 	// Add container-specific fields
 	if config.Container != "" {

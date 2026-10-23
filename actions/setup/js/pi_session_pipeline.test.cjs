@@ -19,7 +19,8 @@ describe("Pi native-to-unified artifact pipeline", () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-pi-session-"));
     originalEnv = { ...process.env };
     originalCore = global.core;
-    process.env.GH_AW_AGENT_OUTPUT = path.join(root, "pi-streaming.jsonl");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(root, "sandbox/agent/logs/pi-streaming.jsonl");
+    fs.mkdirSync(path.dirname(process.env.GH_AW_AGENT_OUTPUT), { recursive: true });
     delete process.env.GH_AW_SAFE_OUTPUTS;
     global.core = {
       info: vi.fn(),
@@ -50,6 +51,7 @@ describe("Pi native-to-unified artifact pipeline", () => {
     fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, raw);
     await runLogParser({ parserName: "Pi", parseLog: parsePiLog, rootDir: root });
     expect(global.core.setFailed).not.toHaveBeenCalled();
+    expect(global.core.summary.addRaw).toHaveBeenCalled();
     const canonical = readEvents(path.join(root, "agent-session.jsonl"));
     const parsed = JSON.parse(JSON.stringify(parsePiLog(raw).logEntries));
     expect(canonical.filter(event => event.type !== "agent.execution")).toEqual(parsed);
@@ -75,5 +77,6 @@ describe("Pi native-to-unified artifact pipeline", () => {
     fs.unlinkSync(path.join(root, "agent-session.jsonl"));
     const reconstructed = writeUnifiedSession({ rootDir: root, engine: "pi", warn: vi.fn() });
     expect(reconstructed.filter(event => event.provenance?.component === "agent" && event.type !== "agent.execution").map(event => event.data)).toEqual(agent.map(event => event.data));
+    expect(reconstructed.filter(event => event.provenance?.component === "agent").every(event => event.provenance.path === "sandbox/agent/logs/pi-streaming.jsonl")).toBe(true);
   });
 });

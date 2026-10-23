@@ -872,47 +872,34 @@ cat aw_session.jsonl | gh aw graders run weekly-research operational-value
 
 **Options:** `--repo/-r`
 
-#### `outcomes`
+#### `logs --outcomes`
 
 Check what happened to a workflow run's safe outputs (accepted, rejected, ignored, or pending).
 
 ```bash wrap
-gh aw outcomes 1234567890                      # Check outcomes for a specific run
-gh aw outcomes 1234567890 --json               # JSON output
-gh aw outcomes 1234567890 --repo owner/repo    # Specify repository
-gh aw outcomes 1234567890 --outcomes-dir ./otlp # Write outcome JSONL for OTLP export
+gh aw logs weekly-research --outcomes --json
+gh aw logs weekly-research --episodes --outcomes --json
+printf '%s\n' 1234567890 | gh aw logs --stdin --repo owner/repo --outcomes --json
+gh aw logs episode 1234567890 --repo owner/repo --outcomes
+gh aw logs --outcomes --outcomes-dir ./otlp
 ```
 
-**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--outcomes-dir`
+**Options:** `--json/-j`, `--repo/-r`, `--output/-o`, `--episodes`, `--outcomes-dir`
 
-##### `outcomes history`
+The flag applies to selected runs in discovery, multi-workflow, stdin, and
+episode collection. JSON includes `.outcomes[]` with per-run observations and
+`.episode_outcomes` with selected-episode summaries. Outcome checks are live
+and require additional API requests even when execution artifacts are cached.
+`--outcomes-dir` requires `--outcomes` and writes JSONL observations.
+The standalone `gh aw outcomes` command has been removed.
 
-Score recent issues and merged pull requests against the objective mapping. Gives a quick local historical view of what kinds of work the repository has been closing or merging under the current objective mapping.
-
-```bash wrap
-gh aw outcomes history                               # Score recent issues and PRs
-gh aw outcomes history --source issues --limit 100  # Only issues, limited to 100 items
-gh aw outcomes history --repo owner/repo --json     # JSON output for another repo
-```
-
-**Options:** `--limit`, `--source`, `--json/-j`, `--repo/-r`
-
-##### `outcomes episodes`
-
-Join episode membership from a full logs JSON report with the latest recorded
-safe-output outcome observations. Reads downloaded usage artifacts locally;
-does not query GitHub or evaluate outcomes.
-
-```bash wrap
-gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes
-gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json
-```
-
-**Required:** `--logs` (generated with `gh aw logs --verbose --json`),
-`--outcomes-dir` (JSONL written by `gh aw outcomes <run-id>`).
-
-**Options:** `--output/-o` (downloaded `run-*` directory, default
-`.github/aw/logs`), `--json/-j`.
+`--episodes` adds recorded episode membership and hops to text reports. Combine
+`--episodes --outcomes` to perform the episode-outcome join in the same
+invocation, using collected membership, live observations, and downloaded
+usage. No separate command or JSONL export is needed.
+Standard logs JSON retains episode membership and outcome summaries with or
+without the explicit `--episodes` flag. Membership is limited to selected runs; this flag
+does not expand discovery to all episode members.
 
 Reports are scoped to selected runs and qualify missing membership, outcomes,
 and cost. See [Episode Outcome Summaries](/gh-aw/reference/outcomes/#episode-outcome-summaries)
@@ -1366,7 +1353,6 @@ Print the JSON Schema for structured command output.
 gh aw json-schema audit        # Schema for gh aw audit --json
 gh aw json-schema logs         # Schema for gh aw logs --json
 gh aw json-schema logs-jsonl   # Schema for each gh aw logs --cached-jsonl line
-gh aw json-schema outcomes-episodes # Schema for gh aw outcomes episodes --json
 ```
 
 **Schema arguments:** `audit`, `logs`, `logs-jsonl`. The schema is written to stdout. See [JSON output schemas](/gh-aw/reference/audit/#json-output-schemas).

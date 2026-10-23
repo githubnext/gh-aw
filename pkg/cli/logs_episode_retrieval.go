@@ -26,6 +26,7 @@ type EpisodeRetrievalOptions struct {
 	Timeout           time.Duration
 	OutputDir         string
 	Refresh           bool
+	Outcomes          bool
 }
 
 // EpisodeRetrieval records collection bounds and evidence gaps, not completeness.

@@ -21,7 +21,7 @@ type EpisodeOutcomeObservation struct {
 	OutcomeReport
 }
 
-// EpisodeOutcomesData is an offline join of selected episode members and outcomes.
+// EpisodeOutcomesData joins selected episode members and outcomes.
 type EpisodeOutcomesData struct {
 	Episodes               []EpisodeOutcomeData `json:"episodes"`
 	UnmatchedOutcomeRunIDs []int64              `json:"unmatched_outcome_run_ids"`
@@ -39,6 +39,7 @@ type EpisodeOutcomeMembershipCoverage struct {
 type episodeOutcomesLogs struct {
 	Runs     []RunData                  `json:"runs"`
 	Episodes []episodeOutcomeMembership `json:"episodes"`
+	Outcomes []OutcomesData             `json:"outcomes,omitempty"`
 }
 
 type episodeOutcomeMembership struct {
@@ -238,6 +239,13 @@ func buildEpisodeOutcomes(logs episodeOutcomesLogs, observations []EpisodeOutcom
 	for _, observation := range latest {
 		byRun[observation.RunID] = append(byRun[observation.RunID], observation)
 	}
+	for _, report := range logs.Outcomes {
+		if report.EvalError == "" && len(report.Items) == 0 {
+			if _, observed := byRun[report.RunID]; !observed {
+				byRun[report.RunID] = []EpisodeOutcomeObservation{}
+			}
+		}
+	}
 	runs := make(map[int64]bool)
 	for _, run := range logs.Runs {
 		runs[run.RunID] = true
@@ -282,7 +290,8 @@ func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64]
 	}
 	legacy, incompleteEvidence := false, false
 	for _, id := range row.RunIDs {
-		if err := addEpisodeOutcomeRun(&row, id, byRun[id], costs[id], runs[id]); err != nil {
+		items, evaluated := byRun[id]
+		if err := addEpisodeOutcomeRun(&row, id, items, costs[id], runs[id], evaluated); err != nil {
 			return row, err
 		}
 		for _, item := range byRun[id] {
@@ -309,11 +318,11 @@ func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64]
 	return row, nil
 }
 
-func addEpisodeOutcomeRun(row *EpisodeOutcomeData, id int64, items []EpisodeOutcomeObservation, cost episodeOutcomeCost, present bool) error {
+func addEpisodeOutcomeRun(row *EpisodeOutcomeData, id int64, items []EpisodeOutcomeObservation, cost episodeOutcomeCost, present, evaluated bool) error {
 	if !present {
 		row.MissingRunIDs = append(row.MissingRunIDs, id)
 	}
-	if len(items) == 0 {
+	if !evaluated {
 		row.MissingOutcomeRunIDs = append(row.MissingOutcomeRunIDs, id)
 	} else {
 		row.OutcomeRunIDs = append(row.OutcomeRunIDs, id)

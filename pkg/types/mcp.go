@@ -14,9 +14,10 @@ type BaseMCPServerConfig struct {
 	Version string `json:"version,omitempty" yaml:"version,omitempty"` // Optional version/tag
 
 	// HTTP-specific fields
-	URL     string            `json:"url,omitempty" yaml:"url,omitempty"`         // URL for HTTP mode MCP servers
-	Headers map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"` // HTTP headers for HTTP mode
-	Auth    *MCPAuthConfig    `json:"auth,omitempty" yaml:"auth,omitempty"`       // Upstream authentication config (HTTP mode only)
+	URL        string            `json:"url,omitempty" yaml:"url,omitempty"`                   // URL for HTTP mode MCP servers
+	Headers    map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`           // HTTP headers for HTTP mode
+	Auth       *MCPAuthConfig    `json:"auth,omitempty" yaml:"auth,omitempty"`                 // Upstream authentication config (HTTP mode only)
+	CACertFile string            `json:"ca-cert-file,omitempty" yaml:"ca-cert-file,omitempty"` // Host PEM file trusted only for this HTTP server
 
 	// Container-specific fields
 	Container      string   `json:"container,omitempty" yaml:"container,omitempty"`           // Container image for the MCP server

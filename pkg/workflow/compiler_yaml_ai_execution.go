@@ -194,6 +194,9 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, data *WorkflowData,
 
 	// Get the log file path for parsing (may be different from stdout/stderr log)
 	logFileForParsing := engine.GetLogFileForParsing()
+	if isArcDindTopology(data) && isFirewallEnabled(data) && engine.GetID() == string(constants.PiEngine) {
+		logFileForParsing = strings.ReplaceAll(logFileForParsing, constants.TmpGhAwDir, constants.GhAwRootDir)
+	}
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")

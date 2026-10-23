@@ -4,6 +4,8 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { createHandlers, hasUpdatePullRequestFields } from "./safe_outputs_handlers.cjs";
+import { main as createLedgerAppendHandler, transactionPath } from "./ledger_append.cjs";
+import { validateTransactions } from "./push_ledger_changes.cjs";
 import { resolveTransportPaths } from "./resolve_transport_paths.cjs";
 import { getPatchPathForBranchInRepo } from "./git_patch_utils.cjs";
 import { getBundlePathForBranchInRepo } from "./generate_git_bundle.cjs";
@@ -134,6 +136,118 @@ describe("safe_outputs_handlers", () => {
       { type: "ledger_append", ledger: "knowledge", operation: "vote", note_id: "#first", vote: "up" },
       { type: "ledger_append", ledger: "history", operation: "append", value: "ok" },
     ]);
+  });
+
+  it("rejects the AWF review operation envelope before queuing and persists the corrected custom record", async () => {
+    const schema = {
+      type: "object",
+      required: ["record_type", "run_id", "reviewed_at", "reviewed_sha", "schema_sha256", "open_feature_ids", "outcome"],
+      properties: {
+        record_type: { enum: ["awf_spec_surfacing_review"] },
+        run_id: { type: "string" },
+        reviewed_at: { type: "string" },
+        reviewed_sha: { type: "string" },
+        schema_sha256: { type: "string" },
+        open_feature_ids: { type: "array", items: { type: "string" } },
+        outcome: { enum: ["issue_created", "noop"] },
+      },
+      additionalProperties: false,
+    };
+    const ledger = { name: "awf-feature-reviews", type: "", schema, max_record_kb: 8, max_patch_kb: 10 };
+    const configured = createHandlers(mockServer, mockAppendSafeOutput, { ledger_append: { ledgers: [ledger] } });
+    const record = {
+      record_type: "awf_spec_surfacing_review",
+      run_id: "39864188905",
+      reviewed_at: "2026-10-22T22:25:32Z",
+      reviewed_sha: "fb1cd0f618da8729f7daae5273dfb83d36ee5de4",
+      schema_sha256: "a".repeat(64),
+      open_feature_ids: ["example-feature"],
+      outcome: "noop",
+    };
+    const rejected = configured.ledgerAgentAppendHandler({ ledger: ledger.name, operation: "append", value: record });
+    expect(rejected.isError).toBe(true);
+    expect(rejected.content[0].text).toContain("record object");
+    for (const invalid of [undefined, null, [], "private payload", { ...record, run_id: 42 }]) {
+      expect(configured.ledgerAgentAppendHandler({ ledger: ledger.name, record: invalid }).isError).toBe(true);
+    }
+    expect(configured.ledgerAgentAppendHandler({ ledger: "unknown", record }).isError).toBe(true);
+    expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    expect(configured.ledgerAgentAppendHandler({ record }).isError).not.toBe(true);
+    expect(mockAppendSafeOutput).toHaveBeenCalledExactlyOnceWith({ type: "ledger_append", record });
+
+    const previousRunnerTemp = process.env.RUNNER_TEMP;
+    process.env.RUNNER_TEMP = testWorkspaceDir;
+    try {
+      const trustedHandler = await createLedgerAppendHandler({ ledgers: [ledger] });
+      await trustedHandler(mockAppendSafeOutput.mock.calls[0][0]);
+      trustedHandler.finalize();
+      const artifact = JSON.parse(fs.readFileSync(transactionPath(), "utf8"));
+      expect(() => validateTransactions(artifact, [ledger])).not.toThrow();
+      expect(artifact.ledgers[ledger.name].appends).toHaveLength(1);
+      expect(artifact.ledgers[ledger.name].appends[0].record).toMatchObject(record);
+    } finally {
+      if (previousRunnerTemp === undefined) delete process.env.RUNNER_TEMP;
+      else process.env.RUNNER_TEMP = previousRunnerTemp;
+    }
+  });
+
+  it.each([
+    {
+      name: "nested array item type",
+      schema: {
+        type: "object",
+        properties: {
+          review: { type: "object", properties: { feature_ids: { type: "array", items: { type: "string" } } } },
+        },
+      },
+      record: { review: { feature_ids: [{ token: "private-payload-value" }] } },
+      error: "Custom ledger record.review.feature_ids[0] must be a string",
+    },
+    {
+      name: "nested required field",
+      schema: { type: "object", properties: { review: { type: "object", required: ["run_id"] } } },
+      record: { review: { token: "private-payload-value" } },
+      error: "Custom ledger record.review.run_id is required",
+    },
+    {
+      name: "enum mismatch",
+      schema: { type: "object", properties: { outcome: { enum: ["issue_created", "noop"] } } },
+      record: { outcome: "private-payload-value" },
+      error: "Custom ledger record.outcome must be one of: issue_created, noop",
+    },
+    {
+      name: "root schema mismatch",
+      schema: { oneOf: [{ type: "object" }, { type: "object" }] },
+      record: { token: "private-payload-value" },
+      error: "Custom ledger record must match exactly one schema option",
+    },
+  ])("reports the custom ledger $name without echoing payload values or queuing", ({ schema, record, error }) => {
+    const configured = createHandlers(mockServer, mockAppendSafeOutput, {
+      ledger_append: { ledgers: [{ name: "reviews", schema }] },
+    });
+
+    const rejected = configured.ledgerAgentAppendHandler({ ledger: "reviews", record });
+
+    expect(rejected.isError).toBe(true);
+    expect(JSON.parse(rejected.content[0].text)).toEqual({ result: "error", error });
+    expect(JSON.stringify(rejected)).not.toContain("private-payload-value");
+    expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+  });
+
+  it("validates each custom ledger schema even when the tool also supports built-in operations", () => {
+    const configured = createHandlers(mockServer, mockAppendSafeOutput, {
+      ledger_append: {
+        ledgers: [
+          { name: "reviews", schema: { type: "object", required: ["run_id"] } },
+          { name: "events", type: "log" },
+        ],
+      },
+    });
+    expect(configured.ledgerAgentAppendHandler({ ledger: "reviews", operation: "append", value: {} }).isError).toBe(true);
+    expect(configured.ledgerAgentAppendHandler({ ledger: "reviews", record: {} }).isError).toBe(true);
+    expect(configured.ledgerAgentAppendHandler({ ledger: "reviews", record: { run_id: "42" } }).isError).not.toBe(true);
+    expect(configured.ledgerAgentAppendHandler({ ledger: "events", operation: "append", value: "ok" }).isError).not.toBe(true);
+    expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
   });
 
   afterEach(() => {

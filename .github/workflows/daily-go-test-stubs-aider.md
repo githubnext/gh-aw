@@ -20,6 +20,9 @@ model: copilot/auto
 strict: true
 network:
   allowed: []
+runtimes:
+  go:
+    version: "1.27.3"
 tools:
   edit:
   bash:
@@ -55,10 +58,13 @@ this discovery command in a fenced `bash` block. Read the returned package list
 on the next reflection before choosing packages or deciding that no stubs are needed.
 
 ```bash
-for pkg in $(find . -name '*.go' -not -name '*_test.go' -not -path './vendor/*' -not -path './.git/*' | sed 's|/[^/]*\.go$||' | sort -u); do [ -z "$(find "$pkg" -maxdepth 1 -name '*_test.go')" ] && echo "$pkg"; done | head -5
+go list -f '{{if and (not .TestGoFiles) (not .XTestGoFiles)}}{{.Dir}} {{.Name}}{{end}}' ./... > /tmp/gh-aw/agent/aider-untested-packages && sed '/^$/d' /tmp/gh-aw/agent/aider-untested-packages | head -5
 ```
 
-Pick at most 3 packages from the output.
+Pick at most 3 packages from the output. Each row includes the actual package name.
+Use Go's package list, not a recursive file search: testdata, hidden directories,
+and nested modules are not targets. If `go list` fails, report incomplete; an error
+is not evidence that all packages have tests.
 
 ## Step 2 — Add minimal test stubs
 
@@ -83,7 +89,7 @@ the reflection budget, report the blocker rather than claiming the files were cr
 If any stubs were created, run these commands (one per line):
 
 ```bash
-GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make fmt-go && GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, build, commit, or submit the generated test stubs — no pull request confirmed."
+make fmt-go && go test ./... -run '^TestPlaceholder_TODO$' && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, test, commit, or submit the generated test stubs — no pull request confirmed."
 ```
 
 If no packages needed stubs (all packages already had tests), run instead:

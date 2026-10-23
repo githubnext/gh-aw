@@ -72,7 +72,18 @@ case "$1" in
   rm) printf 'removed container %s\\n' "$GH_TOKEN" ;;
 esac`
     );
-    executable("curl", '[ "$TEST_READY" = true ]');
+    executable(
+      "curl",
+      `printf '%s\\n' "curl $*" >> "$TEST_CALLS"
+case "$*" in
+    */rate_limit*)
+      attempts=$(cat "$TEST_UPSTREAM_ATTEMPTS" 2>/dev/null || echo 0)
+      attempts=$((attempts + 1))
+      printf '%s' "$attempts" > "$TEST_UPSTREAM_ATTEMPTS"
+      [ "$attempts" -gt "$TEST_UPSTREAM_FAIL_COUNT" ] ;;
+    *) [ "$TEST_READY" = true ] ;;
+esac`
+    );
     executable("sleep", ":");
     executable(
       "rm",
@@ -98,6 +109,8 @@ exec /bin/rm "$@"`
       encoding: "utf8",
       env: {
         ...process.env,
+        ...Object.fromEntries(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"].map(name => [name, undefined])),
+        ...options.proxyEnv,
         PATH: `${root}:${path.dirname(process.execPath)}:${process.env.PATH}`,
         TMPDIR: artifactRoot,
         RUNNER_TEMP: runnerTemp,
@@ -108,6 +121,8 @@ exec /bin/rm "$@"`
         TEST_CALLS: path.join(root, "calls"),
         TEST_TLS_DIR: tls,
         TEST_READY: options.ready ? "true" : "false",
+        TEST_UPSTREAM_FAIL_COUNT: options.upstreamFailure ? "3" : String(options.upstreamFailCount || 0),
+        TEST_UPSTREAM_ATTEMPTS: path.join(root, "upstream-attempts"),
         TEST_RUN_FAILURE: options.runFailure ? "true" : "false",
         TEST_OVERSIZED: options.oversized ? "true" : "false",
         TEST_OVERSIZED_RUN: options.oversizedRun ? "true" : "false",
@@ -164,6 +179,82 @@ exec /bin/rm "$@"`
     expect(result.output).toContain("CLI proxy ready on port 18443");
     expect(result.output).toContain("connection refused: ***");
     expect(result.calls).not.toContain("logs awmg-cli-proxy");
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("forwards %s by name without publishing its value", name => {
+    const proxy = new URL("http://proxy.example:8080");
+    proxy.username = "synthetic-user";
+    proxy.password = "synthetic-password";
+    const value = proxy.href;
+    const result = runProxy({ ready: true, proxyEnv: { [name]: value }, diagnostics: `proxy: ${value}\n` });
+    expect(result.status).toBe(0);
+    expect(result.calls).toContain(`-e ${name} `);
+    expect(result.calls).not.toContain(value);
+    expect(result.output).not.toContain(value);
+  });
+
+  it("leaves unset proxy variables to Docker client defaults", () => {
+    const result = runProxy({ ready: true });
+    expect(result.status).toBe(0);
+    for (const name of ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]) expect(result.calls).not.toContain(`-e ${name} `);
+  });
+
+  it("preserves an explicitly empty proxy setting", () => {
+    const result = runProxy({ ready: true, proxyEnv: { HTTPS_PROXY: "" } });
+    expect(result.status).toBe(0);
+    expect(result.calls).toContain("-e HTTPS_PROXY ");
+  });
+
+  it("checks upstream access through the CLI proxy with bounded, proxy-free local probes", () => {
+    const result = runProxy({ ready: true });
+    expect(result.status).toBe(0);
+    const probes = result.calls.split("\n").filter(line => line.startsWith("curl "));
+    expect(probes).toHaveLength(2);
+    for (const probe of probes) {
+      expect(probe).toContain("--noproxy *");
+      expect(probe).toContain("--connect-timeout");
+      expect(probe).toContain("--max-time");
+      expect(probe).toContain("--cacert");
+    }
+    expect(probes[1]).toContain("https://localhost:18443/api/v3/rate_limit");
+  });
+
+  it("fails startup and removes the container when local health succeeds but upstream access fails", () => {
+    const result = runProxy({ ready: true, upstreamFailure: true });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("CLI proxy could not reach the upstream GitHub API");
+    expect(result.output).not.toContain("CLI proxy ready");
+    expect(result.calls).toContain("logs awmg-cli-proxy");
+    expect(result.calls.match(/rm -f awmg-cli-proxy/g)).toHaveLength(2);
+    expect(result.calls.split("\n").filter(line => line.includes("/rate_limit"))).toHaveLength(3);
+  });
+
+  it("retries a transient upstream failure and succeeds on the next probe", () => {
+    const result = runProxy({ ready: true, upstreamFailCount: 1 });
+    expect(result.status).toBe(0);
+    expect(result.output).toContain("CLI proxy ready on port 18443");
+    expect(result.calls.split("\n").filter(line => line.includes("/rate_limit"))).toHaveLength(2);
+    expect(result.calls.split("\n").filter(line => line === "rm -f awmg-cli-proxy")).toHaveLength(1);
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("keeps %s private when upstream connectivity fails", name => {
+    const value = name.toLowerCase() === "no_proxy" ? "private-backend.internal,private-api.internal" : "http://synthetic-user:synthetic-password@proxy.example:8080";
+    const registered = "synthetic-runtime-proxy-credential";
+    const result = runProxy({
+      ready: true,
+      upstreamFailure: true,
+      proxyEnv: { [name]: value },
+      diagnostics: `${registered}\nproxy: ${value}\nescaped proxy: ${JSON.stringify(value)}\n::add-mask::${registered}\n`,
+    });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("CLI proxy could not reach the upstream GitHub API");
+    for (const sensitive of [value, registered, "synthetic-password", "private-backend.internal"]) {
+      expect(result.output).not.toContain(sensitive);
+    }
+    expect(result.output).not.toContain("::add-mask::");
+    expect(result.calls).not.toContain(value);
+    expect(result.calls).toContain("logs awmg-cli-proxy");
+    expect(result.calls.match(/rm -f awmg-cli-proxy/g)).toHaveLength(2);
   });
 
   it("ignores TMPDIR inside the artifact tree", () => {

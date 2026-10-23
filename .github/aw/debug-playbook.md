@@ -5,28 +5,30 @@ disable-model-invocation: true
 
 # Debug Playbook
 
-Fix the first failing boundary within authorization.
+Fix first failing boundary.
 Follow [debugging gates](debug-agentic-workflow.md). Do not dispatch workflows.
-Never execute untrusted artifacts. Keep secrets, prompts, config/environment
-values and opaque reasoning private.
+Never execute artifacts. Keep secrets, prompts, configuration and opaque reasoning private.
 
 ## Start here
 
+Keep full supplied URL in `RUN_URL`, including its fragment.
+Derive `REPO` (`HOST/OWNER/REPO`) and `RUN_ID` from it; qualify bare IDs first.
+
 ```bash
-: "${REPO:?Set owner/repo}" "${RUN_ID:?Set failing run ID}"
+: "${RUN_URL:?Set URL}"
+: "${REPO:?Set HOST/owner/repo}" "${RUN_ID:?Set ID}"
 EVIDENCE="${TMPDIR:-/tmp}/gh-aw-debug-evidence"
-gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
+gh aw audit "$RUN_URL" --no-baseline --timeout 2m \
   --output "$EVIDENCE" --json
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout: incomplete JSON report possible. Fetch only missing evidence.
-Read only the linked `key_findings[].playbook_url` or exact-code row.
-Trace causes, not cascades; compare one success.
-Fleet: [cluster first](analyzing-runs.md).
+Timeout: incomplete JSON report; fetch evidence.
+Read only the linked `playbook_url`/code row.
+Compare success; [fleet clustering](analyzing-runs.md).
 
-Preserve code case/punctuation/namespace; emitter determines severity.
-Success/advisory/pending/skipped/policy-denied outcomes need not be bugs.
+Keep codes/emitter severity.
+Success/advisory/pending/skipped/policy-denied needn't indicate bugs.
 Unknown codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
@@ -91,7 +93,7 @@ confirmed absence → `model_unavailable`; missing/incomplete/malformed/ambiguou
 contradictory evidence → `model_availability_unknown`.
 Candidates/endpoints never authorize auto-substitution.
 Audit quoted job/step URLs and referenced lines.
-Missing context: `gh run view --log`.
+Missing context: `gh run view "$RUN_ID" --repo "$REPO" --log`.
 
 ### Inspect cached models
 
@@ -110,7 +112,7 @@ Read `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported
 Never substitute another run/baseline.
 
 ```bash
-: "${MODEL:?Set exact rejected model ID}" "${PROVIDER:?Set reflected provider}"
+: "${MODEL:?Set exact model}" "${PROVIDER:?Set provider}"
 jq --arg model "$MODEL" --arg provider "$PROVIDER" '
   {models_fetch_complete, endpoints: [
     .endpoints[]?
@@ -138,7 +140,7 @@ Use targeted `gh run download` for `agent`/`info` only if audit cannot retrieve 
 ### Compare one success
 
 ```bash
-: "${BASE_RUN_ID:?Set relevant successful run ID}"
+: "${BASE_RUN_ID:?Set successful ID}"
 gh aw audit "$BASE_RUN_ID" "$RUN_ID" --repo "$REPO" \
   --output "$EVIDENCE" --json
 ```
@@ -256,13 +258,11 @@ work or bypass profiles/effect scopes.
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
 | `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
 | `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
-| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
-| `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
-| `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
+| `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed`, `projection_write_ambiguous` | Journal, native acknowledgement, target, CAS. | Reconcile receipts; never duplicate uncertain writes, remove uncertain locks or rewrite history. |
+| `projection_target_unavailable`, `projection_unavailable` | Actual failure; safe status/request ID. | Diagnose cause; preserve mirrors and locks. |
+| `projection_receipt_pending`, `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, existing mirrors/receipts. | Reconcile exact request; never recreate mirrors or mistake pending for terminal failure. |
 
 ## Unmapped codes
-
-External/future codes are open-ended.
 
 | Codes or signature | Check | Remedy |
 | --- | --- | --- |
@@ -271,9 +271,8 @@ External/future codes are open-ended.
 | `EACCES`, `ENOENT`, `ETIMEDOUT`, process exit/signal | Operation/path; fatal versus caught. | Fix boundary; caught `/run/awf-config-audit` warning does not prove later inference failure. |
 | Unlisted code, compile/schema/scanner error | Exact identifier at producing revision; emitter/caller. | Trace cause; add regression/code row; report gaps, never guess. |
 
-No run: inspect file/line; follow [compile-only gates](debug-agentic-workflow.md#development-compilation).
+No run: inspect file/line; follow [compile-only gates](debug-compilation.md).
 Compilation doesn't verify inference/authorize execution.
 
-Report code/namespace, first failing boundary, run/revision, evidence/uncertainty,
-remedy, files, execution performed/not.
-Stop once explained; no blind retry/downgrade, guard bypass or credential rotation.
+Report code, boundary, revision, evidence/uncertainty, remedy, files and execution.
+No blind retries/downgrades, guard bypass or credential rotation.
