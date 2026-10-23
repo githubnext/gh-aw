@@ -264,13 +264,8 @@ func (a *analyzer) authoredScriptEnvironment(ctx context.Context, document *aw.D
 	switch agent := sandbox["agent"].(type) {
 	case nil:
 		return bindings, nil
-	case string:
-		if agent != "awf" {
-			return nil, errors.New("AW sandbox.agent must be awf, false, null, or a mapping")
-		}
-		return bindings, nil
-	case bool:
-		if agent {
+	case string, bool:
+		if agent != "awf" && agent != false {
 			return nil, errors.New("AW sandbox.agent must be awf, false, null, or a mapping")
 		}
 		return bindings, nil
