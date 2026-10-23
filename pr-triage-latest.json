@@ -1,26 +1,40 @@
 {
-  "run_date": "2026-10-23T12:33:26Z",
-  "run_id": "39953897424",
+  "run_date": "2026-10-23T18:29:31Z",
+  "run_id": "40003371248",
   "source": "pr-triage",
-  "eligible_total": 2,
+  "eligible_total": 3,
   "cooldown_skipped": 0,
-  "open_copilot_prs": 2,
+  "open_copilot_prs": 3,
   "category_counts": {
     "bug": 1,
-    "feature": 1
+    "feature": 1,
+    "chore": 1
   },
   "risk_counts": {
-    "high": 1,
-    "medium": 1
+    "low": 1,
+    "medium": 1,
+    "high": 1
   },
   "priority_counts": {
-    "high": 1,
-    "medium": 1
+    "low": 1,
+    "medium": 1,
+    "high": 1
   },
   "action_counts": {
+    "auto_merge": 1,
     "fast_track": 2
   },
-  "batches": [],
+  "batches": [
+    {
+      "id": "agent-review-1",
+      "prs": [
+        69586,
+        70952,
+        71467
+      ],
+      "category": "mixed"
+    }
+  ],
   "selected_candidates": [
     {
       "number": 69586,
@@ -29,7 +43,7 @@
       "risk": "high",
       "priority": "high",
       "action": "fast_track",
-      "score": 81
+      "score": 77
     },
     {
       "number": 70952,
@@ -39,8 +53,17 @@
       "priority": "medium",
       "action": "fast_track",
       "score": 66
+    },
+    {
+      "number": 71467,
+      "title": "Verify queued work item status",
+      "category": "chore",
+      "risk": "low",
+      "priority": "low",
+      "action": "auto_merge",
+      "score": 36
     }
   ],
   "skipped_prs": [],
-  "notes": "Two eligible app/github-copilot PRs remained after cooldown and were triaged."
+  "notes": "Three eligible app/github-copilot PRs remained after cooldown and were triaged."
 }
