@@ -35,12 +35,10 @@ Dispatchers require `tools.work-queue: true`, worker allowlist, bounded
 `dispatch-workflow.max`. Approved AW routes/credentials bind Claims to immutable
 native runs; ignore moved `target-ref`.
 
-For a combined dispatcher/worker, declare `worker: true`,
-`require-assignment: false`, and a bounded `dispatch-workflow` worker allowlist.
-Unassigned scheduled/manual runs are dispatchers; assignment-bearing dispatches
-are workers and still undergo immutable Claim validation. Required workers remain
-assignment-only by default. Never submit new Work from the Claim-consuming branch
-of a smoke test.
+Prefer separate dispatcher and worker workflows. A workflow cannot trigger itself
+with the built-in GitHub Actions token; the compiler warns and rejects self-targets.
+Required workers remain assignment-only by default. Never submit new Work from the
+Claim-consuming branch of a smoke test.
 
 `aw.json` `work_queue` optionally configures concurrency, pending limit, retries,
 pools, fairness, Issue label and title prefix.

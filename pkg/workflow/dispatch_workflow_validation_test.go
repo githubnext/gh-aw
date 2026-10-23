@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -349,12 +350,28 @@ func TestDispatchWorkflowErrorMessage_SelfReference(t *testing.T) {
 	err = os.MkdirAll(workflowsDir, 0755)
 	require.NoError(t, err, "Failed to create workflows directory")
 
+	workerWorkflow := `---
+on: workflow_dispatch
+tools:
+  work-queue:
+    worker: true
+---
+
+# Worker Workflow
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "dispatcher.md"), []byte(workerWorkflow), 0644)
+	require.NoError(t, err, "Failed to write target worker workflow")
+
 	// Create a dispatcher workflow that references itself
 	dispatcherWorkflow := `---
 on: issues
 engine: copilot
 permissions:
   contents: read
+tools:
+  work-queue:
+    worker: true
+    require-assignment: false
 safe-outputs:
   dispatch-workflow:
     workflows:
@@ -382,17 +399,27 @@ This workflow tries to dispatch to itself.
 	require.NoError(t, err, "Failed to parse workflow")
 
 	// Validate the workflow - should fail with enhanced error message
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
+	require.NoError(t, w.Close())
+	os.Stderr = oldStderr
+	warningOutput, readErr := io.ReadAll(r)
+	require.NoError(t, readErr)
+	require.NoError(t, r.Close())
 	require.Error(t, err, "Validation should fail for self-reference")
+	require.Equal(t, 1, compiler.GetWarningCount())
+	assert.Contains(t, string(warningOutput), "cannot trigger itself with the built-in GitHub Actions token")
 
 	// Verify enhanced error message content
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "self-reference not allowed", "Should state the restriction")
 	assert.Contains(t, errMsg, "dispatcher", "Should mention workflow name")
 	assert.Contains(t, errMsg, "cannot dispatch itself", "Should explain the issue")
-	assert.Contains(t, errMsg, "infinite loops", "Should explain why it's prevented")
-	assert.Contains(t, errMsg, "schedule trigger", "Should suggest schedule alternative")
-	assert.Contains(t, errMsg, "workflow_dispatch", "Should suggest workflow_dispatch alternative")
+	assert.Contains(t, errMsg, "built-in token", "Should explain why it is prevented")
+	assert.Contains(t, errMsg, "separate worker workflow", "Should suggest a separate worker")
 }
 
 // TestDispatchWorkflowBatchAware_MDWithDispatch tests that a workflow that only has a .md file
@@ -585,7 +612,7 @@ safe-outputs:
 
 	// Check self-reference error with enhancements
 	assert.Contains(t, errMsg, "self-reference not allowed", "Should include self-reference error")
-	assert.Contains(t, errMsg, "infinite loops", "Should include explanation for self-reference")
+	assert.Contains(t, errMsg, "built-in token", "Should include explanation for self-reference")
 
 	// Check not found error with enhancements
 	assert.Contains(t, errMsg, "not found", "Should include not found error")

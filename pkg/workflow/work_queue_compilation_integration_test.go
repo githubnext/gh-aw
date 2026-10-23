@@ -102,6 +102,15 @@ func TestWorkQueueDualRoleActualCompilation(t *testing.T) {
 	dir := testutil.TempDir(t, "work-queue-dual-role-")
 	dir = filepath.Join(dir, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o700))
+	worker := `---
+on: workflow_dispatch
+tools:
+  work-queue:
+    worker: true
+---
+Consume an assigned Claim.
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "smoke-worker.md"), []byte(worker), 0o600))
 	filename := filepath.Join(dir, "smoke.md")
 	source := `---
 on:
@@ -119,7 +128,7 @@ tools:
     require-assignment: false
 safe-outputs:
   dispatch-workflow:
-    workflows: [smoke]
+    workflows: [smoke-worker]
     max: 1
 ---
 Finish an original Claim when assigned; otherwise submit and dispatch once.

@@ -40,6 +40,11 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 	collector := NewErrorCollector(c.failFast)
 
 	for _, workflowName := range config.Workflows {
+		if workflowName == currentWorkflowName {
+			message := fmt.Sprintf("dispatch-workflow: workflow %q cannot trigger itself with the built-in GitHub Actions token; configure a separate worker workflow", workflowName)
+			fmt.Fprintln(os.Stderr, formatCompilerMessage(workflowPath, "warning", message))
+			c.IncrementWarningCount()
+		}
 		if err := validateDispatchWorkflowTarget(data, workflowName, currentWorkflowName, workflowPath, collector); err != nil {
 			if returnErr := collector.Add(err); returnErr != nil {
 				return returnErr
@@ -53,8 +58,8 @@ func (c *Compiler) validateDispatchWorkflow(data *WorkflowData, workflowPath str
 
 func validateDispatchWorkflowTarget(data *WorkflowData, workflowName, currentWorkflowName, workflowPath string, collector *ErrorCollector) error {
 	dispatchWorkflowValidationLog.Printf("Validating workflow: %s", workflowName)
-	if workflowName == currentWorkflowName && !isWorkQueueDualRole(data) {
-		return fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)\n\nA workflow cannot trigger itself to prevent infinite loops.\nIf you need recurring execution, use a schedule trigger or workflow_dispatch instead", workflowName)
+	if workflowName == currentWorkflowName {
+		return fmt.Errorf("dispatch-workflow: self-reference not allowed (workflow '%s' cannot dispatch itself)\n\nGitHub Actions blocks workflows triggered with the built-in token from starting another workflow. Configure a separate worker workflow and dispatch that instead", workflowName)
 	}
 	fileResult, err := findWorkflowFile(workflowName, workflowPath)
 	if err != nil {
