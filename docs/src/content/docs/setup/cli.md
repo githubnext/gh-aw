@@ -431,6 +431,8 @@ With `--dry-run`, actionable workflow warnings invalidate only the affected work
 - **`--grype`:** Scans container images referenced in compiled workflows for known vulnerabilities using the Grype vulnerability scanner. When a `.grype.yaml` file exists at the repository root it is mounted into the scanner and passed to grype via `--config`, so repository-level ignore rules (documented risk acceptances for findings with no upstream fix) are applied.
 - **`--runner-guard`:** Runs taint analysis on compiled workflows to detect unsafe data flows from untrusted inputs to sensitive runner operations.
 
+Grype reports each image as planned, then completed with a finding count or failed, using the pinned image reference when available. A completed scan with zero findings confirms that the image was scanned; a failed or missing completion leaves coverage incomplete. Empty or malformed JSON and missing or null `matches` arrays are scan failures, not zero-finding results. Scan failures produce warnings in normal compilation and errors with `--strict`; development compilation with `--dry-run` also treats scanner execution or parsing failures as fatal.
+
 **Shared Workflows:** Workflows without an `on` field are detected as shared components. Validated with relaxed schema and skip compilation. See [Imports reference](/gh-aw/reference/imports/).
 
 #### `validate`
