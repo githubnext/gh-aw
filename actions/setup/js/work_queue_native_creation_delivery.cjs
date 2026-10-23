@@ -7,7 +7,7 @@ const { currentClaimHandle, claimIdentity, receiptMatchesClaim, createClaimResou
 const { canonicalResourceTarget, resolveRepositoryTarget, resolveParentResourceTarget, nativeDecimalIdentity } = require("./work_queue_effect_resource.cjs");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("native_delivery");
 const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
-const { MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
+const { MAX_CLOSE_COUNT } = require("./constants.cjs");
 
 const receipts = new WeakMap();
 const REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
@@ -167,6 +167,7 @@ async function verifyDiscussion(options, receipt) {
   }
   const authority = await resolveRepositoryTarget(github, { repository: receipt.repository, repository_id: nativeDecimalIdentity(node.repository.databaseId), number: node.number });
   const authorities = [authority];
+  const authorityKeys = new Set([canonical(authority)]);
   const effects = receipt.effectIds.map(id => ({ kind: "graphql", repository: receipt.repository, id }));
   for (const cleanup of receipt.cleanup || []) {
     const comment = cleanup.type === "comment";
@@ -200,7 +201,12 @@ async function verifyDiscussion(options, receipt) {
       log.diagnostic("discussion.cleanup.readback.mismatch", { comment, resource_present: !!resource });
       return { verified: false };
     }
-    authorities.push(canonicalResourceTarget({ ...authority, number: discussion.number }));
+    const target = canonicalResourceTarget({ ...authority, number: discussion.number });
+    const key = canonical(target);
+    if (!authorityKeys.has(key)) {
+      authorityKeys.add(key);
+      authorities.push(target);
+    }
     effects.push({ kind: "graphql", repository: receipt.repository, id: cleanup.effectId });
   }
   return createClaimResourceVerification({

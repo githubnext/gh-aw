@@ -61,7 +61,7 @@ function fixture(type) {
   const member = assignment.claims[0];
   queue.append("finish", { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...queue.workerActor, dispatch_id: assignment.dispatch_id, claim_handle: member.handle });
   const runtime = { assignment, context: queue.workerContext, githubClient: queue.githubClient, workflowRef: `${REPOSITORY}/${WORKFLOW}@${REF}`, readWorkQueueLog: queue.readWorkQueueLog };
-  const authorize = request => authorizeWorkerClaim({ ...runtime, ...request, githubClient: queue.githubClient });
+  const authorize = vi.fn(request => authorizeWorkerClaim({ ...runtime, ...request, githubClient: queue.githubClient }));
   process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({ [type]: {} });
   const effects = [];
   const message = { type, claim_handle: member.handle, title: "Requested title", body: "Requested body", ...(type === "create_pull_request" ? { branch: "approved" } : {}) };
@@ -189,7 +189,18 @@ describe("native creation Claim delivery", () => {
       expect(proof.verified).toBe(receiptCount === 2 * MAX_CLOSE_COUNT);
       expect(repositoryReads).toHaveBeenCalledTimes(receiptCount === 2 * MAX_CLOSE_COUNT ? 1 : 0);
       repositoryReads.mockRestore();
+      if (proof.verified) {
+        expect(proof.authority_resources).toHaveLength(count + 1);
+        expect(proof.authority_resources.map(target => target.number)).toEqual(["19", ...discussions.map(discussion => String(discussion.number))]);
+        expect(proof.effect_resources).toHaveLength(receiptCount + 1);
+      }
+      f.authorize.mockClear();
       expect((await f.settle()).verification).toBe(receiptCount === 2 * MAX_CLOSE_COUNT ? "verified" : "unknown");
+      const resourceChecks = f.authorize.mock.calls.map(([request]) => request.resource).filter(Boolean);
+      expect(resourceChecks).toHaveLength(receiptCount === 2 * MAX_CLOSE_COUNT ? 2 * (count + 1) : 0);
+      for (const number of ["19", ...discussions.map(discussion => String(discussion.number))]) {
+        expect(resourceChecks.filter(target => target.number === number)).toHaveLength(receiptCount === 2 * MAX_CLOSE_COUNT ? 2 : 0);
+      }
     });
     expect(f.client.graphql.mock.calls.filter(([query]) => query.includes("ClaimDiscussionCleanup"))).toHaveLength(receiptCount === 2 * MAX_CLOSE_COUNT ? 2 * receiptCount : 0);
   });
@@ -239,6 +250,8 @@ describe("native creation Claim delivery", () => {
     ["repository_node_changed"],
     ["repository_id_changed"],
     ["repository_id_missing"],
+    ["duplicate_foreign_repository"],
+    ["duplicate_invalid_number"],
     ...[undefined, null, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "", "007", "invalid"].map(number => ["invalid_number", number]),
     ["unavailable"],
   ])("replays Refiner's close-older effects with %s evidence (%j)", async (evidence, number) => {
@@ -260,6 +273,8 @@ describe("native creation Claim delivery", () => {
       if (query.includes("closeDiscussion")) return { closeDiscussion: { discussion: { id: oldDiscussion.id, url: "https://github.com/owner/repo/discussions/18" } } };
       if (query.includes("ClaimDiscussionCleanup")) {
         if (evidence === "unavailable") throw new Error("private readback failure");
+        if (variables.id === oldDiscussion.id && evidence === "duplicate_foreign_repository") return { node: { ...oldDiscussion, repository: { ...oldDiscussion.repository, nameWithOwner: "foreign/repo" } } };
+        if (variables.id === oldDiscussion.id && evidence === "duplicate_invalid_number") return { node: { ...oldDiscussion, number: 0 } };
         return { node: variables.id === comment.id ? comment : oldDiscussion };
       }
       return { node: f.discussion };
