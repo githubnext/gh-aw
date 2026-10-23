@@ -1908,6 +1908,52 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
+  it("reports a new pool missing from installed Policy without admitting Work, changing Policy, or launching", async () => {
+    const { fixture, options, post } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-uninstalled-pool-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const publish = vi.fn(options.publishWorkQueueRequest);
+    const core = { info: vi.fn(), setOutput: vi.fn(), setFailed: vi.fn() };
+    const before = canonical(fixture.transactions);
+    const proposal = structuredClone(fixture.policy);
+    proposal.pools.smoke = structuredClone(proposal.pools.default);
+    try {
+      stagePlanIntents(filename, {
+        version: 1,
+        nodes: [{ pool: "smoke", worker_profile: "default", payload: { task: "private-smoke-task" } }],
+        dispatch: { pool: "smoke", max_claims: 1, max_dispatches: 1 },
+      });
+      const result = await publishQueueControls({
+        ...options,
+        assignment: null,
+        role: "dispatcher",
+        policyProposal: proposal,
+        intentPath: filename,
+        publishWorkQueueRequest: publish,
+        core,
+      });
+      expect(result).toMatchObject({ status: "recovery_required", success: false });
+      expect(result.receipts).toHaveLength(2);
+      expect(result.receipts).toEqual([expect.objectContaining({ status: "blocked", reason: "work_queue_pool_not_installed" }), expect.objectContaining({ status: "blocked", reason: "work_queue_pool_not_installed" })]);
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("policy --from-config --epoch EPOCH"));
+      expect(JSON.stringify(result)).not.toContain("private-smoke-task");
+      expect(publish).not.toHaveBeenCalled();
+      expect(post).not.toHaveBeenCalled();
+      expect(canonical(fixture.transactions)).toBe(before);
+      expect(fixture.state.policy.pools).not.toHaveProperty("smoke");
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each(["checkpoint_invalid", "secret-error-code"])("reports checkpoint corruption without leaking arbitrary error codes or messages: %s", async code => {
     const { options, post } = setup({ granted: false });
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-checkpoint-error-"));

@@ -25,6 +25,9 @@ const CONTROL_ERROR_CODES = new Set([
   "work_queue_assignment_mismatch",
   "work_queue_assignment_profile_missing",
   "work_queue_policy_proposal_mismatch",
+  "work_queue_pool_not_installed",
+  "work_queue_profile_not_approved",
+  "work_queue_worker_not_compiler_approved",
   "work_queue_dispatch_credential_kind_invalid",
   "work_queue_dispatch_app_metadata_missing",
   "work_queue_dispatch_credential_metadata_conflict",
@@ -67,6 +70,12 @@ function queueControlErrorExplanation(code) {
       return "The stored assignment does not match a valid approved worker route. Inspect the original Claim and installed deployment; do not rebuild an assignment from task text or a stale snapshot.";
     case "work_queue_policy_proposal_mismatch":
       return "The proposed queue policy differs from the installed policy. Refresh compatible worker deployments, or use an explicit administrator policy update only after the queue is quiescent.";
+    case "work_queue_pool_not_installed":
+      return "The requested pool is absent from the installed queue Policy. Publishing aw.json or recompiling workflows does not install new pools. An administrator must make the queue quiescent and apply policy --from-config --epoch EPOCH before submitting or dispatching to the pool; never reset or reseed the ledger.";
+    case "work_queue_profile_not_approved":
+      return "The requested worker profile is absent from the installed pool. Verify the installed Policy and caller-approved worker routes; adding profiles requires an explicit administrator Policy update on a quiescent queue.";
+    case "work_queue_worker_not_compiler_approved":
+      return "The worker route is not approved by the caller's compiled configuration. Check safe-outputs.dispatch-workflow.workflows and the published worker's assignment support; do not bypass the worker allowlist.";
     case "checkpoint_invalid":
     case "queue_control_checkpoint_invalid":
       return "The queue checkpoint failed validation. Inspect the authoritative ledger and restore a valid causal history; do not delete the queue or reset its scheduling debt.";

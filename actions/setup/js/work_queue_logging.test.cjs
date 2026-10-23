@@ -268,6 +268,21 @@ describe("privacy-preserving work queue logging", () => {
     expect(getter).not.toHaveBeenCalled();
     expect(queueControlErrorCode(new Error("work_queue_dispatch_credential_client_mismatch: private-token"))).toBe("queue_control_authority_or_publication_failed");
     expect(queueControlErrorCode({ code: "private-token" })).toBe("queue_control_authority_or_publication_failed");
+  });
+
+  it.each([
+    ["work_queue_pool_not_installed", "policy --from-config --epoch EPOCH"],
+    ["work_queue_profile_not_approved", "quiescent queue"],
+    ["work_queue_worker_not_compiler_approved", "do not bypass the worker allowlist"],
+  ])("explains installed routing failures without exposing task data: %s", (code, recovery) => {
+    const error = Object.assign(new Error("private-task-and-token"), { code });
+    expect(queueControlErrorCode(error)).toBe(code);
+    expect(queueControlErrorExplanation(code)).toContain(recovery);
+    createWorkQueueLogger("dispatch").failure("intent.process.blocked", error, true);
+    expect(output()).toContain(`${code}=true`);
+    expect(output()).toContain(recovery);
+    expect(output()).not.toContain("private-");
+    expect(queueControlErrorCode(new Error(`${code}: private-task-and-token`))).toBe("queue_control_authority_or_publication_failed");
     expect(output()).not.toContain("private-token");
   });
 

@@ -72,7 +72,7 @@ function approvedSubmissionParameters(state, trustedContext, parameters, config)
     nodes: parameters.nodes.map(node => {
       const poolName = node.pool === undefined ? "default" : node.pool;
       const pool = state.policy.pools[poolName];
-      if (!pool) throw queueError("work_queue_profile_not_approved", "submission pool has no installed worker routes");
+      if (!pool) throw queueError("work_queue_pool_not_installed", "submission pool has no installed worker routes");
       const ownProfile = parent?.pool === poolName ? parent.worker_profile : undefined;
       let profileName = node.worker_profile;
       if (profileName === undefined) {
@@ -463,6 +463,7 @@ async function dispatchQueueIntent(options) {
   const stableId = requestIdForIntent(trustedContext, message.intent_id);
   const prior = latest.projection.requests.get(stableId);
   if (!prior) {
+    if (!Object.hasOwn(latest.projection.policy.pools, requested.pool)) throw queueError("work_queue_pool_not_installed", "dispatch pool has no installed worker routes");
     await synchronizeDeployments(configured, trustedContext, [requested.pool]);
     latest = await loadQueue({ ...configured, policyProposal: undefined, initializationContext: undefined });
   }
