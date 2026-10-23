@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-23",
+  "window_start": "2026-09-24",
+  "window_end": "2026-10-23",
+  "snapshot_utc": "2026-10-23T08:55:00Z",
+  "open_issues_sample": 100,
+  "human_open_issues": 8,
+  "closed_issues_sample": 100,
+  "open_prs": 6,
+  "merged_prs_sample": 50,
+  "closed_prs_sample": 30,
+  "commits_file_unique": 19112,
+  "commits_30d": 1195,
+  "commits_today_partial": 11,
+  "discussions": 50,
+  "changesets": 876,
+  "latest_release": "v0.93.2",
+  "merged_today_sample": 11,
+  "top_commit_authors_30d": [["Copilot", 477], ["Peli de Halleux", 455], ["github-actions[bot]", 194], ["dependabot[bot]", 36]],
+  "notes": "v0.93.1 and v0.93.2 published 2026-10-23. Partial day; newest commit 2026-10-23T04:57:53Z. Issue and PR series are sample-capped."
+}

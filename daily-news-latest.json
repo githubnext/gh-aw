@@ -1,8 +1,10 @@
 {
-  "date": "2026-10-22",
-  "latest_release": "v0.93.0",
-  "commits_30d": 1160,
-  "commits_today_partial": 15,
-  "open_prs": 19,
-  "open_issues_sample": 100
+  "date": "2026-10-23",
+  "latest_release": "v0.93.2",
+  "also_released": ["v0.93.1"],
+  "commits_30d": 1195,
+  "commits_today_partial": 11,
+  "open_prs": 6,
+  "open_issues_sample": 100,
+  "changesets": 876
 }
