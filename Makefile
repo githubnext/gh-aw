@@ -533,6 +533,7 @@ test-scripts: build
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh
 	bash scripts/update-release-pins_test.sh
+	bash scripts/update-copilot-version_test.sh
 	bash scripts/check-go-toolchain_test.sh
 	python3 scripts/test_super_linter_scope.py
 	python3 scripts/test_publish_safe_outputs_node.py
