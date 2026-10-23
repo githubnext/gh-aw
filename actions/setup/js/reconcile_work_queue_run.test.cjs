@@ -568,7 +568,7 @@ describe("privacy-preserving termination logging", () => {
     const { options } = setup();
     options.githubClient.rest.actions.listJobsForWorkflowRunAttempt.mockRejectedValue(error);
     await expect(main(options)).rejects.toBe(error);
-    expect(output()).toContain("run.reconcile.failed failed=true http_status=503 queue_control_github_api_unavailable=true");
+    expect(output()).toContain("run.reconcile.failed failed=true http_status=503 response_present=true response_headers_present=true github_request_id_present=false queue_control_github_api_unavailable=true");
     expect(output()).not.toContain(canary);
     expect(output()).not.toContain("Error:");
   });

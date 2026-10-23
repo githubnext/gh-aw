@@ -145,6 +145,21 @@ function githubFailureMetadata(error) {
     if (message === "Resource not accessible by integration" || message === "Resource not accessible by personal access token") fields.resource_not_accessible = true;
   }
   const errors = ownValue(error, "errors");
+  const request = ownValue(error, "request");
+  const method = ownValue(request, "method");
+  if (["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"].includes(method)) fields[`http_method_${method.toLowerCase()}`] = true;
+  if (request !== undefined) fields.request_present = true;
+  if (response !== undefined) fields.response_present = true;
+  if (headers !== undefined) {
+    fields.response_headers_present = true;
+    fields.github_request_id_present = typeof ownValue(headers, "x-github-request-id") === "string";
+  }
+  const transportCodes = ["ETIMEDOUT", "ECONNRESET", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "ERR_TRANSPORT_INTEGRITY"];
+  let cause = error;
+  for (let depth = 0; depth < 5 && cause && typeof cause === "object"; depth++, cause = ownValue(cause, "cause")) {
+    const code = ownValue(cause, "code");
+    if (transportCodes.includes(code)) fields[`transport_${code.toLowerCase()}`] = true;
+  }
   const count = ownValue(errors, "length");
   if (Number.isSafeInteger(count) && count > 0 && count <= 50) {
     fields.graphql_errors = count;
