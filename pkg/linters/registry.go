@@ -32,6 +32,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
 	"github.com/github/gh-aw/pkg/linters/goroutineresourceleak"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/hasprefixtrim"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
 	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
@@ -163,6 +164,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	stringsconcatloop.Analyzer,
 	stringsindexcontains.Analyzer,
 	stringsindexhasprefix.Analyzer,
+	hasprefixtrim.Analyzer,
 	stringsjoinone.Analyzer,
 	stringscountcontains.Analyzer,
 	jsonmarshalignoredeerror.Analyzer,

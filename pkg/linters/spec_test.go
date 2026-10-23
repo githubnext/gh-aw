@@ -40,6 +40,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
 	"github.com/github/gh-aw/pkg/linters/goroutineresourceleak"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
+	"github.com/github/gh-aw/pkg/linters/hasprefixtrim"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
 	"github.com/github/gh-aw/pkg/linters/httpstatuscode"
@@ -118,7 +119,7 @@ type docAnalyzer struct {
 //
 //	appendbytestring, appendoneelement, blankassigncomma, bufferresetbeforereuse, bufioscannererunchecked, bytesbufferstring, bytescomparestring, closeerrorunchecked, contextcancelnotdeferred, ctxbackground, deferinloop, deferrerrorunchecked, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, formatintitoa, fprintferrorunchecked, fprintlnsprintf,
-//	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, goroutineresourceleak, hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
+//	generatedyamlheredoc, globwalkignorederror, goroutinemissingrecover, goroutineresourceleak, hardcodedfilepath, hasprefixtrim, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, manualpathconcat, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, osisnotexist, ossetenvlibrary, packagelevelmutableslicemap, panic-in-library-code, rawloginlib,
 //	reflectdeepequalusage, regexpcompileinfunction, regexpdynamicpattern, seenmapbool, slicemakezerolength, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
 //	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
@@ -154,6 +155,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"goroutinemissingrecover", goroutinemissingrecover.Analyzer},
 		{"goroutineresourceleak", goroutineresourceleak.Analyzer},
 		{"hardcodedfilepath", hardcodedfilepath.Analyzer},
+		{"hasprefixtrim", hasprefixtrim.Analyzer},
 		{"httpnoctx", httpnoctx.Analyzer},
 		{"httprespbodyclose", httprespbodyclose.Analyzer},
 		{"httpstatuscode", httpstatuscode.Analyzer},
