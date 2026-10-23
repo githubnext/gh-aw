@@ -524,6 +524,7 @@ test-scripts: build
 	node --test scripts/release-workflows.test.cjs
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
+	bash scripts/agent-report-progress_test.sh
 	bash scripts/check-skill-file-paths_test.sh
 	bash scripts/check-safe-outputs-conformance_test.sh
 	bash scripts/resolve-base-commit_test.sh
