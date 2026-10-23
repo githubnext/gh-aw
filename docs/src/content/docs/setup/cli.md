@@ -404,6 +404,10 @@ Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `-
 
 **`--skip-lint` flag:** Disable default built-in Actions/AW AST linting. By default, compilation checks the generated execution graph and authored source before emitting a lock file, including with `--no-emit`, and fails on lint errors. This flag does not disable existing compiler validation or opt-in external scanners and cannot be combined with `--dry-run`. The compile MCP input is `skip_lint`. Native Actions YAML and downstream dispatch targets require a separate `gh aw lint` invocation.
 
+`add`, `update`, and `validate` also run built-in lint whenever they recompile workflows. Only `compile` exposes `--skip-lint`; fix the reported findings before using other recompiling commands.
+
+Compile-time lint is Actions/AW AST-only and does not require a native JavaScript parser. Run standalone `gh aw lint --javascript-module <module-path>` for deeper authored JavaScript driver and custom-grader checks. Missing-parser coverage warnings remain advisory and do not block compiler dry-run; successful compilation does not establish complete JavaScript analysis.
+
 **`--no-logo` flag:** Omit the ASCII logo from generated workflow headers without removing metadata or regeneration instructions. To persist this setting for all compiles, including upgrades, set [`"lock_file_logo": false` in `.github/workflows/aw.json`](/gh-aw/reference/compilation-process/#repository-configuration-awjson). Either opt-out disables the logo; `--banner` only controls terminal output.
 
 **`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, and model checks. Existing and added medium-or-higher or unclassified scanner findings fail; baseline counts remain available for comparison. Low-severity findings and zizmor's `secrets-outside-env` rule do not fail the gate. Docker-based image validation and scanners are opt-in; native shellcheck provides required run-step linting without Docker. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations and authored custom jobs are disabled. Custom jobs and custom safe-output jobs become credential-free placeholders, including reusable calls with inherited secrets. Authored host steps, custom MCP servers, `mcp-scripts`, custom safe-output scripts, enabled Bash graders, and authored OIDC permissions are rejected, including imported declarations. Remove unsupported declarations in a separate diagnostic workflow. Emitted locks remove telemetry environment variables and automatic OTLP authentication. Agent shell commands, custom engine execution, custom credentials, and hosted identities still require review; dry-run is not a hosted sandbox. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
@@ -452,7 +456,7 @@ gh aw validate --engine copilot             # Override AI engine
 
 **Options:** `--allow-action-refs`, `--dir/-d`, `--engine/-e`, `--fail-fast`, `--json/-j`, `--no-check-update`, `--stats`, `--strict`, `--validate-images`
 
-All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
+Built-in Actions/AW AST lint, external linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` are always-on defaults and cannot be disabled. Accepts the same workflow ID format as `compile`.
 
 #### `lint`
 

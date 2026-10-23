@@ -307,22 +307,49 @@ func TestAuthoredEngineEnvironmentPrecedence(t *testing.T) {
 func TestAuthoredEngineEnvironmentSandboxShorthands(t *testing.T) {
 	t.Parallel()
 	analyzer := &analyzer{rule: SecretLeakRule()}
-	for _, sandbox := range []any{
-		"awf", "default",
-		map[string]any{"agent": false},
-		map[string]any{"agent": "awf"},
+	for _, test := range []struct {
+		name    string
+		sandbox any
+		invalid bool
+	}{
+		{"absent", nil, false},
+		{"awf", "awf", false},
+		{"default", "default", false},
+		{"empty object", map[string]any{}, false},
+		{"null agent", map[string]any{"agent": nil}, false},
+		{"disabled agent", map[string]any{"agent": false}, false},
+		{"awf agent", map[string]any{"agent": "awf"}, false},
+		{"object agent", map[string]any{"agent": map[string]any{"id": "awf"}}, false},
+		{"typo sandbox", "PRIVATE_VALUE", true},
+		{"boolean sandbox", false, true},
+		{"list sandbox", []any{"awf"}, true},
+		{"typo agent", map[string]any{"agent": "PRIVATE_VALUE"}, true},
+		{"default agent", map[string]any{"agent": "default"}, true},
+		{"true agent", map[string]any{"agent": true}, true},
+		{"numeric agent", map[string]any{"agent": 42}, true},
+		{"list agent", map[string]any{"agent": []any{"awf"}}, true},
 	} {
-		document := &aw.Document{Frontmatter: map[string]any{
-			"engine": map[string]any{
-				"env":    map[string]any{"TOKEN": "${{ secrets.ENGINE }}"},
-				"driver": map[string]any{"node": "console.log(process.env.TOKEN);"},
-			},
-			"sandbox": sandbox,
-		}}
-		bindings, err := analyzer.authoredScriptEnvironment(t.Context(), document, authoredScript{path: "engine.driver.node"}, scope{}, nil)
-		require.NoError(t, err)
-		require.Len(t, bindings["shell.TOKEN"], 1)
-		assert.Equal(t, "secrets.engine", bindings["shell.TOKEN"][0].Reference)
+		t.Run(test.name, func(t *testing.T) {
+			document := &aw.Document{Frontmatter: map[string]any{
+				"engine": map[string]any{
+					"env":    map[string]any{"TOKEN": "${{ secrets.ENGINE }}"},
+					"driver": map[string]any{"node": "console.log(process.env.TOKEN);"},
+				},
+				"sandbox": test.sandbox,
+			}}
+			if test.sandbox == nil {
+				delete(document.Frontmatter, "sandbox")
+			}
+			bindings, err := analyzer.authoredScriptEnvironment(t.Context(), document, authoredScript{path: "engine.driver.node"}, scope{}, nil)
+			if test.invalid {
+				require.Error(t, err)
+				assert.NotContains(t, err.Error(), "PRIVATE_VALUE")
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, bindings["shell.TOKEN"], 1)
+			assert.Equal(t, "secrets.engine", bindings["shell.TOKEN"][0].Reference)
+		})
 	}
 }
 

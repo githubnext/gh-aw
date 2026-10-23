@@ -12,7 +12,11 @@ gh-aw has an in-process Actions/AW AST lint registry (see [ADR-69813](69813-in-p
 
 ### Decision
 
-We will run the built-in Actions/AW AST lint registry as a default step of CLI compilation. The step runs inside `generateAndValidateYAML`, after YAML generation and before lock-file emission, and it also runs with `--no-emit`. It checks both the generated Actions graph and the authored AW source document. Error-severity diagnostics fail compilation. Warnings go to stderr and count toward the warning total. The step honors active `threat-detection` suppressions and skips warning-level `secret-leak` diagnostics. Users can opt out with `--skip-lint` (MCP: `skip_lint`). The opt-out disables only this lint pass, not compiler validation or requested external scanners. Dry-run compilation rejects it. Low-level Go callers keep their existing opt-in behavior through `workflow.WithLint(true)`. The main reason for this decision is security: injection findings should block lock-file generation instead of depending on a separate, easily forgotten lint run.
+We will run the built-in Actions/AW AST lint registry as a default step of CLI compilation. The step runs inside `generateAndValidateYAML`, after YAML generation and before lock-file emission, and it also runs with `--no-emit`. It checks both the generated Actions graph and the authored AW source document. Error-severity diagnostics fail compilation. Warnings go to stderr and count toward the warning total, except advisory missing-parser coverage warnings. The step honors active `threat-detection` suppressions and skips warning-level `secret-leak` diagnostics. Users can opt out with `--skip-lint` (MCP: `skip_lint`). The opt-out disables only this lint pass, not compiler validation or requested external scanners. Dry-run compilation rejects it. Low-level Go callers keep their existing opt-in behavior through `workflow.WithLint(true)`. The main reason for this decision is security: injection findings should block lock-file generation instead of depending on a separate, easily forgotten lint run.
+
+The default also applies whenever `add`, `update`, or `validate` recompiles workflows, including both direct and file-tracked add compilation. Only `compile` exposes `--skip-lint`; users must fix findings before using other recompiling commands.
+
+Compile-time lint is Actions/AW AST-only and does not introduce a mandatory native JavaScript parser dependency. Deeper authored JavaScript driver and custom-grader checks require standalone `gh aw lint --javascript-module <module-path>`. Warning-level `secret-leak` diagnostics and unavailable-parser `grader-file-io` coverage warnings are hidden during compilation: neither is printed or counted toward compiler warning totals, and neither blocks compiler dry-run. Successful compilation is not evidence of complete JavaScript analysis.
 
 ### Alternatives Considered
 
@@ -26,7 +30,7 @@ Making the AST rules part of mandatory compiler validation would give the strong
 
 #### Alternative 3: Enable linting by default in the low-level `workflow.Compiler` API as well
 
-This would give library callers the same protection. It was rejected to preserve the existing Go API behavior. Default-on applies only in the CLI/MCP setup path (`createAndConfigureCompiler`), and Go callers opt in with `WithLint(true)`. [TODO: verify this rationale with the deciders]
+This would give library callers the same protection. It was rejected to preserve the existing Go API behavior. Default-on applies in the CLI/MCP setup path (`createAndConfigureCompiler`) and direct add compiler constructions, while Go callers opt in with `WithLint(true)`. [TODO: verify this rationale with the deciders]
 
 ### Consequences
 
@@ -36,7 +40,7 @@ This would give library callers the same protection. It was rejected to preserve
 - The opt-out is narrow and auditable. It cannot be used with dry-run, and it does not weaken compiler validation or external scanners.
 
 #### Negative
-- This is a breaking (major) change. Workflows that compiled before may now fail until their findings are fixed or `--skip-lint` is passed.
+- This is a breaking (major) change. Workflows that compiled before may now fail until their findings are fixed. `compile` alone offers `--skip-lint`; other recompiling commands require fixes.
 - Compilation does a bit more work: it parses the generated YAML into an Actions AST and runs the rule registry for every workflow.
 - CLI and Go API defaults now differ (CLI on, `workflow.Compiler` off), which can surprise library callers.
 

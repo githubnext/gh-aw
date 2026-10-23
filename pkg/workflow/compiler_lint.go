@@ -19,15 +19,23 @@ func (c *Compiler) lintCompiledWorkflow(data *WorkflowData, content, sourcePath 
 	if err != nil {
 		return formatCompilerError(sourcePath, "error", "cannot parse generated Actions AST for linting", nil)
 	}
+	document := data.SourceDocument
+	if document != nil {
+		policyDocument := *document
+		policyDocument.Frontmatter = document.FrontmatterResult().Frontmatter
+		policyDocument.Frontmatter["strict"] = c.effectiveStrictMode(data.RawFrontmatter)
+		document = &policyDocument
+	}
 	diagnostics, err := workflowlint.Default().Run(c.ctx, workflowlint.Input{
-		Workflow: graph, Document: data.SourceDocument, SourcePath: sourcePath,
+		Workflow: graph, Document: document, SourcePath: sourcePath,
+		AllowActionRefs: c.allowActionRefs,
 	})
 	var failures []error
 	if err != nil {
 		failures = append(failures, fmt.Errorf("workflow lint analysis failed: %w", err))
 	}
 	for _, diagnostic := range diagnostics {
-		if diagnostic.RuleID == "secret-leak" && diagnostic.Severity == workflowlint.Warning {
+		if (diagnostic.RuleID == "secret-leak" || diagnostic.RuleID == "grader-file-io") && diagnostic.Severity == workflowlint.Warning {
 			continue
 		}
 		message := fmt.Sprintf("[%s] %s at %s (script line %d)",

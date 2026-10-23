@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/workflow/aw"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,6 +80,75 @@ func TestCompilerLintWarningsRemainAdvisory(t *testing.T) {
 	compiler := NewCompiler(WithLint(true))
 	require.NoError(t, compiler.lintCompiledWorkflow(&WorkflowData{}, content, "test.md"))
 	require.Positive(t, compiler.GetWarningCount())
+}
+
+func TestCompilerLintUsesEffectiveStrictness(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []string{"authored", "cli", "repository"} {
+		t.Run(policy, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			document, err := aw.Parse("---\nstrict: false\non:\n  workflow_run:\n    workflows: [Build]\n    branches: ['*']\n---\nTest.\n")
+			require.NoError(t, err)
+			original, err := aw.Emit(document)
+			require.NoError(t, err)
+			compiler := NewCompiler(WithLint(true))
+			compiler.gitRoot = dir
+			if policy == "cli" {
+				compiler.SetStrictMode(true)
+			}
+			if policy == "repository" {
+				configDir := filepath.Join(dir, ".github", "workflows")
+				require.NoError(t, os.MkdirAll(configDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(configDir, "aw.json"), []byte(`{"strict":true}`), 0o600))
+			}
+			data := &WorkflowData{SourceDocument: document, RawFrontmatter: document.FrontmatterResult().Frontmatter}
+			err = compiler.lintCompiledWorkflow(data, "on:\n  workflow_run:\n    workflows: [Build]\n    branches: ['*']\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n", "test.md")
+			if policy == "authored" {
+				require.NoError(t, err)
+				require.Positive(t, compiler.GetWarningCount())
+			} else {
+				require.ErrorContains(t, err, "[workflow-run-scope]")
+			}
+			after, err := aw.Emit(document)
+			require.NoError(t, err)
+			require.Equal(t, original, after)
+			require.Equal(t, false, data.RawFrontmatter["strict"])
+		})
+	}
+}
+
+func TestCompilerLintAllowsOnlyWellFormedMutableActionRefs(t *testing.T) {
+	t.Parallel()
+	for _, allow := range []bool{false, true} {
+		t.Run(fmt.Sprintf("allow=%t", allow), func(t *testing.T) {
+			t.Parallel()
+			document, err := aw.Parse("---\non: workflow_dispatch\n---\nTest.\n")
+			require.NoError(t, err)
+			data := &WorkflowData{SourceDocument: document}
+			compiler := NewCompiler(WithLint(true))
+			compiler.SetAllowActionRefs(allow)
+			err = compiler.lintCompiledWorkflow(data, "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: example/action@v1\n", "test.md")
+			if allow {
+				require.NoError(t, err)
+				require.Positive(t, compiler.GetWarningCount())
+			} else {
+				require.ErrorContains(t, err, "[action-pin]")
+			}
+			require.ErrorContains(t, compiler.lintCompiledWorkflow(data,
+				"on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: example/action\n", "test.md"), "Malformed action")
+		})
+	}
+}
+
+func TestCompilerLintUnavailableJavaScriptDoesNotCountAsWarning(t *testing.T) {
+	t.Parallel()
+	document, err := aw.Parse("---\non: workflow_dispatch\ngraders:\n  quality:\n    script: 'return 1;'\n---\nTest.\n")
+	require.NoError(t, err)
+	compiler := NewCompiler(WithLint(true))
+	require.NoError(t, compiler.lintCompiledWorkflow(&WorkflowData{SourceDocument: document},
+		"on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n", "test.md"))
+	require.Zero(t, compiler.GetWarningCount())
 }
 
 func TestCompilerLintRunsBeforeEmission(t *testing.T) {

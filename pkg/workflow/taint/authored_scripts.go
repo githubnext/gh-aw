@@ -261,8 +261,18 @@ func (a *analyzer) authoredScriptEnvironment(ctx context.Context, document *aw.D
 	if err != nil {
 		return nil, err
 	}
-	switch sandbox["agent"].(type) {
-	case nil, string, bool:
+	switch agent := sandbox["agent"].(type) {
+	case nil:
+		return bindings, nil
+	case string:
+		if agent != "awf" {
+			return nil, errors.New("AW sandbox.agent must be awf, false, null, or a mapping")
+		}
+		return bindings, nil
+	case bool:
+		if agent {
+			return nil, errors.New("AW sandbox.agent must be awf, false, null, or a mapping")
+		}
 		return bindings, nil
 	}
 	agent, err := optionalField[map[string]any](sandbox, "agent", "sandbox")
