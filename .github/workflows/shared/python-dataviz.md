@@ -85,7 +85,7 @@ steps:
 Dependencies, including transitive packages, come from the committed scientific
 lockfile with hash verification and wheel-only installation. Keep
 `.github/workflows/requirements-python-scientific.txt` in the checkout when using
-this repository-owned import. See [dependency lock maintenance](../../aw/python-dependency-locks.md).
+this repository-owned import. See [dependency lock maintenance](../../python-dependency-locks.md).
 
 Dirs: `/tmp/gh-aw/python/` (scripts), `/tmp/gh-aw/python/data/` (inputs), `/tmp/gh-aw/python/charts/` (outputs).
 

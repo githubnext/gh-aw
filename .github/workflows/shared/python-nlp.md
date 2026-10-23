@@ -44,7 +44,7 @@ lockfile with hash verification and wheel-only installation. Keep
 `.github/workflows/requirements-python-nlp.txt` in the checkout when using this
 repository-owned import. Its shared dependencies match the scientific lockfile,
 so either import can install first without replacing the other's dependencies.
-See [dependency lock maintenance](../../aw/python-dependency-locks.md).
+See [dependency lock maintenance](../../python-dependency-locks.md).
 
 Libraries: scikit-learn, NLTK, TextBlob, WordCloud
 Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`

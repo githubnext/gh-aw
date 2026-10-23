@@ -67,6 +67,11 @@ func TestSharedPythonDependencyLocks(t *testing.T) {
 
 func TestSharedPythonGeneratedSetups(t *testing.T) {
 	expected := make(map[string]string)
+	expectedSetupCounts := map[string]int{
+		"Install Python scientific libraries": 12,
+		"Setup Python environment":            9,
+		"Setup Python NLP environment":        3,
+	}
 	for _, tt := range []struct {
 		source string
 		name   string
@@ -102,12 +107,14 @@ func TestSharedPythonGeneratedSetups(t *testing.T) {
 	paths, err := filepath.Glob("../../.github/workflows/*.lock.yml")
 	require.NoError(t, err)
 	seen := make(map[string]int)
+	seenConsumerFiles := 0
 	for _, path := range paths {
 		content, err := os.ReadFile(path)
 		require.NoError(t, err)
 		if !strings.Contains(string(content), "/tmp/gh-aw/python/venv") {
 			continue
 		}
+		matchedSetups := 0
 		var workflow struct {
 			Jobs map[string]struct {
 				Steps []sharedPythonStep `yaml:"steps"`
@@ -116,16 +123,27 @@ func TestSharedPythonGeneratedSetups(t *testing.T) {
 		require.NoError(t, yaml.Unmarshal(content, &workflow), path)
 		for _, job := range workflow.Jobs {
 			for _, step := range job.Steps {
-				setup, ok := expected[step.Name]
-				if !ok || !strings.Contains(step.Run, "/tmp/gh-aw/python/venv") {
-					continue
+				setup, knownName := expected[step.Name]
+				usesSharedVenv := strings.Contains(step.Run, "/tmp/gh-aw/python/venv")
+				isPythonSetup := usesSharedVenv && (strings.Contains(step.Run, "uv venv") ||
+					strings.Contains(step.Run, "requirements-python-") ||
+					(strings.Contains(step.Run, "pip install") &&
+						(strings.Contains(step.Run, "numpy") || strings.Contains(step.Run, "nltk"))))
+				if knownName && usesSharedVenv {
+					require.Equal(t, setup, strings.TrimSpace(step.Run), "%s: %s must preserve the hash-enforced source setup", path, step.Name)
+					seen[step.Name]++
+					matchedSetups++
+				} else if isPythonSetup {
+					require.Failf(t, "%s: unexpected shared Python setup step %q", path, step.Name)
 				}
-				require.Equal(t, setup, strings.TrimSpace(step.Run), "%s: %s must preserve the hash-enforced source setup", path, step.Name)
-				seen[step.Name]++
 			}
 		}
+		if matchedSetups > 0 {
+			seenConsumerFiles++
+		}
 	}
-	for name := range expected {
-		require.Positive(t, seen[name], "the generated workflows must exercise %s", name)
+	for name, count := range expectedSetupCounts {
+		require.Equal(t, count, seen[name], "every generated setup for %s must match its source", name)
 	}
+	require.Equal(t, 20, seenConsumerFiles, "all compiled shared-Python consumers must include their expected setup")
 }

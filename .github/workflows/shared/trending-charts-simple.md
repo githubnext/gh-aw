@@ -60,7 +60,7 @@ steps:
 Dependencies, including transitive packages, come from the committed scientific
 lockfile with hash verification and wheel-only installation. Keep
 `.github/workflows/requirements-python-scientific.txt` in the checkout when using
-this repository-owned import. See [dependency lock maintenance](../../aw/python-dependency-locks.md).
+this repository-owned import. See [dependency lock maintenance](../../python-dependency-locks.md).
 
 Libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy
 Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`, `/tmp/gh-aw/cache-memory/`
