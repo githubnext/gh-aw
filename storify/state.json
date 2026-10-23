@@ -1,28 +1,28 @@
 {
-  "last_run_date": "2026-10-22",
+  "last_run_date": "2026-10-23",
   "last_window": {
-    "start": "2026-10-21T07:58:53Z",
-    "end": "2026-10-22T07:58:53Z"
+    "start": "2026-10-22T07:58:06Z",
+    "end": "2026-10-23T07:58:06Z"
   },
   "observed_window": {
-    "coverage": "cached 312 runs from 2026-10-21T16:56:57Z onward; earlier continuation unavailable because agentic-workflows MCP was not exposed",
-    "run_records_in_cached_slice": 312
+    "run_records_in_two_slices": 524,
+    "coverage": "Run collection has no remaining cursor; episode lineage remains partial because parent/root records are missing."
   },
   "key_themes": [
-    "PR review fan-out at checkout",
-    "Reviewer-led Copilot sub-agent smoke validation and merge",
-    "Work-queue agents succeeded but conclusion issue projection failed"
+    "Maintainer-triggered reviewer fan-out for checkout repair",
+    "Work-queue and safe-output publication boundaries",
+    "Cross-repository smoke checkout interruption"
   ],
   "carry_forward_questions": [
-    "What failed in the Checkout PR branch step across the three affected PRs?",
-    "Did work-queue issue projection recover after runs 39717769293, 39717795818, and 39717823226?",
-    "What occurred in the uncached first nine hours of this window?"
+    "Does PR 71210 eliminate deleted-branch reviewer checkout failures in later production runs?",
+    "Does work-queue issue projection recover after the eslint dispatches?",
+    "Why do both cross-repository smoke paths fail at side-repository checkout?"
   ],
   "representative_runs": [
-    39674517138,
-    39709752322,
-    39698253184,
-    39717795818,
-    39717823226
+    39842124572,
+    39757480430,
+    39896393918,
+    39864188905,
+    39880055826
   ]
 }
