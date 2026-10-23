@@ -224,6 +224,18 @@ function resolveEnvStringPlaceholders(value) {
   });
 }
 
+/**
+ * Detect references whose scope could change when a schema is embedded under record.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function containsSchemaRef(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return Object.hasOwn(value, "$ref") || Object.values(value).some(containsSchemaRef);
+}
+
 async function main() {
   const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -318,10 +330,11 @@ async function main() {
       .map(normalizeToolName)
       .filter(name => sourceToolNames.has(name))
   );
-  /** @type {{ledger_append?: {ledgers?: Array<{name: string, type?: string}>}}} */
+  /** @type {{ledger_append?: {ledgers?: Array<{name: string, type?: string, schema?: Record<string, unknown>}>}}} */
   const ledgerConfig = config;
   const configuredLedgers = ledgerConfig.ledger_append?.ledgers;
-  if (Array.isArray(configuredLedgers) && configuredLedgers.length > 0 && configuredLedgers.every(ledger => ledger.type === "map")) {
+  const generalLedgers = Array.isArray(configuredLedgers) ? configuredLedgers.filter(ledger => ledger.type !== "map" && ledger.type !== "notes") : [];
+  if (Array.isArray(configuredLedgers) && configuredLedgers.length > 0 && generalLedgers.length === 0) {
     enabledToolNames.delete("ledger_append");
   }
   // Filter predefined tools to those enabled in config and apply enhancements
@@ -339,11 +352,19 @@ async function main() {
         throw new Error(`${ERR_CONFIG}: ` + "Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
       }
       if (tool.name === "ledger_append" && Array.isArray(configuredLedgers)) {
-        const generalNames = configuredLedgers.filter(ledger => ledger.type !== "map").map(ledger => ledger.name);
-        if (generalNames.length < configuredLedgers.length) {
+        const generalNames = generalLedgers.map(ledger => ledger.name);
+        if (generalNames.length > 0) {
           enhancedTool.inputSchema.properties.ledger.enum = generalNames;
           if (configuredLedgers.length > 1) {
             enhancedTool.inputSchema.required = [...new Set([...(enhancedTool.inputSchema.required || []), "ledger"])];
+          }
+          if (generalLedgers.every(ledger => !ledger.type)) {
+            enhancedTool.description = "Submit a custom record to a configured Git-backed ledger using record, not operation or value. Persistence follows trusted validation.";
+            enhancedTool.inputSchema.properties = Object.fromEntries(Object.entries(enhancedTool.inputSchema.properties).filter(([name]) => ["ledger", "temp_id", "record"].includes(name)));
+            enhancedTool.inputSchema.required = [...new Set([...(enhancedTool.inputSchema.required || []), "record"])];
+            if (generalLedgers.length === 1 && generalLedgers[0].schema && !containsSchemaRef(generalLedgers[0].schema)) {
+              enhancedTool.inputSchema.properties.record = { ...enhancedTool.inputSchema.properties.record, ...generalLedgers[0].schema };
+            }
           }
         }
       }

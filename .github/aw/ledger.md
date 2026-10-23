@@ -53,6 +53,11 @@ Removing custom replay does not rewrite history. Existing raw-record ledgers
 can omit `type` and query `records.payload` with SQLite JSON functions. Do not
 add a built-in type to raw history unless every payload already matches that
 type's operation format. Use a new ledger name for a new typed state model.
+For a ledger without `type`, submit `ledger_append` with the custom payload in
+`record`, for example `{"ledger":"reviews","record":{"run_id":"42","outcome":"noop"}}`.
+Do not use the built-in `operation: append` / `value` envelope for custom ledgers.
+The agent-facing tool rejects invalid custom record shapes and configured-schema
+mismatches before queuing; trusted finalization still validates the complete batch.
 See the [ledger replay reference](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/ledger-replay.md)
 and [compaction guide](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/experimental/ledger-compaction.md).
 
