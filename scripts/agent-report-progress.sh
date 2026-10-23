@@ -189,6 +189,10 @@ is_changed_go_file() {
     local diagnostic_file
     local changed_file
 
+    if [ "${#go_files[@]}" -eq 0 ]; then
+        return 1
+    fi
+
     diagnostic_file=$(normalize_repo_path "$1")
     for changed_file in "${go_files[@]}"; do
         if [ "$diagnostic_file" = "$(normalize_repo_path "$changed_file")" ]; then

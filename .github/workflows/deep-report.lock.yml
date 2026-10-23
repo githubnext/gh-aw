@@ -3473,6 +3473,7 @@ jobs:
       upload_artifact_slot_1_tmp_id: ${{ steps.process_safe_outputs.outputs.slot_1_tmp_id }}
       upload_artifact_slot_2_tmp_id: ${{ steps.process_safe_outputs.outputs.slot_2_tmp_id }}
       work_queue_outcome: ${{ steps.process_safe_outputs.outputs.work_queue_outcome }}
+      work_queue_requests: ${{ steps.work_queue_controls.outputs.work_queue_requests }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,7 +1,7 @@
 ---
 name: Smoke Work Queue Dispatcher
 description: Submit one synthetic task daily and request one native smoke worker Claim
-intent: Detect failures in native work queue admission, dispatch, and worker completion without changing repository content.
+intent: Detect failures in native work queue admission, dispatch, and worker completion without changing source content, allowing framework queue tracking mutations.
 on:
   schedule: daily around 14:00
 if: github.run_attempt == 1
@@ -19,10 +19,46 @@ tools:
   bash:
     - cat /tmp/gh-aw/agent/smoke-work-queue-plan.json
 safe-outputs:
+  # No agent-authored effects; keep verification runnable even when the agent is skipped.
+  threat-detection: false
   dispatch-workflow:
     workflows: [smoke-work-queue-worker]
     target-ref: ${{ github.event.repository.default_branch }}
     max: 1
+jobs:
+  verify_smoke_dispatch:
+    needs: [agent, safe_outputs]
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 3
+    permissions: {}
+    steps:
+      - name: Require verified smoke dispatch
+        env:
+          SMOKE_AGENT_RESULT: ${{ needs.agent.result }}
+          SMOKE_SAFE_OUTPUTS_RESULT: ${{ needs.safe_outputs.result }}
+          SMOKE_DISPATCH_RECEIPT: ${{ needs.safe_outputs.outputs.work_queue_requests }}
+        run: |
+          set -euo pipefail
+          node <<'JS'
+          const assert = require("node:assert/strict");
+          assert.equal(process.env.SMOKE_AGENT_RESULT, "success", "Smoke agent job must run and succeed");
+          assert.equal(process.env.SMOKE_SAFE_OUTPUTS_RESULT, "success", "Trusted smoke launch verification must succeed");
+          const result = JSON.parse(process.env.SMOKE_DISPATCH_RECEIPT);
+          assert.equal(result.version, 3);
+          assert.equal(result.success, true, "Trusted queue controls must succeed");
+          const dispatches = result.receipts.filter(receipt => Object.hasOwn(receipt, "dispatches"));
+          assert.equal(dispatches.length, 1, "Smoke requires exactly one trusted dispatch receipt");
+          const receipt = dispatches[0];
+          assert.equal(receipt.status, "durable", "Smoke is incomplete when capacity grants no worker");
+          assert.equal(receipt.success, true);
+          assert.equal(receipt.dispatches, 1, "Smoke requires exactly one worker dispatch");
+          assert.equal(receipt.launches.length, 1);
+          const launch = receipt.launches[0];
+          assert.equal(launch.state, "bound", "Smoke requires a verified native worker launch");
+          assert.equal(launch.dispatched, true);
+          assert.match(String(launch.run_id), /^[1-9][0-9]*$/);
+          JS
 steps:
   - name: Prepare synthetic work and bounded dispatch
     uses: actions/github-script@v9.0.0
@@ -84,5 +120,15 @@ and worker run when diagnosing failures; do not wait for workers in this run.
 
 Publish both smoke workflows and their lock files together with `aw.json`.
 The dedicated pool has concurrency one and still shares repository-wide limits.
+Trusted launch verification rejects `no_grant`, missing receipts, and unbound
+launches; an always-running downstream check also rejects skipped or failed jobs.
+It does not wait for worker completion.
+
+`effect_contract: {kind: "none"}` forbids Claim resource effects, not framework
+queue bookkeeping. Queue ledger commits, tracking Issues, labels, and Claim
+comments produced by the repository's enabled Issue projection are permitted
+smoke effects. Neither agent may create or modify source content or request
+other Issue mutations.
+
 An already-installed Policy needs an explicit, quiescent administrator Policy
 update to adopt new scheduling pools; never reset or reseed an existing queue.

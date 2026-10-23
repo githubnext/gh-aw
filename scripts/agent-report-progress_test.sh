@@ -47,6 +47,10 @@ cat > "$TMP_ROOT/bin/golangci-lint" <<'SH'
 #!/bin/bash
 set -euo pipefail
 printf 'lint:<%s>\n' "$@" >> "$CALL_LOG"
+if [ -n "${LINT_DIAGNOSTICS_FILE:-}" ]; then
+    cat "$LINT_DIAGNOSTICS_FILE"
+    exit 1
+fi
 SH
 chmod +x "$TMP_ROOT/bin/git" "$TMP_ROOT/bin/make" "$TMP_ROOT/bin/go" "$TMP_ROOT/bin/gofmt" "$TMP_ROOT/bin/golangci-lint"
 
@@ -89,6 +93,26 @@ printf '%s\n' "lint:<run>" "lint:<./pkg/another>" "lint:<./pkg/space name>" > "$
 cmp "$TMP_ROOT/expected-lint.txt" "$TMP_ROOT/actual-lint.txt"
 grep -Fq "impacted tests pass" "$OUTPUT"
 echo "PASS: changed files and Go packages are sorted, deduplicated, and preserve spaces"
+
+printf '%s\n' "pkg/another/deleted.go" > "$CHANGED_LIST_FILE"
+export LINT_DIAGNOSTICS_FILE="$TMP_ROOT/lint-diagnostics.txt"
+cat > "$LINT_DIAGNOSTICS_FILE" <<'EOF'
+pkg/another/example.go:3:1: unused declaration (unused)
+var unused int
+^
+1 issues:
+* unused: 1
+EOF
+run_gate
+unset LINT_DIAGNOSTICS_FILE
+grep -Fxq "lint:<./pkg/another>" "$CALL_LOG"
+grep -Fq "Go linter diagnostics were limited to unchanged files" "$OUTPUT"
+grep -Fq "Pre-PR validation passed" "$OUTPUT"
+if grep -Eq '^gofmt:' "$CALL_LOG" || grep -Eq 'unused declaration|unbound variable' "$OUTPUT"; then
+    echo "Deleted Go files were formatted or unchanged-file diagnostics were not filtered" >&2
+    exit 1
+fi
+echo "PASS: deleted Go files tolerate empty Go file arrays when filtering unchanged-file diagnostics"
 
 printf '%s\n' "notes.txt" > "$CHANGED_LIST_FILE"
 export FAIL_SCHEMA=1
