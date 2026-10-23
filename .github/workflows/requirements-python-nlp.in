@@ -1,0 +1,4 @@
+nltk==3.10.3
+scikit-learn==1.9.1
+textblob==0.20.1
+wordcloud==1.9.6

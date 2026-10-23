@@ -1,6 +1,6 @@
 ---
 # Python NLP Environment - scikit-learn, NLTK, TextBlob, WordCloud
-# Version-pinned libraries for TF-IDF vectorization, clustering, sentiment analysis, and NLP
+# Hash-locked libraries for TF-IDF vectorization, clustering, sentiment analysis, and NLP
 
 tools:
   bash:
@@ -21,10 +21,10 @@ steps:
       # Use uv-managed CPython so the interpreter works inside the agent sandbox (runner CPython needs a newer GLIBC).
       # This must match shared/python-dataviz.md so either import can create the shared environment first.
       if [ ! -d /tmp/gh-aw/python/venv ]; then
-        uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
+        uv venv --python 3.12 --python-preference only-managed /tmp/gh-aw/python/venv
       fi
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/python/venv/bin/pip install --quiet nltk==3.10.3 scikit-learn==1.9.1 textblob==0.20.1 wordcloud==1.9.6
+      uv pip install --quiet --require-hashes --only-binary=:all: --python /tmp/gh-aw/python/venv/bin/python -r "${GITHUB_WORKSPACE}/.github/workflows/requirements-python-nlp.txt"
 
       # Download required NLTK corpora
       /tmp/gh-aw/python/venv/bin/python3 -c "
@@ -38,6 +38,13 @@ steps:
 ---
 
 ## Python NLP Environment Ready
+
+Dependencies, including transitive packages, come from the committed NLP
+lockfile with hash verification and wheel-only installation. Keep
+`.github/workflows/requirements-python-nlp.txt` in the checkout when using this
+repository-owned import. Its shared dependencies match the scientific lockfile,
+so either import can install first without replacing the other's dependencies.
+See [dependency lock maintenance](../../aw/python-dependency-locks.md).
 
 Libraries: scikit-learn, NLTK, TextBlob, WordCloud
 Directories: `/tmp/gh-aw/python/{data,charts,artifacts}`

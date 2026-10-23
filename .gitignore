@@ -193,6 +193,8 @@ test-inline-*.lock.yml
 !docs/public/robots.txt
 !docs/public/.well-known/ai.txt
 !.github/workflows/requirements-agentrx.txt
+!.github/workflows/requirements-python-scientific.txt
+!.github/workflows/requirements-python-nlp.txt
 conclusion/
 detection/
 

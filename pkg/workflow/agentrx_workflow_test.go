@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var agentRxHashedRequirement = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*==[0-9][a-zA-Z0-9.]* \\\n    --hash=sha256:[0-9a-f]{64}( \\\n    --hash=sha256:[0-9a-f]{64})*$`)
+var hashedPythonRequirement = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*==[0-9][a-zA-Z0-9.]* \\\n    --hash=sha256:[0-9a-f]{64}( \\\n    --hash=sha256:[0-9a-f]{64})*$`)
 
 func TestAgentRxSetupUsesHashedDependencyLock(t *testing.T) {
 	source, err := os.ReadFile("../../.github/workflows/daily-agentrx-trace-optimizer.md")
@@ -70,7 +70,7 @@ func TestAgentRxSetupUsesHashedDependencyLock(t *testing.T) {
 		if strings.HasSuffix(line, `\`) {
 			continue
 		}
-		require.Regexp(t, agentRxHashedRequirement, requirement.String(), "every dependency must have an exact version and one or more SHA-256 wheel hashes")
+		require.Regexp(t, hashedPythonRequirement, requirement.String(), "every dependency must have an exact version and one or more SHA-256 wheel hashes")
 		requirement.Reset()
 		count++
 	}
@@ -97,7 +97,7 @@ func TestAgentRxHashedDependencyEntry(t *testing.T) {
 		{"truncated continuation", "pillow==13.0.0 \\\n" + hash + " \\", false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.valid, agentRxHashedRequirement.MatchString(tt.entry))
+			require.Equal(t, tt.valid, hashedPythonRequirement.MatchString(tt.entry))
 		})
 	}
 }

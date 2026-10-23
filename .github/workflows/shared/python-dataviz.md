@@ -8,7 +8,7 @@
 #
 # This import provides:
 # - Python environment setup with directory structure
-# - Version-pinned scientific libraries (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
+# - Hash-locked scientific libraries (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
 # - Upload asset capability via safe-outputs (upload-asset)
 # - Instructions on data visualization best practices including artifact uploads
@@ -54,10 +54,10 @@ steps:
       # Use uv-managed CPython so the interpreter works inside the agent sandbox (runner CPython needs a newer GLIBC).
       # This must match shared/python-nlp.md so either import can create the shared environment first.
       if [ ! -d /tmp/gh-aw/python/venv ]; then
-        uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
+        uv venv --python 3.12 --python-preference only-managed /tmp/gh-aw/python/venv
       fi
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy==2.5.4 pandas==3.0.6 matplotlib==3.11.2 seaborn==0.13.2 scipy==1.18.1
+      uv pip install --quiet --require-hashes --only-binary=:all: --python /tmp/gh-aw/python/venv/bin/python -r "${GITHUB_WORKSPACE}/.github/workflows/requirements-python-scientific.txt"
       
       # Verify installations
       /tmp/gh-aw/python/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"
@@ -81,6 +81,11 @@ steps:
 ---
 
 # Python Data Visualization
+
+Dependencies, including transitive packages, come from the committed scientific
+lockfile with hash verification and wheel-only installation. Keep
+`.github/workflows/requirements-python-scientific.txt` in the checkout when using
+this repository-owned import. See [dependency lock maintenance](../../aw/python-dependency-locks.md).
 
 Dirs: `/tmp/gh-aw/python/` (scripts), `/tmp/gh-aw/python/data/` (inputs), `/tmp/gh-aw/python/charts/` (outputs).
 
