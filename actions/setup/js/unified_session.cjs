@@ -483,7 +483,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     }
   }
   if (!agentEvents) {
-    const file = choose(["pi-streaming.jsonl", "agent-stdio.log"]);
+    const file = choose(["sandbox/agent/logs/pi-streaming.jsonl", "pi-streaming.jsonl", "agent-stdio.log"]);
     if (file) {
       const content = read(file);
       const parsed = parseEngineSession(content, engine ?? (file.endsWith("pi-streaming.jsonl") ? "pi" : "custom"));

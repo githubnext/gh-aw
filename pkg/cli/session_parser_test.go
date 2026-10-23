@@ -174,6 +174,7 @@ func TestSessionParserEngines(t *testing.T) {
 		{"copilot", "sandbox/agent/logs/copilot-session-state/session/events.jsonl", `{"type":"assistant.message","data":{"content":"Engine session text"},"id":"copilot-native"}`},
 		{"gemini", "agent-stdio.log", `{"type":"message","role":"assistant","content":"Engine session text"}`},
 		{"pi", "pi-streaming.jsonl", `{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Engine session text"}]}}`},
+		{"pi", "sandbox/agent/logs/pi-streaming.jsonl", `{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Engine session text"}]}}`},
 		{"opencode", "agent-stdio.log", `{"type":"text","sessionID":"ses_fixture","timestamp":1790899201000,"part":{"id":"prt_fixture","type":"text","text":"Engine session text"}}`},
 		{"goose", "agent-stdio.log", `{"type":"message","message":{"id":"goose-native","role":"assistant","created":1790899201,"content":[{"type":"text","text":"Engine session text"}]}}`},
 		{"custom", "agent-stdio.log", `{"type":"assistant.message","data":{"content":"Engine session text"}}`},

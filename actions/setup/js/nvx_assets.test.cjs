@@ -280,6 +280,7 @@ process.exit(17);
     fs.writeFileSync(path.join(root, "state", "actions-source", "actions", "setup", "clean.sh"), "untrusted cleanup");
     fs.writeFileSync(path.join(root, "state", "gateway-secret"), "untrusted secret");
     fs.writeFileSync(path.join(root, "state", "pi-streaming.jsonl"), "pi events");
+    fs.writeFileSync(path.join(root, "state", "sandbox/agent/logs/pi-streaming.jsonl"), "writable pi events");
     fs.writeFileSync(path.join(root, "state", "claude-debug.log"), "claude events");
     fs.writeFileSync(path.join(root, "state", "agent-step-summary.md"), "agent summary");
     fs.writeFileSync(path.join(root, "state", "step-summary.md"), "detector summary");
@@ -295,6 +296,7 @@ process.exit(17);
       expect(fs.readFileSync(path.join(state, name, "fixture.txt"), "utf8")).toBe("guest artifact");
     }
     expect(fs.readFileSync(path.join(state, "pi-streaming.jsonl"), "utf8")).toBe("pi events");
+    expect(fs.readFileSync(path.join(state, "sandbox/agent/logs/pi-streaming.jsonl"), "utf8")).toBe("writable pi events");
     expect(fs.readFileSync(path.join(state, "claude-debug.log"), "utf8")).toBe("claude events");
     expect(fs.readFileSync(path.join(state, "agent-step-summary.md"), "utf8")).toBe("agent summary");
     expect(fs.readFileSync(path.join(state, "step-summary.md"), "utf8")).toBe("detector summary");

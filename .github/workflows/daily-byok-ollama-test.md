@@ -8,6 +8,7 @@ max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
+  copilot-requests: write
 name: Daily BYOK Ollama Test
 engine:
   id: copilot
@@ -40,6 +41,9 @@ steps:
     env:
       OLLAMA_HOST: "0.0.0.0:11434"
       OLLAMA_LOG: "/tmp/gh-aw/ollama-serve.log"
+      # Ollama 0.31.1's llama.cpp runner crashes during warm-up with AMX
+      # weight buffers on hosted Xeon runners. Use standard CPU buffers.
+      LLAMA_ARG_REPACK: "0"
     # runner-guard:ignore RGS-012 -- loopback-only readiness probes to the Ollama service started in this step; no secrets are sent.
     run: |
       sudo systemctl stop ollama 2>/dev/null || true
@@ -174,6 +178,12 @@ network:
     - defaults
     - host.docker.internal
 safe-outputs:
+  # Detection runs on a separate runner without the agent's local Ollama server.
+  threat-detection:
+    engine:
+      id: claude
+      model-provider: github
+      model: claude-haiku-4.5
   create-issue:
     expires: 24h
     close-older-issues: true

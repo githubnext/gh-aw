@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,4 +91,58 @@ func TestResolveLockFilesForLint(t *testing.T) {
 		require.Error(t, err, "should reject non-lock file path")
 		require.ErrorContains(t, err, "is not a .md, .yml, or .yaml workflow file or directory", "error should explain allowed path types")
 	})
+}
+
+func TestActionlintCacheModeCompatibility(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name    string
+		message string
+		ignored bool
+	}{
+		{
+			name:    "workflow cache policy",
+			message: `unexpected key "cache-mode" for "workflow" section. expected one of "concurrency", "defaults", "env", "jobs", "name", "on", "permissions", "run-name"`,
+			ignored: true,
+		},
+		{
+			name:    "workflow cache policy without expected keys",
+			message: `unexpected key "cache-mode" for "workflow" section`,
+			ignored: true,
+		},
+		{
+			name:    "job cache policy",
+			message: `unexpected key "cache-mode" for "job" section`,
+		},
+		{
+			name:    "step cache policy",
+			message: `unexpected key "cache-mode" for "step" section`,
+		},
+		{
+			name:    "misspelled workflow key",
+			message: `unexpected key "cache-modes" for "workflow" section`,
+		},
+		{
+			name:    "other workflow key",
+			message: `unexpected key "unknown-key" for "workflow" section`,
+		},
+		{
+			name:    "invalid cache policy value",
+			message: `expected scalar node for "cache-mode" but found mapping node`,
+		},
+		{
+			name:    "other diagnostic mentioning the key",
+			message: `invalid expression: unexpected key "cache-mode" for "workflow" section`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ignored := false
+			for _, pattern := range defaultGhAwActionlintIgnorePatterns {
+				matched, err := regexp.MatchString(pattern, tt.message)
+				require.NoError(t, err)
+				ignored = ignored || matched
+			}
+			assert.Equal(t, tt.ignored, ignored)
+		})
+	}
 }
