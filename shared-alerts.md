@@ -332,3 +332,6 @@
   workflow's full agent ranking).
 - Created the weekly Agent Performance Report discussion for 2026-09-28, reiterating the stopgap
   (apply 3 one-line diffs directly) and structural (merge #63656/#63657) recommendations.
+
+## Update — 2026-10-23 (Workflow Health Manager)
+- Removed stale attribution to #70777 (closed, metric unchanged). Re-diagnose: smoke-claude safe_outputs shows OTLP 401 and digest-mismatch; see new tracker.
