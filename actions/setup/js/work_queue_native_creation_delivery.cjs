@@ -7,6 +7,7 @@ const { currentClaimHandle, claimIdentity, receiptMatchesClaim, createClaimResou
 const { resolveRepositoryTarget, resolveParentResourceTarget, nativeDecimalIdentity } = require("./work_queue_effect_resource.cjs");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("native_delivery");
 const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
+const { MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
 
 const receipts = new WeakMap();
 const REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
@@ -94,6 +95,8 @@ async function capturePullRequestDelivery(result, message, expected, github) {
 
 async function verifyDiscussion(options, receipt) {
   const { github, claim } = options;
+  // Each older discussion can produce both a comment receipt and a close receipt.
+  if (receipt.cleanup !== undefined && (!Array.isArray(receipt.cleanup) || receipt.cleanup.length > 2 * MAX_CLOSE_COUNT)) return { verified: false };
   const response = await readQueueMetadata(
     () =>
       github.graphql(
@@ -178,6 +181,7 @@ async function verifyDiscussion(options, receipt) {
       nativeDecimalIdentity(discussion.repository.databaseId) !== authority.repository_id ||
       (comment ? resource.body !== cleanup.body : discussion.closed !== true || discussion.stateReason !== "OUTDATED")
     ) {
+      // Cleanup failures must remain visible without DEBUG when creation itself succeeded.
       log.diagnostic("discussion.cleanup.readback.mismatch", { comment, resource_present: !!resource });
       return { verified: false };
     }
