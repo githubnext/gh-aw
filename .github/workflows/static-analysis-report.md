@@ -46,7 +46,7 @@ steps:
     run: |
       set -e
       echo "Pulling Docker images for static analysis tools..."
-      
+
       # Pull zizmor Docker image
       echo "Pulling zizmor image..."
       docker pull ghcr.io/zizmorcore/zizmor:latest
@@ -163,11 +163,13 @@ steps:
       import pathlib
       import re
       import sys
-
       log = pathlib.Path(sys.argv[1]).read_text()
-      planned = collections.Counter(re.findall(r"Grype scan planned for (\S+)", log))
-      completed = collections.Counter(re.findall(r"Grype scan completed for (\S+): \d+ vulnerability finding\(s\)", log))
-      failed = re.findall(r"Grype scan failed for ([^\n]+)", log)
+      log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", log)
+      # Keep these status-line patterns in sync with the messages in pkg/cli/grype.go.
+      # Counters ensure duplicate plans cannot be hidden by a set comparison.
+      planned = collections.Counter(re.findall(r"(?m)^i Grype scan planned for (\S+)[ \t]*$", log))
+      completed = collections.Counter(re.findall(r"(?m)^i Grype scan completed for (\S+): \d+ vulnerability finding\(s\)[ \t]*$", log))
+      failed = re.findall(r"(?m)^⚠ Grype scan failed for (\S+): .+$", log)
       if failed or planned != completed:
           print(f"Error: Incomplete Grype image scans: missing={dict(planned - completed)}, unexpected={dict(completed - planned)}, failed={failed}")
           sys.exit(1)

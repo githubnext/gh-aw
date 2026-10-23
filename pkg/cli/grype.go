@@ -197,6 +197,7 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 		grypeLog.Printf("Using grype config %s", configFile)
 	}
 
+	// These status lines are consumed by the completeness gate in .github/workflows/static-analysis-report.md.
 	grypePlanImageScans(images)
 	for _, img := range images {
 		imageRef := grypeImageReference(img)

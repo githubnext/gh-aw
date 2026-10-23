@@ -391,20 +391,21 @@ func prependFakeDockerToPath(t *testing.T, stdout string) {
 
 func TestGrypeRunOnImageOutputValidation(t *testing.T) {
 	tests := []struct {
-		name    string
-		stdout  string
-		wantErr bool
+		name            string
+		stdout          string
+		wantErr         bool
+		wantErrContains string
 	}{
-		{"empty", "", true},
-		{"whitespace", " \n\t", true},
-		{"non-JSON", "scanner unavailable", true},
-		{"malformed JSON", `{"matches":[`, true},
-		{"missing matches", `{}`, true},
-		{"null output", `null`, true},
-		{"null matches", `{"matches":null}`, true},
-		{"wrong matches type", `{"matches":{}}`, true},
-		{"zero matches", `{"matches":[]}`, false},
-		{"matches", `{"matches":[{"vulnerability":{"id":"CVE-2026-1234"}}]}`, false},
+		{"empty", "", true, ""},
+		{"whitespace", " \n\t", true, ""},
+		{"non-JSON", "scanner unavailable", true, ""},
+		{"malformed JSON", `{"matches":[`, true, "failed to parse grype JSON output"},
+		{"missing matches", `{}`, true, ""},
+		{"null output", `null`, true, ""},
+		{"null matches", `{"matches":null}`, true, ""},
+		{"wrong matches type", `{"matches":{}}`, true, ""},
+		{"zero matches", `{"matches":[]}`, false, ""},
+		{"matches", `{"matches":[{"vulnerability":{"id":"CVE-2026-1234"}}]}`, false, ""},
 	}
 	for i, tc := range tests {
 		for _, exitCode := range []int{0, 1, 2} {
@@ -431,6 +432,9 @@ func TestGrypeRunOnImageOutputValidation(t *testing.T) {
 					}
 					if !strings.Contains(err.Error(), imageRef) {
 						t.Fatalf("scan error must identify image: %v", err)
+					}
+					if exitCode == 1 && tc.wantErrContains != "" && !strings.Contains(err.Error(), tc.wantErrContains) {
+						t.Fatalf("scan error = %q, want it to contain %q", err, tc.wantErrContains)
 					}
 				} else if output == nil || cached != output {
 					t.Fatal("successful scan must return and cache its result")

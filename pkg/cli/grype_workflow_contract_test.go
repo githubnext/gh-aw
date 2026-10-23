@@ -35,6 +35,9 @@ func TestGrypeWorkflowImageCompleteness(t *testing.T) {
 	require.NotEmpty(t, script)
 	planned := "i Grype scan planned for alpine:latest\n"
 	completed := "i Grype scan completed for alpine:latest: 0 vulnerability finding(s)\n"
+	sourceExcerpt := "  planned = collections.Counter(re.findall(r\"Grype scan planned for (\\S+)\", log))\n" +
+		"  completed = collections.Counter(re.findall(r\"Grype scan completed for (\\S+): \\d+ vulnerability finding\\(s\\)\", log))\n" +
+		"  failed = re.findall(r\"Grype scan failed for ([^\\n]+)\", log)\n"
 	tests := []struct {
 		name    string
 		log     string
@@ -43,13 +46,15 @@ func TestGrypeWorkflowImageCompleteness(t *testing.T) {
 		{"zero findings", planned + completed, false},
 		{"findings", planned + strings.Replace(completed, ": 0 ", ": 5 ", 1), false},
 		{"cached repeat", planned + completed + planned + completed, false},
+		{"colored status lines", "\x1b[36mi \x1b[0mGrype scan planned for alpine:latest\n" + "\x1b[36mi \x1b[0mGrype scan completed for alpine:latest: 0 vulnerability finding(s)\n", false},
+		{"source excerpt", planned + completed + sourceExcerpt, false},
 		{"no containers", "Running grype vulnerability scanner (0 container images found in lock files)", false},
 		{"invocation only", "Running grype vulnerability scanner on 1 container image", true},
 		{"omitted image", planned, true},
-		{"failed image", planned + "Grype scan failed for alpine:latest: invalid JSON\n", true},
+		{"failed image", planned + "⚠ Grype scan failed for alpine:latest: invalid JSON\n", true},
 		{"unexpected image", planned + strings.ReplaceAll(completed, "alpine", "ubuntu"), true},
 		{"omitted repeat", planned + planned + completed, true},
-		{"failure after success", planned + completed + "Grype scan failed for alpine:latest: failed\n", true},
+		{"failure after success", planned + completed + "⚠ Grype scan failed for alpine:latest: failed\n", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
