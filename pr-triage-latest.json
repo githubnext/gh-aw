@@ -1,16 +1,46 @@
 {
-  "run_date": "2026-10-23T06:38:15Z",
-  "run_id": "39912526009",
+  "run_date": "2026-10-23T12:33:26Z",
+  "run_id": "39953897424",
   "source": "pr-triage",
-  "eligible_total": 0,
-  "cooldown_skipped": 2,
+  "eligible_total": 2,
+  "cooldown_skipped": 0,
   "open_copilot_prs": 2,
-  "category_counts": {},
-  "risk_counts": {},
-  "priority_counts": {},
-  "action_counts": {},
+  "category_counts": {
+    "bug": 1,
+    "feature": 1
+  },
+  "risk_counts": {
+    "high": 1,
+    "medium": 1
+  },
+  "priority_counts": {
+    "high": 1,
+    "medium": 1
+  },
+  "action_counts": {
+    "fast_track": 2
+  },
   "batches": [],
-  "selected_candidates": [],
-  "skipped_prs": [70952, 69586],
-  "notes": "No eligible app/github-copilot PRs remained after the 1-hour cooldown; both open Copilot PRs were updated within the last hour."
+  "selected_candidates": [
+    {
+      "number": 69586,
+      "title": "Protect behavior-defined engine session capture",
+      "category": "bug",
+      "risk": "high",
+      "priority": "high",
+      "action": "fast_track",
+      "score": 81
+    },
+    {
+      "number": 70952,
+      "title": "Model routing: accept none/max for pinned Codex and add routed Codex smoke",
+      "category": "feature",
+      "risk": "medium",
+      "priority": "medium",
+      "action": "fast_track",
+      "score": 66
+    }
+  ],
+  "skipped_prs": [],
+  "notes": "Two eligible app/github-copilot PRs remained after cooldown and were triaged."
 }
