@@ -337,6 +337,8 @@ Claim audit exports contain operations, temporary-ID references, and structured 
 
 The `safe_outputs` job exposes `work_queue_outcome`. Unverified Claims retain delivery state, effects disposition, and reconciliation reason in scoped `claim-delivery-errors.json`.
 
+When trusted queue controls are configured, `safe_outputs.outputs.work_queue_requests` contains their version-3 JSON receipt. A successful controls job can report `no_grant` with no launches; only a launch with `state: "bound"` identifies a verified native worker run. This receipt proves launch, not worker completion or Result.
+
 Claim files live under `/tmp/gh-aw/claims/<original-identity-hash>/` with directory/file modes `0700`/`0600`:
 
 | File | Contents |
