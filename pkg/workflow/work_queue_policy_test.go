@@ -250,6 +250,32 @@ func TestWorkQueueMandatoryPolicy(t *testing.T) {
 	}
 }
 
+func TestWorkQueueDualRoleRequiresExplicitOptInAndDispatchAllowlist(t *testing.T) {
+	data := &WorkflowData{
+		Tools: map[string]any{"work-queue": map[string]any{"worker": true}},
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchWorkflow: &DispatchWorkflowConfig{Workflows: []string{"smoke"}},
+		},
+		RawFrontmatter: map[string]any{},
+	}
+	require.NoError(t, validateWorkQueueConfiguration(data))
+	require.True(t, workQueueRequiresAssignment(data))
+	require.Equal(t, "worker", workQueueRuntimeRole(data))
+
+	data.Tools["work-queue"].(map[string]any)["require-assignment"] = false
+	require.NoError(t, validateWorkQueueConfiguration(data))
+	require.True(t, isWorkQueueWorker(data))
+	require.True(t, isWorkQueueParticipant(data))
+	require.False(t, workQueueRequiresAssignment(data))
+	require.Equal(t, "${{ github.event_name == 'workflow_dispatch' && inputs.work_queue_assignment != '' && 'worker' || 'dispatcher' }}", workQueueRuntimeRole(data))
+	data.WorkQueuePolicy.Policy.Authorization = "aw"
+	require.Contains(t, strings.Join(workQueuePolicyEnvironment(data), ""), "GH_AW_WORK_QUEUE_POLICY:")
+	require.NotEmpty(t, NewCompiler().buildWorkQueueTerminationStep(data))
+
+	data.SafeOutputs.DispatchWorkflow.Workflows = nil
+	require.ErrorContains(t, validateWorkQueueConfiguration(data), "worker allowlist")
+}
+
 func TestWorkQueueObserverPreservesOrdinaryOutputsAndProtectedRuntimeRoles(t *testing.T) {
 	observer := &WorkflowData{
 		Tools:          map[string]any{"work-queue": true},

@@ -98,6 +98,51 @@ func TestWorkQueueDispatchCredentialActualCompilation(t *testing.T) {
 	}
 }
 
+func TestWorkQueueDualRoleActualCompilation(t *testing.T) {
+	dir := testutil.TempDir(t, "work-queue-dual-role-")
+	dir = filepath.Join(dir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	filename := filepath.Join(dir, "smoke.md")
+	source := `---
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+engine: codex
+model: copilot/auto
+permissions:
+  contents: read
+  copilot-requests: write
+tools:
+  work-queue:
+    worker: true
+    require-assignment: false
+safe-outputs:
+  dispatch-workflow:
+    workflows: [smoke]
+    max: 1
+---
+Finish an original Claim when assigned; otherwise submit and dispatch once.
+`
+	require.NoError(t, os.WriteFile(filename, []byte(source), 0o600))
+	compiler := NewCompiler(WithVersion("integration"))
+	compiler.SetApprove(true)
+	require.NoError(t, compiler.CompileWorkflow(filename))
+	content, err := os.ReadFile(filepath.Join(dir, "smoke.lock.yml"))
+	require.NoError(t, err)
+	compiled := string(content)
+	require.Contains(t, compiled, "work_queue_assignment:")
+	require.Contains(t, compiled, workQueueWorkerRunName)
+	require.Contains(t, compiled, "inputs.work_queue_assignment != '' && 'worker' || 'dispatcher'")
+	require.Contains(t, compiled, "GH_AW_WORK_QUEUE_POLICY:")
+	require.NotContains(t, compiled, "requireAssignment: true")
+	require.Contains(t, compiled, "Reconcile work queue claim")
+	conclusion := extractJobSection(compiled, string(constants.ConclusionJobName))
+	require.Contains(t, conclusion, "contents: write")
+	require.Contains(t, conclusion, "Terminate work queue worker")
+	require.Contains(t, conclusion, "always()")
+}
+
 func TestWorkQueueCompilationPhases(t *testing.T) {
 	dir := testutil.TempDir(t, "work-queue-compilation-")
 	workflowPath := filepath.Join(dir, "work-queue-worker.md")

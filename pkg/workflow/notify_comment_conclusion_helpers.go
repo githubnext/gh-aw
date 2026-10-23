@@ -588,7 +588,7 @@ func (c *Compiler) buildConclusionScriptEnvVars(data *WorkflowData, mainJobName 
 
 // buildConclusionJobCondition builds the condition guarding the conclusion job.
 func (c *Compiler) buildConclusionJobCondition(data *WorkflowData, mainJobName string, safeOutputJobNames []string) ConditionNode {
-	if workQueueRequiresAssignment(data) || workQueueIssuesConfig(data) != nil && isWorkQueueParticipant(data) {
+	if isWorkQueueWorker(data) || workQueueRequiresAssignment(data) || workQueueIssuesConfig(data) != nil && isWorkQueueParticipant(data) {
 		return BuildFunctionCall("always")
 	}
 	// Build the condition for this job:

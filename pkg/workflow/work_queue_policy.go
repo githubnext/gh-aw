@@ -66,8 +66,8 @@ func validateWorkQueueConfiguration(data *WorkflowData) error {
 		return errors.New("work-queue: status-comment writes are unscoped; use a Claim-scoped add-comment output")
 	}
 	if config, ok := value.(map[string]any); ok {
-		if required, exists := config["require-assignment"]; exists && required == false && isWorkQueueWorker(data) {
-			return errors.New("tools.work-queue.require-assignment: queue workers cannot disable immutable assignment validation")
+		if required, exists := config["require-assignment"]; exists && required == false && isWorkQueueWorker(data) && !isWorkQueueDualRole(data) {
+			return errors.New("tools.work-queue.require-assignment: optional assignments require a dispatch-workflow worker allowlist")
 		}
 		if isWorkQueueWorker(data) && data.RawFrontmatter != nil {
 			if on, exists := data.RawFrontmatter["on"]; exists && !containsWorkflowDispatch(on) {
@@ -674,7 +674,7 @@ func workQueuePolicyEnvironment(data *WorkflowData) []string {
 		return lines
 	}
 	// Runtime-derived defaults are not assertions about the installed global Policy.
-	if data.WorkQueuePolicy.Policy.Authorization == "aw" && !isWorkQueueWorker(data) || hasWorkQueuePolicyProposal(data) && hasExplicitWorkQueueProfiles(data) && hasExplicitWorkQueueProducers(data) {
+	if data.WorkQueuePolicy.Policy.Authorization == "aw" && !workQueueRequiresAssignment(data) || hasWorkQueuePolicyProposal(data) && hasExplicitWorkQueueProfiles(data) && hasExplicitWorkQueueProducers(data) {
 		encoded, err := json.Marshal(data.WorkQueuePolicy.Policy)
 		if err != nil {
 			return nil

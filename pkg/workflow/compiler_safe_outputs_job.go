@@ -420,7 +420,7 @@ func (c *Compiler) buildWorkQueueControlProcessingStep(data *WorkflowData) ([]st
 	env = append(env, "          GH_AW_WORK_QUEUE_CONTROL_CONFIG: "+fmt.Sprintf("%q", string(encoded))+"\n")
 	steps = append(steps, env...)
 	assignmentRequirement := ""
-	if isWorkQueueWorker(data) {
+	if workQueueRequiresAssignment(data) {
 		assignmentRequirement = ", requireAssignment: true"
 	}
 	steps = append(steps, "        with:\n")

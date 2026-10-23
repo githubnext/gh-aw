@@ -289,6 +289,9 @@ func isWorkQueueWorker(data *WorkflowData) bool {
 }
 
 func workQueueRuntimeRole(data *WorkflowData) string {
+	if isWorkQueueDualRole(data) {
+		return "${{ github.event_name == 'workflow_dispatch' && inputs.work_queue_assignment != '' && 'worker' || 'dispatcher' }}"
+	}
 	if workQueueRequiresAssignment(data) {
 		return "worker"
 	}
@@ -303,6 +306,9 @@ func isWorkQueueParticipant(data *WorkflowData) bool {
 }
 
 func workQueueRequiresAssignment(data *WorkflowData) bool {
+	if isWorkQueueDualRole(data) {
+		return false
+	}
 	if isWorkQueueWorker(data) {
 		return true
 	}
@@ -315,6 +321,18 @@ func workQueueRequiresAssignment(data *WorkflowData) bool {
 	}
 	required, ok := config["require-assignment"].(bool)
 	return ok && required
+}
+
+func isWorkQueueDualRole(data *WorkflowData) bool {
+	if !isWorkQueueWorker(data) || data.SafeOutputs == nil || data.SafeOutputs.DispatchWorkflow == nil || len(data.SafeOutputs.DispatchWorkflow.Workflows) == 0 {
+		return false
+	}
+	config, ok := data.Tools["work-queue"].(map[string]any)
+	if !ok {
+		return false
+	}
+	required, explicit := config["require-assignment"].(bool)
+	return explicit && !required
 }
 
 // addActivationInfoArtifactUploadStep appends an archived upload of aw_info.json.

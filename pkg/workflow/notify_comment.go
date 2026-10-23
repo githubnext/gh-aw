@@ -149,7 +149,7 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 		conclusionPerms = NewPermissions()
 		conclusionPerms.Set(PermissionContents, PermissionRead)
 		conclusionPerms.Set(PermissionActions, PermissionRead)
-		if workQueueRequiresAssignment(data) {
+		if isWorkQueueWorker(data) || workQueueRequiresAssignment(data) {
 			conclusionPerms.Set(PermissionContents, PermissionWrite)
 		}
 		if workQueueIssuesConfig(data) != nil {

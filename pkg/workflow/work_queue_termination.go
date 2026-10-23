@@ -3,7 +3,7 @@ package workflow
 import "fmt"
 
 func (c *Compiler) buildWorkQueueTerminationStep(data *WorkflowData) []string {
-	if !workQueueRequiresAssignment(data) {
+	if !isWorkQueueWorker(data) && !workQueueRequiresAssignment(data) {
 		return nil
 	}
 	steps := []string{
