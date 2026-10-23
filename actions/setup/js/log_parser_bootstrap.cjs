@@ -5,8 +5,9 @@ const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
-const { redactStepSummaryContent } = require("./redact_secrets.cjs");
+const { redactStepSummaryContent, redactSecrets } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, applyAddMaskRedaction } = require("./add_mask_redaction.cjs");
+const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { projectSessionResult, isTokenCount, observedSessionModel } = require("./agent_session.cjs");
 const { redactSessionForPublication } = require("./agent_session_render.cjs");
 const { writeSessionArtifact } = require("./session_artifact.cjs");
@@ -14,7 +15,7 @@ const { collectCodexJSONRecords } = require("./codex_log_framing.cjs");
 const { collectAgentExecution, parseAgentExitCode, isAgentExecutionEvent } = require("./agent_execution.cjs");
 const { hasCopilotConversation, hasMalformedJsonl, deduplicateCopilotFallback } = require("./copilot_session.cjs");
 const { isUnifiedSessionTrace } = require("./unified_session_render.cjs");
-const { readProtectedCommandOutput, discardUntrustedSessionArtifacts } = require("./protected_command_output.cjs");
+const { readProtectedCommandOutput, writeVerifiedExitCode, discardUntrustedSessionArtifacts } = require("./protected_command_output.cjs");
 const INFERENCE_ACCESS_ERROR_PATTERN = /Access denied by policy settings|invalid access to inference/i;
 const CLAUDE_RATE_LIMIT_PATTERN = /rate_limit_error|429 Too Many Requests|"api_error_status"\s*:\s*429|request rejected \(429\)|rate limit/i;
 const CLAUDE_OVERLOAD_PATTERN = /overloaded_error|"overloaded"/i;
@@ -254,6 +255,10 @@ async function runLogParser(options) {
     }
 
     const nativeCapture = protectedCapture ? readProtectedCommandOutput(logPath) : undefined;
+    if (nativeCapture) {
+      writeVerifiedExitCode(rootDir, nativeCapture.exitCode);
+      discardUntrustedSessionArtifacts(rootDir);
+    }
 
     const copilotStdioFallback = !protectedCapture && parserName === "Copilot" && supportsDirectories && fs.existsSync(stdioLogPath);
     if (!nativeCapture && !fs.existsSync(logPath) && !copilotStdioFallback) {
@@ -265,6 +270,7 @@ async function runLogParser(options) {
     /** @type {Array<{source: string, read: () => string}>} */
     const candidates = [];
     const publicationMasks = new Set(nativeCapture?.maskedValues ?? []);
+    const configuredSecretValues = protectedCapture ? collectArtifactSecretValues() : [];
 
     // Check if logPath is a directory or a file
     const stat = fs.existsSync(logPath) ? fs.statSync(logPath) : undefined;
@@ -345,7 +351,11 @@ async function runLogParser(options) {
       core.warning(`Copilot session log from ${source} is partially malformed; retaining supported observations without claiming the missing records were recovered`);
       selectedWarnings.push({ type: "session.collection_warning", data: { path: source, code: "malformed_jsonl" } });
     }
-    const redactPublication = text => applyAddMaskRedaction(redactStepSummaryContent(text), [...publicationMasks]);
+    const redactPublication = text => {
+      const redacted = redactStepSummaryContent(text);
+      const withConfiguredSecrets = protectedCapture ? redactSecrets(redacted, configuredSecretValues).content : redacted;
+      return applyAddMaskRedaction(withConfiguredSecrets, [...publicationMasks]);
+    };
 
     // Handle result that may be a simple string or an object with metadata
     let markdown = "";
@@ -591,7 +601,7 @@ async function runLogParser(options) {
       } else {
         const diagnostics = buildClaudeStartupDiagnostics(content);
         if (diagnostics.summaryMarkdown) {
-          await core.summary.addRaw(redactStepSummaryContent(diagnostics.summaryMarkdown)).write();
+          await core.summary.addRaw(redactPublication(diagnostics.summaryMarkdown)).write();
         }
 
         if (diagnostics.inferenceAccessError) {

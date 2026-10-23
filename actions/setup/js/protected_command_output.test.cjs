@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const { readProtectedCommandOutput, discardUntrustedSessionArtifacts } = require("./protected_command_output.cjs");
+const { readProtectedCommandOutput, writeVerifiedExitCode, discardUntrustedSessionArtifacts } = require("./protected_command_output.cjs");
 const { serializeSessionArtifact } = require("./session_artifact.cjs");
+const { normalizeAgentSession } = require("./agent_session.cjs");
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 describe("native protected command output", () => {
@@ -135,6 +136,31 @@ describe("native protected command output", () => {
     expect(fs.readFileSync(target, "utf8")).toBe("private data");
     expect(fs.existsSync(path.join(directory, "agent-stdio.log"))).toBe(false);
   });
+
+  it("removes error-session files and their temporary sibling", () => {
+    fs.writeFileSync(path.join(directory, "agent-errors.jsonl"), '{"type":"session.result"}');
+    fs.writeFileSync(path.join(directory, "agent-errors.jsonl.tmp"), '{"type":"tool.execution_complete"}');
+    discardUntrustedSessionArtifacts(directory);
+    expect(fs.existsSync(path.join(directory, "agent-errors.jsonl"))).toBe(false);
+    expect(fs.existsSync(path.join(directory, "agent-errors.jsonl.tmp"))).toBe(false);
+  });
+
+  it("atomically replaces a sidecar symlink with the verified exit code", () => {
+    const target = path.join(directory, "outside");
+    const sidecar = path.join(directory, "agent_execution_exit_code.txt");
+    fs.writeFileSync(target, "untrusted target", { mode: 0o600 });
+    fs.symlinkSync(target, sidecar);
+    writeVerifiedExitCode(directory, 17);
+    expect(fs.readFileSync(sidecar, "utf8")).toBe("17\n");
+    expect(fs.readFileSync(target, "utf8")).toBe("untrusted target");
+  });
+
+  it("replaces a read-only sidecar with the verified exit code", () => {
+    const sidecar = path.join(directory, "agent_execution_exit_code.txt");
+    fs.writeFileSync(sidecar, "0", { mode: 0o400 });
+    writeVerifiedExitCode(directory, 17);
+    expect(fs.readFileSync(sidecar, "utf8")).toBe("17\n");
+  });
 });
 
 describe("protected session structural redaction", () => {
@@ -161,5 +187,27 @@ describe("protected session structural redaction", () => {
   it("does not exempt payload-like keys at unknown schema paths", () => {
     const events = [{ type: "session.result", data: { status: "failure", usage: { result: "secret" } } }];
     expect(() => serializeSessionArtifact(events, ["secret"], { rejectStructuralRedaction: true })).toThrow("structural");
+  });
+
+  it("accepts normalized events whose optional properties are omitted by JSON serialization", () => {
+    const events = normalizeAgentSession([{ type: "system", subtype: "init", model: "test-model" }], { sourceEngine: "custom" });
+    expect(events[0].data.cwd).toBeUndefined();
+    expect(() => serializeSessionArtifact(events, [], { rejectStructuralRedaction: true })).not.toThrow();
+  });
+
+  it("rejects configured-secret collisions with structural fields", () => {
+    const previousNames = process.env.GH_AW_SECRET_NAMES;
+    const previousSecret = process.env.SECRET_STRUCTURE;
+    process.env.GH_AW_SECRET_NAMES = "STRUCTURE";
+    process.env.SECRET_STRUCTURE = "session.result";
+    try {
+      const events = [{ type: "session.result", data: { status: "failure" } }];
+      expect(() => serializeSessionArtifact(events, [], { rejectStructuralRedaction: true })).toThrow("structural");
+    } finally {
+      if (previousNames === undefined) delete process.env.GH_AW_SECRET_NAMES;
+      else process.env.GH_AW_SECRET_NAMES = previousNames;
+      if (previousSecret === undefined) delete process.env.SECRET_STRUCTURE;
+      else process.env.SECRET_STRUCTURE = previousSecret;
+    }
   });
 });

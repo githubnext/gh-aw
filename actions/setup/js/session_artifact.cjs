@@ -37,7 +37,13 @@ function serializeSessionArtifact(events, maskedValues = [], options = {}) {
   );
   if (options.rejectStructuralRedaction) {
     try {
-      events.forEach((event, index) => assertSessionStructurePreserved(event, JSON.parse(serialized[index]), maskedValues, event.type));
+      events.forEach((event, index) => {
+        const serializedEvent = JSON.parse(serialized[index]);
+        // Compare the JSON shape so ordinary omission of undefined optional fields is ignored.
+        // eslint-disable-next-line gh-aw-custom/prefer-structured-clone -- Structural validation must match JSON serialization semantics.
+        const originalSerializedEvent = JSON.parse(JSON.stringify(event));
+        assertSessionStructurePreserved(originalSerializedEvent, serializedEvent, maskedValues, event.type);
+      });
     } catch (error) {
       throw new Error(`${ERR_VALIDATION}: Session redaction changed structural fields or serialization`, { cause: error });
     }

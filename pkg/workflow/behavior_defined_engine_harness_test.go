@@ -145,9 +145,14 @@ func TestBehaviorDefinedEngineHarnessScript(t *testing.T) {
 		assert.Equal(t, protectedSessionCaptureLogPath, protectedEngine.GetLogFileForParsing())
 
 		var parserStep strings.Builder
+		parserStep.WriteString("      - name: Configure secret\n        env:\n          VALUE: ${{ secrets.CAPTURE_TEST_SECRET }}\n")
 		NewCompiler().generateLogParsing(&parserStep, &WorkflowData{}, protectedEngine)
 		assert.Contains(t, parserStep.String(), "GH_AW_AGENT_OUTPUT: "+protectedSessionCaptureLogPath)
 		assert.Contains(t, parserStep.String(), "GH_AW_PROTECTED_SESSION_CAPTURE: 1")
+		assert.Contains(t, parserStep.String(), "id: parse_agent_logs")
+		NewCompiler().generateTrackedSecretRedactionStep(&parserStep, parserStep.String(), &WorkflowData{})
+		assert.Contains(t, parserStep.String(), "GH_AW_SECRET_NAMES: 'CAPTURE_TEST_SECRET'")
+		assert.Contains(t, parserStep.String(), "SECRET_CAPTURE_TEST_SECRET: ${{ secrets.CAPTURE_TEST_SECRET }}")
 	})
 
 	t.Run("default_session_capture_remains_shared", func(t *testing.T) {

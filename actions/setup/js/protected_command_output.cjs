@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -108,10 +109,46 @@ function readProtectedCommandOutput(directory) {
   return { content: content.toString("utf8"), exitCode: metadata.command.exitCode, maskedValues: [...maskedValues] };
 }
 
+/**
+ * Atomically replace the shared exit-code sidecar with AWF's verified value.
+ * Renaming over the destination replaces a symlink itself rather than following it.
+ * @param {string} rootDir
+ * @param {number} exitCode
+ */
+function writeVerifiedExitCode(rootDir, exitCode) {
+  if (!Number.isInteger(exitCode) || exitCode < 0 || exitCode > 255) invalidCapture("invalid verified exit code");
+  const destination = path.join(rootDir, "agent_execution_exit_code.txt");
+  const temporary = `${destination}.${crypto.randomBytes(16).toString("hex")}.tmp`;
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporary, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW ?? 0), 0o600);
+    fs.writeFileSync(descriptor, `${exitCode}\n`, "utf8");
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = undefined;
+    fs.renameSync(temporary, destination);
+  } catch (error) {
+    let cause = error;
+    if (descriptor !== undefined) {
+      try {
+        fs.closeSync(descriptor);
+      } catch (closeError) {
+        cause = new AggregateError([cause, closeError], "Failed to close the temporary exit-code file");
+      }
+    }
+    try {
+      fs.unlinkSync(temporary);
+    } catch (cleanupError) {
+      cause = new AggregateError([cause, cleanupError], "Failed to remove the temporary exit-code file");
+    }
+    throw new Error(`${ERR_VALIDATION}: Failed to replace the shared session exit code with AWF's verified value`, { cause });
+  }
+}
+
 /** @param {string} rootDir */
 function discardUntrustedSessionArtifacts(rootDir) {
   const errors = [];
-  for (const name of ["agent-stdio.log", "agent-session.jsonl", "agent-session.jsonl.tmp"]) {
+  for (const name of ["agent-stdio.log", "agent-session.jsonl", "agent-session.jsonl.tmp", "agent-errors.jsonl", "agent-errors.jsonl.tmp"]) {
     try {
       fs.rmSync(path.join(rootDir, name), { force: true });
     } catch (error) {
@@ -121,4 +158,4 @@ function discardUntrustedSessionArtifacts(rootDir) {
   if (errors.length) throw new AggregateError(errors, `${ERR_VALIDATION}: Failed to discard sandbox-written session artifacts`);
 }
 
-module.exports = { readProtectedCommandOutput, discardUntrustedSessionArtifacts };
+module.exports = { readProtectedCommandOutput, writeVerifiedExitCode, discardUntrustedSessionArtifacts };
