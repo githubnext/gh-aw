@@ -57,6 +57,7 @@ if [ "$https_only" != true ] || [ "$https_redirects" != true ]; then
   echo "missing HTTPS-only initial/redirect policy" >&2; exit 96
 fi
 case "$url" in
+  */compat.json) cp "$TEST_ROOT/compat.json" "$out" ;;
   */checksums.txt) cp "$TEST_ROOT/checksums.txt" "$out" ;;
   */SHA256SUMS.txt) cp "$TEST_ROOT/SHA256SUMS.txt" "$out" ;;
   */awf-bundle.js|*/awf-linux-*|*/awf-darwin-*) cp "$TEST_ROOT/payload" "$out" ;;
@@ -90,7 +91,8 @@ run_copilot() {
   env TEST_ROOT="$TEMP_DIR" EXECUTION_LOG="$TEMP_DIR/executions" HOME="$TEMP_DIR/home" \
     GITHUB_PATH="$TEMP_DIR/github-path" RUNNER_TOOL_CACHE="$TEMP_DIR/empty-cache" \
     GH_AW_COPILOT_GUEST_LIBC="${PIN_TEST_GUEST_LIBC:-}" RUNNER_TEMP="$TEMP_DIR/runner" \
-    GH_AW_COMPILED_VERSION="" PATH="$TEMP_DIR/bin:$PATH" \
+    GH_AW_COMPILED_VERSION="${PIN_TEST_COMPILED_VERSION:-}" \
+    GH_AW_COPILOT_MIN_VERSION="${PIN_TEST_MIN_VERSION:-}" PATH="$TEMP_DIR/bin:$PATH" \
     bash "$TEMP_DIR/scripts/install_copilot_cli.sh" "$@" >"$TEMP_DIR/output" 2>&1
 }
 
@@ -106,6 +108,47 @@ run_copilot 1.0.98 --rootless
 test -x "$TEMP_DIR/home/.local/bin/copilot"
 rm -f "$TEMP_DIR/home/.local/bin/copilot"
 echo "PASS: authenticated Copilot archive installs and executes"
+
+printf '%s\n' '{"agent-compat-v1":{"copilot":[{"min-gh-aw":"0.72.0","max-gh-aw":"*","min-agent":"1.0.21","max-agent":"1.0.101"}]}}' >"$TEMP_DIR/compat.json"
+PIN_TEST_COMPILED_VERSION=v0.93.0 PIN_TEST_MIN_VERSION=1.0.35 run_copilot --rootless
+grep -q 'installation complete' "$TEMP_DIR/output"
+echo "PASS: compat-selected release installs on a runner with an empty toolcache"
+
+sed 's/1.0.101/9.9.9/' "$TEMP_DIR/compat.json" >"$TEMP_DIR/compat-next.json"
+cp "$TEMP_DIR/compat-next.json" "$TEMP_DIR/compat.json"
+rm -f "$TEMP_DIR/curl.log"
+PIN_TEST_COMPILED_VERSION=v0.93.0 PIN_TEST_MIN_VERSION=1.0.35 run_copilot --rootless
+grep -q 'falling back to reviewed default 1.0.101' "$TEMP_DIR/output"
+grep -q '/v1.0.101/copilot-linux-x64.tar.gz' "$TEMP_DIR/curl.log"
+if grep -q '/v9.9.9/' "$TEMP_DIR/curl.log"; then
+  echo "FAIL: downloaded an unreviewed compat target" >&2; exit 1
+fi
+echo "PASS: unpinned compat target falls back to an authenticated in-window default"
+
+for bounds in '1.0.102 9.9.9' '1.0.21 1.0.97'; do
+  read -r min_agent max_agent <<<"$bounds"
+  printf '{"agent-compat-v1":{"copilot":[{"min-gh-aw":"0.72.0","max-gh-aw":"*","min-agent":"%s","max-agent":"%s"}]}}\n' \
+    "$min_agent" "$max_agent" >"$TEMP_DIR/compat.json"
+  rm -f "$TEMP_DIR/curl.log"
+  if PIN_TEST_COMPILED_VERSION=v0.93.0 run_copilot --rootless; then
+    echo "FAIL: installed a default outside the compatibility window" >&2; exit 1
+  fi
+  test "$(wc -l <"$TEMP_DIR/curl.log" | tr -d ' ')" = 1
+done
+cp "$TEMP_DIR/compat-next.json" "$TEMP_DIR/compat.json"
+rm -f "$TEMP_DIR/curl.log"
+if PIN_TEST_COMPILED_VERSION=v0.93.0 PIN_TEST_MIN_VERSION=1.0.102 run_copilot --rootless; then
+  echo "FAIL: default fallback bypassed the feature minimum" >&2; exit 1
+fi
+test "$(wc -l <"$TEMP_DIR/curl.log" | tr -d ' ')" = 1
+rm -f "$TEMP_DIR/curl.log"
+if run_copilot 9.9.9 --rootless; then
+  echo "FAIL: explicit unreviewed release silently fell back" >&2; exit 1
+fi
+test ! -e "$TEMP_DIR/curl.log"
+rm -f "$TEMP_DIR/home/.local/bin/copilot"
+echo "PASS: fallback respects compatibility bounds, feature minimums, and explicit versions"
+
 for platform in Linux Darwin; do
   for arch in x86_64 arm64; do
     AWF_TEST_NODE_VERSION=v18.0.0 AWF_TEST_OS="$platform" AWF_TEST_ARCH="$arch" run_awf v0.28.62 --rootless

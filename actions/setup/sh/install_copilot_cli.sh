@@ -34,8 +34,8 @@ COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="${COPILOT_INSTALL_DIR:-/usr/local/bin}"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
-# DEFAULT_COPILOT_VERSION is the baked-in fallback used when neither an explicit version
-# argument nor a GH_AW_COMPILED_VERSION-backed compat.json lookup is available.
+# DEFAULT_COPILOT_VERSION is the baked-in fallback used when compat.json is unavailable
+# or selects an unpinned release (only if the default is within the compat window).
 # It is the last resort (priority 3) after engine.version (priority 1) and
 # compat.json toolcache lookup (priority 2).
 DEFAULT_COPILOT_VERSION="1.0.101"
@@ -765,6 +765,19 @@ if [ -z "$COPILOT_CHECKSUMS_SHA256" ] &&
 
   echo "ERROR: Cached Copilot CLI activation failed - command not found"
   exit 1
+fi
+
+# A live compatibility matrix can advance beyond the pins bundled in this action.
+# Keep cache selection unchanged, but never download an unreviewed release.
+if [ "$REQUESTED_VERSION" = "latest" ] && [ -n "$COMPAT_MATCHED_MAX_AGENT" ] &&
+  ! release_artifact_sha256 "$COPILOT_REPO" "$VERSION" SHA256SUMS.txt >/dev/null 2>&1; then
+  if version_is_greater "$COMPAT_MATCHED_MIN_AGENT" "$DEFAULT_COPILOT_VERSION" ||
+    version_is_greater "$DEFAULT_COPILOT_VERSION" "$COMPAT_MATCHED_MAX_AGENT"; then
+    echo "ERROR: Compat target ${VERSION} has no reviewed manifest pin and default ${DEFAULT_COPILOT_VERSION} is outside ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}; update the setup action or supply an explicit version with checksums-sha256." >&2
+    exit 1
+  fi
+  echo "Compat target ${VERSION} has no reviewed manifest pin; falling back to reviewed default ${DEFAULT_COPILOT_VERSION} within ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}." >&2
+  VERSION="$DEFAULT_COPILOT_VERSION"
 fi
 
 # Build download URLs
