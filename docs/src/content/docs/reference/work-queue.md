@@ -9,7 +9,7 @@ For architecture, a [minimal deployment example](/gh-aw/patterns/workqueue-ops/#
 
 ## Initialization and authorization
 
-The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. `policy` updates only an existing, quiescent queue.
+The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. On an AW-managed queue, first use can add a new pool from the caller's compiled configuration as an additive `PoolInstall` operation; it preserves existing pools and the Policy epoch. Economic or existing-pool changes still require a quiescent queue and an explicit `policy` update.
 
 Native `submit-work` and `submit-graph` resolve scheduling and approved AW worker routes from the verified repository revision, not an unrelated local checkout. Assignment-capable workers must already be published.
 
