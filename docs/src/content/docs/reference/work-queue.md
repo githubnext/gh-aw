@@ -339,6 +339,8 @@ HTTP failure diagnostics include validated quota counters, `rate_limit_reset_uni
 
 Projection coordination failures emit `projection.locks.acquire.failed` and counts of requested versus acknowledged locks. `projection.locks.retained` indicates unacknowledged native writes whose locks remain held. These diagnostics do not authorize retries, worker reruns, receipt recreation, or lock deletion.
 
+GraphQL failures include a validated GitHub request ID even when no HTTP status is exposed. Up to 50 `.graphql_error` records identify the error index, allowlisted type and operation, and recognized zero-based lock (`l0`–`l49`), unlock (`u0`–`u49`), or Issue projection (`m0`–`m49`) alias. `graphql_result_present` means only that the alias returned non-null data, not that a native receipt was verified. `graphql_reference_already_exists` recognizes the exact reference-conflict message; it does not establish lock ownership or authorize deletion. Unknown paths/types remain unclassified, and excess errors are marked `graphql_errors_truncated`. Raw messages, paths, queries, variables, and response bodies are never printed.
+
 ### Diagnostic artifacts
 
 Claim audit exports contain operations, temporary-ID references, and structured errors, not raw handler output or proof of Result. Default retention is one day; failed worker `safe-outputs-items` are retained for seven days. Repository policy or `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` can override retention. Uploads fail if redaction fails.

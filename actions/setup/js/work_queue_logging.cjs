@@ -6,6 +6,28 @@ const { performance } = require("node:perf_hooks");
 
 /** @type {Map<string, number>} */
 const lastEmittedAt = new Map();
+const MAX_GRAPHQL_ERRORS = 50;
+const GRAPHQL_ERROR_FIELDS = new Map([
+  ["RATE_LIMITED", "graphql_rate_limited"],
+  ["FORBIDDEN", "graphql_forbidden"],
+  ["UNPROCESSABLE", "graphql_unprocessable"],
+  ["NOT_FOUND", "graphql_not_found"],
+  ["GRAPHQL_VALIDATION_FAILED", "graphql_validation_failed"],
+  ["INTERNAL", "graphql_internal"],
+]);
+const GRAPHQL_OPERATIONS = new Map([
+  ["createRef", "graphql_operation_create_ref"],
+  ["deleteRef", "graphql_operation_delete_ref"],
+  ["createIssue", "graphql_operation_create_issue"],
+  ["addComment", "graphql_operation_add_comment"],
+  ["updateIssueComment", "graphql_operation_update_comment"],
+  ["addLabelsToLabelable", "graphql_operation_add_labels"],
+  ["removeLabelsFromLabelable", "graphql_operation_remove_labels"],
+  ["closeIssue", "graphql_operation_close_issue"],
+  ["createLabel", "graphql_operation_create_label"],
+  ["updateLabel", "graphql_operation_update_label"],
+  ["createCommitOnBranch", "graphql_operation_publish_commit"],
+]);
 
 const CONTROL_ERROR_CODES = new Set([
   "checkpoint_invalid",
@@ -125,6 +147,34 @@ function headerInteger(headers, name) {
   return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
+/** @param {unknown} error @param {unknown} data @param {number} index */
+function graphqlErrorMetadata(error, data, index) {
+  /** @type {Record<string, number | boolean>} */
+  const fields = { index };
+  const type = ownValue(error, "type");
+  fields[GRAPHQL_ERROR_FIELDS.get(type) || "graphql_unknown_type"] = true;
+  const path = ownValue(error, "path");
+  const depth = ownValue(path, "length");
+  fields.graphql_path_present = Number.isSafeInteger(depth) && depth > 0;
+  const root = fields.graphql_path_present ? ownValue(path, "0") : undefined;
+  const alias = typeof root === "string" && root.length <= 3 ? /^(l|m|u)(0|[1-9][0-9]?)$/.exec(root) : null;
+  let operation = GRAPHQL_OPERATIONS.get(root);
+  if (alias && alias[0] === root && Number(alias[2]) < 50) {
+    const field = alias[1] === "l" ? "graphql_lock_alias" : alias[1] === "u" ? "graphql_unlock_alias" : "graphql_projection_alias";
+    fields[field] = Number(alias[2]);
+    operation = alias[1] === "l" ? "graphql_operation_create_ref" : alias[1] === "u" ? "graphql_operation_delete_ref" : "graphql_operation_issue_projection";
+  }
+  if (operation) {
+    fields[operation] = true;
+    fields.graphql_result_present = ownValue(data, root) != null;
+  } else if (fields.graphql_path_present) {
+    fields.graphql_path_unclassified = true;
+  }
+  // Exact provider wording is diagnostic evidence only, never proof of no write.
+  if (type === "UNPROCESSABLE" && operation === "graphql_operation_create_ref" && ownValue(error, "message") === "A reference with that name already exists.") fields.graphql_reference_already_exists = true;
+  return fields;
+}
+
 /** @param {unknown} error */
 function githubFailureMetadata(error) {
   const response = ownValue(error, "response");
@@ -170,15 +220,15 @@ function githubFailureMetadata(error) {
     if (transportCodes.includes(code)) fields[`transport_${code.toLowerCase()}`] = true;
   }
   const count = ownValue(errors, "length");
-  if (Number.isSafeInteger(count) && count > 0 && count <= 50) {
+  if (Number.isSafeInteger(count) && count > 0) {
     fields.graphql_errors = count;
-    for (let index = 0; index < count; index++) {
-      const type = ownValue(ownValue(errors, String(index)), "type");
-      if (type === "RATE_LIMITED") fields.graphql_rate_limited = true;
-      if (type === "FORBIDDEN") fields.graphql_forbidden = true;
-      if (type === "UNPROCESSABLE") fields.graphql_unprocessable = true;
-      if (type === "NOT_FOUND") fields.graphql_not_found = true;
-      if (type === "GRAPHQL_VALIDATION_FAILED") fields.graphql_validation_failed = true;
+    if (count > MAX_GRAPHQL_ERRORS) fields.graphql_errors_truncated = true;
+    else {
+      for (let index = 0; index < count; index++) {
+        const type = ownValue(ownValue(errors, String(index)), "type");
+        const field = GRAPHQL_ERROR_FIELDS.get(type);
+        if (field) fields[field] = true;
+      }
     }
   }
   return fields;
@@ -254,9 +304,10 @@ function createWorkQueueLogger(component) {
     const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
     const metadata = githubFailureMetadata(error);
     const code = queueControlErrorCode(error, metadata);
-    const requestId = ownValue(ownValue(response, "headers"), "x-github-request-id");
-    const validRequestId = typeof requestId === "string" && !/\s/.test(requestId) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(requestId);
-    const requestDiagnostic = Number.isInteger(status) && status >= 100 && status <= 599 ? ` GitHub request ID: ${validRequestId ? requestId : "unknown"}.` : "";
+    const headers = ownValue(response, "headers") ?? ownValue(error, "headers");
+    const requestId = ownValue(headers, "x-github-request-id");
+    const validRequestId = typeof requestId === "string" && requestId.length <= 84 && !/\s/.test(requestId) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(requestId);
+    const requestDiagnostic = (Number.isInteger(status) && status >= 100 && status <= 599) || headers !== undefined || metadata.graphql_errors ? ` GitHub request ID: ${validRequestId ? requestId : "unknown"}.` : "";
     diagnostic(
       event,
       {
@@ -274,6 +325,12 @@ function createWorkQueueLogger(component) {
       },
       queueControlErrorExplanation(code) + requestDiagnostic
     );
+    const count = typeof metadata.graphql_errors === "number" ? Math.min(metadata.graphql_errors, MAX_GRAPHQL_ERRORS) : 0;
+    const errors = ownValue(error, "errors");
+    const data = ownValue(error, "data") ?? ownValue(ownValue(response, "data"), "data");
+    for (let index = 0; index < count; index++) {
+      diagnostic(`${event}.graphql_error`, graphqlErrorMetadata(ownValue(errors, String(index)), data, index));
+    }
   }
   return { debug, diagnostic, failure };
 }
