@@ -1869,9 +1869,45 @@ async function getSecretRedactionError(jobId, step) {
 }
 
 /**
- * Find the failed agent step using Actions metadata only, never agent-generated log text.
+ * Read only the failed pre-agent step's log window, never subsequent agent output.
+ * @param {number} jobId
+ * @param {{started_at?: string, completed_at?: string}} step
+ * @param {{started_at?: string}} [nextStep]
+ * @returns {Promise<string>}
+ */
+async function getStartupLogExcerpt(jobId, step, nextStep) {
+  const start = Date.parse(step.started_at || "");
+  const completed = Date.parse(step.completed_at || "");
+  const nextStart = Date.parse(nextStep?.started_at || "");
+  if (!Number.isFinite(start)) return "";
+  if (!Number.isFinite(completed)) return "";
+  // Actions metadata has second precision; do not cross into the next step.
+  const end = Math.min(completed + 1000, Number.isFinite(nextStart) ? nextStart : Infinity);
+  if (!Number.isSafeInteger(jobId) || jobId <= 0 || completed < start || end <= start) return "";
+  try {
+    const { data } = await github.rest.actions.downloadJobLogsForWorkflowRun({ ...context.repo, job_id: jobId });
+    if (typeof data !== "string" && !(data instanceof ArrayBuffer) && !(data instanceof Uint8Array)) return "";
+    const log = typeof data === "string" ? data : Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data).toString("utf8");
+    const lines = [];
+    for (const line of log.split(/\r?\n/)) {
+      const record = line.match(/^(\d{4}-\d{2}-\d{2}T\S+Z) (.+)$/);
+      if (!record || isAddMaskCommandLine(line)) continue;
+      const timestamp = Date.parse(record[1]);
+      if (!Number.isFinite(timestamp) || timestamp < start || timestamp >= end) continue;
+      lines.push(record[2]);
+      if (lines.length > 20) lines.shift();
+    }
+    return redactAndBoundDiagnostics(lines.join("\n"), { maskedValues: collectAddMaskedValues(log), maxLength: 4000 });
+  } catch {
+    core.warning("Could not retrieve startup logs; see the failed step in the linked run.");
+    return "";
+  }
+}
+
+/**
+ * Find the failed agent step using Actions metadata, with pre-agent logs only for startup failures.
  * @param {{startupFailure?: boolean}} [options] - Select the first failed step only for a validated collector startup failure.
- * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string, hasNoJobs?: boolean, secretRedactionFailed?: boolean, stepError?: string}>}
+ * @returns {Promise<{failingStep: string, agentConclusion?: string, attributionUnavailable?: string, hasNoJobs?: boolean, secretRedactionFailed?: boolean, stepError?: string, startupLogExcerpt?: string}>}
  */
 async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
   let jobs;
@@ -1930,15 +1966,16 @@ async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
     failingStep,
     agentConclusion,
     ...(failedStep === redactionStep ? { secretRedactionFailed: true, stepError: await getSecretRedactionError(agentJob.id, redactionStep) } : {}),
+    ...(startupFailure && !redactionStep ? { startupLogExcerpt: await getStartupLogExcerpt(agentJob.id, failedStep, steps[steps.indexOf(failedStep) + 1]) } : {}),
   };
 }
 
 /**
  * Add step-level context to generic agent and infrastructure failures.
- * @param {{failureCategories: string[], failingStep: string, agentConclusion?: string, attributionUnavailable?: string, stepError?: string, engineFailureContext: string, checkoutError?: string, items?: Array<any>}} options
+ * @param {{failureCategories: string[], failingStep: string, agentConclusion?: string, attributionUnavailable?: string, stepError?: string, startupLogExcerpt?: string, engineFailureContext: string, checkoutError?: string, items?: Array<any>}} options
  * @returns {string}
  */
-function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", stepError = "", engineFailureContext, checkoutError = "", items = [] }) {
+function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentConclusion = "", attributionUnavailable = "", stepError = "", startupLogExcerpt = "", engineFailureContext, checkoutError = "", items = [] }) {
   const checkoutContext = checkoutError
     ? `\n### Runtime Checkout Rejected\n\n${renderSafeInlineCodeSpan(checkoutError)}\n\nThe checkout job failed before creating the selected checkouts. Update the explicit repository list or its \`allowed-repos\` policy; public workflows cannot check out private or internal repositories.\n\n`
     : "";
@@ -1968,6 +2005,8 @@ function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentC
   }
   if (stepError) {
     context += renderErrorDetails(stepError) + "\n\n";
+  } else if (failureCategories.includes("agent_startup_failure")) {
+    context += startupLogExcerpt ? "**Last startup setup/gateway log lines:**\n\n" + renderErrorDetails(startupLogExcerpt) + "\n\n" : "Startup setup/gateway log lines are unavailable. Inspect the failing step in the linked run.\n\n";
   } else if (engineFailureContext.trim()) {
     context += engineFailureContext.trim() + "\n\n";
   } else if (hasModelEndpointMismatch) {
@@ -1980,7 +2019,13 @@ function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentC
   if (attributionUnavailable) {
     context += `<details>\n<summary>Why step details are unavailable</summary>\n\n${attributionUnavailable}\n\n</details>\n\n`;
   }
-  context += "_Only runtime metadata is shown; agent-generated text is excluded._\n\n";
+  if (failureCategories.includes("agent_startup_failure")) {
+    context +=
+      "For transient network/DNS errors, timeouts, rate limits, or service outages, wait briefly and re-run failed jobs in the linked run. If the failure persists, inspect setup/gateway configuration and credentials before retrying.\n\n";
+    context += "_Only runtime metadata and available pre-agent setup logs are shown; agent-generated text is excluded._\n\n";
+  } else {
+    context += "_Only runtime metadata is shown; agent-generated text is excluded._\n\n";
+  }
 
   return context;
 }

@@ -716,6 +716,95 @@ describe("handle_agent_failure", () => {
       expect(global.github.request).not.toHaveBeenCalled();
     });
 
+    function mockStartupStepLog(log) {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        {
+          id: 456,
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Start MCP Gateway", conclusion: "failure", started_at: "2026-10-10T10:00:01Z", completed_at: "2026-10-10T10:00:03Z" },
+            { name: "Execute GitHub Copilot CLI", conclusion: "skipped", started_at: "2026-10-10T10:00:03Z" },
+          ],
+        },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockResolvedValue({ data: log });
+    }
+
+    it.each(["string", "buffer", "arraybuffer"])("renders the failed startup step's last log lines from %s without other steps or secrets", async format => {
+      const log = [
+        "2026-10-10T10:00:00.000Z ::add-mask::startup-private-fixture",
+        "2026-10-10T10:00:00.500Z previous setup step",
+        ...Array.from({ length: 25 }, (_, i) => `2026-10-10T10:00:01.500Z gateway diagnostic ${i}`),
+        "2026-10-10T10:00:02.000Z ::add-mask::second-private-fixture",
+        "2026-10-10T10:00:02.500Z ##[error]Gateway connection failed: EAI_AGAIN startup-private-fixture second-private-fixture",
+        "2026-10-10T10:00:03.000Z subsequent step output",
+        "2026-10-10T10:00:04.000Z private agent output",
+        "untimestamped private output",
+      ].join("\n");
+      const buffer = Buffer.from(log);
+      mockStartupStepLog(format === "string" ? log : format === "buffer" ? buffer : buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure"], engineFailureContext: "" });
+
+      expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({ owner: "owner", repo: "repo", job_id: 456 });
+      expect(diagnostics.startupLogExcerpt.split("\n")).toHaveLength(20);
+      expect(rendered).toContain("Failing step:** `Start MCP Gateway`");
+      expect(rendered).toContain("**Last startup setup/gateway log lines:**");
+      expect(rendered).toContain("Gateway connection failed: EAI_AGAIN");
+      expect(rendered).toContain("gateway diagnostic 24");
+      for (const excluded of ["gateway diagnostic 0", "previous setup step", "subsequent step output", "private agent output", "untimestamped private output", "startup-private-fixture", "second-private-fixture", "::add-mask::"]) {
+        expect(rendered).not.toContain(excluded);
+      }
+      expect(rendered).toContain("wait briefly and re-run failed jobs");
+      expect(rendered).toContain("configuration and credentials before retrying");
+    });
+
+    it("bounds startup diagnostics and keeps hostile Markdown inside a literal code block", async () => {
+      mockStartupStepLog("2026-10-10T10:00:02.500Z ```text\n2026-10-10T10:00:02.600Z # hostile heading\n2026-10-10T10:00:02.700Z " + "x".repeat(10000));
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure"], engineFailureContext: "" });
+      expect(diagnostics.startupLogExcerpt.length).toBeLessThan(4100);
+      expect(rendered).toContain("````text\n```text\n# hostile heading");
+      expect(rendered).toContain("\n````\n");
+      expect(rendered).not.toContain("x".repeat(4001));
+    });
+
+    it.each(["empty", "denied", "invalid", "missing timestamps", "invalid interval"])("keeps the startup step and retry guidance when logs are %s", async reason => {
+      mockStartupStepLog("");
+      if (reason === "denied") global.github.rest.actions.downloadJobLogsForWorkflowRun.mockRejectedValue(new Error("private API response"));
+      if (reason === "invalid") global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: {} });
+      if (reason === "missing timestamps" || reason === "invalid interval") {
+        global.github.paginate.mockResolvedValue([
+          {
+            id: 456,
+            name: "agent",
+            conclusion: "failure",
+            steps: [{ name: "Start MCP Gateway", conclusion: "failure", ...(reason === "invalid interval" ? { started_at: "2026-10-10T10:00:03Z", completed_at: "2026-10-10T10:00:01Z" } : {}) }],
+          },
+        ]);
+      }
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["agent_startup_failure"], engineFailureContext: "" });
+      expect(rendered).toContain("Failing step:** `Start MCP Gateway`");
+      expect(rendered).toContain("Startup setup/gateway log lines are unavailable");
+      expect(rendered).toContain("re-run failed jobs");
+      expect(rendered).not.toContain("private API response");
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("private API response");
+      if (reason === "missing timestamps" || reason === "invalid interval") expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
+    });
+
+    it("withholds startup excerpts when secret redaction failed", async () => {
+      mockStartupStepLog("2026-10-10T10:00:02.500Z private startup output");
+      const jobs = await global.github.paginate();
+      jobs[0].steps.push({ name: "Redact secrets in logs", conclusion: "failure" });
+      const diagnostics = await getFailedAgentDiagnostics({ startupFailure: true });
+      expect(diagnostics.failingStep).toBe("Start MCP Gateway");
+      expect(diagnostics.startupLogExcerpt).toBeUndefined();
+      expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).not.toHaveBeenCalled();
+    });
+
     it("uses dependency results as the job fallback when the jobs API returns nothing", async () => {
       global.github = {
         paginate: vi.fn().mockResolvedValue([]),
@@ -7131,17 +7220,21 @@ describe("handle_agent_failure", () => {
       global.github = {
         paginate: vi.fn(async () => [
           {
+            id: 456,
             name: "agent",
             conclusion: "failure",
             steps: [
-              { name: "Start MCP Gateway", conclusion: "failure" },
+              { name: "Start MCP Gateway", conclusion: "failure", started_at: "2026-10-10T10:00:01Z", completed_at: "2026-10-10T10:00:02Z" },
               { name: "Run agent", conclusion: "skipped" },
               { name: "Post Run agent", conclusion: "failure" },
             ],
           },
         ]),
         rest: {
-          actions: { listJobsForWorkflowRun: vi.fn() },
+          actions: {
+            listJobsForWorkflowRun: vi.fn(),
+            downloadJobLogsForWorkflowRun: vi.fn(async () => ({ data: "2026-10-10T10:00:01.500Z ##[error]Gateway setup timed out" })),
+          },
           search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
           issues: { create: createIssueMock },
           pulls: { get: vi.fn() },
@@ -7158,6 +7251,8 @@ describe("handle_agent_failure", () => {
         const body = createIssueMock.mock.calls[0][0].body;
         expect(body).toContain("Agent execution state: not_started");
         expect(body).toContain("Failing step:** `Start MCP Gateway`");
+        expect(body).toContain("Gateway setup timed out");
+        expect(body).toContain("wait briefly and re-run failed jobs");
         expect(body).not.toContain("Failing step:** `Post Run agent`");
         expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
         expect(body).not.toContain("copilot-requests:write");
