@@ -189,7 +189,10 @@ async function assertClaimAuthorized(message, options = {}) {
   if (options.effect === true) {
     if (execution?.closedEffectChannel) throw scopeError("Claim write channel is closed for independent delivery verification");
     if (resourceExecution.getStore()?.verification) throw scopeError("Claim resource verification is read-only");
-    if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) throw scopeError("read-only Claim preview cannot perform resource effects");
+    if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) {
+      console.log("🎭 Staged Mode Preview — blocking resource effects for read-only Claim preview");
+      throw scopeError("read-only Claim preview cannot perform resource effects");
+    }
     const member = scope.assignment.claims.find(claim => claim.handle === normalized.claim_handle);
     if (member.work.effect_contract?.kind === "none" || member.work.effect_contract?.no_writes === true) throw scopeError("immutable Work effect_contract prohibits ordinary resource writes");
     if (options.resource === undefined) throw scopeError("resource effects require their independently resolved immutable Work target");

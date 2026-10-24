@@ -9,7 +9,10 @@
  * @returns {Promise<string | null>}
  */
 async function getStalePullRequestReason(githubClient, runtimeContext) {
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") return null;
+  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+    console.log("🎭 Staged Mode Preview — skipping live pull request lifecycle check");
+    return null;
+  }
   const payload = runtimeContext?.payload;
   const pr = payload?.pull_request || (payload?.issue?.pull_request ? payload.issue : null);
   if (!pr || pr.state !== "open" || !Number.isSafeInteger(pr.number) || pr.number <= 0) return null;
