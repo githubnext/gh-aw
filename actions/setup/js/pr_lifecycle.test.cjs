@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 const { getStalePullRequestReason } = require("./pr_lifecycle.cjs");
 
 describe("PR lifecycle guard", () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
 
   const runtime = state => ({
     eventName: "pull_request",
@@ -55,10 +58,13 @@ describe("PR lifecycle guard", () => {
     await expect(getStalePullRequestReason(client(undefined), runtime("open"))).rejects.toThrow("Cannot determine current state");
   });
 
-  it("keeps staged previews available without API reads", async () => {
+  it("keeps staged previews available without API reads and logs a preview notice", async () => {
     vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
+    const core = { info: vi.fn() };
+    vi.stubGlobal("core", core);
     const github = client("closed");
     expect(await getStalePullRequestReason(github, runtime("open"))).toBeNull();
     expect(github.rest.pulls.get).not.toHaveBeenCalled();
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode Preview"));
   });
 });

@@ -64,6 +64,14 @@ if ! grep -q 'SEC-005: All cross-repo handlers validate allowlists' "$OUTPUT" ||
     exit 1
 fi
 
+for finding in TYPE-016 MCE-001 USE-001 USE-003; do
+    if grep -E "\\[(HIGH|MEDIUM|LOW)\\] $finding:" "$OUTPUT" >/dev/null; then
+        echo "FAIL: Expected no $finding safe-output conformance findings"
+        grep -E "\\[(HIGH|MEDIUM|LOW)\\] $finding:" "$OUTPUT"
+        exit 1
+    fi
+done
+
 mapfile -t findings < <(grep "IMP-004: Safe output config property is missing" "$OUTPUT" || true)
 mapfile -t target_findings < <(grep "IMP-005: Safe output target authorization conformance gap" "$OUTPUT" || true)
 

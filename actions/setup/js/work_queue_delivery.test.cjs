@@ -3,11 +3,16 @@ import { describe, expect, it } from "vitest";
 import checks from "./work_queue_claim_scope_checks.cjs";
 import { normalizeAssignment } from "./work_queue_claim_scope.cjs";
 import { digest } from "./work_queue_codec.cjs";
-import { validateDeliveryContract, verifyClaimDelivery, verifyBuiltinDeliveryOutput } from "./work_queue_delivery.cjs";
+import { createClaimDeliveryVerifier, validateDeliveryContract, verifyClaimDelivery, verifyBuiltinDeliveryOutput } from "./work_queue_delivery.cjs";
 
 checks.registerTests({ describe, it });
 
 describe("historical diagnostic delivery contracts", () => {
+  it("uses standardized codes for invalid verifier configuration", () => {
+    const original = assignment([{ type: "create_issue", min: 1, max: 1 }]);
+    expect(() => createClaimDeliveryVerifier({ assignment: original })).toThrow(/^ERR_VALIDATION:/);
+  });
+
   const assignment = outputs =>
     normalizeAssignment({
       version: 3,

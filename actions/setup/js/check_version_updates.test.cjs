@@ -176,6 +176,7 @@ describe("check_version_updates", () => {
     mockFetchError(new Error("ECONNREFUSED"));
     await runMain();
     expect(mockFetch).toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/^ERR_CONFIG:/));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.91.10 or newer"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("run `gh aw compile`"));
     expect(mockCore.summary.write).toHaveBeenCalled();

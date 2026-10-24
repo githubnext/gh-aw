@@ -6,6 +6,8 @@ const path = require("path");
 const crypto = require("crypto");
 const { AsyncLocalStorage } = require("async_hooks");
 const { identity, canonical, canonicalBytes } = require("./work_queue_codec.cjs");
+const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 const MAX_ASSIGNMENT_CLAIMS = 16;
 const claimExecution = new AsyncLocalStorage();
@@ -17,7 +19,7 @@ const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 
 function scopeError(message, code = "claim_scope_invalid") {
-  return Object.assign(new Error(`work_queue_claim_scope: ${message}`), { code });
+  return Object.assign(new Error(`${ERR_VALIDATION}: work_queue_claim_scope: ${message}`), { code });
 }
 
 function identifier(value, name) {
@@ -189,7 +191,10 @@ async function assertClaimAuthorized(message, options = {}) {
   if (options.effect === true) {
     if (execution?.closedEffectChannel) throw scopeError("Claim write channel is closed for independent delivery verification");
     if (resourceExecution.getStore()?.verification) throw scopeError("Claim resource verification is read-only");
-    if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) throw scopeError("read-only Claim preview cannot perform resource effects");
+    if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) {
+      logStagedPreviewInfo("Claim resource effects are not performed");
+      throw scopeError("read-only Claim preview cannot perform resource effects");
+    }
     const member = scope.assignment.claims.find(claim => claim.handle === normalized.claim_handle);
     if (member.work.effect_contract?.kind === "none" || member.work.effect_contract?.no_writes === true) throw scopeError("immutable Work effect_contract prohibits ordinary resource writes");
     if (options.resource === undefined) throw scopeError("resource effects require their independently resolved immutable Work target");

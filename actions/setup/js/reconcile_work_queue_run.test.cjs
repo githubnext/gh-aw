@@ -178,7 +178,7 @@ describe("inline trusted worker termination", () => {
     const { options } = setup();
     if (kind === "rerun") options.context.runAttempt = 2;
     else options.context.job = "safe_outputs";
-    await expect(main(options)).rejects.toThrow("work_queue_worker_finalizer_context_invalid");
+    await expect(main(options)).rejects.toThrow("ERR_VALIDATION: work_queue_worker_finalizer_context_invalid");
     expect(options.readWorkQueueLog).not.toHaveBeenCalled();
   });
 

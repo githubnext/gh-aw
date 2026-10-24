@@ -96,6 +96,21 @@ describe("immutable Claim scope", () => {
     });
   });
 
+  it("logs a staged preview notice before blocking Claim resource effects", async () => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
+    const core = { info: vi.fn() };
+    vi.stubGlobal("core", core);
+    try {
+      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1" }, async () => {
+        await expect(assertClaimAuthorized({ type: "create_issue", claim_handle: "h1" }, { effect: true, resource: {} })).rejects.toThrow(/^ERR_VALIDATION:/);
+      });
+      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode Preview"));
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("partitions prepared artifacts without path traversal or cross-Claim collisions", async () => {
     const base = "/workspace/artifacts";
     const first = await withClaimExecution({ assignment: assignment(2), claim_handle: "h1" }, () => scopedArtifactFilename(`${base}/aw-patch.patch`));

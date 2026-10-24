@@ -56,6 +56,10 @@ function pin(report, field) {
 }
 
 describe("model_pin_check acceptance cases", () => {
+  it("uses a standardized code for missing CLI configuration", () => {
+    expect(() => main([])).toThrow(/^ERR_CONFIG:/);
+  });
+
   it("1. a retired copilot/claude-opus-5 pin is unresolvable and listed under Action required", () => {
     const report = check({ ".github/workflows/gate.md": "---\nengine: pi\nmodel: copilot/claude-opus-5\n---\n# Gate\n" });
     const result = pin(report, "model");

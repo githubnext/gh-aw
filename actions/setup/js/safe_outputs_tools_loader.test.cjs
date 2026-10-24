@@ -827,6 +827,11 @@ describe("safe_outputs_tools_loader", () => {
         })
       );
     });
+
+    it("uses a standardized code when a tool definition cannot be cloned", () => {
+      const tools = [{ name: "add_comment", description: "Add comment", cloneFailure: () => {} }];
+      expect(() => registerPredefinedTools(mockServer, tools, { add_comment: {} }, vi.fn(), name => name)).toThrow(/^ERR_SYSTEM:/);
+    });
   });
 
   describe("registerDynamicTools", () => {
