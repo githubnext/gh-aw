@@ -212,11 +212,9 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 
 	for _, candidate := range candidates {
 		apiPath := constants.WorkflowsDirSlash + candidate + ".md"
-		args := []string{"api",
-			"repos/{owner}/{repo}/contents/" + url.PathEscape(apiPath),
+		args := repositoryAPIArgs(repoOverride, "", "contents/"+escapeEndpoint(apiPath),
 			"--jq", ".content",
-			"--repo", repoOverride,
-		}
+		)
 		cmd := workflow.ExecGH(args...)
 		out, err := cmd.Output()
 		if err != nil {
@@ -276,11 +274,9 @@ func parseExperimentMetricConfigs(
 // matches experimentName. This mirrors findWorkflowFileForExperiment for remote repos.
 // Returns "" when the directory cannot be listed or no match is found.
 func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string) string {
-	args := []string{"api",
-		"repos/{owner}/{repo}/contents/.github/workflows",
+	args := repositoryAPIArgs(repoOverride, "", "contents/.github/workflows",
 		"--jq", `[.[] | select(.name | endswith(".md")) | .name]`,
-		"--repo", repoOverride,
-	}
+	)
 	cmd := workflow.ExecGH(args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -399,11 +395,10 @@ func fetchLocalExperiments() ([]ExperimentInfo, error) {
 func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 	experimentsLog.Printf("Fetching remote experiment branches: repo=%s", repoOverride)
 
-	args := []string{"api", "repos/{owner}/{repo}/branches",
+	args := repositoryAPIArgs(repoOverride, "", "branches",
 		"--paginate",
-		"--jq", `[.[] | select(.name | startswith("` + experimentsBranchPrefix + `")) | .name]`,
-		"--repo", repoOverride,
-	}
+		"--jq", `[.[] | select(.name | startswith("`+experimentsBranchPrefix+`")) | .name]`,
+	)
 	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 	if err != nil {
@@ -452,11 +447,9 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 
 	// Verify the branch exists.
 	encodedBranch := url.PathEscape(branchName)
-	checkArgs := []string{"api",
-		"repos/{owner}/{repo}/branches/" + encodedBranch,
+	checkArgs := repositoryAPIArgs(repoOverride, "", "branches/"+encodedBranch,
 		"--jq", ".name",
-		"--repo", repoOverride,
-	}
+	)
 	checkCmd := workflow.ExecGH(checkArgs...)
 	if _, err := checkCmd.Output(); err != nil {
 		var exitErr *exec.ExitError
