@@ -54,7 +54,7 @@ async function createAssignToAgentGitHubClient(config) {
 }
 
 /**
- * Add credential guidance only after an assignment attempt fails.
+ * Build sanitized credential guidance after validation or an assignment fails.
  * @param {Object} config
  * @param {string} errorMessage
  * @returns {string}
@@ -70,6 +70,27 @@ function describeAssignmentCredentialFailure(config, errorMessage) {
   const presence = token ? "present" : "absent (using the step-level client)";
   const tokenFormat = classifyTokenFormat(token);
   return `${errorMessage}. Agent assignment credential source: ${source}. Dedicated assignment credential: ${presence}. Credential format: ${tokenFormat} (validity and permissions unverified). ${remedy}`;
+}
+
+/**
+ * Validate the selected credential once before processing assignment messages.
+ * @param {Object} githubClient
+ * @param {Object} config
+ * @returns {Promise<void>}
+ */
+async function validateAssignmentCredential(githubClient, config) {
+  try {
+    await githubClient.request("GET /rate_limit");
+  } catch (error) {
+    const status = Number(error && typeof error === "object" ? error.status || error.response?.status || 0 : 0);
+    const errorMessage = getErrorMessage(error);
+    if (status !== 401 && !/\b(?:bad credentials|not authenticated)\b/i.test(errorMessage)) {
+      core.debug("Assignment credential preflight did not identify an authentication failure");
+      return;
+    }
+
+    throw new Error(`Agent assignment credential validation failed: ${describeAssignmentCredentialFailure(config, "Bad credentials (HTTP 401)")}`);
+  }
 }
 
 /**
@@ -215,6 +236,14 @@ async function main(config = {}) {
 
   // Check if we're in staged mode
   const isStaged = isStagedMode(config);
+  if (!isStaged) {
+    try {
+      await validateAssignmentCredential(githubClient, config);
+    } catch (error) {
+      core.setFailed(getErrorMessage(error));
+      return async () => ({ success: true, skipped: true });
+    }
+  }
 
   core.info(`Default agent: ${defaultAgent}`);
   if (defaultModel) core.info(`Default model: ${defaultModel}`);
