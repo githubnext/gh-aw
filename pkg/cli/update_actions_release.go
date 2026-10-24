@@ -368,6 +368,9 @@ func findCooledDownActionVersion(
 // reaches the underlying non-tag object SHA, matching what tools like Renovate expect.
 func getActionSHAForTag(ctx context.Context, repo, tag string) (string, error) {
 	updateLog.Printf("Getting SHA for %s@%s", repo, tag)
+	if client := updateGitHubClientFromContext(ctx); client != nil {
+		return client.actionTagSHA(ctx, repo, tag)
+	}
 
 	// Fetch both SHA and object type to detect annotated tags.
 	// Annotated tags have type "tag" and their SHA points to the tag object,

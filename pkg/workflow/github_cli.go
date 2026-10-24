@@ -38,6 +38,15 @@ func getDefaultGHHost() string {
 	return defaultGHHost.host
 }
 
+// GitHubCLIHost returns the host used by gh helpers, including repository detection.
+// An empty result lets go-gh resolve the host from the user's gh configuration.
+func GitHubCLIHost() string {
+	if host := lookupProcessEnv("GH_HOST"); host != "" {
+		return host
+	}
+	return getDefaultGHHost()
+}
+
 // setupGHCommand creates an exec.Cmd for gh CLI with proper token configuration.
 // This is the core implementation shared by ExecGH and ExecGHContext.
 // When ctx is nil, it falls back to context.Background().

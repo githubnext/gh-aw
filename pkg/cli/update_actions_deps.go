@@ -76,6 +76,7 @@ func newCachedActionUpdateDeps(base actionUpdateDeps) actionUpdateDeps {
 		})
 	}
 	cached.getActionSHAForTag = func(ctx context.Context, repo, tag string) (string, error) {
+		repo = gitutil.ExtractBaseRepo(repo)
 		key := repo + "|" + tag
 		return loadActionUpdateResult(&mu, shas, key, func() (string, error) {
 			return base.getActionSHAForTag(ctx, repo, tag)
@@ -107,6 +108,9 @@ func defaultActionUpdateDeps() actionUpdateDeps {
 		getLatestReleaseViaGit: getLatestActionReleaseViaGit,
 		checkCoolDown:          checkReleaseCoolDown,
 		runGHReleasesAPI: func(ctx context.Context, baseRepo string) ([]byte, error) {
+			if client := updateGitHubClientFromContext(ctx); client != nil {
+				return client.releaseTags(ctx, baseRepo)
+			}
 			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", "--paginate", fmt.Sprintf("/repos/%s/releases?per_page=100", baseRepo), "--jq", ".[].tag_name")
 		},
 		getActionSHAForTag: getActionSHAForTag,

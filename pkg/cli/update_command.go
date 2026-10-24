@@ -226,6 +226,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	if opts.Verbose {
 		ctx = ctxutil.WithOperationReporter(ctx, reportUpdateNetworkOperation)
 	}
+	ctx = withUpdateGitHubClient(ctx, opts.Verbose)
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
 
 	var firstErr error
@@ -299,7 +300,11 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 
 	if firstErr == nil {
 		updateLog.Print("Validating action and container SHAs in actions-lock.json")
-		if err := validateUpdateSHAEntries(ctx, "."); err != nil {
+		resolvers := defaultValidationResolvers()
+		if client := updateGitHubClientFromContext(ctx); client != nil {
+			resolvers = client.validationResolvers(resolvers)
+		}
+		if err := validateUpdateSHAEntriesWithResolvers(ctx, ".", resolvers); err != nil {
 			return fmt.Errorf("update validation failed: %w", err)
 		}
 		if opts.Verbose {

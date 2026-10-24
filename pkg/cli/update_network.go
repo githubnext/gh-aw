@@ -6,7 +6,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const updateNetworkConcurrency = 4
+const updateNetworkConcurrency = 8
 
 // Only independent reads run concurrently; callers apply results and write files afterward.
 func runUpdateNetworkJobs(ctx context.Context, jobs []func()) error {
