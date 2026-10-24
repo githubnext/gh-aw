@@ -606,6 +606,30 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it.each([
+    ["lock", "l", "graphql_lock_alias", "graphql_operation_create_ref"],
+    ["projection", "m", "graphql_projection_alias", "graphql_operation_issue_projection"],
+    ["unlock", "u", "graphql_unlock_alias", "graphql_operation_delete_ref"],
+  ])("keeps the %s alias range independent of error-count bounds", (scheme, prefix, field, operation) => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    for (const index of [0, 49]) {
+      const alias = `${prefix}${index}`;
+      createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type: "INTERNAL", path: [alias] }], data: { [alias]: { private: "private-payload" } } }, true, scheme);
+      expect(output()).toContain(`${field}=${index} ${operation}=true graphql_result_present=true`);
+    }
+    expect(output()).not.toContain("private-");
+    stderr.mockClear();
+    for (const index of [50, 99]) {
+      const alias = `${prefix}${index}`;
+      createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type: "INTERNAL", path: [alias] }], data: { [alias]: { private: "private-payload" } } }, true, scheme);
+    }
+    expect(output().match(/graphql_path_unclassified=true/g)).toHaveLength(2);
+    expect(output()).not.toMatch(/graphql_(?:lock|unlock|projection)_alias=/);
+    expect(output()).not.toContain("graphql_operation_");
+    expect(output()).not.toContain("graphql_result_present");
+    expect(output()).not.toContain("private-");
+  });
+
+  it.each([
     ["createLabel", "graphql_operation_create_label"],
     ["updateLabel", "graphql_operation_update_label"],
   ])("reports the caller-selected operation category for unaliased %s errors", (operation, field) => {
@@ -726,8 +750,11 @@ describe("privacy-preserving work queue logging", () => {
     Object.defineProperty(errors, "5", { get: getter });
     createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", { errors }, true);
     expect(output()).toContain("graphql_errors=51 graphql_errors_truncated=true");
+    expect(stderr.mock.calls[0][0]).toContain("graphql_error_types_inspected=false");
+    expect(stderr.mock.calls[0][0]).not.toContain("graphql_unprocessable=true");
     expect(output()).toContain("graphql_error_details_omitted=46");
     expect(output().match(/\.graphql_error index=/g)).toHaveLength(5);
+    expect(output().match(/graphql_error_sample_only=true/g)).toHaveLength(5);
     expect(getter).not.toHaveBeenCalled();
     expect(output()).not.toContain("private-");
   });
@@ -741,13 +768,23 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain(".graphql_error ");
   });
 
-  it("preserves classification of oversized GraphQL error collections", () => {
-    vi.stubEnv("DEBUG", "work-queue:issues");
+  it.each([false, true])("preserves classification of oversized GraphQL error collections with debug=%s", debug => {
+    if (debug) vi.stubEnv("DEBUG", "work-queue:issues");
     const error = { errors: Array.from({ length: 51 }, () => ({ type: "RATE_LIMITED" })) };
     expect(queueControlErrorCode(error)).toBe("queue_control_authority_or_publication_failed");
     createWorkQueueLogger("issues").failure("projection.mutation.failed", error, true);
-    expect(output()).toContain("graphql_errors=51 graphql_errors_truncated=true");
-    expect(output()).toContain(".graphql_error index=0 graphql_rate_limited=true");
+    expect(stderr.mock.calls[0][0]).toContain("graphql_errors=51 graphql_errors_truncated=true graphql_error_types_inspected=false");
+    expect(stderr.mock.calls[0][0]).not.toContain("graphql_rate_limited=true");
+    expect(stderr.mock.calls[0][0]).toContain("queue_control_authority_or_publication_failed=true");
+    expect(output()).toContain(`graphql_error_details_omitted=${debug ? 46 : 51}`);
+    if (debug) {
+      expect(output()).toContain(".graphql_error index=0 graphql_rate_limited=true");
+      expect(output().match(/graphql_error_sample_only=true/g)).toHaveLength(5);
+      expect(stderr).toHaveBeenCalledTimes(6);
+    } else {
+      expect(output()).not.toContain(".graphql_error ");
+      expect(stderr).toHaveBeenCalledTimes(1);
+    }
     expect(output()).not.toContain("queue_control_github_rate_limited=true");
   });
 

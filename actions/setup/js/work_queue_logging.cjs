@@ -21,6 +21,7 @@ const GRAPHQL_OPERATIONS = new Map([
   ["createLabel", "graphql_operation_create_label"],
   ["updateLabel", "graphql_operation_update_label"],
 ]);
+const MAX_GRAPHQL_ALIASES = 50;
 const GRAPHQL_ALIAS_KINDS = new Map([
   ["l", { context: "lock", field: "graphql_lock_alias", operation: "graphql_operation_create_ref" }],
   ["m", { context: "projection", field: "graphql_projection_alias", operation: "graphql_operation_issue_projection" }],
@@ -163,7 +164,7 @@ function graphqlErrorMetadata(error, data, index, operationContext) {
   const alias = typeof root === "string" && root.length <= 3 ? /^(l|m|u)(0|[1-9][0-9]?)$/.exec(root) : null;
   let operation = operationContext && root === operationContext ? GRAPHQL_OPERATIONS.get(operationContext) : undefined;
   const kind = alias && GRAPHQL_ALIAS_KINDS.get(alias[1]);
-  if (alias && kind && kind.context === operationContext && Number(alias[2]) < 50) {
+  if (alias && kind && kind.context === operationContext && Number(alias[2]) < MAX_GRAPHQL_ALIASES) {
     fields[kind.field] = Number(alias[2]);
     operation = kind.operation;
   }
@@ -225,8 +226,10 @@ function githubFailureMetadata(error) {
   const count = ownValue(errors, "length");
   if (Number.isSafeInteger(count) && count > 0) {
     fields.graphql_errors = count;
-    if (count > MAX_GRAPHQL_ERRORS) fields.graphql_errors_truncated = true;
-    else {
+    if (count > MAX_GRAPHQL_ERRORS) {
+      fields.graphql_errors_truncated = true;
+      fields.graphql_error_types_inspected = false;
+    } else {
       for (let index = 0; index < count; index++) {
         const type = ownValue(ownValue(errors, String(index)), "type");
         const field = GRAPHQL_ERROR_FIELDS.get(type);
@@ -334,7 +337,9 @@ function createWorkQueueLogger(component) {
     const errors = ownValue(error, "errors");
     const data = ownValue(error, "data") ?? ownValue(ownValue(response, "data"), "data");
     for (let index = 0; index < count; index++) {
-      diagnostic(`${event}.graphql_error`, graphqlErrorMetadata(ownValue(errors, String(index)), data, index, operationContext));
+      const detail = graphqlErrorMetadata(ownValue(errors, String(index)), data, index, operationContext);
+      if (metadata.graphql_errors_truncated) detail.graphql_error_sample_only = true;
+      diagnostic(`${event}.graphql_error`, detail);
     }
   }
   return { debug, diagnostic, failure };
