@@ -25,6 +25,10 @@ describe("isolated custom graders", () => {
     });
   });
 
+  it("reports invalid session input with a stable error code", () => {
+    expect(() => createSessionLookups(null)).toThrow("ERR_GRADER_SESSION_INVALID: graders require an in-memory unified session event array");
+  });
+
   it("loads the published session and persists combined data-only artifacts", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-custom-graders-"));
     const originalCore = global.core;
