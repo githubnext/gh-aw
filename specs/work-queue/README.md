@@ -363,15 +363,20 @@ unsupported. Historical Policy-only genesis records remain readable. This
 compatibility does not authorize new standalone seeding.
 
 AW-managed queues resolve global scheduling and backing Issue/label settings
-from `.github/workflows/aw.json`, with default-only automatic bootstrap.
-AW authorizes participants and approved worker targets; queue configuration
-contains no enrollment, producer allowlists, worker principals or credential
-scopes. Installed Policy remains authoritative until an explicit quiescent
-update. `AWPolicy` records the default concurrency 16, pending limit 4096,
-singleton assignment, three delivery attempts and 30-second retry interval.
-These are bootstrap constants, not a proof of optional-setting normalization.
-The older scheduling models retain their historical policy/authentication
-assumptions; no model proves AW host authorization or credential acquisition.
+from `.github/workflows/aw.json`. `QueueBootstrap` models only first-submit
+genesis; `QueuePoolInstall` separately models an additive first-use pool on an
+existing AW-managed queue. The latter preserves installed pools, accepted Work
+and the Policy epoch, and demonstrates an authorized producer can install
+without administrator authority. Host authorization, proposal validity and verified
+worker-route properties are trusted inputs, not proved by either model.
+Queue configuration contains no enrollment, producer allowlists, worker
+principals or credential scopes. Economic Policy changes still require an
+explicit quiescent update. `AWPolicy` records the default concurrency 16,
+pending limit 4096, singleton assignment, three delivery attempts and 30-second
+retry interval. These are bootstrap constants, not a proof of optional-setting
+normalization. The older scheduling models retain their historical
+policy/authentication assumptions; no model proves AW host authorization or
+credential acquisition.
 
 Run the focused checks using the official jar documented below:
 
@@ -379,6 +384,22 @@ Run the focused checks using the official jar documented below:
 TLA2TOOLS_JAR=/path/to/tla2tools.jar TLC_MODEL_FILTER=QueueBootstrap \
   bash specs/work-queue/check.sh
 ```
+
+The additive pool model has the same focused entry point:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar TLC_MODEL_FILTER=QueuePoolInstall \
+  bash specs/work-queue/check.sh
+```
+
+| Configuration | Scope / expected result |
+|---|---|
+| `PoolInstall.cfg` | Check additive installation by an authorized producer. |
+| `PoolInstallInvalidProposal.cfg` | Reject proposals that change existing Policy. |
+| `PoolInstallInvalidPool.cfg` | Reject an invalid new pool definition. |
+| `PoolInstallInvalidRoute.cfg` | Reject unverified/invalid worker routes. |
+| `PoolInstallUnauthorized.cfg` | Reject publication without trusted host authorization. |
+| `PoolInstallProducerWitness.cfg` | Reach producer installation while preserving `Safety`; the deliberately false `NoProducerInstall` invariant must fail. |
 
 | Configuration | Scope / expected result |
 |---|---|
