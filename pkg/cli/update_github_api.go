@@ -124,9 +124,9 @@ func (c *updateGitHubClient) actionTagSHA(ctx context.Context, repo, tag string)
 		return "", fmt.Errorf("invalid commit SHA returned for %s@%s (expected a 40-character commit SHA)", repo, tag)
 	}
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.commits[repo+"|"+strings.ToLower(sha)] = struct{}{}
 	c.tags[repo+"|"+tag] = sha
-	c.mu.Unlock()
 	return sha, nil
 }
 

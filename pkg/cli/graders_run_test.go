@@ -27,12 +27,28 @@ func writeGraderRunWorkflow(t *testing.T, content string) string {
 	return "test"
 }
 
-func TestStageGraderRuntimeIncludesErrorCodes(t *testing.T) {
+func TestStageGraderRuntimeLoadsDependencies(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node unavailable")
+	}
 	directory, err := stageGraderRuntime(t.TempDir())
 	require.NoError(t, err)
-	content, err := os.ReadFile(filepath.Join(directory, "error_codes.cjs"))
+	flag, err := graderNodePermissionFlag(context.Background(), node)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "ERR_GRADER_SESSION_INVALID")
+
+	ctx, cancel := context.WithTimeout(context.Background(), graderJSTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, node, flag, "--allow-fs-read="+directory, "--eval", `
+const path = require("node:path");
+for (const name of ["trace_graders.cjs", "custom_graders.cjs", "operational_value_grader.cjs"]) {
+  require(path.join(process.argv[1], name));
+}
+`, directory)
+	cmd.Dir = t.TempDir()
+	cmd.Env = []string{}
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
 }
 
 func TestRunGraderFromUnifiedSession(t *testing.T) {

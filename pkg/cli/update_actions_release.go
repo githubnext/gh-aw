@@ -22,12 +22,6 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// getLatestActionRelease gets the latest release for an action repository
-// It respects semantic versioning and the allowMajor flag
-func getLatestActionRelease(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
-	return getLatestActionReleaseWithDeps(ctx, defaultActionUpdateDeps(), repo, currentVersion, allowMajor, verbose)
-}
-
 func getLatestActionReleaseWithDeps(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
