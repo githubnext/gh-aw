@@ -599,6 +599,18 @@ func TestGetCopilotAPITarget(t *testing.T) {
 			expected: "copilot-proxy.corp.example.com",
 		},
 		{
+			name: "GITHUB_COPILOT_BASE_URL strips HTTP scheme for host-only target",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						"GITHUB_COPILOT_BASE_URL": "http://copilot-proxy.corp.example.com:8080/v1",
+					},
+				},
+			},
+			expected: "copilot-proxy.corp.example.com:8080",
+		},
+		{
 			name: "literal COPILOT_PROVIDER_BASE_URL used as final fallback when other target sources are unset",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
@@ -879,11 +891,17 @@ func TestBuildAWFConfigJSONIncludesCopilotLiteralBYOKTarget(t *testing.T) {
 			wantHosts: []string{"host.docker.internal:11434", "api.acme.ghe.com"},
 		},
 		{
-			name:      "GitHub base URL takes precedence and preserves HTTP",
+			name:      "GitHub base URL takes precedence with host-only target",
 			baseURL:   "https://provider.example.com/v1",
 			githubURL: "http://copilot.example.com:8080/v1",
-			wantHost:  "http://copilot.example.com:8080",
+			wantHost:  "copilot.example.com:8080",
 			wantHosts: []string{"provider.example.com", "copilot.example.com:8080"},
+		},
+		{
+			name:      "HTTP GitHub base URL stays host-only without BYOK",
+			githubURL: "http://copilot.example.com:8080/v1",
+			wantHost:  "copilot.example.com:8080",
+			wantHosts: []string{"copilot.example.com:8080"},
 		},
 		{
 			name:      "GitHub HTTPS URL is not changed by HTTP provider URL",
