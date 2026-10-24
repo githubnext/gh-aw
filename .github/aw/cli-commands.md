@@ -83,6 +83,8 @@ gh aw compile --no-lint           # Disable default built-in AST lint (rejected 
 
 For debugging, follow the [compilation guide](debug-compilation.md) for required
 checks, optional Docker scanners, warning severity, and diagnostic preservation.
+Low-severity/informational notices are not blanket failures; apply the guide's
+severity rules separately from blocking lint findings.
 `validate` uses `--no-emit` and skips zizmor, actionlint and poutine; a successful
 `validate` does not establish scanner coverage. The compile MCP input
 `validate_images: true` opts into `--validate-images`, including with
