@@ -38,7 +38,7 @@ The design rationale and trade-offs are recorded in [ADR-64955](../../docs/adr/6
 
 The current operator commands and keyboard browser are documented in the
 [queue reference](../../docs/src/content/docs/reference/work-queue.md#operator-commands).
-First-submit Policy bootstrap, additive first-use AW pool installation and later
+First-submit Policy bootstrap, explicit additive AW pool installation and later
 quiescent Policy updates are documented in the
 [deployment guide](../../docs/src/content/docs/patterns/workqueue-ops.md#deploy-a-native-queue).
 This directory retains executable specifications and formal evidence, not a
@@ -364,13 +364,17 @@ compatibility does not authorize new standalone seeding.
 
 AW-managed queues resolve global scheduling and backing Issue/label settings
 from `.github/workflows/aw.json`. `QueueBootstrap` models only first-submit
-genesis; `QueuePoolInstall` separately models an additive first-use pool on an
+genesis; `QueuePoolInstall` separately models an explicit additive pool on an
 existing AW-managed queue. The latter preserves installed pools, accepted Work
 and the Policy epoch, and demonstrates an authorized producer can install
 without administrator authority. `RoutesApproved` represents the independent
 replay check that each profile is already authorized in installed Policy or an
 available registered Deployment revision; it is not the caller-local dispatch
 allowlist and cannot revive a revision marked unavailable.
+`RepositoryAllowlistPreserved` models replay's requirement that the added pool's
+repository allowlist be a subset of the repositories authorized by installed
+pools. Ordinary submit and dispatch intents do not implicitly publish
+`PoolInstall`; a missing pool is rejected before deployment synchronization.
 Host authorization, proposal validity, exact profile equality and native
 worker-route verification are abstract inputs, not proved by either model.
 Queue configuration contains no enrollment, producer allowlists, worker
@@ -399,6 +403,7 @@ TLA2TOOLS_JAR=/path/to/tla2tools.jar TLC_MODEL_FILTER=QueuePoolInstall \
 | Configuration | Scope / expected result |
 |---|---|
 | `PoolInstall.cfg` | Check additive installation by an authorized producer. |
+| `PoolInstallExpandedRepositoryAllowlist.cfg` | Reject installation that widens the existing repository allowlist. |
 | `PoolInstallInvalidProposal.cfg` | Reject proposals that change existing Policy. |
 | `PoolInstallInvalidPool.cfg` | Reject an invalid new pool definition. |
 | `PoolInstallInvalidRoute.cfg` | Reject unverified/invalid worker routes. |

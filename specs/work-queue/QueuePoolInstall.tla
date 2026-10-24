@@ -1,12 +1,13 @@
 -------------------------- MODULE QueuePoolInstall --------------------------
 EXTENDS Naturals, TLC
 
-\* Bounded additive first-use PoolInstall for an existing AW-managed queue.
+\* Bounded explicit additive PoolInstall for an existing AW-managed queue.
 \* Host authorization, proposal validity and verified worker-route properties
 \* are explicit trusted inputs; Git publication/CAS behavior is abstracted.
 CONSTANTS ExistingPool, NewPool, CallerRole, HostAuthorized,
           ProposalPreservesPolicy, NewPoolValid, RoutesValid,
-          RoutesImmutable, RepositoryScoped, RoutesApproved
+          RoutesImmutable, RepositoryScoped, RoutesApproved,
+          RepositoryAllowlistPreserved
 
 Roles == {"administrator", "producer", "dispatcher"}
 Phases == {"requested", "route-check", "ready", "done", "rejected"}
@@ -26,6 +27,7 @@ Init ==
     /\ RoutesImmutable \in BOOLEAN
     /\ RepositoryScoped \in BOOLEAN
     /\ RoutesApproved \in BOOLEAN
+    /\ RepositoryAllowlistPreserved \in BOOLEAN
     /\ installedPools = {ExistingPool}
     /\ acceptedWork = {"accepted"}
     /\ policyEpoch = 1
@@ -35,7 +37,7 @@ Init ==
 
 ValidateProposal ==
     /\ phase = "requested"
-    /\ phase' = IF ProposalPreservesPolicy /\ NewPoolValid
+    /\ phase' = IF ProposalPreservesPolicy /\ NewPoolValid /\ RepositoryAllowlistPreserved
                  THEN "route-check" ELSE "rejected"
     /\ UNCHANGED <<installedPools, acceptedWork, policyEpoch,
                    routesVerified, publications>>
@@ -54,7 +56,7 @@ InstallPool ==
     /\ routesVerified
     \* Replay independently checks authority, even for a direct ledger request.
     /\ RoutesApproved
-    /\ ProposalPreservesPolicy /\ NewPoolValid
+    /\ ProposalPreservesPolicy /\ NewPoolValid /\ RepositoryAllowlistPreserved
     /\ NewPool \notin installedPools
     /\ installedPools' = installedPools \cup {NewPool}
     /\ acceptedWork' = acceptedWork
@@ -91,6 +93,7 @@ PublicationAuthority ==
         /\ RoutesImmutable
         /\ RepositoryScoped
         /\ RoutesApproved
+        /\ RepositoryAllowlistPreserved
 Safety ==
     /\ TypeOK
     /\ ExistingPoolPreserved

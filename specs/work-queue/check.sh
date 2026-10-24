@@ -212,6 +212,7 @@ run_model BrokenBootstrapHost TrustedAWAuthority Invariant 12 QueueBootstrap
 run_model BrokenBootstrapEnrollment NoEnrollmentGate Invariant 12 QueueBootstrap
 run_model BootstrapTrustedAWWitness NoTrustedAWBootstrap Invariant 12 QueueBootstrap
 run_model PoolInstall "" Invariant 0 QueuePoolInstall
+run_model PoolInstallExpandedRepositoryAllowlist "" Invariant 0 QueuePoolInstall
 run_model PoolInstallInvalidProposal "" Invariant 0 QueuePoolInstall
 run_model PoolInstallInvalidPool "" Invariant 0 QueuePoolInstall
 run_model PoolInstallInvalidRoute "" Invariant 0 QueuePoolInstall

@@ -158,6 +158,20 @@ func TestAWPoolInstallPreservesPolicyEpochAndExistingState(t *testing.T) {
 		})
 	}
 
+	t.Run("expanded-repository-allowlist", func(t *testing.T) {
+		invalid := config
+		invalid.AllowedRepositories = append(slices.Clone(config.AllowedRepositories), "foreign/repo")
+		invalidOperation := mustOp(t, PoolInstallOperation{Kind: "PoolInstall", Pool: "invalid", Config: invalid})
+		request, err := NewRequest("invalid-repositories", "pool_install", testActor("dispatcher"), OperationsParameters{Operations: []Operation{invalidOperation}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := BuildCandidate(commits, testActor("dispatcher"), request, 5000); err == nil ||
+			!strings.Contains(err.Error(), "policy_invalid") {
+			t.Fatalf("PoolInstall expanded the installed repository allowlist: %v", err)
+		}
+	})
+
 	for _, name := range []string{"__proto__", "constructor", "prototype", "", strings.Repeat("é", 129)} {
 		t.Run("invalid-pool-"+name, func(t *testing.T) {
 			op := mustOp(t, PoolInstallOperation{Kind: "PoolInstall", Pool: name, Config: config})

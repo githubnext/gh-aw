@@ -1258,6 +1258,8 @@ function replayOrdered(ordered) {
           const policy = structuredClone(installedPolicy);
           Object.defineProperty(policy.pools, operation.pool, { value: structuredClone(operation.config), enumerable: true, configurable: true, writable: true });
           validatePolicy(policy);
+          const authorizedRepositories = new Set(Object.values(installedPolicy.pools).flatMap(pool => pool.allowed_repositories));
+          if (operation.config.allowed_repositories.some(repository => !authorizedRepositories.has(repository))) throw queueError("policy_invalid", "PoolInstall cannot expand the installed repository allowlist");
           if (Object.values(operation.config.profiles).some(profile => profile.effect_scope !== state.repository || Object.hasOwn(profile, "principal")))
             throw queueError("policy_invalid", "automatically installed AW pools must preserve repository-scoped authority");
           for (const [name, profile] of Object.entries(operation.config.profiles))

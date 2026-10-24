@@ -370,6 +370,18 @@ func (state *Projection) installReplayPool(operation Operation, commit QueueComm
 	if _, exists := state.Policy.Pools[install.Pool]; exists {
 		return queueError("policy_invalid", "only new pools can be installed into an AW-managed Policy")
 	}
+	for _, repository := range install.Config.AllowedRepositories {
+		authorized := false
+		for _, pool := range state.Policy.Pools {
+			if slices.Contains(pool.AllowedRepositories, repository) {
+				authorized = true
+				break
+			}
+		}
+		if !authorized {
+			return queueError("policy_invalid", "PoolInstall cannot expand the installed repository allowlist")
+		}
+	}
 	for name, profile := range install.Config.Profiles {
 		if profile.EffectScope != commit.Actor.Repository || profile.Principal != "" {
 			return queueError("policy_invalid", "AW-managed pool routes must preserve repository-scoped authority")

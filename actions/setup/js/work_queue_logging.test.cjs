@@ -271,7 +271,7 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it.each([
-    ["work_queue_pool_not_installed", "automatic installation adds only new pools"],
+    ["work_queue_pool_not_installed", "does not update the installed Policy"],
     ["work_queue_profile_not_approved", "quiescent queue"],
     ["work_queue_worker_not_compiler_approved", "do not bypass the worker allowlist"],
   ])("explains installed routing failures without exposing task data: %s", (code, recovery) => {
