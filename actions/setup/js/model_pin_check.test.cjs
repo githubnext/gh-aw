@@ -463,8 +463,8 @@ describe("repository-pins-reflection-regression", () => {
     }
 
     const unresolvable = report.action_required.map(({ workflow, field, configured, cause }) => ({ workflow, field, configured, cause }));
-    expect(unresolvable).toEqual(KNOWN_MAIN_FAILURES);
-    expect(report.counts.unresolvable).toBe(KNOWN_MAIN_FAILURES.length);
+    expect(unresolvable).toEqual([]);
+    expect(report.counts.unresolvable).toBe(0);
   });
 
   it("resolves the sub-agent aliases and keeps the GPT sub-agents on GPT models", () => {
