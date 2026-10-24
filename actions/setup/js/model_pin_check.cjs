@@ -33,7 +33,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ERR_MODEL_PIN_REFLECT_REQUIRED } = require("./error_codes.cjs");
+const { ERR_CONFIG, ERR_MODEL_PIN_REFLECT_REQUIRED } = require("./error_codes.cjs");
 const { parseDocument } = require("./work_queue_yaml.cjs");
 const { extractInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
 const { buildProviderCatalog, canonicalModelProvider, isLiveModelId, loadBuiltinModelAliases, ModelAliasResolutionError, resolveConfiguredModel, resolveModelAlias, splitModelIdentifier } = require("./resolve_model_alias.cjs");
