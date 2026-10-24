@@ -2,7 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execFileSync } = require("child_process");
+const { execFileSync, spawn } = require("child_process");
+const { createInterface } = require("readline");
 const { isRepoAllowed } = require("./repo_helpers.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 
@@ -284,6 +285,40 @@ function cleanCheckoutCredentials(dir, runnerTemp) {
 }
 
 /**
+ * @param {string} source
+ * @param {string} line
+ */
+function matchesSourceRef(source, line) {
+  const ref = line.split("\t")[1];
+  if (!ref) return false;
+  const wildcard = source.indexOf("*");
+  if (wildcard === -1) return ref === source;
+  return ref.length >= source.length - 1 && ref.startsWith(source.slice(0, wildcard)) && ref.endsWith(source.slice(wildcard + 1));
+}
+
+/**
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} source
+ * @returns {Promise<boolean>}
+ */
+function discoverRemoteRef(args, env, source) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", args, { env, stdio: ["ignore", "pipe", "ignore"], timeout: getSetupTimeoutMs("importGit") });
+    let matched = false;
+    createInterface({ input: child.stdout }).on("line", line => {
+      if (matchesSourceRef(source, line)) matched = true;
+    });
+    child.on("error", reject);
+    child.on("close", status => {
+      if (status === 0) resolve(matched);
+      else if (status === 2) resolve(false);
+      else reject(new Error("Unable to discover runtime checkout refs"));
+    });
+  });
+}
+
+/**
  * @param {{ cleanCredentials?: boolean, runGit?: (args: string[], options: import('child_process').ExecFileSyncOptionsWithStringEncoding) => string }} [options]
  */
 async function finish(options = {}) {
@@ -314,7 +349,7 @@ async function finish(options = {}) {
   for (const entry of entries) {
     const dir = workspacePath(config.workspace, entry.path);
     if (options.cleanCredentials) cleanCheckoutCredentials(dir, config.runnerTemp);
-    const run = (/** @type {string[]} */ args, authenticated = false, allowedExitCode = 0) => {
+    const run = async (/** @type {string[]} */ args, authenticated = false, allowedExitCode = 0) => {
       const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
       if (authenticated) {
         Object.assign(env, {
@@ -327,10 +362,11 @@ async function finish(options = {}) {
       }
       try {
         const command = ["-C", dir, ...args];
+        if (args[0] === "ls-remote" && !options.runGit) return await discoverRemoteRef(command, env, args[args.length - 1]);
         /** @type {import('child_process').ExecFileSyncOptionsWithStringEncoding} */
-        const execOptions = { encoding: "utf8", env, stdio: ["ignore", args[0] === "ls-remote" ? "ignore" : "pipe", "pipe"], timeout: getSetupTimeoutMs(authenticated ? "importGit" : "gitBranch") };
-        if (options.runGit) options.runGit(command, execOptions);
-        else execFileSync("git", command, execOptions);
+        const execOptions = { encoding: "utf8", env, stdio: ["ignore", "pipe", "pipe"], timeout: getSetupTimeoutMs(authenticated ? "importGit" : "gitBranch") };
+        const output = options.runGit ? options.runGit(command, execOptions) : execFileSync("git", command, execOptions);
+        if (args[0] === "ls-remote") return output.split("\n").some(line => matchesSourceRef(args[args.length - 1], line));
         return true;
       } catch (error) {
         if (allowedExitCode && error instanceof Error && "status" in error && error.status === allowedExitCode) return null;
@@ -338,8 +374,8 @@ async function finish(options = {}) {
       }
     };
     if (process.env.GH_AW_DYNAMIC_SPARSE) {
-      run(["config", "--local", "--unset-all", "remote.origin.promisor"], false, 5);
-      run(["config", "--local", "--unset-all", "remote.origin.partialclonefilter"], false, 5);
+      await run(["config", "--local", "--unset-all", "remote.origin.promisor"], false, 5);
+      await run(["config", "--local", "--unset-all", "remote.origin.partialclonefilter"], false, 5);
     }
     if (refs.length) {
       const depth = Number(process.env.GH_AW_DYNAMIC_FETCH_DEPTH || "1");
@@ -351,8 +387,8 @@ async function finish(options = {}) {
       });
       for (const refspec of refspecs) {
         const source = refspec.slice(1).split(":")[0];
-        if (run(["ls-remote", "--exit-code", "origin", source], true, 2) === null) continue;
-        run(["fetch", "--no-recurse-submodules", "origin", ...(depth ? [`--depth=${depth}`] : []), refspec], true);
+        if (!(await run(["ls-remote", "--exit-code", "origin", source], true, 2))) continue;
+        await run(["fetch", "--no-recurse-submodules", "origin", ...(depth ? [`--depth=${depth}`] : []), refspec], true);
       }
     }
   }

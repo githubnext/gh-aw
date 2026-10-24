@@ -1036,6 +1036,17 @@ func TestGenerateFetchStep(t *testing.T) {
 		assert.Contains(t, got, `if [ "$status" -ne 2 ]; then exit "$status"; fi`)
 	})
 
+	t.Run("expression refspecs are passed as environment data", func(t *testing.T) {
+		got := generateFetchStepLines(&resolvedCheckout{
+			fetchRefs: []string{"main", "${{ github.head_ref }}"},
+		}, 0)
+		assert.Contains(t, got, `GH_AW_FETCH_REFSPEC_1: "+refs/heads/${{ github.head_ref }}:refs/remotes/origin/${{ github.head_ref }}"`)
+		assert.Contains(t, got, `"$GH_AW_FETCH_REFSPEC_1"`)
+		_, run, ok := strings.Cut(got, "        run: |\n")
+		require.True(t, ok)
+		assert.NotContains(t, run, "${{ github.head_ref }}")
+	})
+
 	t.Run("default depth adds --depth=1 to prevent full-history fetch", func(t *testing.T) {
 		// nil fetchDepth = default shallow clone (depth 1); fetch must not expand history
 		entry := &resolvedCheckout{
@@ -1089,24 +1100,34 @@ func TestGenerateFetchStepExecution(t *testing.T) {
 	git(origin, "init", "--initial-branch=main")
 	git(origin, "-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "initial")
 	git(origin, "branch", "feature/present")
+	git(origin, "branch", "prefix/refs/heads/missing")
+	git(origin, "branch", "prefix/refs/heads/missing-glob/present")
+	git(origin, "update-ref", "refs/other/refs/pull/2/head", "HEAD")
 	git(origin, "update-ref", "refs/pull/1/head", "HEAD")
 	commit := git(origin, "rev-parse", "HEAD")
 
 	for _, tc := range []struct {
-		name    string
-		refs    []string
-		want    []string
-		failure bool
+		name       string
+		refs       []string
+		want       []string
+		expression string
+		failure    bool
 	}{
 		{name: "absent branch", refs: []string{"missing"}},
 		{name: "absent glob", refs: []string{"missing/*"}},
 		{name: "mixed explicit branches", refs: []string{"missing", "main", "feature/present", "also-missing"}, want: []string{"main", "feature/present"}},
 		{name: "mixed globs", refs: []string{"missing/*", "feature/*"}, want: []string{"feature/present"}},
-		{name: "all branches", refs: []string{"*"}, want: []string{"main", "feature/present"}},
+		{name: "suffix collision glob", refs: []string{"missing-glob/*", "main"}, want: []string{"main"}},
+		{name: "all branches", refs: []string{"*"}, want: []string{"main", "feature/present", "prefix/refs/heads/missing", "prefix/refs/heads/missing-glob/present"}},
 		{name: "pull refs", refs: []string{"missing/*", "refs/pulls/open/*"}, want: []string{"pull/1/head"}},
 		{name: "unavailable remote", refs: []string{"missing", "main"}, failure: true},
+		{name: "expression command substitution", refs: []string{"${{ github.head_ref }}", "main"}, expression: "feature/$(touch${IFS}PWNED)", want: []string{"feature/$(touch${IFS}PWNED)", "main"}},
+		{name: "expression backticks and quotes", refs: []string{"${{ github.head_ref }}"}, expression: "feature/`touch${IFS}PWNED`\"'", want: []string{"feature/`touch${IFS}PWNED`\"'"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.expression != "" {
+				git(origin, "branch", tc.expression)
+			}
 			dir := t.TempDir()
 			git(dir, "init")
 			remote := origin
@@ -1115,19 +1136,26 @@ func TestGenerateFetchStepExecution(t *testing.T) {
 			}
 			git(dir, "remote", "add", "origin", "file://"+remote)
 			var steps []struct {
-				Run string `yaml:"run"`
+				Run string            `yaml:"run"`
+				Env map[string]string `yaml:"env"`
 			}
 			require.NoError(t, yaml.Unmarshal([]byte(generateFetchStepLines(&resolvedCheckout{fetchRefs: tc.refs}, 0)), &steps))
 			require.Len(t, steps, 1)
 			cmd := exec.Command("bash", "-e", "-o", "pipefail", "-c", steps[0].Run)
 			cmd.Dir = dir
 			cmd.Env = append(os.Environ(), "GH_AW_FETCH_TOKEN=")
+			for key, value := range steps[0].Env {
+				if key != "GH_AW_FETCH_TOKEN" {
+					cmd.Env = append(cmd.Env, key+"="+strings.ReplaceAll(value, "${{ github.head_ref }}", tc.expression))
+				}
+			}
 			output, err := cmd.CombinedOutput()
 			if tc.failure {
 				require.Error(t, err, "%s", output)
 				return
 			}
 			require.NoError(t, err, "%s", output)
+			assert.NoFileExists(t, filepath.Join(dir, "PWNED"))
 			for _, ref := range tc.want {
 				assert.Equal(t, commit, git(dir, "rev-parse", "refs/remotes/origin/"+ref))
 			}

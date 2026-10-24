@@ -525,8 +525,12 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 
 	// Build refspecs
 	refspecs := make([]string, 0, len(entry.fetchRefs))
-	for _, ref := range entry.fetchRefs {
-		refspecs = append(refspecs, shellEscapeArg(fetchRefToRefspec(ref)))
+	for i, ref := range entry.fetchRefs {
+		if containsExpression(ref) {
+			refspecs = append(refspecs, fmt.Sprintf(`"$GH_AW_FETCH_REFSPEC_%d"`, i))
+		} else {
+			refspecs = append(refspecs, shellEscapeArg(fetchRefToRefspec(ref)))
+		}
 	}
 
 	// Build the git command, navigating to the checkout directory when needed
@@ -553,12 +557,25 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	fmt.Fprintf(&sb, "      - name: %s\n", name)
 	sb.WriteString("        env:\n")
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
+	for i, ref := range entry.fetchRefs {
+		if containsExpression(ref) {
+			writeYAMLEnv(&sb, "          ", fmt.Sprintf("GH_AW_FETCH_REFSPEC_%d", i), fetchRefToRefspec(ref))
+		}
+	}
 	sb.WriteString("        run: |\n")
+	sb.WriteString("          set -o pipefail\n")
 	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
 	sb.WriteString("          for refspec in " + strings.Join(refspecs, " ") + "; do\n")
 	sb.WriteString("            source_ref=${refspec%%:*}\n")
 	sb.WriteString("            source_ref=${source_ref#+}\n")
-	sb.WriteString("            if " + gitPrefix + " -c \"http.extraheader=Authorization: Basic ${header}\" ls-remote --exit-code origin \"$source_ref\" > /dev/null; then\n")
+	sb.WriteString("            if matched=$(" + gitPrefix + " -c \"http.extraheader=Authorization: Basic ${header}\" ls-remote --exit-code origin \"$source_ref\" | {\n")
+	sb.WriteString("              found=0\n")
+	sb.WriteString("              while read -r oid remote_ref; do\n")
+	sb.WriteString("                case \"$remote_ref\" in $source_ref) found=1 ;; esac\n")
+	sb.WriteString("              done\n")
+	sb.WriteString("              printf '%s' \"$found\"\n")
+	sb.WriteString("            }); then\n")
+	sb.WriteString("              if [ \"$matched\" -eq 0 ]; then continue; fi\n")
 	sb.WriteString("              " + gitPrefix + " -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin" + depthFlag + " \"$refspec\"\n")
 	sb.WriteString("            else\n")
 	sb.WriteString("              status=$?\n")
