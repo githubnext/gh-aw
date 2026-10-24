@@ -53,6 +53,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/packagelevelmutableslicemap"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
+	"github.com/github/gh-aw/pkg/linters/readerstringconv"
 	reflectdeepequalusage "github.com/github/gh-aw/pkg/linters/reflect-deepequal-usage"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/regexpdynamicpattern"
@@ -147,6 +148,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	panicinlibrarycode.Analyzer,
 	rawloginlib.Analyzer,
 	reflectdeepequalusage.Analyzer,
+	readerstringconv.Analyzer,
 	regexpcompileinfunction.Analyzer,
 	regexpdynamicpattern.Analyzer,
 	ssljson.Analyzer,
