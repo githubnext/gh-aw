@@ -10,6 +10,7 @@ const { performance } = require("node:perf_hooks");
 const { resolveDispatchCredentialPrincipal } = require("./work_queue_dispatch_credential.cjs");
 const { inspectClaimDelivery, createClaimDeliveryVerifier, verifyClaimDelivery } = require("./work_queue_delivery.cjs");
 const { withProjectionLocks } = require("./work_queue_issue_coordination.cjs");
+const { mutateIssues, ensureStatusLabel } = require("./work_queue_issue_api.cjs");
 const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 describe("privacy-preserving work queue logging", () => {
@@ -510,6 +511,61 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("private-");
   });
 
+  it.each([undefined, "", "private-token", "1:2:3:4:5\nprivate", "1:2:3:4:5\n", "1:2:3:4:5\r", "1:2:3:4:5\u2028", "a".repeat(256), null, 123])(
+    "falls back to top-level GraphQL request IDs when the nested ID is missing or invalid: %j",
+    nestedRequestId => {
+      const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+      createWorkQueueLogger("issues").failure(
+        "projection.mutation.failed",
+        {
+          headers: { "x-github-request-id": requestId, authorization: "private-token" },
+          response: { headers: { "x-ratelimit-remaining": "0", ...(nestedRequestId === undefined ? {} : { "x-github-request-id": nestedRequestId }) } },
+          errors: [{ type: "INTERNAL" }],
+        },
+        true
+      );
+      expect(output()).toContain(`GitHub request ID: ${requestId}.`);
+      expect(output()).not.toContain("http_status=");
+      expect(output()).not.toContain("private");
+      expect(output()).not.toContain("a".repeat(256));
+    }
+  );
+
+  it("prefers a valid nested request ID over a valid top-level ID", () => {
+    createWorkQueueLogger("issues").failure("projection.mutation.failed", { response: { headers: { "x-github-request-id": "1:2:3:4:5" } }, headers: { "x-github-request-id": "6:7:8:9:a" }, errors: [{ type: "INTERNAL" }] }, true);
+    expect(output()).toContain("GitHub request ID: 1:2:3:4:5.");
+    expect(output()).not.toContain("6:7:8:9:a");
+  });
+
+  it("falls back without invoking nested request-ID or header getters or reading inherited IDs", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-token");
+    });
+    const responseShapes = [Object.defineProperty({}, "headers", { get: getter }), { headers: Object.defineProperty({}, "x-github-request-id", { get: getter }) }, { headers: Object.create({ "x-github-request-id": "6:7:8:9:a" }) }];
+    for (const response of responseShapes) {
+      createWorkQueueLogger("issues").failure("projection.mutation.failed", { response, headers: { "x-github-request-id": "1:2:3:4:5" }, errors: [{ type: "INTERNAL" }] }, true);
+    }
+    expect(getter).not.toHaveBeenCalled();
+    expect(output().match(/GitHub request ID: 1:2:3:4:5\./g)).toHaveLength(responseShapes.length);
+    expect(output()).not.toContain("6:7:8:9:a");
+    expect(output()).not.toContain("private");
+  });
+
+  it("withholds invalid and inherited fallback request IDs without invoking getters", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-token");
+    });
+    const headerShapes = [{ "x-github-request-id": "private-token" }, Object.defineProperty({}, "x-github-request-id", { get: getter }), Object.create({ "x-github-request-id": "6:7:8:9:a" })];
+    for (const headers of headerShapes) {
+      createWorkQueueLogger("issues").failure("projection.mutation.failed", { response: { headers: {} }, headers, errors: [{ type: "INTERNAL" }] }, true);
+    }
+    createWorkQueueLogger("issues").failure("projection.mutation.failed", Object.defineProperty({ response: { headers: {} }, errors: [{ type: "INTERNAL" }] }, "headers", { get: getter }), true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output().match(/GitHub request ID: unknown\./g)).toHaveLength(headerShapes.length + 1);
+    expect(output()).not.toContain("6:7:8:9:a");
+    expect(output()).not.toContain("private");
+  });
+
   it.each(["private-token", "1:2:3:4:5\nprivate", "1:2:3:4:5\n", "1:2:3:4:5\u2028", "a".repeat(256), null, 123])("withholds malformed status-less GraphQL request IDs: %j", requestId => {
     createWorkQueueLogger("issues").failure("projection.mutation.failed", { headers: { "x-github-request-id": requestId }, errors: [{ type: "INTERNAL" }] }, true);
     expect(output()).toContain("GitHub request ID: unknown.");
@@ -518,6 +574,7 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it("reports individual bounded aliases and partial result presence without serializing provider data", () => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
     const error = {
       message: "private-error",
       request: { query: "private-query", variables: { token: "private-token" } },
@@ -528,7 +585,7 @@ describe("privacy-preserving work queue logging", () => {
         { type: "private-type", path: ["u49"], extensions: { private: "private-extension" } },
       ],
     };
-    createWorkQueueLogger("issues").failure("projection.mutation.failed", error, true);
+    for (const scheme of ["lock", "projection", "unlock"]) createWorkQueueLogger("issues").failure("projection.mutation.failed", error, true, scheme);
     expect(output()).toContain(".graphql_error index=0 graphql_unprocessable=true graphql_path_present=true graphql_lock_alias=0 graphql_operation_create_ref=true graphql_result_present=true graphql_reference_already_exists=true");
     expect(output()).toContain(".graphql_error index=1 graphql_internal=true graphql_path_present=true graphql_projection_alias=1 graphql_operation_issue_projection=true graphql_result_present=true");
     expect(output()).toContain(".graphql_error index=2 graphql_unknown_type=true graphql_path_present=true graphql_unlock_alias=49 graphql_operation_delete_ref=true graphql_result_present=false");
@@ -537,25 +594,83 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it.each([
-    ["createRef", "graphql_operation_create_ref"],
-    ["deleteRef", "graphql_operation_delete_ref"],
-    ["createIssue", "graphql_operation_create_issue"],
-    ["addComment", "graphql_operation_add_comment"],
-    ["updateIssueComment", "graphql_operation_update_comment"],
-    ["addLabelsToLabelable", "graphql_operation_add_labels"],
-    ["removeLabelsFromLabelable", "graphql_operation_remove_labels"],
-    ["closeIssue", "graphql_operation_close_issue"],
     ["createLabel", "graphql_operation_create_label"],
     ["updateLabel", "graphql_operation_update_label"],
-    ["createCommitOnBranch", "graphql_operation_publish_commit"],
-  ])("reports only the fixed operation category for unaliased %s errors", (operation, field) => {
-    createWorkQueueLogger("issues").failure("projection.label.failed", { errors: [{ type: "FORBIDDEN", path: [operation], message: "private-provider-message" }], response: { data: { data: { [operation]: { id: "private-id" } } } } }, true);
+  ])("reports the caller-selected operation category for unaliased %s errors", (operation, field) => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    createWorkQueueLogger("issues").failure(
+      "projection.label.failed",
+      { errors: [{ type: "FORBIDDEN", path: [operation], message: "private-provider-message" }], response: { data: { data: { [operation]: { id: "private-id" } } } } },
+      true,
+      operation
+    );
     expect(output()).toContain(`${field}=true graphql_result_present=true`);
     expect(output()).not.toContain("private-");
   });
 
+  it.each(["l0", "m0", "u0", "createRef", "deleteRef", "createIssue", "addComment", "updateIssueComment", "addLabelsToLabelable", "removeLabelsFromLabelable", "closeIssue", "createLabel", "updateLabel", "createCommitOnBranch"])(
+    "leaves arbitrary Claim-handler alias %s unclassified",
+    alias => {
+      vi.stubEnv("DEBUG", "work-queue:effects");
+      createWorkQueueLogger("effects").failure("effect.mutate.failed", {
+        errors: [{ type: "UNPROCESSABLE", path: [alias], message: "A reference with that name already exists." }],
+        data: { [alias]: { private: "private-payload" } },
+      });
+      expect(output()).toContain("graphql_path_unclassified=true");
+      expect(output()).not.toMatch(/graphql_(?:lock|unlock|projection)_alias=/);
+      expect(output()).not.toContain("graphql_operation_");
+      expect(output()).not.toContain("graphql_result_present");
+      expect(output()).not.toContain("graphql_reference_already_exists");
+      expect(output()).not.toContain("private-");
+    }
+  );
+
+  it.each([
+    ["lock", "m0"],
+    ["projection", "l0"],
+    ["unlock", "m0"],
+    ["lock", "createRef"],
+    ["projection", "createLabel"],
+    ["createLabel", "updateLabel"],
+    ["updateLabel", "createLabel"],
+  ])("does not classify %s request errors using another alias scheme: %s", (scheme, alias) => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type: "INTERNAL", path: [alias] }] }, true, scheme);
+    expect(output()).toContain("graphql_path_unclassified=true");
+    expect(output()).not.toContain("graphql_operation_");
+    expect(output()).not.toMatch(/graphql_(?:lock|unlock|projection)_alias=/);
+  });
+
+  it("passes the projection alias scheme from the mutation builder", async () => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    const github = { graphql: vi.fn().mockRejectedValue({ errors: [{ type: "FORBIDDEN", path: ["m0"] }], data: { m0: null } }) };
+    await mutateIssues(github, [{ name: "closeIssue", type: "CloseIssueInput", input: { issueId: "private-issue" }, selection: "clientMutationId" }]);
+    expect(output()).toContain("graphql_projection_alias=0 graphql_operation_issue_projection=true graphql_result_present=false");
+    expect(output()).not.toContain("private-");
+  });
+
+  it.each([
+    ["createLabel", "WorkQueueTrackingLabel", "graphql_operation_create_label"],
+    ["updateLabel", "WorkQueueLabelColor", "graphql_operation_update_label"],
+  ])("passes the explicit %s operation context from the label request builder", async (operation, queryName, field) => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    const label = operation === "updateLabel" ? { id: "private-label", name: "work:queued", color: "000000" } : null;
+    const github = {
+      graphql: vi
+        .fn()
+        .mockResolvedValueOnce({ node: { id: "private-repository", label } })
+        .mockRejectedValueOnce({ errors: [{ type: "FORBIDDEN", path: [operation], message: "private-provider-message" }], data: { [operation]: null } }),
+    };
+    await expect(ensureStatusLabel(github, "private-repository", { label: "work" }, "Queued")).rejects.toMatchObject({ code: "projection_label_pending" });
+    expect(github.graphql).toHaveBeenCalledTimes(2);
+    expect(github.graphql.mock.calls[1][0]).toContain(queryName);
+    expect(output()).toContain(`${field}=true graphql_result_present=false`);
+    expect(output()).not.toContain("private-");
+  });
+
   it.each(["l50", "m99", "u00", "l0\n", "l0\u2028", "private-alias", "private-".repeat(2000)])("does not expose or misclassify unknown GraphQL paths: %j", alias => {
-    createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", { errors: [{ type: "UNPROCESSABLE", path: [alias], message: "A reference with that name already exists." }] }, true);
+    vi.stubEnv("DEBUG", "work-queue:issue_coordination");
+    createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", { errors: [{ type: "UNPROCESSABLE", path: [alias], message: "A reference with that name already exists." }] }, true, "lock");
     expect(output()).toContain("graphql_path_unclassified=true");
     expect(output()).not.toMatch(/graphql_(?:lock|unlock|projection)_alias=/);
     expect(output()).not.toContain("graphql_operation_");
@@ -568,25 +683,38 @@ describe("privacy-preserving work queue logging", () => {
     ["INTERNAL", "l0", "A reference with that name already exists."],
     ["UNPROCESSABLE", "m0", "A reference with that name already exists."],
   ])("does not infer reference conflicts from other messages or operations: %s %s", (type, alias, message) => {
-    createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type, path: [alias], message }] }, true);
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type, path: [alias], message }] }, true, "lock");
     expect(output()).not.toContain("graphql_reference_already_exists");
     expect(output()).not.toContain("private-");
   });
 
   it("bounds per-error diagnostics and does not inspect excess entries", () => {
+    vi.stubEnv("DEBUG", "work-queue:issue_coordination");
     const getter = vi.fn(() => {
       throw new Error("private-excess-error");
     });
     const errors = Array.from({ length: 51 }, () => ({ type: "UNPROCESSABLE", path: ["l0"] }));
-    Object.defineProperty(errors, "50", { get: getter });
+    Object.defineProperty(errors, "5", { get: getter });
     createWorkQueueLogger("issue_coordination").failure("projection.locks.acquire.failed", { errors }, true);
     expect(output()).toContain("graphql_errors=51 graphql_errors_truncated=true");
-    expect(output().match(/\.graphql_error index=/g)).toHaveLength(50);
+    expect(output()).toContain("graphql_error_details_omitted=46");
+    expect(output().match(/\.graphql_error index=/g)).toHaveLength(5);
     expect(getter).not.toHaveBeenCalled();
     expect(output()).not.toContain("private-");
   });
 
+  it("keeps repeated always-visible failures to one summary each without DEBUG", () => {
+    const errors = Array.from({ length: 50 }, () => ({ type: "UNPROCESSABLE", path: ["l0"] }));
+    const logger = createWorkQueueLogger("issue_coordination");
+    for (let index = 0; index < 10; index++) logger.failure("projection.locks.acquire.failed", { errors }, true, "lock");
+    expect(stderr).toHaveBeenCalledTimes(10);
+    expect(output().match(/graphql_errors=50 graphql_unprocessable=true graphql_error_details_omitted=50/g)).toHaveLength(10);
+    expect(output()).not.toContain(".graphql_error ");
+  });
+
   it("preserves classification of oversized GraphQL error collections", () => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
     const error = { errors: Array.from({ length: 51 }, () => ({ type: "RATE_LIMITED" })) };
     expect(queueControlErrorCode(error)).toBe("queue_control_authority_or_publication_failed");
     createWorkQueueLogger("issues").failure("projection.mutation.failed", error, true);
@@ -596,6 +724,7 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it("does not invoke nested GraphQL getters or serialize unclassified response data", () => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
     const getter = vi.fn(() => {
       throw new Error("private-graphql-getter");
     });
@@ -621,7 +750,8 @@ describe("privacy-preserving work queue logging", () => {
           return getter();
         },
       },
-      true
+      true,
+      "lock"
     );
     createWorkQueueLogger("issues").failure(
       "projection.mutation.failed",
@@ -631,7 +761,8 @@ describe("privacy-preserving work queue logging", () => {
           return getter();
         },
       },
-      true
+      true,
+      "lock"
     );
     expect(getter).not.toHaveBeenCalled();
     expect(output()).toContain("graphql_unknown_type=true graphql_path_present=false");
@@ -672,6 +803,7 @@ describe("privacy-preserving work queue logging", () => {
   });
 
   it("distinguishes the observed two GraphQL lock rejections from throttling without retrying", async () => {
+    vi.stubEnv("DEBUG", "work-queue:issue_coordination");
     const operation = vi.fn();
     const githubClient = {
       graphql: vi.fn().mockRejectedValue({
@@ -697,7 +829,24 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("private");
   });
 
+  it("passes the unlock alias scheme from the release request builder without swallowing errors", async () => {
+    vi.stubEnv("DEBUG", "work-queue:issue_coordination");
+    const failure = { errors: [{ type: "INTERNAL", path: ["u0"] }], data: { u0: null } };
+    const githubClient = {
+      graphql: vi.fn().mockImplementation(async (query, variables) => {
+        if (query.includes("WorkQueueProjectionUnlocks")) throw failure;
+        return { l0: { ref: { id: "private-ref", name: variables.l0.name.slice("refs/heads/".length), prefix: "refs/heads/", target: { oid: variables.l0.oid } } } };
+      }),
+    };
+    await expect(withProjectionLocks({ githubClient, repositoryId: "private-repository", head: "a".repeat(40), keys: ["work:private"] }, async () => ({}))).rejects.toBe(failure);
+    expect(githubClient.graphql).toHaveBeenCalledTimes(2);
+    expect(output()).toContain("projection.locks.release.failed");
+    expect(output()).toContain("graphql_unlock_alias=0 graphql_operation_delete_ref=true graphql_result_present=false");
+    expect(output()).not.toContain("private-");
+  });
+
   it("reports partial lock acknowledgements and retains only uncertain writes", async () => {
+    vi.stubEnv("DEBUG", "work-queue:issue_coordination");
     const githubClient = {
       graphql: vi.fn().mockImplementation(async (query, variables) => {
         expect(query).toContain("WorkQueueProjectionLocks");
