@@ -907,6 +907,12 @@ describe("start_mcp_gateway startup diagnostics", () => {
     });
   });
 
+  it("does not include the configured Docker command in syntax errors", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source).toContain("setFailed(`${ERR_CONFIG}: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax; expected docker run command with image and arguments`);");
+    expect(source).not.toContain("has incorrect syntax — got: ${dockerCommand}");
+  });
+
   it("redacts bearer headers and structured credential keys", () => {
     const sample = ["Authorization: ******", '{"agentId":"redact-me"}', "token=redact-me"].join("\n");
     const redacted = redactGatewayDiagnostics(sample);

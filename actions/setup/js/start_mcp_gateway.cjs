@@ -930,7 +930,7 @@ async function main() {
   if (!/^docker run/.test(dockerCommand)) {
     core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax");
     core.error("Expected: docker run command with image and arguments");
-    setFailed(`${ERR_CONFIG}: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax — got: ${dockerCommand}`);
+    setFailed(`${ERR_CONFIG}: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax; expected docker run command with image and arguments`);
     return;
   }
   if (!/-i/.test(dockerCommand)) {
