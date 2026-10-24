@@ -68,4 +68,15 @@ describe("PR lifecycle guard", () => {
     expect(github.rest.pulls.get).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledExactlyOnceWith("🎭 Staged Mode Preview — skipping live pull request lifecycle check");
   });
+
+  it("does not log staged previews when no open PR applies", async () => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const github = client("closed");
+    for (const context of [undefined, {}, { payload: {} }, runtime("closed"), runtime(undefined)]) {
+      expect(await getStalePullRequestReason(github, context)).toBeNull();
+    }
+    expect(github.rest.pulls.get).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+  });
 });
