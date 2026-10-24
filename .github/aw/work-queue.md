@@ -38,8 +38,11 @@ native runs; ignore moved `target-ref`.
 `aw.json` `work_queue` configures concurrency, pending limits, retries, pools,
 fairness and Issue settings. Defaults: weighted-priority, concurrency 16,
 pending 4,096, singleton assignments, three attempts, 30-second backoff.
-First submit installs Policy/Work; first-use pools reuse installed worker
-authority, preserving existing pools/epoch.
+First submit installs Policy/Work. Trusted submit and dispatch processing
+install missing configured pools on demand before deployment synchronization,
+reusing installed worker authority and preserving existing pools/epoch.
+Workers, observers, dry-run previews and accepted-request recovery never install
+pools. New worker profiles still require an administrator Policy update.
 Standalone seeding is unsupported; AW/Actions authorize submissions.
 Economic/existing-pool changes require quiescence and
 `policy --from-config --epoch EPOCH`; config edits never rewrite active state.
