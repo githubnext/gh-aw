@@ -97,10 +97,6 @@ func injectProtectedCaptureSecretEnvironment(yamlContent string, secretReference
 	}
 	var secretEnvironment strings.Builder
 	secretEnvironment.WriteString("          GH_AW_SECRET_NAMES: '" + strings.Join(secretReferences, ",") + "'\n")
-	for _, secretName := range secretReferences {
-		escapedName := escapeSingleQuoteBackslash(secretName)
-		secretEnvironment.WriteString("          SECRET_" + escapedName + ": ${{ secrets." + secretName + " }}\n")
-	}
 	step = strings.Replace(step, protectedCapture, protectedCapture+secretEnvironment.String(), 1)
 	return yamlContent[:start] + step + yamlContent[end:]
 }
