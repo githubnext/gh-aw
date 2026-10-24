@@ -16,7 +16,7 @@ const grade = script => runCustomGraders(session, [definition(script)]).output.r
 
 describe("isolated custom graders", () => {
   it("uses a standardized code for invalid session input", () => {
-    expect(() => createSessionLookups(null)).toThrow(/^ERR_VALIDATION:/);
+    expect(() => createSessionLookups(null)).toThrow(/^ERR_GRADER_SESSION_INVALID:/);
   });
 
   it("serializes the shared data-only lookup contract for the worker", () => {
@@ -27,6 +27,10 @@ describe("isolated custom graders", () => {
       trace: lookups.trace,
       toolCallsById: [...lookups.toolCallsById],
     });
+  });
+
+  it("reports invalid session input with a stable error code", () => {
+    expect(() => createSessionLookups(null)).toThrow("ERR_GRADER_SESSION_INVALID: graders require an in-memory unified session event array");
   });
 
   it("loads the published session and persists combined data-only artifacts", async () => {

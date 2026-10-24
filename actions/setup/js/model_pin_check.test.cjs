@@ -57,7 +57,7 @@ function pin(report, field) {
 
 describe("model_pin_check acceptance cases", () => {
   it("uses a standardized code for missing CLI configuration", () => {
-    expect(() => main([])).toThrow(/^ERR_CONFIG:/);
+    expect(() => main([])).toThrow(/^ERR_MODEL_PIN_REFLECT_REQUIRED:/);
   });
 
   it("1. a retired copilot/claude-opus-5 pin is unresolvable and listed under Action required", () => {
@@ -394,6 +394,10 @@ describe("model_pin_check collection and rules", () => {
     expect(json.counts.unresolvable).toBe(1);
     expect(fs.readFileSync(path.join(outDir, "model-pins.md"), "utf8")).toContain("### All Workflow Model Pins");
     expect(fs.readFileSync(path.join(outDir, "model-pins-summary.md"), "utf8")).toBe(printed.join(""));
+  });
+
+  it("requires /reflect input with a stable error code", () => {
+    expect(() => main([])).toThrow("ERR_MODEL_PIN_REFLECT_REQUIRED: --reflect <path to /reflect JSON> is required");
   });
 });
 

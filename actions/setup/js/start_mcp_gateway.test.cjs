@@ -704,6 +704,13 @@ describe("start_mcp_gateway startup diagnostics", () => {
       expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("ready with 1 tool(s) after 3 attempt(s)"));
     });
 
+    it.each([
+      [undefined, "readiness-test-key", "a numeric MCP_GATEWAY_PORT"],
+      ["1234", undefined, "MCP_GATEWAY_AGENT_ID"],
+    ])("requires safe-output gateway configuration with a stable error code", async (port, agentId, message) => {
+      await expect(waitForSafeOutputsReadiness(config, port, agentId, retryConfig)).rejects.toThrow(`ERR_SAFE_OUTPUTS_GATEWAY_CONFIG: MCP gateway safeoutputs readiness requires ${message}`);
+    });
+
     it.each(["safeoutputs", "safe-outputs"])("probes the exact configured %s backend endpoint", async serverName => {
       const port = await startBackend(() => [{ name: "noop" }], { serverName });
 

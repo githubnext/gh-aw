@@ -76,6 +76,7 @@ describe("immutable Claim scope", () => {
   });
 
   it("rejects scalar, legacy, oversized and duplicate assignments", () => {
+    expect(() => normalizeAssignment(assignment(0))).toThrow("ERR_WORK_QUEUE_CLAIM_SCOPE: work_queue_claim_scope: work_queue_assignment requires an immutable array of 1 to 16 Claims; scalar assignments are unsupported");
     for (const value of [{ work_id: "w", claim_id: "c" }, { ...assignment(1), version: 2 }, assignment(17), assignment(0), { ...assignment(1), run_id: "1" }]) {
       expect(() => normalizeAssignment(value)).toThrow();
     }
@@ -104,7 +105,7 @@ describe("immutable Claim scope", () => {
     try {
       await withClaimExecution({ assignment: assignment(1), claim_handle: "h1", staged: source === "execution", authorize }, async () => {
         await expect(assertClaimAuthorized({ type: "create_issue" }, { effect: true })).rejects.toMatchObject({
-          message: "ERR_VALIDATION: work_queue_claim_scope: read-only Claim preview cannot perform resource effects",
+          message: "ERR_WORK_QUEUE_CLAIM_SCOPE: work_queue_claim_scope: read-only Claim preview cannot perform resource effects",
           code: "claim_scope_invalid",
         });
       });

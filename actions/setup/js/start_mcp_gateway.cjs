@@ -38,6 +38,7 @@ const path = require("path");
 const { renderLogToStdout } = require("./render_log_to_stdout.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_SAFE_OUTPUTS_GATEWAY_CONFIG } = require("./error_codes.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
@@ -270,10 +271,10 @@ async function waitForSafeOutputsReadiness(config, gatewayPort, agentId, retryCo
     return;
   }
   if (!gatewayPort || !/^\d+$/.test(gatewayPort)) {
-    throw codedError("MCP gateway safeoutputs readiness requires a numeric MCP_GATEWAY_PORT", ERR_CONFIG);
+    throw new Error(`${ERR_SAFE_OUTPUTS_GATEWAY_CONFIG}: MCP gateway safeoutputs readiness requires a numeric MCP_GATEWAY_PORT`);
   }
   if (!agentId) {
-    throw codedError("MCP gateway safeoutputs readiness requires MCP_GATEWAY_AGENT_ID", ERR_CONFIG);
+    throw new Error(`${ERR_SAFE_OUTPUTS_GATEWAY_CONFIG}: MCP gateway safeoutputs readiness requires MCP_GATEWAY_AGENT_ID`);
   }
 
   const serverUrl = `http://localhost:${gatewayPort}/mcp/${serverName}`;
@@ -1372,7 +1373,7 @@ async function main() {
       ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
     } catch (err) {
       stopGatewayProcess(gatewayPid);
-      setFailed(`${ERR_SYSTEM}: ${getErrorMessage(err)}`);
+      setFailed(getErrorMessage(err));
       return;
     }
     core.info(`No agent-specific converter found for engine: ${engineType}`);

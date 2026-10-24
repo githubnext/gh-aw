@@ -2,7 +2,7 @@
 "use strict";
 // @safe-outputs-exempt SEC-005 — delivery performs readback only; assertClaimAuthorized checks its selected repository against authorizeWorkerClaim's authenticated profile.effect_scope allowlist before native reads.
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("delivery");
-const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { ERR_VALIDATION, ERR_WORK_QUEUE_DELIVERY_READBACK_REQUIRED } = require("./error_codes.cjs");
 
 const { canonicalResourceTarget, resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
 
@@ -74,7 +74,7 @@ function recordClaimDelivery(delivery, assignment, member, binding, inventory, o
 
 function createClaimDeliveryVerifier(options) {
   const assignment = normalizeAssignment(options.assignment);
-  if (typeof options.recheck !== "function") throw new Error(`${ERR_VALIDATION}: Claim delivery verifier requires trusted independent readback`);
+  if (typeof options.recheck !== "function") throw new Error(`${ERR_WORK_QUEUE_DELIVERY_READBACK_REQUIRED}: Claim delivery verifier requires trusted independent readback`);
   return (member, verification) => deliveryVerifier.run({ ...options, assignment }, () => verifyClaimDelivery(member, verification));
 }
 
@@ -419,7 +419,7 @@ async function inspectClaimDelivery(options) {
         };
         await withClaimResourceVerification(proof, checkAuthorities, { authorize, context: options.context, github: options.github });
       } catch (error) {
-        if (!(error instanceof Error) || error.message !== `${ERR_VALIDATION}: work_queue_claim_scope: adapter verification requires its private in-process authority receipt`) throw error;
+        if (!(error instanceof Error) || error.message !== `ERR_WORK_QUEUE_CLAIM_SCOPE: work_queue_claim_scope: adapter verification requires its private in-process authority receipt`) throw error;
         log.debug("delivery.output.authority_receipt_missing", { index });
         return { ...receipt, disposition: outputs.length ? "partial" : "unknown", reason: "Independent scoped resource authorization requires its private in-process authority receipt" };
       }
