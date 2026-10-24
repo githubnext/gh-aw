@@ -4,6 +4,7 @@
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("delivery");
 
 const { canonicalResourceTarget, resolveRepositoryTarget, resolveParentResourceTarget } = require("./work_queue_effect_resource.cjs");
+const { ERR_WORK_QUEUE_DELIVERY_READBACK_REQUIRED } = require("./error_codes.cjs");
 
 const { AsyncLocalStorage } = require("node:async_hooks");
 const {
@@ -73,7 +74,7 @@ function recordClaimDelivery(delivery, assignment, member, binding, inventory, o
 
 function createClaimDeliveryVerifier(options) {
   const assignment = normalizeAssignment(options.assignment);
-  if (typeof options.recheck !== "function") throw new Error("ERR_WORK_QUEUE_DELIVERY_READBACK_REQUIRED: Claim delivery verifier requires trusted independent readback");
+  if (typeof options.recheck !== "function") throw new Error(`${ERR_WORK_QUEUE_DELIVERY_READBACK_REQUIRED}: Claim delivery verifier requires trusted independent readback`);
   return (member, verification) => deliveryVerifier.run({ ...options, assignment }, () => verifyClaimDelivery(member, verification));
 }
 

@@ -11,8 +11,12 @@ const { assignmentForDispatch } = require("./work_queue_replay.cjs");
 const { lifecycleEvidence, releaseAssignment, reconcileQueue } = require("./work_queue_reconciler.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
+const { ERR_WORK_QUEUE_RECONCILIATION } = require("./error_codes.cjs");
 
-const reconciliationError = message => new Error(`ERR_WORK_QUEUE_RECONCILIATION: ${message}`);
+const reconciliationError = message => {
+  const error = new Error(message);
+  return Object.assign(error, { code: message.split(";", 1)[0], category: ERR_WORK_QUEUE_RECONCILIATION });
+};
 
 async function quiescenceReceipt(options, runId) {
   const names = options.jobNames ?? JSON.parse(process.env.GH_AW_JOB_DISPLAY_NAMES || "null");
