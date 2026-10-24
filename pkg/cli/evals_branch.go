@@ -93,9 +93,6 @@ func resolveRepoOverrideForRun(run WorkflowRun, owner, repo, hostname string) (s
 	if runOwner == "" || runRepo == "" {
 		return "", runHost
 	}
-	if runHost == "" {
-		runHost = "github.com"
-	}
 	return fmt.Sprintf("%s/%s", runOwner, runRepo), runHost
 }
 
@@ -135,7 +132,7 @@ func resolveRunStateBranchRef(ctx context.Context, repoOverride, branchName stri
 	for page := 1; page <= maxPages; page++ {
 		endpoint := fmt.Sprintf("repos/%s/commits?sha=%s&per_page=%d&page=%d", repoOverride, url.QueryEscape(branchName), perPage, page)
 		args := []string{"api", "--method", "GET"}
-		if hostname != "" && hostname != "github.com" {
+		if hostname != "" {
 			args = append(args, "--hostname", hostname)
 		}
 		args = append(args, endpoint)

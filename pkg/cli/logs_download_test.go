@@ -30,7 +30,7 @@ func TestLogsBuildBulkDownloadArgs(t *testing.T) {
 		repoFlag string
 	}{
 		{name: "default host", owner: "octo", repo: "repo", repoFlag: "octo/repo"},
-		{name: "github.com", owner: "octo", repo: "repo", hostname: "github.com", repoFlag: "octo/repo"},
+		{name: "github.com", owner: "octo", repo: "repo", hostname: "github.com", repoFlag: "github.com/octo/repo"},
 		{name: "enterprise host", owner: "octo", repo: "repo", hostname: "ghe.example.com", repoFlag: "ghe.example.com/octo/repo"},
 		{name: "implicit repository"},
 		{name: "missing owner", repo: "repo", hostname: "ghe.example.com"},

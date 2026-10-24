@@ -68,6 +68,20 @@ experiments:
 	}, readExperimentGHArgs(t, argsLog))
 }
 
+func TestLoadRemoteExperimentConfigsRejectsUnsafeNames(t *testing.T) {
+	for _, name := range []string{"../../x", "nested/../../../x", "../x", "/x", ".."} {
+		t.Run(name, func(t *testing.T) {
+			argsLog := installExperimentFetchFakeGH(t, "", "")
+
+			result := loadRemoteExperimentConfigs("octo/repo", name)
+
+			assert.Empty(t, result)
+			_, err := os.Stat(argsLog)
+			assert.ErrorIs(t, err, os.ErrNotExist, "unsafe experiment names must not invoke gh")
+		})
+	}
+}
+
 func TestFetchRemoteExperimentDetailsLoadsState(t *testing.T) {
 	installExperimentFetchFakeGH(t, "", `{"run_id":"1","timestamp":"2026-08-18T12:00:00Z","assignments":{"style":"concise"}}`)
 

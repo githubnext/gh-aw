@@ -199,6 +199,10 @@ func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResu
 // Returns a zero-value result when the file cannot be fetched or parsed.
 func loadRemoteExperimentConfigs(repoOverride, experimentName string) experimentFrontmatterResult {
 	experimentsLog.Printf("Loading remote experiment configs for %s from %s", experimentName, repoOverride)
+	if err := validateAPIEndpoint(experimentName); err != nil {
+		experimentsLog.Printf("Rejecting unsafe experiment name %q: %v", experimentName, err)
+		return experimentFrontmatterResult{}
+	}
 
 	// Build the candidate list. First, use the directory listing to find the exact filename
 	// whose sanitized basename matches experimentName (e.g. "ci-coach" for "cicoach").
@@ -212,9 +216,11 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 
 	for _, candidate := range candidates {
 		apiPath := constants.WorkflowsDirSlash + candidate + ".md"
-		args := repositoryAPIArgs(repoOverride, "", "contents/"+escapeEndpoint(apiPath),
-			"--jq", ".content",
-		)
+		args, err := repositoryAPIArgs(repoOverride, "", "contents/"+escapeEndpoint(apiPath), "--jq", ".content")
+		if err != nil {
+			experimentsLog.Printf("Rejecting unsafe workflow file path %q: %v", apiPath, err)
+			continue
+		}
 		cmd := workflow.ExecGH(args...)
 		out, err := cmd.Output()
 		if err != nil {
@@ -274,9 +280,13 @@ func parseExperimentMetricConfigs(
 // matches experimentName. This mirrors findWorkflowFileForExperiment for remote repos.
 // Returns "" when the directory cannot be listed or no match is found.
 func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string) string {
-	args := repositoryAPIArgs(repoOverride, "", "contents/.github/workflows",
+	args, err := repositoryAPIArgs(repoOverride, "", "contents/.github/workflows",
 		"--jq", `[.[] | select(.name | endswith(".md")) | .name]`,
 	)
+	if err != nil {
+		experimentsLog.Printf("Failed to build remote workflow listing request: %v", err)
+		return ""
+	}
 	cmd := workflow.ExecGH(args...)
 	out, err := cmd.Output()
 	if err != nil {
@@ -395,10 +405,13 @@ func fetchLocalExperiments() ([]ExperimentInfo, error) {
 func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 	experimentsLog.Printf("Fetching remote experiment branches: repo=%s", repoOverride)
 
-	args := repositoryAPIArgs(repoOverride, "", "branches",
+	args, err := repositoryAPIArgs(repoOverride, "", "branches",
 		"--paginate",
 		"--jq", `[.[] | select(.name | startswith("`+experimentsBranchPrefix+`")) | .name]`,
 	)
+	if err != nil {
+		return nil, err
+	}
 	cmd := workflow.ExecGH(args...)
 	output, err := cmd.Output()
 	if err != nil {
@@ -447,9 +460,12 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 
 	// Verify the branch exists.
 	encodedBranch := url.PathEscape(branchName)
-	checkArgs := repositoryAPIArgs(repoOverride, "", "branches/"+encodedBranch,
+	checkArgs, err := repositoryAPIArgs(repoOverride, "", "branches/"+encodedBranch,
 		"--jq", ".name",
 	)
+	if err != nil {
+		return nil, err
+	}
 	checkCmd := workflow.ExecGH(checkArgs...)
 	if _, err := checkCmd.Output(); err != nil {
 		var exitErr *exec.ExitError
