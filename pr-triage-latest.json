@@ -1,26 +1,42 @@
 {
-  "run_date": "2026-10-24T06:34:42Z",
-  "run_id": "40070616520",
+  "run_date": "2026-10-24T12:33:02Z",
+  "run_id": "40094024422",
   "source": "pr-triage",
-  "eligible_total": 2,
-  "cooldown_skipped": 1,
-  "open_copilot_prs": 3,
+  "eligible_total": 4,
+  "cooldown_skipped": 0,
+  "open_copilot_prs": 18,
   "category_counts": {
-    "bug": 1,
-    "feature": 1
+    "bug": 2,
+    "feature": 1,
+    "chore": 1
   },
   "risk_counts": {
     "high": 1,
-    "medium": 1
+    "medium": 2,
+    "low": 1
   },
   "priority_counts": {
     "high": 1,
-    "medium": 1
+    "medium": 2,
+    "low": 1
   },
   "action_counts": {
-    "fast_track": 2
+    "fast_track": 3,
+    "auto_merge": 1
   },
-  "batches": [],
+  "batches": [
+    {
+      "id": "platform-compat",
+      "members": [
+        71620,
+        71616,
+        70952,
+        69586
+      ],
+      "category": "platform compatibility / model routing",
+      "risk": "mixed"
+    }
+  ],
   "selected_candidates": [
     {
       "number": 69586,
@@ -29,7 +45,12 @@
       "risk": "high",
       "priority": "high",
       "action": "fast_track",
-      "score": 74
+      "score": 76,
+      "score_breakdown": {
+        "impact": 38,
+        "urgency": 20,
+        "quality": 18
+      }
     },
     {
       "number": 70952,
@@ -38,15 +59,42 @@
       "risk": "medium",
       "priority": "medium",
       "action": "fast_track",
-      "score": 63
-    }
-  ],
-  "skipped_prs": [
+      "score": 63,
+      "score_breakdown": {
+        "impact": 28,
+        "urgency": 15,
+        "quality": 20
+      }
+    },
     {
-      "number": 71495,
-      "reason": "cooldown",
-      "updated_at": "2026-10-24T06:11:47Z"
+      "number": 71620,
+      "title": "Replace unavailable Copilot model in video analyzer",
+      "category": "bug",
+      "risk": "medium",
+      "priority": "medium",
+      "action": "fast_track",
+      "score": 56,
+      "score_breakdown": {
+        "impact": 26,
+        "urgency": 14,
+        "quality": 16
+      }
+    },
+    {
+      "number": 71616,
+      "title": "Update CLI and scanner image versions",
+      "category": "chore",
+      "risk": "low",
+      "priority": "low",
+      "action": "auto_merge",
+      "score": 44,
+      "score_breakdown": {
+        "impact": 18,
+        "urgency": 10,
+        "quality": 16
+      }
     }
   ],
-  "notes": "Only two eligible app/github-copilot PRs remained after the 1-hour cooldown; no batch group reached the 3+ threshold."
+  "skipped_prs": [],
+  "notes": "Eligible Copilot PRs were limited to same-repo PRs older than 1 hour; a single model/configuration batch was identified with 4 eligible candidates."
 }
