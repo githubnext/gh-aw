@@ -16,7 +16,10 @@ import (
 
 var branchFileReaderLog = logger.New("cli:branch_file_reader")
 
-func repositoryAPIArgs(repoOverride, hostname, endpoint string, flags ...string) []string {
+func repositoryAPIArgs(repoOverride, hostname, endpoint string, flags ...string) ([]string, error) {
+	if err := validateAPIEndpoint(endpoint); err != nil {
+		return nil, fmt.Errorf("invalid repository API endpoint %q: %w", endpoint, err)
+	}
 	ownerRepo, repoHost := repoutil.NormalizeRepoForAPI(repoOverride)
 	if hostname == "" {
 		hostname = repoHost
@@ -25,7 +28,7 @@ func repositoryAPIArgs(repoOverride, hostname, endpoint string, flags ...string)
 	if hostname != "" {
 		args = append(args, "--hostname", hostname)
 	}
-	return args
+	return args, nil
 }
 
 func readRemoteRepoBranchFile(repoOverride, branchName, filePath, hostname string) ([]byte, error) {
@@ -34,11 +37,14 @@ func readRemoteRepoBranchFile(repoOverride, branchName, filePath, hostname strin
 
 func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchName, filePath, hostname string) ([]byte, error) {
 	branchFileReaderLog.Printf("Fetching remote file: repo=%s, branch=%s, path=%s, hostname=%s", repoOverride, branchName, filePath, hostname)
-	args := repositoryAPIArgs(repoOverride, hostname, "contents/"+escapeEndpoint(filePath),
+	args, err := repositoryAPIArgs(repoOverride, hostname, "contents/"+escapeEndpoint(filePath),
 		"--method", "GET",
 		"--raw-field", "ref="+branchName,
 		"--jq", ".content",
 	)
+	if err != nil {
+		return nil, err
+	}
 	cmd := workflow.ExecGHContext(ctx, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

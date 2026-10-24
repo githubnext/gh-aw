@@ -58,3 +58,13 @@ func TestReadRemoteRepoBranchFileNotFound(t *testing.T) {
 	_, err := readRemoteRepoBranchFile("octo/repo", "experiments/missing", "state.jsonl", "")
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
+
+func TestRepositoryAPIArgsRejectsPathTraversal(t *testing.T) {
+	_, err := repositoryAPIArgs("octo/repo", "", "contents/.github/workflows/../../secret.md")
+	require.ErrorContains(t, err, "must not contain '..' path segments")
+}
+
+func TestReadRemoteRepoBranchFileRejectsPathTraversal(t *testing.T) {
+	_, err := readRemoteRepoBranchFileContext(context.Background(), "octo/repo", "main", "../secret", "")
+	require.ErrorContains(t, err, "must not contain '..' path segments")
+}

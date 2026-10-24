@@ -68,6 +68,17 @@ experiments:
 	}, readExperimentGHArgs(t, argsLog))
 }
 
+func TestLoadRemoteExperimentConfigsRejectsPathTraversal(t *testing.T) {
+	argsLog := installExperimentFetchFakeGH(t, "", "")
+
+	result := loadRemoteExperimentConfigs("octo/repo", "../../secret")
+
+	assert.Empty(t, result.ExperimentConfigs)
+	assert.Equal(t, [][]string{
+		{"api", "repos/octo/repo/contents/.github/workflows", "--jq", `[.[] | select(.name | endswith(".md")) | .name]`},
+	}, readExperimentGHArgs(t, argsLog))
+}
+
 func TestFetchRemoteExperimentDetailsLoadsState(t *testing.T) {
 	installExperimentFetchFakeGH(t, "", `{"run_id":"1","timestamp":"2026-08-18T12:00:00Z","assignments":{"style":"concise"}}`)
 
