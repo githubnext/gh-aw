@@ -1,27 +1,23 @@
 {
-  "run_date": "2026-10-24T00:52:58Z",
-  "run_id": "40046987348",
+  "run_date": "2026-10-24T06:34:42Z",
+  "run_id": "40070616520",
   "source": "pr-triage",
-  "eligible_total": 4,
+  "eligible_total": 2,
   "cooldown_skipped": 1,
-  "open_copilot_prs": 5,
+  "open_copilot_prs": 3,
   "category_counts": {
     "bug": 1,
-    "feature": 1,
-    "chore": 2
+    "feature": 1
   },
   "risk_counts": {
-    "low": 2,
-    "medium": 1,
-    "high": 1
+    "high": 1,
+    "medium": 1
   },
   "priority_counts": {
-    "low": 2,
-    "medium": 1,
-    "high": 1
+    "high": 1,
+    "medium": 1
   },
   "action_counts": {
-    "auto_merge": 2,
     "fast_track": 2
   },
   "batches": [],
@@ -43,32 +39,14 @@
       "priority": "medium",
       "action": "fast_track",
       "score": 63
-    },
-    {
-      "number": 71506,
-      "title": "build(deps-dev): bump fast-uri from 3.1.8 to 3.1.9 in /actions/setup/js in the npm_and_yarn group across 1 directory",
-      "category": "chore",
-      "risk": "low",
-      "priority": "low",
-      "action": "auto_merge",
-      "score": 26
-    },
-    {
-      "number": 70492,
-      "title": "build(deps): bump astro from 7.4.0 to 7.4.1 in /docs",
-      "category": "chore",
-      "risk": "low",
-      "priority": "low",
-      "action": "auto_merge",
-      "score": 24
     }
   ],
   "skipped_prs": [
     {
       "number": 71495,
       "reason": "cooldown",
-      "updated_at": "2026-10-24T00:50:12Z"
+      "updated_at": "2026-10-24T06:11:47Z"
     }
   ],
-  "notes": "Four eligible app/github-copilot PRs remained after the 1-hour cooldown and were triaged. No batch cluster reached 3+ size; low-risk dependency updates were kept separate from higher-risk code changes."
+  "notes": "Only two eligible app/github-copilot PRs remained after the 1-hour cooldown; no batch group reached the 3+ threshold."
 }
