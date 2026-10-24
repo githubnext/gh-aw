@@ -45,6 +45,15 @@ const ERR_SYSTEM = "ERR_SYSTEM";
 /** @type {string} Admission failures (diagnostics must not expose remote details) */
 const ERR_ADMISSION = "ERR_ADMISSION";
 
+/** @type {string} Compiled workflows missing required execution provenance */
+const ERR_COMPILED_WORKFLOW_PROVENANCE_REQUIRED = "ERR_COMPILED_WORKFLOW_PROVENANCE_REQUIRED";
+
+/** @type {string} Blocked compile-agentic versions */
+const ERR_COMPILE_AGENTIC_VERSION_BLOCKED = "ERR_COMPILE_AGENTIC_VERSION_BLOCKED";
+
+/** @type {string} Outdated compile-agentic versions */
+const ERR_COMPILE_AGENTIC_VERSION_OUTDATED = "ERR_COMPILE_AGENTIC_VERSION_OUTDATED";
+
 /** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E001 = "E001";
 
@@ -86,6 +95,9 @@ module.exports = {
   ERR_PARSE,
   ERR_SYSTEM,
   ERR_ADMISSION,
+  ERR_COMPILED_WORKFLOW_PROVENANCE_REQUIRED,
+  ERR_COMPILE_AGENTIC_VERSION_BLOCKED,
+  ERR_COMPILE_AGENTIC_VERSION_OUTDATED,
   SAFE_OUTPUT_E001,
   SAFE_OUTPUT_E002,
   SAFE_OUTPUT_E007,
