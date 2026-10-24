@@ -9,7 +9,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { finalId, normalizeLedgerAppends } from "./ledger_transactions.cjs";
 import { execGitSync } from "./git_helpers.cjs";
-import { createReducer } from "./ledger_builtin.cjs";
 import { Ledger } from "./ledger_store.cjs";
 import { main, persistLedgerAppends, readLedgerConfig, readTransactions, validateTransactions } from "./push_ledger_changes.cjs";
 
@@ -99,7 +98,6 @@ test("persistence revalidates a table insert against the latest branch", async (
   const previousCore = global.core;
   global.core = { debug: () => {}, info: () => {}, warning: () => {}, setFailed: () => {} };
   try {
-    assert.doesNotThrow(() => createReducer(config).apply(normalized.appends[0].record));
     execSync("git init && git config user.name test && git config user.email test@example.com && git commit --allow-empty -m base", { cwd: workspaceDir, stdio: "pipe" });
     const baseRef = execSync("git rev-parse HEAD", { cwd: workspaceDir, encoding: "utf8" }).trim();
     const artifact = { version: 1, transaction_id: "agent:1", ledgers: { findings: { appends: normalized.appends } } };

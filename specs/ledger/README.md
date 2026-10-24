@@ -34,15 +34,16 @@ The conformance tests use the repository's JavaScript ledger implementation;
 there is no Go ledger package to test. `ledger_protocol_generated.test.cjs`
 checks each TLC operation witness against `replayBuiltin`, verifies append-only
 history and shard coverage, and ensures queueing or validation leaves the
-snapshot unchanged. `ledger_protocol_model.test.cjs` adds concrete witnesses
-for all operation semantics, including invalid note votes.
+snapshot unchanged. `ledger_protocol_model.test.cjs` adds hand-selected witnesses for each ledger
+type, including invalid note votes.
 
 | Property | Concrete test |
 | --- | --- |
 | `ReplayAgreement` | `ledger_protocol_generated.test.cjs` — each `TLC trace: <kind>/<op>` compares replay with the model projection. |
 | `NoEarlyDurability` / `ReadOnlySnapshot` | `ledger_protocol_generated.test.cjs` — queue and validation preserve history, shard coverage, and snapshot. |
 | `ImmutableHistory` | `ledger_protocol_generated.test.cjs` — shard IDs cover exactly the IDs in model history. |
-| `NotesReferentialIntegrity` / operation semantics | `ledger_protocol_model.test.cjs` — valid and missing note targets, duplicate log entries, idempotent sets, map replacement, and signed counters. |
+| `NotesReferentialIntegrity` | `ledger_protocol_model.test.cjs` — valid and missing note targets. |
+| Selected operation witnesses | `ledger_protocol_model.test.cjs` — duplicate log entries, set add/remove, map replacement, table insert/update/upsert, and signed counters; `ledger_builtin.test.cjs` covers idempotent set adds. |
 | `CounterBound` | `ledger_builtin.test.cjs` — unsafe counter arithmetic is rejected without changing state. |
 | `PersistRevalidation` | `push_ledger_changes.test.cjs` — persistence rejects a table insert that became invalid after a concurrent branch update. |
 | `CompactPreservesStream` | `ledger_compaction.test.cjs` — compaction preserves record hashes, including concurrent appends. |
