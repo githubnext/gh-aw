@@ -260,8 +260,25 @@
         "2 branches (60%/40% split, ties narrowest on record), ~178min window; duration mean 13.11min/median 7.65min (6/50 zero-dur).",
         "0/15 open PRs orphaned (max gate=1) -> NORMAL, 49th healthy day. Standard run (roll=55)."
       ]
+    },
+    {
+      "date": "2026-10-24",
+      "sessions_analyzed": 50,
+      "completion_rate": 4.0,
+      "average_duration_minutes": 1.143,
+      "median_duration_minutes": 0.0,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": null,
+      "key_insights": [
+        "4.0% completion (2/50: 2 success, 47 action_required, 1 in_progress), TIES ALL-TIME LOW (08-31, also 4.0%); 51-day mean 36.55%.",
+        "Branch concentration NEW ALL-TIME RECORD: 100% (50/50) on copilot/fix-work-queue-issue (PR #71495, Copilot-assigned), beating prior narrowest of 2 branches.",
+        "provenance 50.0% bot-driven (1/2, n=2 low confidence); true-agentic 1/1=100% resolved.",
+        "Data pipeline failure persists: 0/50 conversation logs; population still CI-gate/review-bot.",
+        "0/6 open PRs orphaned (max gate=0) -> NORMAL, 52nd healthy day. Standard run (roll=34)."
+      ]
     }
   ],
-  "last_updated": "2026-10-21",
-  "version": "1.10"
+  "last_updated": "2026-10-24",
+  "version": "1.11"
 }

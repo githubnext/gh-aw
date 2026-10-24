@@ -239,3 +239,12 @@ _(Prior peak 06-27: 40% (20 succ); superseded by 54% on 07-04. Per-day detail in
 - 2 unique branches (copilot/g-1-g-5-g-6-g-9-g-12-complete-routing-analytics 60%, copilot/make-admission-jobs-optional 40%), ties 10-19 for narrowest spread on record; ~178min window.
 - Duration mean 13.11min/median 7.65min (6/50 zero-dur, max 87.3min) -- highest since 10-18, consistent with longer review-bot runs in the mix.
 - Orphans 0/15 (max gate_count/branch=1 on main) -> 0% NORMAL, 49th consecutive healthy day; roll=55, no experimental strategy.
+
+## 2026-10-24 snapshot (cache-memory gap 10-22..10-23, no intervening repo-memory snapshot)
+
+- **4.0% raw completion** (2 success, 47 action_required, 1 in_progress), -42.0pts vs the last cache-memory reading (10-23, 46.0%); **TIES THE ALL-TIME LOW** set on 2026-08-31 (also 4.0%); 51-day prior mean 36.55% (range 4.0-80.0%).
+- **Branch concentration NEW ALL-TIME RECORD**: 50/50 = 100% of sessions on a single branch (copilot/fix-work-queue-issue, open PR #71495, Copilot-assigned), beating the prior narrowest-ever of 2 branches (tied 10-19/10-21/10-23). ~89.5min window (05:06:28-06:35:58Z).
+- provenance_inversion: only 2 successes (n=2, low confidence) -- 1 code-scanning + 1 true-agentic = 50.0% bot-driven, below the 72-86% band but not a new record (10-01's 28.6% remains the floor); true_agentic 1/1=100% resolved (1 in_progress excluded). Squad (21) + Agentic Commands (20), all action_required, excluded as provenance-ambiguous.
+- DATA PIPELINE FAILURE persists: 0/50 conversation/event logs fetched again; population remains CI-gate/review-bot workflows, not true coding-agent sessions.
+- Duration mean 1.14min/median 0.0min (47/50 zero-dur) -- among the lowest means on record.
+- Orphans 0/6 open PRs (max gate_count/branch=0, only 2 in-progress runs, both on main) -> 0% NORMAL, 52nd consecutive healthy day; roll=34, no experimental strategy (standard run, prioritized documenting the record-tying completion collapse and record branch concentration).
