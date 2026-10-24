@@ -7,7 +7,6 @@ const crypto = require("crypto");
 const { AsyncLocalStorage } = require("async_hooks");
 const { identity, canonical, canonicalBytes } = require("./work_queue_codec.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 
 const MAX_ASSIGNMENT_CLAIMS = 16;
 const claimExecution = new AsyncLocalStorage();
@@ -192,9 +191,7 @@ async function assertClaimAuthorized(message, options = {}) {
     if (execution?.closedEffectChannel) throw scopeError("Claim write channel is closed for independent delivery verification");
     if (resourceExecution.getStore()?.verification) throw scopeError("Claim resource verification is read-only");
     if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) {
-      if (typeof core !== "undefined" && typeof core.info === "function") {
-        logStagedPreviewInfo("Claim resource effects are not performed");
-      }
+      console.log("🎭 Staged Mode Preview — blocking resource effects for read-only Claim preview");
       throw scopeError("read-only Claim preview cannot perform resource effects");
     }
     const member = scope.assignment.claims.find(claim => claim.handle === normalized.claim_handle);

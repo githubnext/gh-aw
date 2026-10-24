@@ -96,29 +96,38 @@ describe("immutable Claim scope", () => {
     });
   });
 
-  it("logs a staged preview notice before blocking Claim resource effects", async () => {
-    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
-    const core = { info: vi.fn() };
-    vi.stubGlobal("core", core);
+  it.each(["environment", "execution"])("logs a staged preview before rejecting resource effects via %s", async source => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", source === "environment" ? "true" : "false");
+    vi.stubGlobal("core", undefined);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const authorize = vi.fn();
     try {
-      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1" }, async () => {
-        await expect(assertClaimAuthorized({ type: "create_issue", claim_handle: "h1" }, { effect: true, resource: {} })).rejects.toThrow(/^ERR_VALIDATION:/);
+      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1", staged: source === "execution", authorize }, async () => {
+        await expect(assertClaimAuthorized({ type: "create_issue" }, { effect: true })).rejects.toMatchObject({
+          message: "ERR_VALIDATION: work_queue_claim_scope: read-only Claim preview cannot perform resource effects",
+          code: "claim_scope_invalid",
+        });
       });
-      expect(core.info).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode Preview"));
+      expect(log).toHaveBeenCalledExactlyOnceWith("🎭 Staged Mode Preview — blocking resource effects for read-only Claim preview");
+      expect(authorize).not.toHaveBeenCalled();
     } finally {
+      log.mockRestore();
       vi.unstubAllEnvs();
-      vi.unstubAllGlobals();
     }
   });
 
-  it("rejects staged Claim resource effects without a global logger", async () => {
-    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
-    vi.stubGlobal("core", undefined);
+  it("keeps non-staged resource authorization available without a preview notice", async () => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "false");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const authorize = vi.fn().mockResolvedValue({ authorized: true, claim_handle: "h1" });
     try {
-      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1" }, async () => {
-        await expect(assertClaimAuthorized({ type: "create_issue", claim_handle: "h1" }, { effect: true, resource: {} })).rejects.toThrow(/^ERR_VALIDATION: work_queue_claim_scope: read-only Claim preview cannot perform resource effects/);
+      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1", authorize }, async () => {
+        expect(await assertClaimAuthorized({ type: "create_issue" }, { effect: true, resource: {} })).toEqual({ type: "create_issue", claim_handle: "h1" });
       });
+      expect(authorize).toHaveBeenCalledOnce();
+      expect(log).not.toHaveBeenCalled();
     } finally {
+      log.mockRestore();
       vi.unstubAllEnvs();
       vi.unstubAllGlobals();
     }
