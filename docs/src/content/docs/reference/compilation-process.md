@@ -21,7 +21,9 @@ Interactive compilation performs a best-effort compiler update check at most onc
 
 `gh aw update` refreshes upstream state on each invocation, but shares action release lists and tag resolutions across actions from the same repository within that invocation. Release lists use 100 entries per page, and source content already fetched for comparison or merging is reused. By default, `update` also recompiles workflows, so a separate `gh aw compile` is unnecessary unless additional compilation options are required.
 
-`gh aw update --verbose` prints network-operation start messages and completion messages with elapsed time and success/failure status. These cover GitHub CLI calls, native source/commit API requests, public API fallbacks, Git workflow downloads, and each container-digest resolution strategy, including the full-image pull fallback. GitHub CLI timings include subprocess startup and all pages requested by that invocation; they are not per-page HTTP timings. Request headers, credentials, and response bodies are not included.
+Container digest resolution uses registry metadata only (`docker buildx imagetools inspect`, then `crane digest`); it never pulls full images to discover their digests. If both methods fail, the command reports the failure and preserves any existing pin rather than downloading image layers.
+
+`gh aw update --verbose` prints network-operation start messages and completion messages with elapsed time and success/failure status. These cover GitHub CLI calls, native source/commit API requests, public API fallbacks, Git workflow downloads, and each metadata-only container-digest resolution strategy. GitHub CLI timings include subprocess startup and all pages requested by that invocation; they are not per-page HTTP timings. Request headers, credentials, and response bodies are not included.
 
 ## Repository Configuration (`aw.json`)
 
