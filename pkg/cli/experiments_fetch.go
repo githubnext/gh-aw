@@ -199,6 +199,9 @@ func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResu
 // Returns a zero-value result when the file cannot be fetched or parsed.
 func loadRemoteExperimentConfigs(repoOverride, experimentName string) experimentFrontmatterResult {
 	experimentsLog.Printf("Loading remote experiment configs for %s from %s", experimentName, repoOverride)
+	if !isSafeRemoteExperimentName(experimentName) {
+		return experimentFrontmatterResult{}
+	}
 
 	// Build the candidate list. First, use the directory listing to find the exact filename
 	// whose sanitized basename matches experimentName (e.g. "ci-coach" for "cicoach").
@@ -206,7 +209,6 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 	candidates := workflowFileCandidates(experimentName)
 	if resolved := findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName); resolved != "" && resolved != experimentName {
 		// Prepend the resolved name so it is tried before the bare sanitized form.
-		// Skip when resolved == experimentName to avoid a redundant fetch.
 		candidates = append([]string{resolved}, candidates...)
 	}
 
@@ -258,6 +260,14 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 	return experimentFrontmatterResult{}
 }
 
+func isSafeRemoteExperimentName(experimentName string) bool {
+	if err := validateAPIEndpoint(experimentName); err != nil {
+		experimentsLog.Printf("Rejecting unsafe experiment name %q: %v", experimentName, err)
+		return false
+	}
+	return true
+}
+
 func parseExperimentMetricConfigs(
 	frontmatter map[string]any,
 	source string,
@@ -282,7 +292,7 @@ func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string
 		"--jq", `[.[] | select(.name | endswith(".md")) | .name]`,
 	)
 	if err != nil {
-		experimentsLog.Printf("Rejecting remote workflow listing path: %v", err)
+		experimentsLog.Printf("Rejecting remote workflow listing endpoint: %v", err)
 		return ""
 	}
 	cmd := workflow.ExecGH(args...)

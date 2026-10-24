@@ -59,12 +59,54 @@ func TestReadRemoteRepoBranchFileNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestRepositoryAPIArgsRejectsPathTraversal(t *testing.T) {
-	_, err := repositoryAPIArgs("octo/repo", "", "contents/.github/workflows/../../secret.md")
-	require.ErrorContains(t, err, "must not contain '..' path segments")
+func TestReadRemoteRepoBranchFileContextRejectsUnsafePaths(t *testing.T) {
+	for _, filePath := range []string{"../secret", "nested/../../secret", "/secret"} {
+		t.Run(filePath, func(t *testing.T) {
+			argsLog := installExperimentFetchFakeGH(t, "", "")
+
+			_, err := readRemoteRepoBranchFileContext(context.Background(), "octo/repo", "main", filePath, "")
+
+			require.ErrorContains(t, err, "invalid file path")
+			require.NotErrorIs(t, err, os.ErrNotExist)
+			_, err = os.Stat(argsLog)
+			assert.ErrorIs(t, err, os.ErrNotExist, "unsafe paths must not invoke gh")
+		})
+	}
 }
 
-func TestReadRemoteRepoBranchFileRejectsPathTraversal(t *testing.T) {
-	_, err := readRemoteRepoBranchFileContext(context.Background(), "octo/repo", "main", "../secret", "")
-	require.ErrorContains(t, err, "must not contain '..' path segments")
+func TestRepositoryAPIArgsValidatesEndpoint(t *testing.T) {
+	for _, endpoint := range []string{"contents/../secret", "contents/nested/../../secret", "/branches"} {
+		t.Run(endpoint, func(t *testing.T) {
+			args, err := repositoryAPIArgs("octo/repo", "", endpoint)
+
+			require.ErrorContains(t, err, "invalid endpoint")
+			assert.Nil(t, args)
+		})
+	}
+
+	for _, endpoint := range []string{
+		"branches/experiments%2F%7Bowner%7D+test%231",
+		"contents/nested%20dir/evals%231.jsonl",
+		"contents/literal%252e%252e/secret",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			args, err := repositoryAPIArgs("github.example.com/octo/repo", "", endpoint, "--paginate")
+
+			require.NoError(t, err)
+			assert.Equal(t, []string{"api", "repos/octo/repo/" + endpoint, "--paginate", "--hostname", "github.example.com"}, args)
+		})
+	}
+}
+
+func TestReadRemoteRepoBranchFileContextPreservesLiteralEscapes(t *testing.T) {
+	argsLog := installExperimentFetchFakeGH(t, "", "")
+
+	_, err := readRemoteRepoBranchFileContext(context.Background(), "octo/repo", "evals/literal+test#1",
+		"nested/%2e%2e/evals.jsonl", "")
+
+	require.NoError(t, err)
+	assert.Equal(t, [][]string{
+		{"api", "repos/octo/repo/contents/nested/%252e%252e/evals.jsonl",
+			"--method", "GET", "--raw-field", "ref=evals/literal+test#1", "--jq", ".content"},
+	}, readExperimentGHArgs(t, argsLog))
 }

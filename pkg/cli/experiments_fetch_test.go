@@ -68,15 +68,18 @@ experiments:
 	}, readExperimentGHArgs(t, argsLog))
 }
 
-func TestLoadRemoteExperimentConfigsRejectsPathTraversal(t *testing.T) {
-	argsLog := installExperimentFetchFakeGH(t, "", "")
+func TestLoadRemoteExperimentConfigsRejectsUnsafeNames(t *testing.T) {
+	for _, name := range []string{"../../x", "nested/../../../x", "../x", "/x", ".."} {
+		t.Run(name, func(t *testing.T) {
+			argsLog := installExperimentFetchFakeGH(t, "", "")
 
-	result := loadRemoteExperimentConfigs("octo/repo", "../../secret")
+			result := loadRemoteExperimentConfigs("octo/repo", name)
 
-	assert.Empty(t, result.ExperimentConfigs)
-	assert.Equal(t, [][]string{
-		{"api", "repos/octo/repo/contents/.github/workflows", "--jq", `[.[] | select(.name | endswith(".md")) | .name]`},
-	}, readExperimentGHArgs(t, argsLog))
+			assert.Empty(t, result)
+			_, err := os.Stat(argsLog)
+			assert.ErrorIs(t, err, os.ErrNotExist, "unsafe experiment names must not invoke gh")
+		})
+	}
 }
 
 func TestFetchRemoteExperimentDetailsLoadsState(t *testing.T) {

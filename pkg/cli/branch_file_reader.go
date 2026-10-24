@@ -18,7 +18,7 @@ var branchFileReaderLog = logger.New("cli:branch_file_reader")
 
 func repositoryAPIArgs(repoOverride, hostname, endpoint string, flags ...string) ([]string, error) {
 	if err := validateAPIEndpoint(endpoint); err != nil {
-		return nil, fmt.Errorf("invalid repository API endpoint %q: %w", endpoint, err)
+		return nil, fmt.Errorf("invalid endpoint %q: %w", endpoint, err)
 	}
 	ownerRepo, repoHost := repoutil.NormalizeRepoForAPI(repoOverride)
 	if hostname == "" {
@@ -36,6 +36,10 @@ func readRemoteRepoBranchFile(repoOverride, branchName, filePath, hostname strin
 }
 
 func readRemoteRepoBranchFileContext(ctx context.Context, repoOverride, branchName, filePath, hostname string) ([]byte, error) {
+	if err := validateAPIEndpoint(filePath); err != nil {
+		branchFileReaderLog.Printf("Rejecting unsafe remote file path %q: %v", filePath, err)
+		return nil, fmt.Errorf("invalid file path %q: %w", filePath, err)
+	}
 	branchFileReaderLog.Printf("Fetching remote file: repo=%s, branch=%s, path=%s, hostname=%s", repoOverride, branchName, filePath, hostname)
 	args, err := repositoryAPIArgs(repoOverride, hostname, "contents/"+escapeEndpoint(filePath),
 		"--method", "GET",
