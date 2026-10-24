@@ -116,6 +116,8 @@ By default, `actions/checkout` performs a shallow clone (`fetch-depth: 1`) of a 
 
 A dedicated git fetch step is emitted after the `actions/checkout` step. Authentication re-uses the checkout token (or falls back to `github.token`) via a transient `http.extraheader` credential — no credentials are persisted to disk, consistent with the enforced `persist-credentials: false` policy.
 
+Each `fetch:` pattern is checked and fetched independently. Patterns that match no remote refs are skipped without preventing other patterns from being fetched. Authentication, network, and other fetch errors still fail the step.
+
 | Value | Description |
 |-------|-------------|
 | `"*"` | All remote branches. |

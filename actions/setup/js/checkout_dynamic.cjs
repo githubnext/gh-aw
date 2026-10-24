@@ -314,7 +314,7 @@ async function finish(options = {}) {
   for (const entry of entries) {
     const dir = workspacePath(config.workspace, entry.path);
     if (options.cleanCredentials) cleanCheckoutCredentials(dir, config.runnerTemp);
-    const run = (/** @type {string[]} */ args, authenticated = false, allowMissingKey = false) => {
+    const run = (/** @type {string[]} */ args, authenticated = false, allowedExitCode = 0) => {
       const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
       if (authenticated) {
         Object.assign(env, {
@@ -328,16 +328,18 @@ async function finish(options = {}) {
       try {
         const command = ["-C", dir, ...args];
         /** @type {import('child_process').ExecFileSyncOptionsWithStringEncoding} */
-        const execOptions = { encoding: "utf8", env, stdio: ["ignore", "pipe", "pipe"], timeout: getSetupTimeoutMs(authenticated ? "importGit" : "gitBranch") };
-        return options.runGit ? options.runGit(command, execOptions) : execFileSync("git", command, execOptions);
+        const execOptions = { encoding: "utf8", env, stdio: ["ignore", args[0] === "ls-remote" ? "ignore" : "pipe", "pipe"], timeout: getSetupTimeoutMs(authenticated ? "importGit" : "gitBranch") };
+        if (options.runGit) options.runGit(command, execOptions);
+        else execFileSync("git", command, execOptions);
+        return true;
       } catch (error) {
-        if (allowMissingKey && error instanceof Error && "status" in error && error.status === 5) return "";
+        if (allowedExitCode && error instanceof Error && "status" in error && error.status === allowedExitCode) return null;
         throw new Error(`Unable to finalize runtime checkout of ${entry.repository}`);
       }
     };
     if (process.env.GH_AW_DYNAMIC_SPARSE) {
-      run(["config", "--local", "--unset-all", "remote.origin.promisor"], false, true);
-      run(["config", "--local", "--unset-all", "remote.origin.partialclonefilter"], false, true);
+      run(["config", "--local", "--unset-all", "remote.origin.promisor"], false, 5);
+      run(["config", "--local", "--unset-all", "remote.origin.partialclonefilter"], false, 5);
     }
     if (refs.length) {
       const depth = Number(process.env.GH_AW_DYNAMIC_FETCH_DEPTH || "1");
@@ -347,7 +349,11 @@ async function finish(options = {}) {
         if (ref === "refs/pulls/open/*") return "+refs/pull/*/head:refs/remotes/origin/pull/*/head";
         return `+refs/heads/${ref}:refs/remotes/origin/${ref}`;
       });
-      run(["fetch", "--no-recurse-submodules", "origin", ...(depth ? [`--depth=${depth}`] : []), ...refspecs], true);
+      for (const refspec of refspecs) {
+        const source = refspec.slice(1).split(":")[0];
+        if (run(["ls-remote", "--exit-code", "origin", source], true, 2) === null) continue;
+        run(["fetch", "--no-recurse-submodules", "origin", ...(depth ? [`--depth=${depth}`] : []), refspec], true);
+      }
     }
   }
   const actionDir = workspacePath(config.workspace, `.gh-aw/checkouts/${config.index}`);

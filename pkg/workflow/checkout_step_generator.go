@@ -526,7 +526,7 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	// Build refspecs
 	refspecs := make([]string, 0, len(entry.fetchRefs))
 	for _, ref := range entry.fetchRefs {
-		refspecs = append(refspecs, fmt.Sprintf("'%s'", fetchRefToRefspec(ref)))
+		refspecs = append(refspecs, shellEscapeArg(fetchRefToRefspec(ref)))
 	}
 
 	// Build the git command, navigating to the checkout directory when needed
@@ -555,8 +555,16 @@ func generateFetchStepLines(entry *resolvedCheckout, index int) string {
 	fmt.Fprintf(&sb, "          GH_AW_FETCH_TOKEN: %s\n", token)
 	sb.WriteString("        run: |\n")
 	sb.WriteString("          header=$(printf \"x-access-token:%s\" \"${GH_AW_FETCH_TOKEN}\" | base64 -w 0)\n")
-	fmt.Fprintf(&sb, `          %s -c "http.extraheader=Authorization: Basic ${header}" fetch origin%s %s`+"\n",
-		gitPrefix, depthFlag, strings.Join(refspecs, " "))
+	sb.WriteString("          for refspec in " + strings.Join(refspecs, " ") + "; do\n")
+	sb.WriteString("            source_ref=${refspec%%:*}\n")
+	sb.WriteString("            source_ref=${source_ref#+}\n")
+	sb.WriteString("            if " + gitPrefix + " -c \"http.extraheader=Authorization: Basic ${header}\" ls-remote --exit-code origin \"$source_ref\" > /dev/null; then\n")
+	sb.WriteString("              " + gitPrefix + " -c \"http.extraheader=Authorization: Basic ${header}\" fetch origin" + depthFlag + " \"$refspec\"\n")
+	sb.WriteString("            else\n")
+	sb.WriteString("              status=$?\n")
+	sb.WriteString("              if [ \"$status\" -ne 2 ]; then exit \"$status\"; fi\n")
+	sb.WriteString("            fi\n")
+	sb.WriteString("          done\n")
 	return sb.String()
 }
 
