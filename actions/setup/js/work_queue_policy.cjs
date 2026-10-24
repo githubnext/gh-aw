@@ -171,6 +171,30 @@ function poolPolicy(state, pool) {
   return state.policy.pools[pool];
 }
 
+function policyForAcceptedRequest(state, accepted) {
+  let policy;
+  let epoch;
+  // Requests retain ledger order, including historical checkpoint receipts.
+  for (const commit of state.requests.values()) {
+    for (const operation of commit.checkpoint_events ?? commit.operations) {
+      if (operation.kind === "Policy" && operation.policy) {
+        policy = structuredClone(operation.policy);
+        epoch = operation.epoch;
+      } else if (operation.kind === "PoolInstall" && operation.config) {
+        if (["__proto__", "constructor", "prototype"].includes(operation.pool)) throw queueError("policy_invalid", "reserved pool identity");
+        if (policy) Object.defineProperty(policy.pools, operation.pool, { value: structuredClone(operation.config), enumerable: true, configurable: true, writable: true });
+      }
+    }
+    if (commit.request.id === accepted.request.id) {
+      if (policy && epoch === accepted.policy_epoch) return policy;
+      // Older checkpoints did not retain Policy/PoolInstall configurations.
+      if (!policy && state.policy_epoch === accepted.policy_epoch) return state.policy;
+      break;
+    }
+  }
+  throw new Error("work_queue_policy_missing");
+}
+
 function bindingAuthority(state, claimId, actor) {
   if (actor.role !== "worker") throw queueError("actor_unauthorized", "only an authenticated worker role has Claim authority");
   const claim = state.claims.get(claimId);
@@ -275,6 +299,7 @@ module.exports = {
   freshClocks,
   normalizeTrustedContext,
   policyScales,
+  policyForAcceptedRequest,
   poolPolicy,
   validateActor,
   validatePolicy,

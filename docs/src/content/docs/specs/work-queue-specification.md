@@ -512,12 +512,24 @@ absent queue. Existing nonempty ledgers without a valid Policy, empty or
 malformed logs, and unsupported histories MUST fail closed rather than being
 overwritten. On an existing AW-managed queue, first use MAY append a
 `PoolInstall` for a newly compiled pool when the proposal preserves every
-installed pool and all non-pool Policy fields. The operation MUST validate the
-new pool's immutable worker routes and repository-scoped effect authority, and
-MUST preserve existing Work and the Policy epoch. It MUST NOT edit an installed
-pool or scheduling economics. Later scheduling Policy epochs require an
-administrator-authorized, quiescent update; compatible worker deployments use
-the separate prospective transition.
+installed pool and all non-pool Policy fields, comparing profile boundaries
+independently of the caller's newer source revision. Replay MUST require each
+new profile to match the same named profile already authorized in an installed
+pool or its available registered Deployment revisions, including its immutable ref,
+logical contract, identity, scopes, and scheduling authority. Installation MUST
+NOT introduce new worker authority or depend on the caller's local dispatch
+targets; actual submission and dispatch retain those caller-local checks.
+The operation MUST NOT revive a revision marked unavailable. Reserved pool
+identities `__proto__`, `constructor`, and `prototype` MUST be rejected.
+The adapter MUST verify the selected immutable routes before publication.
+The operation MUST preserve existing Work and the Policy epoch. It MUST NOT
+edit an installed pool or scheduling economics. Compatible newer source refs
+use the separate verified Deployment transition after installation.
+Later scheduling Policy epochs require an administrator-authorized,
+quiescent update.
+Accepted-request recovery MUST reconstruct Policy through the `PoolInstall`
+operations preceding that request, not merely its epoch's initial `Policy`.
+Checkpoints MUST retain that history for recovery after later epochs.
 
 Automatic first-use bootstrap MUST NOT require repository-administration access
 or administrator seeding. GitHub enforces repository access rules independently;

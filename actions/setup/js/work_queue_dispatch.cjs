@@ -7,7 +7,7 @@ const log = require("./work_queue_logging.cjs").createWorkQueueLogger("dispatch"
 const { queueControlErrorCode, queueControlErrorExplanation } = require("./work_queue_logging.cjs");
 
 const { canonical, closed, digest, integer, queueError } = require("./work_queue_codec.cjs");
-const { actorFromContext, dispatchPrincipal } = require("./work_queue_policy.cjs");
+const { actorFromContext, dispatchPrincipal, policyForAcceptedRequest } = require("./work_queue_policy.cjs");
 const { gateKey } = require("./work_queue_graph.cjs");
 const { observationRefreshBudget } = require("./work_queue_limits.cjs");
 const { assignmentsForRequest, generateRequestOperations, validateWorkerContinuation } = require("./work_queue_replay.cjs");
@@ -383,9 +383,7 @@ function inheritWorkerSubmission(state, trustedContext, parameters) {
 
 function acceptedSubmissionParameters(state, trustedContext, parameters, prior) {
   if (prior.request.kind !== "submit" || canonical(prior.actor) !== canonical(actorFromContext(trustedContext))) throw new Error("work_queue_request_reused");
-  const policy =
-    state.transactions.flatMap(commit => commit.operations).find(operation => operation.kind === "Policy" && operation.epoch === prior.policy_epoch)?.policy ?? (prior.policy_epoch === state.policy_epoch ? state.policy : undefined);
-  if (!policy) throw new Error("work_queue_policy_missing");
+  const policy = policyForAcceptedRequest(state, prior);
   let inherited = parameters;
   if (trustedContext.role === "worker") {
     // Reconstruct an accepted request's immutable metadata without granting fresh continuation authority.

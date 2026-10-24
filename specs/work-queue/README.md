@@ -367,8 +367,12 @@ from `.github/workflows/aw.json`. `QueueBootstrap` models only first-submit
 genesis; `QueuePoolInstall` separately models an additive first-use pool on an
 existing AW-managed queue. The latter preserves installed pools, accepted Work
 and the Policy epoch, and demonstrates an authorized producer can install
-without administrator authority. Host authorization, proposal validity and verified
-worker-route properties are trusted inputs, not proved by either model.
+without administrator authority. `RoutesApproved` represents the independent
+replay check that each profile is already authorized in installed Policy or an
+available registered Deployment revision; it is not the caller-local dispatch
+allowlist and cannot revive a revision marked unavailable.
+Host authorization, proposal validity, exact profile equality and native
+worker-route verification are abstract inputs, not proved by either model.
 Queue configuration contains no enrollment, producer allowlists, worker
 principals or credential scopes. Economic Policy changes still require an
 explicit quiescent update. `AWPolicy` records the default concurrency 16,
@@ -398,6 +402,7 @@ TLA2TOOLS_JAR=/path/to/tla2tools.jar TLC_MODEL_FILTER=QueuePoolInstall \
 | `PoolInstallInvalidProposal.cfg` | Reject proposals that change existing Policy. |
 | `PoolInstallInvalidPool.cfg` | Reject an invalid new pool definition. |
 | `PoolInstallInvalidRoute.cfg` | Reject unverified/invalid worker routes. |
+| `PoolInstallUnapprovedRoute.cfg` | Reject otherwise valid routes absent from installed worker authority. |
 | `PoolInstallUnauthorized.cfg` | Reject publication without trusted host authorization. |
 | `PoolInstallProducerWitness.cfg` | Reach producer installation while preserving `Safety`; the deliberately false `NoProducerInstall` invariant must fail. |
 

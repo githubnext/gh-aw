@@ -6,7 +6,7 @@ EXTENDS Naturals, TLC
 \* are explicit trusted inputs; Git publication/CAS behavior is abstracted.
 CONSTANTS ExistingPool, NewPool, CallerRole, HostAuthorized,
           ProposalPreservesPolicy, NewPoolValid, RoutesValid,
-          RoutesImmutable, RepositoryScoped
+          RoutesImmutable, RepositoryScoped, RoutesApproved
 
 Roles == {"administrator", "producer", "dispatcher"}
 Phases == {"requested", "route-check", "ready", "done", "rejected"}
@@ -25,6 +25,7 @@ Init ==
     /\ RoutesValid \in BOOLEAN
     /\ RoutesImmutable \in BOOLEAN
     /\ RepositoryScoped \in BOOLEAN
+    /\ RoutesApproved \in BOOLEAN
     /\ installedPools = {ExistingPool}
     /\ acceptedWork = {"accepted"}
     /\ policyEpoch = 1
@@ -42,6 +43,7 @@ ValidateProposal ==
 VerifyRoutes ==
     /\ phase = "route-check"
     /\ routesVerified' = RoutesValid /\ RoutesImmutable /\ RepositoryScoped
+                          /\ RoutesApproved
     /\ phase' = IF routesVerified' THEN "ready" ELSE "rejected"
     /\ UNCHANGED <<installedPools, acceptedWork, policyEpoch, publications>>
 
@@ -50,6 +52,8 @@ InstallPool ==
     /\ HostAuthorized
     /\ CallerRole \in Roles
     /\ routesVerified
+    \* Replay independently checks authority, even for a direct ledger request.
+    /\ RoutesApproved
     /\ ProposalPreservesPolicy /\ NewPoolValid
     /\ NewPool \notin installedPools
     /\ installedPools' = installedPools \cup {NewPool}
@@ -86,6 +90,7 @@ PublicationAuthority ==
         /\ RoutesValid
         /\ RoutesImmutable
         /\ RepositoryScoped
+        /\ RoutesApproved
 Safety ==
     /\ TypeOK
     /\ ExistingPoolPreserved

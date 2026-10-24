@@ -193,11 +193,12 @@ def generate():
             "kind": "WorkCancellation", "work_id": node_id(key), "reason": "drain",
         }], reason="grants_paused")
     epoch = "epoch2"
+    policy2 = json.loads(json.dumps(POLICY))
+    del policy2["pools"]["default"]["profiles"]["default"]["principal"]
     append("administrator", "policy2", "policy", 5200, [{
-        "kind": "Policy", "epoch": epoch, "policy": POLICY,
+        "kind": "Policy", "epoch": epoch, "policy": policy2,
     }], reason="grants_paused")
-    new_pool = json.loads(json.dumps(POLICY["pools"]["default"]))
-    del new_pool["profiles"]["default"]["principal"]
+    new_pool = json.loads(json.dumps(policy2["pools"]["default"]))
     append("dispatcher", "pool-install", "pool_install", 5300, [{
         "kind": "PoolInstall", "pool": "smoke", "config": new_pool,
     }], reason="grants_paused")

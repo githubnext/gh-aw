@@ -21,6 +21,7 @@ import { assignmentOnly } from "./work_queue_scheduler.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { validateStoredAssignment } from "./work_queue_binding.cjs";
 import { installWorkQueuePools } from "./work_queue_pool_install.cjs";
+import { synchronizeDeployments } from "./work_queue_deployment_control.cjs";
 import { authenticatePublisher } from "./work_queue_native.cjs";
 import { requestForIntent, stagePlanIntents } from "./work_queue_intents.cjs";
 import { canonical, digest } from "./work_queue_codec.cjs";
@@ -1940,6 +1941,232 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(fixture.transactions.at(-1).operations).toEqual([{ kind: "PoolInstall", pool: "smoke", config: proposal.pools.smoke }]);
   });
 
+  it.each(["installed", "later-ref", "later-ref-and-contract"])("resolves proposal %s against repository-wide installed authority", async revision => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+        policy.pools.default.profiles.default.workflow = ".github/workflows/unrelated.lock.yml";
+      },
+    });
+    const original = structuredClone(fixture.state.policy.pools.default);
+    const proposal = structuredClone(fixture.policy);
+    if (revision !== "installed") proposal.pools.default.profiles.default.ref = "b".repeat(40);
+    if (revision === "later-ref-and-contract") proposal.pools.default.profiles.default.logical_contract = "b".repeat(64);
+    proposal.pools.smoke = structuredClone(proposal.pools.default);
+    const workerContents = `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${"a".repeat(64)}"\n`;
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(workerContents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: original.profiles.default.workflow, state: "active" } }));
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    const configured = { ...options, policyProposal: proposal, config: { work_queue_workflows: ["caller-local"], aw_context_workflows: ["caller-local"] } };
+    await installWorkQueuePools(configured, trusted, ["smoke"]);
+    expect(fixture.state.policy.pools.default).toEqual(original);
+    expect(fixture.state.policy.pools.smoke).toEqual(original);
+    expect(fixture.githubClient.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ ref: original.profiles.default.ref }));
+    const count = fixture.transactions.length;
+    await installWorkQueuePools(configured, trusted, ["smoke"]);
+    expect(fixture.transactions).toHaveLength(count);
+    if (revision === "later-ref-and-contract") {
+      fixture.githubClient.rest.repos.get = vi.fn(async () => ({ data: { full_name: REPOSITORY, default_branch: "main" } }));
+      fixture.githubClient.rest.git.getRef = vi.fn(async () => ({ data: { ref: "refs/heads/main", object: { sha: "b".repeat(40) } } }));
+      fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => {
+        const contents = workflowPath.endsWith(".md") ? "---\ntools:\n  work-queue:\n    worker: true\n---\nApproved worker.\n" : workerContents.replace("a".repeat(64), "b".repeat(64));
+        return { data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(contents).toString("base64") } };
+      });
+      await synchronizeDeployments({ ...configured, config: { work_queue_workflows: ["unrelated"], aw_context_workflows: ["unrelated"] } }, trusted, ["smoke"]);
+      expect(fixture.state.deployments.get("smoke").get("default")).toMatchObject({ current_ref: "b".repeat(40), current_contract: "b".repeat(64) });
+      expect(fixture.state.deployments.get("default").get("default")).toMatchObject({ current_ref: original.profiles.default.ref, current_contract: original.profiles.default.logical_contract });
+      expect(fixture.state.policy.pools.smoke).toEqual(original);
+    }
+  });
+
+  it("accepts an exact same-name registered revision without changing existing deployments", async () => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const profile = { ...fixture.policy.pools.default.profiles.default, ref: "b".repeat(40), logical_contract: "b".repeat(64) };
+    fixture.append(
+      "deployment",
+      { operations: [{ kind: "Deployment", pool: "default", worker_profile: "default", expected_ref: REF, expected_contract: "a".repeat(64), profile, available: true, reason: "compiler_deployment" }] },
+      fixture.dispatcher
+    );
+    const before = canonical(serializeProjection(fixture.state).deployments.default);
+    const config = structuredClone(fixture.policy.pools.default);
+    config.profiles.default = profile;
+    fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "deployed-copy", config }] }, fixture.dispatcher);
+    expect(fixture.state.policy.pools["deployed-copy"].profiles.default).toEqual(profile);
+    expect(canonical(serializeProjection(fixture.state).deployments.default)).toBe(before);
+    config.profiles = { renamed: profile };
+    config.default_profile = "renamed";
+    expect(() => fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "renamed-copy", config }] }, fixture.dispatcher)).toThrow(/registered worker revision authority/);
+    const proposal = structuredClone(fixture.state.policy);
+    proposal.pools["helper-copy"] = structuredClone(proposal.pools["deployed-copy"]);
+    for (const pool of Object.values(proposal.pools)) {
+      pool.profiles.default.ref = "c".repeat(40);
+      pool.profiles.default.logical_contract = "c".repeat(64);
+    }
+    const contents = `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${"b".repeat(64)}"\n`;
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(contents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: profile.workflow, state: "active" } }));
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    await installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, ["helper-copy"]);
+    expect(fixture.state.policy.pools["helper-copy"].profiles.default).toEqual(profile);
+    expect(fixture.githubClient.rest.repos.getContent).toHaveBeenCalledWith(expect.objectContaining({ ref: profile.ref }));
+    expect(canonical(serializeProjection(fixture.state).deployments.default)).toBe(before);
+  });
+
+  it.each([false, true])("does not revive an unavailable installed or deployed worker (new ref: %s)", async newRef => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const original = structuredClone(fixture.policy.pools.default.profiles.default);
+    const profile = { ...original, ...(newRef ? { ref: "b".repeat(40) } : {}) };
+    fixture.append(
+      "deployment",
+      { operations: [{ kind: "Deployment", pool: "default", worker_profile: "default", expected_ref: original.ref, expected_contract: original.logical_contract, profile, available: false, reason: "worker_unavailable" }] },
+      fixture.dispatcher
+    );
+    const config = structuredClone(fixture.policy.pools.default);
+    config.profiles.default = profile;
+    const before = canonical(serializeProjection(fixture.state));
+    expect(() => fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "unavailable-copy", config }] }, fixture.dispatcher)).toThrow(/registered worker revision authority/);
+    const proposal = structuredClone(fixture.state.policy);
+    proposal.pools["unavailable-copy"] = config;
+    // Prevent the adapter from selecting the still-available original revision.
+    if (newRef) {
+      fixture.append(
+        "deployment",
+        {
+          operations: [
+            {
+              kind: "Deployment",
+              pool: "default",
+              worker_profile: "default",
+              expected_ref: profile.ref,
+              expected_contract: profile.logical_contract,
+              profile: original,
+              available: false,
+              activate: false,
+              reason: "worker_unavailable",
+            },
+          ],
+        },
+        fixture.dispatcher
+      );
+    }
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    await expect(installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, ["unavailable-copy"])).rejects.toMatchObject({ code: "work_queue_worker_not_compiler_approved" });
+    if (!newRef) expect(canonical(serializeProjection(fixture.state))).toBe(before);
+    expect(Object.hasOwn(fixture.state.policy.pools, "unavailable-copy")).toBe(false);
+  });
+
+  it.each([false, true])("rechecks concurrent pool installation after CAS refresh (different: %s)", async different => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+      },
+    });
+    const proposal = structuredClone(fixture.policy);
+    proposal.pools.smoke = structuredClone(proposal.pools.default);
+    const contents = "on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\n";
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(contents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } }));
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    const count = fixture.transactions.length;
+    const publish = async args => {
+      const config = structuredClone(proposal.pools.smoke);
+      if (different) config.logical_limit += 1;
+      fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "smoke", config }] }, fixture.dispatcher);
+      return fixture.publishWorkQueueRequest(args);
+    };
+    const pending = installWorkQueuePools({ ...options, policyProposal: proposal, publishWorkQueueRequest: publish }, trusted, ["smoke"]);
+    if (different) await expect(pending).rejects.toMatchObject({ code: "work_queue_policy_proposal_mismatch" });
+    else await pending;
+    expect(fixture.transactions).toHaveLength(count + 1);
+  });
+
+  it.each([
+    ["route", profile => (profile.workflow = ".github/workflows/unapproved.lock.yml")],
+    ["ref", profile => (profile.ref = "b".repeat(40))],
+    ["contract", profile => (profile.logical_contract = "b".repeat(64))],
+    ["credential", profile => (profile.credential_scope = "unapproved")],
+    ["trust", profile => (profile.trust_domain = "unapproved")],
+    ["claims", profile => (profile.max_claims += 1)],
+    ["sharing", profile => (profile.share_keys = !profile.share_keys)],
+  ])("rejects raw PoolInstall changed %s authority", (_name, mutate) => {
+    const { fixture } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "a".repeat(64);
+      },
+    });
+    const before = canonical(serializeProjection(fixture.state));
+    const pool = structuredClone(fixture.policy.pools.default);
+    mutate(pool.profiles.default);
+    expect(() => fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: "unapproved", config: pool }] }, fixture.dispatcher)).toThrow();
+    expect(canonical(serializeProjection(fixture.state))).toBe(before);
+  });
+
+  it.each(["__proto__", "constructor", "prototype", "", "é".repeat(129)])("rejects unsafe automatic pool identity %s", async name => {
+    const { fixture, options } = setup({ granted: false });
+    const before = canonical(fixture.transactions);
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    await expect(installWorkQueuePools(options, trusted, [name])).rejects.toThrow();
+    expect(() => fixture.append("pool_install", { operations: [{ kind: "PoolInstall", pool: name, config: fixture.policy.pools.default }] }, fixture.dispatcher)).toThrow();
+    expect(canonical(fixture.transactions)).toBe(before);
+  });
+
+  it.each(["é".repeat(128), "x".repeat(256)])("installs bounded UTF-8 pool identity %s with a stable bounded request", async name => {
+    const { fixture, options } = setup({
+      granted: false,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+      },
+    });
+    const proposal = structuredClone(fixture.policy);
+    proposal.pools[name] = structuredClone(proposal.pools.default);
+    const contents = "on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\n";
+    fixture.githubClient.rest.repos.getContent = vi.fn(async ({ path: workflowPath }) => ({
+      data: { type: "file", path: workflowPath, encoding: "base64", content: Buffer.from(contents).toString("base64") },
+    }));
+    fixture.githubClient.rest.actions.getWorkflow = vi.fn(async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } }));
+    const trusted = { ...fixture.dispatcher, authenticated: true, roles: ["dispatcher"] };
+    await installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, [name]);
+    expect(fixture.state.policy.pools[name]).toEqual(proposal.pools.default);
+    expect(Buffer.byteLength(fixture.transactions.at(-1).request.id)).toBeLessThanOrEqual(256);
+    const count = fixture.transactions.length;
+    await installWorkQueuePools({ ...options, policyProposal: proposal }, trusted, [name]);
+    expect(fixture.transactions).toHaveLength(count);
+  });
   it("installs a new AW pool before admitting a first submission to it", async () => {
     const { fixture, options } = setup({
       granted: false,
