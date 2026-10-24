@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -201,7 +202,9 @@ func downloadWorkflowContent(ctx context.Context, repo, path, ref string, verbos
 		if errorutil.IsAuthError(outputStr) || errorutil.IsAuthError(err.Error()) {
 			downloadLog.Printf("GitHub API authentication failed, attempting git fallback for %s/%s@%s", repo, path, ref)
 			// Try fallback using git commands
+			finish := ctxutil.StartOperation(ctx, fmt.Sprintf("git download %s/%s@%s", repo, path, ref))
 			content, gitErr := downloadWorkflowContentViaGit(ctx, repo, path, ref, verbose)
+			finish(gitErr)
 			if gitErr != nil {
 				return nil, fmt.Errorf("failed to fetch file content via GitHub API and git: API error: %w, Git error: %w", err, gitErr)
 			}

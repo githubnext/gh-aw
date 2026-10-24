@@ -13,6 +13,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -296,7 +297,9 @@ func fetchContainerDigest(ctx context.Context, image string, verbose bool) (stri
 
 	var errs []string
 	for _, s := range strategies {
+		finish := ctxutil.StartOperation(ctx, s.name+" "+image)
 		digest, err := s.fn()
+		finish(err)
 		if err == nil && digest != "" {
 			containerPinsLog.Printf("Resolved %s via %s: %s", image, s.name, digest)
 			return digest, nil

@@ -139,7 +139,17 @@ func enrichGHError(err error) error {
 // runGHWithSpinnerContext executes a gh CLI command with context support, a spinner,
 // and returns the output. This is the core implementation for all RunGH* functions.
 // If stdin is non-nil it is attached to the command's standard input.
-func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, stdin io.Reader, args ...string) ([]byte, error) {
+func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, stdin io.Reader, args ...string) (result []byte, resultErr error) {
+	operation := "GitHub CLI: " + spinnerMessage
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "/repos/") || strings.HasPrefix(arg, "repos/") {
+			endpoint, _, _ := strings.Cut(arg, "?")
+			operation += " " + endpoint
+			break
+		}
+	}
+	finish := ctxutil.StartOperation(ctx, operation)
+	defer func() { finish(resultErr) }()
 	cmd := ExecGHContext(ctx, args...)
 	if stdin != nil {
 		cmd.Stdin = stdin

@@ -63,6 +63,7 @@ func newCachedActionUpdateDeps(base actionUpdateDeps) actionUpdateDeps {
 
 	cached := base
 	cached.getLatestRelease = func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
+		repo = gitutil.ExtractBaseRepo(repo)
 		key := fmt.Sprintf("%s|%s|%t", repo, currentVersion, allowMajor)
 		mu.Lock()
 		result, ok := latestReleases[key]
@@ -70,7 +71,14 @@ func newCachedActionUpdateDeps(base actionUpdateDeps) actionUpdateDeps {
 		if ok {
 			return result.version, result.sha, result.err
 		}
-		version, sha, err := base.getLatestRelease(ctx, repo, currentVersion, allowMajor, verbose)
+		var version, sha string
+		var err error
+		if base.getLatestRelease != nil {
+			version, sha, err = base.getLatestRelease(ctx, repo, currentVersion, allowMajor, verbose)
+		} else {
+			// Nested release-list and tag lookups must use the same per-command cache.
+			version, sha, err = getLatestActionReleaseWithDeps(ctx, cached, repo, currentVersion, allowMajor, verbose)
+		}
 		mu.Lock()
 		latestReleases[key] = cachedLatestRelease{version: version, sha: sha, err: err}
 		mu.Unlock()
@@ -124,13 +132,12 @@ func newCachedActionUpdateDeps(base actionUpdateDeps) actionUpdateDeps {
 }
 
 func defaultActionUpdateDeps() actionUpdateDeps {
-	return actionUpdateDeps{
-		getLatestRelease:       getLatestActionRelease,
+	return newCachedActionUpdateDeps(actionUpdateDeps{
 		getLatestReleaseViaGit: getLatestActionReleaseViaGit,
 		checkCoolDown:          checkReleaseCoolDown,
 		runGHReleasesAPI: func(ctx context.Context, baseRepo string) ([]byte, error) {
-			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", "--paginate", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", "--paginate", fmt.Sprintf("/repos/%s/releases?per_page=100", baseRepo), "--jq", ".[].tag_name")
 		},
 		getActionSHAForTag: getActionSHAForTag,
-	}
+	})
 }

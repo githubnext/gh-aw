@@ -16,6 +16,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/errorutil"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/semverutil"
@@ -455,7 +456,7 @@ func getLatestBranchCommitInfoCached(ctx context.Context, repo, branch string) (
 // SAML-enforced token) cannot access cross-organization public repositories.
 // Unauthenticated requests are subject to a lower rate limit (60 req/hour) but
 // are sufficient for the handful of calls needed during update resolution.
-func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) {
+func fetchPublicGitHubAPI(ctx context.Context, endpoint string) (result []byte, resultErr error) {
 	apiURL := "https://api.github.com" + endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -463,6 +464,8 @@ func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) 
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 
+	finish := ctxutil.StartOperation(ctx, "GitHub public GET "+endpoint)
+	defer func() { finish(resultErr) }()
 	resp, err := updatePublicAPIClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -601,7 +604,7 @@ func defaultWorkflowUpdateDeps() workflowUpdateDeps {
 		getRepoDefaultBranch:  getRepoDefaultBranchCached,
 		getLatestBranchCommit: getLatestBranchCommitInfoCached,
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
-			endpoint := fmt.Sprintf("/repos/%s/releases", repo)
+			endpoint := fmt.Sprintf("/repos/%s/releases?per_page=100", repo)
 			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", "--paginate", endpoint, "--jq", ".[].tag_name")
 			if err != nil && errorutil.IsAuthError(err.Error()) {
 				updateLog.Printf("GitHub API auth failed for releases of %s, retrying without token", repo)
@@ -758,17 +761,6 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 	if !opts.Force && currentRef == latestRef && len(resolvedLocation.redirectHistory) == 0 {
 		updateLog.Printf("Workflow already at latest ref: %s, checking for local modifications", currentRef)
 
-		// Download the source content to check if local file has been modified
-		sourceContent, err := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, opts.Verbose)
-		if err != nil {
-			// If we can't download for comparison, just show the up-to-date message
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download source for comparison: %v", err)))
-			}
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
-			return nil
-		}
-
 		// Read current workflow content
 		currentContent, err := os.ReadFile(wf.Path)
 		if err != nil {
@@ -776,7 +768,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 		}
 
 		// Check if local file differs from source
-		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, filepath.Dir(wf.Path), opts.Verbose) {
+		if hasLocalModifications(string(newContent), string(currentContent), wf.SourceSpec, filepath.Dir(wf.Path), opts.Verbose) {
 			updateLog.Printf("Local modifications detected in workflow: %s", wf.Name)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Local copy of %s has been modified from source", wf.Name)))
@@ -802,8 +794,14 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 
 	// When merge mode is on, detect local modifications to confirm we
 	// actually need to merge (if no local mods, override is fine either way).
+	var baseContent []byte
 	if merge {
-		baseContent, dlErr := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, opts.Verbose)
+		var dlErr error
+		if currentRef == latestRef {
+			baseContent = newContent
+		} else {
+			baseContent, dlErr = downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, opts.Verbose)
+		}
 		if dlErr == nil {
 			localContent, readErr := os.ReadFile(wf.Path)
 			if readErr == nil && hasLocalModifications(string(baseContent), string(localContent), wf.SourceSpec, filepath.Dir(wf.Path), opts.Verbose) {
@@ -831,9 +829,12 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading base version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, currentRef)))
 		}
 
-		baseContent, err := downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, opts.Verbose)
-		if err != nil {
-			return fmt.Errorf("failed to download base workflow: %w", err)
+		if baseContent == nil {
+			var err error
+			baseContent, err = downloadWorkflowContentFn(ctx, sourceSpec.Repo, sourceSpec.Path, currentRef, opts.Verbose)
+			if err != nil {
+				return fmt.Errorf("failed to download base workflow: %w", err)
+			}
 		}
 
 		// Read current workflow content

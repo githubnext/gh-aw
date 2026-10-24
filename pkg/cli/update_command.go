@@ -11,6 +11,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
@@ -222,10 +223,13 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 // RunUpdateWorkflows updates workflows from their source repositories.
 // Each workflow is compiled immediately after update.
 func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error { //nolint:largefunc
+	if opts.Verbose {
+		ctx = ctxutil.WithOperationReporter(ctx, reportUpdateNetworkOperation)
+	}
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
 
 	var firstErr error
-	actionDeps := newCachedActionUpdateDeps(defaultActionUpdateDeps())
+	actionDeps := defaultActionUpdateDeps()
 
 	if err := UpdateWorkflows(ctx, opts); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)

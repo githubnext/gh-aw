@@ -13,6 +13,16 @@ The `gh aw compile` command transforms a markdown workflow file into a complete 
 
 When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/setup/working-with-workflows/#editing-workflows) for details.
 
+## Network access
+
+Workflow schemas and built-in Actions/AW lint rules are bundled with the CLI; they do not download schemas or install linters during compilation. Remote imports and action references not covered by cached or embedded pins can require GitHub requests. `--validate` additionally checks runtime packages, container images, and repository features. External scanners are opt-in and may download container images or contact upstream services.
+
+Interactive compilation performs a best-effort compiler update check at most once every 24 hours. It runs in the background with a three-second total budget, cancels outstanding requests when compilation finishes, and probes identical current/latest release tags only once. `--no-check-update` disables this check; CI and non-interactive invocations skip it.
+
+`gh aw update` refreshes upstream state on each invocation, but shares action release lists and tag resolutions across actions from the same repository within that invocation. Release lists use 100 entries per page, and source content already fetched for comparison or merging is reused. By default, `update` also recompiles workflows, so a separate `gh aw compile` is unnecessary unless additional compilation options are required.
+
+`gh aw update --verbose` prints network-operation start messages and completion messages with elapsed time and success/failure status. These cover GitHub CLI calls, native source/commit API requests, public API fallbacks, Git workflow downloads, and each container-digest resolution strategy, including the full-image pull fallback. GitHub CLI timings include subprocess startup and all pages requested by that invocation; they are not per-page HTTP timings. Request headers, credentials, and response bodies are not included.
+
 ## Repository Configuration (`aw.json`)
 
 `.github/workflows/aw.json` stores repository-wide compilation settings.
