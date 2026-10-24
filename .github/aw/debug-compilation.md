@@ -55,10 +55,10 @@ explicit acknowledgement grants live execution or policy-installation authorizat
 
 Built-in AST lint now runs by default as part of every compile, before zizmor/
 actionlint/poutine and before the lock file is emitted; it is distinct from those
-opt-in scanners. `--skip-lint` disables it but is rejected together with
+opt-in scanners. `--no-lint` disables it but is rejected together with
 `--dry-run`, so dry-run diagnostics always include lint findings — fix them
 rather than treating them as advisory. `add`, `update`, and `validate` also lint
-whenever they recompile but do not expose `--skip-lint`.
+whenever they recompile but do not expose `--no-lint`.
 
 `validate` uses `--no-emit`, which skips zizmor, actionlint and poutine. Only the
 scanner-enabled compile command above runs them; a passing `validate` command

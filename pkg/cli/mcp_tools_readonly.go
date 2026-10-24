@@ -279,7 +279,7 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--actionlint")
 		}
 		if args.SkipLint {
-			cmdArgs = append(cmdArgs, "--skip-lint")
+			cmdArgs = append(cmdArgs, "--no-lint")
 		}
 		if args.RunnerGuard {
 			cmdArgs = append(cmdArgs, "--runner-guard")
@@ -304,7 +304,7 @@ Returns JSON array with validation results for each workflow:
 		}
 		cmdArgs = appendMCPPositionals(cmdArgs, args.Workflows...)
 
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, skip-lint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
+		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, no-lint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
 			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.SkipLint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
 
 		notifyProgress(ctx, req, 0, 100, "Compiling workflows...")
