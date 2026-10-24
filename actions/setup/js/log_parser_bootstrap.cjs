@@ -8,7 +8,7 @@ const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_cod
 const { redactStepSummaryContent, redactSecrets } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, applyAddMaskRedaction } = require("./add_mask_redaction.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
-const { projectSessionResult, isTokenCount, observedSessionModel } = require("./agent_session.cjs");
+const { projectSessionResult, isSessionEvent, isTokenCount, observedSessionModel } = require("./agent_session.cjs");
 const { redactSessionForPublication } = require("./agent_session_render.cjs");
 const { writeSessionArtifact } = require("./session_artifact.cjs");
 const { collectCodexJSONRecords } = require("./codex_log_framing.cjs");
@@ -374,6 +374,9 @@ async function runLogParser(options) {
     }
     if (protectedCapture && (!Array.isArray(logEntries) || !logEntries.length)) {
       throw new Error(`${ERR_VALIDATION}: Protected command stderr produced no structured session events`);
+    }
+    if (protectedCapture && logEntries.some(event => !isSessionEvent(event) || (event.type === "agent.execution" && !isAgentExecutionEvent(event)))) {
+      throw new Error(`${ERR_VALIDATION}: Protected command stderr produced invalid structured session events`);
     }
     const supplementalEvents = deduplicateCopilotFallback(
       logEntries ?? [],

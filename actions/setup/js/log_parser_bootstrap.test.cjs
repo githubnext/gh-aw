@@ -87,6 +87,7 @@ describe("log_parser_bootstrap.cjs", () => {
               logEntries: [
                 { type: "assistant.message", data: { content: "private secret; stdout secret; opaque-configured-secret" } },
                 { type: "session.result", data: { status: "failure", usage: { input_tokens: 100 } } },
+                { type: "agent.execution", data: { categories: [], errorTypes: [], errorCodes: [], exitCode: 17 } },
               ],
             });
 
@@ -129,6 +130,29 @@ describe("log_parser_bootstrap.cjs", () => {
             expect(mockParseLog).not.toHaveBeenCalled();
             expect(fs.existsSync(path.join(artifactDir, "agent-stdio.log"))).toBe(false);
             expect(mockCore.setFailed).toHaveBeenCalled();
+          } finally {
+            delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
+        }),
+        it.each([
+          ["non-event values", [null]],
+          ["non-object event data", [{ type: "assistant.message", data: [] }]],
+          ["invalid agent.execution data", [{ type: "agent.execution", data: { categories: [], errorTypes: [], errorCodes: [], exitCode: "17" } }]],
+        ])("should reject protected session entries with %s", async (_description, logEntries) => {
+          const tmpDir = fs.mkdtempSync(path.join(__dirname, "test-"));
+          const artifactDir = path.join(tmpDir, "artifact");
+          const protectedDir = path.join(tmpDir, "protected");
+          try {
+            fs.mkdirSync(artifactDir);
+            writeNativeCapture(protectedDir, "recorder frames");
+            process.env.GH_AW_AGENT_OUTPUT = protectedDir;
+            process.env.GH_AW_PROTECTED_SESSION_CAPTURE = "1";
+
+            await runLogParser({ parseLog: () => ({ markdown: "summary", logEntries }), parserName: "TestParser", rootDir: artifactDir });
+
+            expect(mockCore.setFailed).toHaveBeenCalled();
+            expect(fs.existsSync(path.join(artifactDir, "agent-session.jsonl"))).toBe(false);
           } finally {
             delete process.env.GH_AW_PROTECTED_SESSION_CAPTURE;
             fs.rmSync(tmpDir, { recursive: true, force: true });
