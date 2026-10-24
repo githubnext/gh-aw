@@ -9,7 +9,7 @@ For architecture, a [minimal deployment example](/gh-aw/patterns/workqueue-ops/#
 
 ## Initialization and authorization
 
-The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. On an AW-managed queue, first use can add a new pool from the caller's compiled configuration as an additive `PoolInstall` operation; it preserves existing pools and the Policy epoch. Economic or existing-pool changes still require a quiescent queue and an explicit `policy` update.
+The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. On an existing AW-managed queue, new submission and dispatch requests for a missing pool are rejected before deployment synchronization; adding the pool to `aw.json` does not update the installed Policy. An explicit `PoolInstall` operation can add a pool while preserving existing pools and the Policy epoch, within the repository authority already granted by installed pools. Economic or existing-pool changes require a quiescent queue and an explicit administrator `policy` update.
 
 Native `submit-work` and `submit-graph` resolve scheduling and approved AW worker routes from the verified repository revision, not an unrelated local checkout. Assignment-capable workers must already be published.
 
@@ -326,6 +326,14 @@ Idle refresh is every 10 seconds; search and action review pause it. Failed read
 | `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` | All runtime queue events |
 
 Events go to stderr with elapsed timing and sanitized counts, flags, statuses, and error categories, not payloads, identities, or credentials. Blocked controls and exhausted delivery verification also emit always-visible diagnostics.
+
+Routing diagnostics distinguish installed Policy gaps from compiler approval failures:
+
+| Code | Meaning and recovery |
+| --- | --- |
+| `work_queue_pool_not_installed` | The requested pool is absent from installed Policy. Configuration edits alone do not install it; recovery requires an explicit administrator Policy update after the queue is quiescent. |
+| `work_queue_profile_not_approved` | The worker profile is absent from the installed pool. Check installed Policy and caller-approved routes; adding profiles requires an administrator Policy update on a quiescent queue. |
+| `work_queue_worker_not_compiler_approved` | The caller's compiled configuration does not approve the worker route. Check `safe-outputs.dispatch-workflow.workflows` and the published worker's assignment support. |
 
 HTTP failure diagnostics include validated quota counters, `rate_limit_reset_unix` (Unix seconds), `retry_after_seconds`, fixed rate-limit/SSO flags, and the GitHub request ID when available. Explicit rate-limit evidence distinguishes throttled HTTP 403 responses from otherwise ambiguous access denials; quota headroom alone does not prove permission denial. Raw provider messages, arbitrary headers, and authorization URLs are never printed.
 

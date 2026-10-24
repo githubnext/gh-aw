@@ -117,6 +117,7 @@ jobs:
       (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke') || !(fromJSON(github.event.inputs.aw_context ||
       '{}').event_type == 'pull_request')))
     runs-on: ubuntu-slim
+    environment: aoai-model
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
       actions: read
