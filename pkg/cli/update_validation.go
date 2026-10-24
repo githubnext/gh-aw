@@ -54,15 +54,6 @@ func defaultValidationResolvers() validationResolvers {
 	}
 }
 
-// validateUpdateSHAEntries validates the structural and liveness integrity of
-// .github/aw/actions-lock.json after a workflow update. Container pins are
-// validated structurally only (format, key/image/pinned_image consistency);
-// live digest re-resolution is not performed because refreshing a mutable tag
-// is an explicit update operation.
-func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
-	return validateUpdateSHAEntriesWithResolvers(ctx, repoRoot, defaultValidationResolvers())
-}
-
 // validateUpdateSHAEntriesStructural validates only the structural integrity of
 // .github/aw/actions-lock.json (format, non-empty fields, key consistency) without
 // performing any live network calls to resolve or verify SHAs. This is suitable for
@@ -87,6 +78,10 @@ func structuralOnlyResolvers() validationResolvers {
 	}
 }
 
+// validateUpdateSHAEntriesWithResolvers validates the structural and liveness
+// integrity of .github/aw/actions-lock.json after a workflow update. Container
+// pins are validated structurally only; refreshing a mutable tag is an explicit
+// update operation.
 func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string, r validationResolvers) error {
 	actionsLockPath := filepath.Join(repoRoot, ".github", "aw", "actions-lock.json")
 	if _, err := os.Stat(actionsLockPath); err != nil {

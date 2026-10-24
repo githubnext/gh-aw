@@ -93,13 +93,16 @@ func newCachedActionUpdateDeps(base actionUpdateDeps) actionUpdateDeps {
 }
 
 func loadActionUpdateResult[T any](mu *sync.Mutex, cache map[string]*syncutil.OnceLoader[T], key string, fetch func() (T, error)) (T, error) {
-	mu.Lock()
-	loader := cache[key]
-	if loader == nil {
-		loader = &syncutil.OnceLoader[T]{}
-		cache[key] = loader
-	}
-	mu.Unlock()
+	loader := func() *syncutil.OnceLoader[T] {
+		mu.Lock()
+		defer mu.Unlock()
+		loader := cache[key]
+		if loader == nil {
+			loader = &syncutil.OnceLoader[T]{}
+			cache[key] = loader
+		}
+		return loader
+	}()
 	return loader.Get(fetch)
 }
 

@@ -149,15 +149,18 @@ func enrichGHError(err error) error {
 // and returns the output. This is the core implementation for all RunGH* functions.
 // If stdin is non-nil it is attached to the command's standard input.
 func runGHWithSpinnerContext(ctx context.Context, spinnerMessage string, combined bool, stdin io.Reader, args ...string) (result []byte, resultErr error) {
-	operation := "GitHub CLI: " + spinnerMessage
+	var operation strings.Builder
+	operation.WriteString("GitHub CLI: ")
+	operation.WriteString(spinnerMessage)
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "/repos/") || strings.HasPrefix(arg, "repos/") {
 			endpoint, _, _ := strings.Cut(arg, "?")
-			operation += " " + endpoint
+			operation.WriteByte(' ')
+			operation.WriteString(endpoint)
 			break
 		}
 	}
-	finish := ctxutil.StartOperation(ctx, operation)
+	finish := ctxutil.StartOperation(ctx, operation.String())
 	defer func() { finish(resultErr) }()
 	cmd := ExecGHContext(ctx, args...)
 	if stdin != nil {
