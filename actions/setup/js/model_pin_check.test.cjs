@@ -433,6 +433,9 @@ describe("repository-pins-reflection-regression", () => {
     [".github/workflows/smoke-work-queue.md", "engine.fallback-models[1]"],
   ];
 
+  // Known unresolvable pins on main, by exact identity; any other unresolvable pin fails.
+  const KNOWN_MAIN_FAILURES = [];
+
   function repositoryReport() {
     const bytes = fs.readFileSync(REFLECT_FILE);
     expect(crypto.createHash("sha256").update(bytes).digest("hex")).toBe(REFLECT_SHA256);
