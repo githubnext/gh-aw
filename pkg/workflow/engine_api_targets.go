@@ -172,6 +172,10 @@ func extractCopilotTargetConfig(workflowData *WorkflowData) *AgentAPIProxyTarget
 //
 // Returns empty string if no usable source is configured.
 func GetCopilotAPITarget(workflowData *WorkflowData) string {
+	return resolveCopilotAPITarget(workflowData, extractAPITargetHost)
+}
+
+func resolveCopilotAPITarget(workflowData *WorkflowData, extractHost func(*WorkflowData, string) string) string {
 	awfHelpersLog.Print("Getting Copilot API target")
 	// Explicit engine.api-target takes precedence.
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.APITarget != "" {
@@ -181,14 +185,17 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	awfHelpersLog.Print("No explicit api-target, deriving Copilot API target from GITHUB_COPILOT_BASE_URL")
-	if target := extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL"); target != "" {
+	if target := extractHost(workflowData, "GITHUB_COPILOT_BASE_URL"); target != "" {
 		return target
 	}
 
 	// Final fallback: derive from a literal BYOK provider URL so AWF's api-proxy preserves
 	// non-default hosts and ports for self-hosted OpenAI-compatible backends such as Ollama.
 	awfHelpersLog.Print("No GITHUB_COPILOT_BASE_URL, deriving Copilot API target from literal COPILOT_PROVIDER_BASE_URL")
-	return extractLiteralEngineEnvHost(workflowData, constants.CopilotProviderBaseURL)
+	if extractLiteralEngineEnvHost(workflowData, constants.CopilotProviderBaseURL) == "" {
+		return ""
+	}
+	return extractHost(workflowData, constants.CopilotProviderBaseURL)
 }
 
 // isCopilotBYOKMode returns true when Copilot execution is configured to use BYOK routing.
