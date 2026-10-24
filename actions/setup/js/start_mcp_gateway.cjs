@@ -1363,7 +1363,7 @@ async function main() {
       execFileSync("node", [converterPath], { stdio: "inherit", env: process.env, timeout: CONFIG_CONVERTER_TIMEOUT_MS });
     } catch (err) {
       stopGatewayProcess(gatewayPid);
-      setFailed(`${ERR_SYSTEM}: MCP config converter failed: ${getErrorMessage(err)}`);
+      setFailed(getErrorMessage(err));
       return;
     }
   } else {
@@ -1546,7 +1546,7 @@ if (require.main === module) {
     const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
-    setFailed(`${ERR_SYSTEM}: ${message}`);
+    setFailed(message);
   });
 }
 

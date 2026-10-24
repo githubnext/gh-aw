@@ -893,6 +893,8 @@ describe("start_mcp_gateway startup diagnostics", () => {
       expect(source).toContain("stopGatewayProcess(activeGatewayPid)");
       expect(source).toContain("function setFailed(message)");
       expect(source).toContain("core.setFailed(/^ERR_[A-Z]+:/.test(text) ? text : `${ERR_SYSTEM}: ${text}`)");
+      expect(source).toContain("setFailed(getErrorMessage(err));");
+      expect(source).toContain("setFailed(message);");
       expect(source).toContain("const startupDeadline = gatewayStartTime + healthRetryConfig.backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS");
       expect(source).toContain("httpGet(healthUrl, Math.min(2000, remainingMs))");
     });

@@ -192,7 +192,9 @@ async function assertClaimAuthorized(message, options = {}) {
     if (execution?.closedEffectChannel) throw scopeError("Claim write channel is closed for independent delivery verification");
     if (resourceExecution.getStore()?.verification) throw scopeError("Claim resource verification is read-only");
     if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true" || execution?.staged === true) {
-      logStagedPreviewInfo("Claim resource effects are not performed");
+      if (typeof core !== "undefined" && typeof core.info === "function") {
+        logStagedPreviewInfo("Claim resource effects are not performed");
+      }
       throw scopeError("read-only Claim preview cannot perform resource effects");
     }
     const member = scope.assignment.claims.find(claim => claim.handle === normalized.claim_handle);

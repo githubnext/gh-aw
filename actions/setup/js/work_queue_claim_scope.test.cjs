@@ -111,6 +111,19 @@ describe("immutable Claim scope", () => {
     }
   });
 
+  it("rejects staged Claim resource effects without a global logger", async () => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_STAGED", "true");
+    vi.stubGlobal("core", undefined);
+    try {
+      await withClaimExecution({ assignment: assignment(1), claim_handle: "h1" }, async () => {
+        await expect(assertClaimAuthorized({ type: "create_issue", claim_handle: "h1" }, { effect: true, resource: {} })).rejects.toThrow(/^ERR_VALIDATION: work_queue_claim_scope: read-only Claim preview cannot perform resource effects/);
+      });
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("partitions prepared artifacts without path traversal or cross-Claim collisions", async () => {
     const base = "/workspace/artifacts";
     const first = await withClaimExecution({ assignment: assignment(2), claim_handle: "h1" }, () => scopedArtifactFilename(`${base}/aw-patch.patch`));

@@ -55,7 +55,7 @@ trap 'rm -f "$OUTPUT"; rm -rf "$FIXTURE_ROOT"' EXIT
 
 bash "$SCRIPT_DIR/check-safe-outputs-transport-integrity_test.sh"
 
-(cd "$REPO_ROOT" && bash "$SCRIPT_DIR/check-safe-outputs-conformance.sh" >"$OUTPUT" 2>&1) || true
+(cd "$REPO_ROOT" && bash "$SCRIPT_DIR/check-safe-outputs-conformance.sh" 2>&1 | sed -E $'s/\033\\[[0-9;]*[[:alpha:]]//g' >"$OUTPUT") || true
 
 if ! grep -q 'SEC-005: All cross-repo handlers validate allowlists' "$OUTPUT" ||
     grep -q '\[HIGH\].*SEC-005:' "$OUTPUT"; then
