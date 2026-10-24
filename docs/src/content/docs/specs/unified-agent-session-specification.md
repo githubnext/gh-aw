@@ -1602,15 +1602,16 @@ detection and tolerant recovery rules do not authorize fallback after protected
 recorder verification fails.
 
 **T-UAS-084 — Native source and collection completeness.** Protected ingestion
-MUST use AWF-native host-only command output and validate its metadata and private
-stream files before parsing. Only the final started attempt's stderr MUST be
-passed to the engine's `parseLog(logContent)`; stdout, presentation logs,
-sandbox-written files, and earlier attempts MUST NOT supply substitute or
-concatenated session evidence. Missing, inconsistent, incomplete, undrained, or
-truncated collection MUST fail publication. The native aggregate capture bound
-is 64 MiB across both streams and all attempts. A complete capture with a nonzero
-command exit remains valid collection; its native exit status MUST remain
-authoritative rather than being replaced by sandbox-written exit metadata.
+MUST use AWF-native host-only command output and validate its metadata, private
+regular stream files, completion/drain state, aggregate byte counts, and command
+outcome before parsing. Only the final started attempt's stderr MUST be passed to
+the engine's `parseLog(logContent)`; stdout, presentation logs, sandbox-written
+files, and earlier attempts MUST NOT supply substitute or concatenated session
+evidence. Missing, inconsistent, incomplete, undrained, or truncated collection
+MUST fail publication. The native aggregate capture bound is 64 MiB across both
+streams and all attempts. A complete capture with a nonzero command exit remains
+valid collection; its native exit status MUST remain authoritative over
+sandbox-writable exit metadata.
 
 **T-UAS-085 — Recorder authentication.** A protected engine MUST isolate recorder
 keys and capture-bearing descriptors from same-UID tools, including descriptors
@@ -1625,14 +1626,22 @@ remaining launchers and protect its recorder channel.
 
 **T-UAS-086 — Structure-preserving protected publication.** Raw native capture
 streams MUST remain outside published session artifacts. Publication copies MUST
-apply secret redaction and mask requests from either native stream, with those
-requests used solely for privacy rather than session observations. Redaction MAY
-change schema-defined text and tool payload keys and values, but MUST NOT
-silently rewrite event types, identities, tool names, status, accounting
-structure, or other structural fields. A structural redaction collision or
-verification/publication failure MUST reject publication and discard stale
-publishable session artifacts without following artifact symlinks; cleanup
-failure MUST be reported explicitly, not treated as successful publication.
+apply configured workflow secrets and mask requests from either native stream,
+including to summary copies; mask requests MUST be used solely for privacy rather
+than session observations. Redaction MAY change schema-defined text and tool
+payload keys and values, but MUST NOT silently rewrite event types, identities,
+tool names, status, accounting structure, or other structural fields. The
+sandbox-writable `agent-errors.jsonl` source and its temporary sibling MUST NOT
+be published as session evidence. The verified native exit status MUST replace
+any shared exit-code sidecar used by downstream collection. A structural
+redaction collision or verification/publication failure MUST reject
+publication, gate session-artifact uploads, and discard stale publishable
+artifacts without following artifact symlinks. Cleanup failure MUST be reported
+explicitly and MUST NOT make artifacts eligible for upload.
+
+Protected session capture MUST NOT be enabled when workflow `evals` are
+configured, because the secondary engine invocation consumes `evals.log` rather
+than the native capture.
 
 ### 7.7 OpenCode sample
 
@@ -1952,7 +1961,7 @@ evidence; compilation alone is not a conformance claim.
 | T-UAS-082 | AWF upstream-error and failed request records from gh-aw-firewall#10211 writers with and without code/type/param/source | Supplied identifiers, status, provider, model, and request ID retained; bodies, headers, and messages excluded; invalid identifiers dropped. |
 | T-UAS-084 | Forged stdout/shared logs, multiple native attempts, inconsistent metadata/files, undrained or truncated collection, and complete nonzero exit | Only final-attempt stderr reaches the parser; invalid collection fails closed; native exit status is retained. |
 | T-UAS-085 | Valid, forged, replayed, interrupted, or missing-terminal recorder streams; same-UID tools probing recorder and ancestor `/proc/<pid>/fd` descriptors under Linux/AWF | Authenticated contiguous complete events only; keys and recorder channels inaccessible to tools; no legacy fallback or unsupported conformance claim. |
-| T-UAS-086 | Masks from either stream, nested tool-payload keys/values, masks colliding with `failure`, `session.result`, IDs, or accounting keys, stale files/symlinks, and failed publication/cleanup | Payload secrets redacted; structure unchanged or publication rejected; raw capture not uploaded; stale artifacts discarded without following links and cleanup errors explicit. |
+| T-UAS-086 | Configured secrets and masks from either stream, summary copies, nested tool-payload keys/values, masks colliding with `failure`, `session.result`, IDs, or accounting keys, forged `agent-errors.jsonl`, conflicting shared/native exit codes, stale files/symlinks, and failed publication/cleanup | Payload and summary secrets redacted; structure unchanged or publication rejected; native exit code survives downstream collection; forged sources excluded; raw capture not uploaded; session uploads gated on successful publication and cleanup; stale artifacts discarded without following links. |
 
 ### 9.3 Engine and integration fixture matrix
 
