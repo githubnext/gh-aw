@@ -10,7 +10,7 @@
  *   - Reads configured eval questions from GH_AW_EVALS_QUESTIONS (JSON array)
  *   - Reads the agent output from /tmp/gh-aw/evals/agent_output.json
  *   - Builds a multi-question binary evaluation prompt
- *   - Writes the prompt to /tmp/gh-aw/aw-prompts/prompt.txt for the engine
+ *   - Writes combined and split prompt files under /tmp/gh-aw/aw-prompts
  *
  * Phase "parse" (runs AFTER the agentic engine):
  *   - Reads the engine output log from /tmp/gh-aw/evals/evals.log
@@ -105,6 +105,9 @@ async function setupMain() {
   try {
     fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
     fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", prompt);
+    // Replace split prompts restored from the agent artifact for engines such as Pi.
+    fs.writeFileSync("/tmp/gh-aw/aw-prompts/user.txt", prompt);
+    fs.writeFileSync("/tmp/gh-aw/aw-prompts/system.txt", "");
   } catch (err) {
     throw new Error(`${ERR_SYSTEM}: Failed to prepare eval prompt file: ${getErrorMessage(err)}`, { cause: err });
   }

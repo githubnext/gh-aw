@@ -49,6 +49,9 @@ describe("run_evals.cjs", () => {
     if (fs.existsSync(EXPERIMENT_ASSIGNMENTS_PATH)) {
       fs.unlinkSync(EXPERIMENT_ASSIGNMENTS_PATH);
     }
+    for (const filename of ["prompt.txt", "user.txt", "system.txt"]) {
+      fs.rmSync(`/tmp/gh-aw/aw-prompts/${filename}`, { force: true });
+    }
   });
 
   it("stores the workflow run id when writing eval records", async () => {
@@ -119,6 +122,31 @@ describe("run_evals.cjs", () => {
     expect(prompt).toContain("<question-id>: UNKNOWN");
     expect(prompt).toContain("Use the exact question IDs provided in <questions>.");
     expect(prompt).toContain("answer UNKNOWN.");
+  });
+
+  it("replaces restored Pi user and system prompts with the BinEval prompt", async () => {
+    const promptDir = "/tmp/gh-aw/aw-prompts";
+    const questions = [
+      { id: "vitals_referenced", question: "Were vitals referenced?" },
+      { id: "evidence_cited", question: "Was evidence cited?" },
+    ];
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify(questions));
+    fs.mkdirSync(promptDir, { recursive: true });
+    fs.writeFileSync(`${promptDir}/user.txt`, "Run the main workflow investigation.");
+    fs.writeFileSync(`${promptDir}/system.txt`, "Follow the main workflow startup instructions.");
+
+    await setupMain();
+
+    const prompt = fs.readFileSync(`${promptDir}/prompt.txt`, "utf8");
+    const userPrompt = fs.readFileSync(`${promptDir}/user.txt`, "utf8");
+    expect(userPrompt).toBe(prompt);
+    for (const { id, question } of questions) {
+      expect(userPrompt).toContain(`id="${id}">${question}</question>`);
+    }
+    expect(userPrompt).not.toContain("Run the main workflow investigation.");
+    expect(fs.readFileSync(`${promptDir}/system.txt`, "utf8")).toBe("");
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PROMPT", `${promptDir}/prompt.txt`);
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (positional format)", async () => {
