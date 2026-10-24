@@ -16,8 +16,9 @@ const resourceVerifications = new WeakMap();
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 
-function scopeError(message, code = "claim_scope_invalid") {
-  return Object.assign(new Error(`work_queue_claim_scope: ${message}`), { code });
+function scopeError(message, code = "claim_scope_invalid", errorCode) {
+  const prefix = errorCode ? `${errorCode}: ` : "";
+  return Object.assign(new Error(`${prefix}work_queue_claim_scope: ${message}`), { code });
 }
 
 function identifier(value, name) {
@@ -34,7 +35,7 @@ function freeze(value) {
 
 function normalizeAssignment(value) {
   if (!object(value) || !Array.isArray(value.claims) || value.claims.length < 1 || value.claims.length > MAX_ASSIGNMENT_CLAIMS) {
-    throw scopeError("work_queue_assignment requires an immutable array of 1 to 16 Claims; scalar assignments are unsupported");
+    throw scopeError("work_queue_assignment requires an immutable array of 1 to 16 Claims; scalar assignments are unsupported", "claim_scope_invalid", "ERR_WORK_QUEUE_CLAIM_SCOPE");
   }
   if (canonicalBytes(value) > 48 * 1024) throw scopeError("assignment exceeds the 48 KiB host-input ceiling");
   identifier(value.dispatch_id, "dispatch_id");

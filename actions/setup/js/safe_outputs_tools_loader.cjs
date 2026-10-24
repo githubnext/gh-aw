@@ -316,7 +316,7 @@ function registerPredefinedTools(server, tools, config, registerTool, normalizeT
         try {
           toolToRegister = structuredClone(cloneableTool);
         } catch (err) {
-          throw new Error("Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
+          throw new Error("ERR_SAFE_OUTPUT_TOOL_COPY_FAILED: Failed to deep-copy tool " + tool.name + ": " + getErrorMessage(err), { cause: err });
         }
         if (handler) {
           toolToRegister.handler = handler;

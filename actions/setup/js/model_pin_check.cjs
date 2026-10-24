@@ -875,7 +875,7 @@ function parseArgs(argv) {
  */
 function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
-  if (!args.reflect) throw new Error("--reflect <path to /reflect JSON> is required");
+  if (!args.reflect) throw new Error("ERR_MODEL_PIN_REFLECT_REQUIRED: --reflect <path to /reflect JSON> is required");
   const repoRoot = path.resolve(args.repo || process.cwd());
   const collected = collectModelPins({ repoRoot, workflowsDir: args["workflows-dir"] });
   const report = buildModelPinReport({ ...collected, reflectData: readReflect(args.reflect) });

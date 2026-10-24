@@ -260,10 +260,10 @@ async function waitForSafeOutputsReadiness(config, gatewayPort, agentId, retryCo
     return;
   }
   if (!gatewayPort || !/^\d+$/.test(gatewayPort)) {
-    throw new Error("MCP gateway safeoutputs readiness requires a numeric MCP_GATEWAY_PORT");
+    throw new Error("ERR_SAFE_OUTPUTS_GATEWAY_CONFIG: MCP gateway safeoutputs readiness requires a numeric MCP_GATEWAY_PORT");
   }
   if (!agentId) {
-    throw new Error("MCP gateway safeoutputs readiness requires MCP_GATEWAY_AGENT_ID");
+    throw new Error("ERR_SAFE_OUTPUTS_GATEWAY_CONFIG: MCP gateway safeoutputs readiness requires MCP_GATEWAY_AGENT_ID");
   }
 
   const serverUrl = `http://localhost:${gatewayPort}/mcp/${serverName}`;
