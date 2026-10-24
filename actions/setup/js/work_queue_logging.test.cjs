@@ -498,6 +498,18 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("private");
   });
 
+  it.each([undefined, null, { "x-ratelimit-remaining": "7" }, {}])("preserves nested header precedence and nullish fallback: %j", nestedHeaders => {
+    const error = { status: 403, response: { headers: nestedHeaders }, headers: { "x-ratelimit-remaining": "0" } };
+    const usesFallback = nestedHeaders == null;
+    expect(queueControlErrorCode(error)).toBe(usesFallback ? "queue_control_github_rate_limited" : "queue_control_github_access_denied");
+    createWorkQueueLogger("native").failure("run.read.failed", error, true);
+    if (usesFallback) expect(output()).toContain("rate_limit_remaining=0");
+    else if (nestedHeaders["x-ratelimit-remaining"]) expect(output()).toContain("rate_limit_remaining=7");
+    else expect(output()).not.toContain("rate_limit_remaining=");
+    expect(output()).toContain("response_headers_present=true");
+    expect(output()).toContain("GitHub request ID: unknown.");
+  });
+
   it.each(["headers", "response"])("includes validated request IDs from status-less GraphQL %s", location => {
     const headers = { "x-github-request-id": "1B41:A4F74:930C3C:1DF33D1:6AD4920C", authorization: "private-token" };
     const error = {
@@ -676,6 +688,22 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("graphql_operation_");
     expect(output()).not.toContain("graphql_reference_already_exists");
     expect(output()).not.toContain("private-");
+  });
+
+  it.each([
+    ["lock", "l0"],
+    ["projection", "m0"],
+    ["unlock", "u0"],
+  ])("rejects trailing line terminators in the %s alias scheme", (scheme, alias) => {
+    vi.stubEnv("DEBUG", "work-queue:issues");
+    for (const terminator of ["\n", "\r", "\r\n", "\u2028", "\u2029"]) {
+      createWorkQueueLogger("issues").failure("projection.mutation.failed", { errors: [{ type: "UNPROCESSABLE", path: [alias + terminator], message: "A reference with that name already exists." }] }, true, scheme);
+    }
+    expect(output().match(/graphql_path_unclassified=true/g)).toHaveLength(5);
+    expect(output()).not.toMatch(/graphql_(?:lock|unlock|projection)_alias=/);
+    expect(output()).not.toContain("graphql_operation_");
+    expect(output()).not.toContain("graphql_result_present");
+    expect(output()).not.toContain("graphql_reference_already_exists");
   });
 
   it.each([

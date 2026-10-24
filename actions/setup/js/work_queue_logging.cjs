@@ -21,6 +21,11 @@ const GRAPHQL_OPERATIONS = new Map([
   ["createLabel", "graphql_operation_create_label"],
   ["updateLabel", "graphql_operation_update_label"],
 ]);
+const GRAPHQL_ALIAS_KINDS = new Map([
+  ["l", { context: "lock", field: "graphql_lock_alias", operation: "graphql_operation_create_ref" }],
+  ["m", { context: "projection", field: "graphql_projection_alias", operation: "graphql_operation_issue_projection" }],
+  ["u", { context: "unlock", field: "graphql_unlock_alias", operation: "graphql_operation_delete_ref" }],
+]);
 
 const CONTROL_ERROR_CODES = new Set([
   "checkpoint_invalid",
@@ -132,6 +137,11 @@ function ownValue(value, key) {
   }
 }
 
+/** @param {unknown} error */
+function responseHeaders(error) {
+  return ownValue(ownValue(error, "response"), "headers") ?? ownValue(error, "headers");
+}
+
 /** @param {unknown} headers @param {string} name */
 function headerInteger(headers, name) {
   const value = ownValue(headers, name);
@@ -152,11 +162,10 @@ function graphqlErrorMetadata(error, data, index, operationContext) {
   const root = fields.graphql_path_present ? ownValue(path, "0") : undefined;
   const alias = typeof root === "string" && root.length <= 3 ? /^(l|m|u)(0|[1-9][0-9]?)$/.exec(root) : null;
   let operation = operationContext && root === operationContext ? GRAPHQL_OPERATIONS.get(operationContext) : undefined;
-  const prefix = operationContext === "lock" ? "l" : operationContext === "unlock" ? "u" : operationContext === "projection" ? "m" : undefined;
-  if (alias && alias[0] === root && alias[1] === prefix && Number(alias[2]) < 50) {
-    const field = alias[1] === "l" ? "graphql_lock_alias" : alias[1] === "u" ? "graphql_unlock_alias" : "graphql_projection_alias";
-    fields[field] = Number(alias[2]);
-    operation = alias[1] === "l" ? "graphql_operation_create_ref" : alias[1] === "u" ? "graphql_operation_delete_ref" : "graphql_operation_issue_projection";
+  const kind = alias && GRAPHQL_ALIAS_KINDS.get(alias[1]);
+  if (alias && kind && kind.context === operationContext && Number(alias[2]) < 50) {
+    fields[kind.field] = Number(alias[2]);
+    operation = kind.operation;
   }
   if (operation) {
     fields[operation] = true;
@@ -172,7 +181,7 @@ function graphqlErrorMetadata(error, data, index, operationContext) {
 /** @param {unknown} error */
 function githubFailureMetadata(error) {
   const response = ownValue(error, "response");
-  const headers = ownValue(response, "headers") ?? ownValue(error, "headers");
+  const headers = responseHeaders(error);
   /** @type {Record<string, number | boolean>} */
   const fields = {};
   for (const [header, field] of [
@@ -300,7 +309,7 @@ function createWorkQueueLogger(component) {
     const count = typeof metadata.graphql_errors === "number" && debugEnabled(namespace) ? Math.min(metadata.graphql_errors, MAX_GRAPHQL_ERROR_DETAILS) : 0;
     if (typeof metadata.graphql_errors === "number" && metadata.graphql_errors > count) metadata.graphql_error_details_omitted = metadata.graphql_errors - count;
     const code = queueControlErrorCode(error, metadata);
-    const headers = ownValue(response, "headers") ?? ownValue(error, "headers");
+    const headers = responseHeaders(error);
     const requestId = [ownValue(ownValue(response, "headers"), "x-github-request-id"), ownValue(ownValue(error, "headers"), "x-github-request-id")].find(
       value => typeof value === "string" && value.length <= 84 && !/\s/.test(value) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(value)
     );
