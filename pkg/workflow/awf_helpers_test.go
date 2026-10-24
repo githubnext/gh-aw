@@ -879,11 +879,17 @@ func TestBuildAWFConfigJSONIncludesCopilotLiteralBYOKTarget(t *testing.T) {
 			wantHosts: []string{"host.docker.internal:11434", "api.acme.ghe.com"},
 		},
 		{
-			name:      "GitHub base URL takes precedence and preserves HTTP",
+			name:      "GitHub base URL takes precedence and remains host-only",
 			baseURL:   "https://provider.example.com/v1",
 			githubURL: "http://copilot.example.com:8080/v1",
-			wantHost:  "http://copilot.example.com:8080",
+			wantHost:  "copilot.example.com:8080",
 			wantHosts: []string{"provider.example.com", "copilot.example.com:8080"},
+		},
+		{
+			name:      "non-BYOK HTTP GitHub base URL remains host-only",
+			githubURL: "http://copilot.example.com:8080/v1",
+			wantHost:  "copilot.example.com:8080",
+			wantHosts: []string{"copilot.example.com:8080"},
 		},
 		{
 			name:      "GitHub HTTPS URL is not changed by HTTP provider URL",
@@ -938,6 +944,14 @@ func TestBuildAWFConfigJSONIncludesCopilotLiteralBYOKTarget(t *testing.T) {
 				assert.Equal(t, tt.wantHost, parsed.APIProxy.Targets["copilot"].Host)
 			}
 			assert.Equal(t, tt.wantHosts, GetCopilotAllowlistTargets(data))
+			stepContent := strings.Join(NewCopilotEngine().GetExecutionSteps(data, "test.log")[0], "\n")
+			if tt.baseURL == "" {
+				assert.False(t, isCopilotBYOKMode(data, true))
+				assert.Contains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+				assert.Contains(t, stepContent, "--exclude-env COPILOT_GITHUB_TOKEN")
+			} else {
+				assert.NotContains(t, stepContent, "COPILOT_GITHUB_TOKEN:")
+			}
 			for _, host := range tt.wantHosts {
 				require.NotNil(t, parsed.Network)
 				assert.Contains(t, parsed.Network.AllowDomains, host)

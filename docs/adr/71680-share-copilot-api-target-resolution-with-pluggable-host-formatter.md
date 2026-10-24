@@ -1,18 +1,18 @@
-# ADR-71680: Share Copilot API Target Resolution with a Pluggable Host Formatter
+# ADR-71680: Preserve HTTP Only for Copilot BYOK Provider Targets
 
 **Date**: 2026-10-24
 **Status**: Draft
-**Deciders**: [TODO: verify] pelikhan, Copilot coding agent
+**Deciders**: Unknown; human review and acceptance are pending.
 
 ---
 
 ### Context
 
-The compiler derives the Copilot API target that is passed to AWF's api-proxy and that is also used for host-only consumers such as firewall allowlists. Resolution follows a precedence chain: explicit `engine.api-target`, then `GITHUB_COPILOT_BASE_URL`, then a literal BYOK `COPILOT_PROVIDER_BASE_URL`. `GetCopilotAPITarget` always used `extractAPITargetHost`, which strips the URL scheme, so a BYOK URL such as `http://host.docker.internal:11434` was emitted to the API proxy config as `host.docker.internal:11434`. That loses the protocol information needed to route to plain-HTTP backends such as Ollama. A version-gated formatter, `extractAPIProxyTargetHost`, already existed that preserves `http://` when the effective AWF version supports HTTP API targets (`awfSupportsHTTPAPITargets`), but the Copilot path did not use it.
+The compiler derives the Copilot API target that is passed to AWF's api-proxy and that is also used for host-only consumers such as firewall allowlists. Resolution follows a precedence chain: explicit `engine.api-target`, then `GITHUB_COPILOT_BASE_URL`, then a literal BYOK `COPILOT_PROVIDER_BASE_URL`. Host extraction strips the URL scheme, so a BYOK URL such as `http://host.docker.internal:11434` previously reached the API proxy config as `host.docker.internal:11434`, losing the protocol information needed for plain-HTTP backends such as Ollama. Existing API proxy formatting preserves `http://` only when the effective AWF version supports HTTP API targets (`awfSupportsHTTPAPITargets`). This change must retain host-only extraction for `GITHUB_COPILOT_BASE_URL` and firewall consumers, and preserve the literal-only restriction on the BYOK fallback.
 
 ### Decision
 
-We will extract the Copilot precedence chain into a single internal function, `resolveCopilotAPITarget(workflowData, extractHost)`, that takes the host-extraction strategy as a function parameter. `GetCopilotAPITarget` keeps its host-only semantics by passing `extractAPITargetHost`, while `BuildAWFConfigJSON` passes a closure over `extractAPIProxyTargetHost` bound to the firewall config so API proxy targets keep the `http://` scheme when AWF supports it. The literal-only gate for `COPILOT_PROVIDER_BASE_URL` (ignoring `${{ ... }}` expressions) is preserved by checking `extractLiteralEngineEnvHost` before delegating to the injected extractor. The main reason is to have one source of truth for target precedence while letting each consumer choose the output format it needs.
+The proposed design shares the Copilot precedence chain through the internal `resolveCopilotAPITarget(workflowData, preserveProviderHTTP)` function. Explicit `engine.api-target` values remain unchanged, and `GITHUB_COPILOT_BASE_URL` retains host-only extraction for both consumers; only the literal `COPILOT_PROVIDER_BASE_URL` fallback may retain `http://` in `BuildAWFConfigJSON`, subject to the existing AWF version gate. The resolver excludes `${{ ... }}` provider expressions and extracts the literal provider host once before formatting it; `GetCopilotAPITarget` passes `false` to retain host-only output. This confines HTTP preservation to BYOK routing without changing transport for GitHub-token-authenticated requests.
 
 ### Alternatives Considered
 
@@ -22,7 +22,7 @@ Making the existing function return `http://host:port` everywhere would have bee
 
 #### Alternative 2: Duplicate the precedence chain in `BuildAWFConfigJSON`
 
-The API proxy builder could re-implement the explicit-target / `GITHUB_COPILOT_BASE_URL` / BYOK fallback chain inline using `extractAPIProxyTargetHost`. This avoids a function-typed parameter, but the two copies of the precedence rules could drift apart, which is the kind of divergence that caused this bug.
+The API proxy builder could re-implement the explicit-target / `GITHUB_COPILOT_BASE_URL` / BYOK fallback chain inline and format the provider fallback there. This avoids a formatting flag, but the two copies of the precedence rules could drift apart when either entry point changes.
 
 #### Alternative 3: Post-process the host-only result to re-add the scheme
 
@@ -31,18 +31,18 @@ The caller could take the bare host from `GetCopilotAPITarget` and look up which
 ### Consequences
 
 #### Positive
-- BYOK HTTP backends (for example Ollama at `http://host.docker.internal:11434`) receive a scheme-preserving target, so the api-proxy can route over plain HTTP.
+- Literal BYOK HTTP fallbacks (for example Ollama at `http://host.docker.internal:11434`) receive a scheme-preserving target on supported AWF versions, so the api-proxy can route over plain HTTP.
 - Target precedence is defined in one place and shared by host-only and API proxy consumers.
-- AWF version gating is reused through `extractAPIProxyTargetHost`, so legacy AWF versions still receive bare hosts.
+- AWF version gating is reused through `awfSupportsHTTPAPITargets`, so legacy AWF versions still receive bare hosts.
 
 #### Negative
-- `resolveCopilotAPITarget` takes a function parameter, which adds some indirection compared with a direct call.
-- The BYOK fallback now calls `extractLiteralEngineEnvHost` only as a gate and then extracts the host again through the injected function. This parses the URL twice and couples the two helpers' notions of a valid URL.
-- `GetCopilotAPITarget` and the API proxy config can now return different strings for the same workflow (bare host vs `http://host`). Future callers must pick the right entry point.
+- `resolveCopilotAPITarget` takes a formatting flag; callers must enable it only when the effective AWF version supports HTTP targets.
+- HTTP scheme preservation must remain limited to the literal provider fallback, not the GitHub-token-authenticated base URL.
+- `GetCopilotAPITarget` and the API proxy config can return different strings for the same literal HTTP provider fallback (bare host vs `http://host`). Future callers must pick the right entry point.
 
 #### Neutral
 - Compiled lock files that use HTTP BYOK providers change only in the target's scheme (for example `daily-byok-ollama-test.lock.yml`).
-- Regression coverage grows to 14 table cases covering HTTPS, HTTP, expressions, explicit precedence, and legacy AWF behavior.
+- Regression coverage must distinguish the literal provider fallback from `GITHUB_COPILOT_BASE_URL`, and cover expressions, explicit precedence, HTTPS, and legacy AWF behavior.
 - The ADR does not establish whether this bug caused the 503 failures seen in upstream runs. That remains unproven.
 
 ---
