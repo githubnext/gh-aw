@@ -21,7 +21,7 @@ GitHub Agentic Workflows lets developers define AI-assisted repository automatio
 
 **Tool or MCP server:** A capability the workflow makes available to the agent, potentially including access to GitHub or external services.
 
-**Safe output:** An explicitly configured, structured action, such as creating an issue or pull request,  executed by a separate job with scoped  permissions instead of the agent executing the job directly  . For example, an agent wants to write a comment in a repository. With safe outputs, the agent would first create a file with the comment and then your configured, structured action will review whether agents can write within that repository. If the agent has permission, then that comment will be posted.   Some workflows can instead grant direct write access or use custom jobs. 
+**Safe output:** An explicitly configured, structured action, such as creating an issue or pull request,  executed by a separate job with scoped  permissions instead of the agent executing the job directly. For example, an agent wants to write a comment in a repository. With safe outputs, the agent would first create a file with the comment and then your configured, structured action will review whether agents can write within that repository. If the agent has permission, then that comment will be posted.   Some workflows can instead grant direct write access or use custom jobs. 
 
 **Untrusted content:** Material such as issue descriptions, pull requests, comments, repository files, or external tool responses that may contain errors or instructions intended to redirect the agent.
 
