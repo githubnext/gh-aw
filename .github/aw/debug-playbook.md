@@ -230,11 +230,11 @@ work or bypass profiles/effect scopes.
 | --- | --- | --- |
 | `unsupported_protocol`, `codec_invalid`, `invalid_json`, `invalid_utf8`, `invalid_unicode`, `duplicate_key`, `noncanonical_number` | Version, canonical bytes, keys, Unicode/numbers. | Align producer/reader; regenerate input, not history. |
 | `ledger_invalid`, `ledger_foreign`, `ledger_nonextending` | Queue identity, DAG, ancestry. | Stop publication; recover trusted queue/tip via protocol. |
-| `queue_missing`, `policy_missing` | Queue location; trusted config. | Approved AW-managed bootstrap/deployment; no manual admin seeding. |
+| `queue_missing`, `policy_missing`, `work_queue_pool_not_installed` | Queue/pool; compiled/installed policy. | Approved AW-managed bootstrap/deployment; no manual admin seeding. |
 | `repository_unavailable`, `repository_scope_invalid`, `branch_invalid`, `git_transport_failed` | Repo/branch, checkout credentials, Git failure. | Restore authorized transport/target; reread uncertain publication tip. |
 | `actor_unauthorized`, `admission_unauthorized`, `unauthorized_operation`, `ownership_unauthorized`, `work_unauthorized`, `dependency_unauthorized`, `projection_unauthorized`, `resource_unauthorized` | Principal, role/profile, operation/resource scope. | Use authorized actor/path; no impersonation/scope expansion. |
-| `policy_invalid`, `policy_epoch_invalid`, `policy_proposal_mismatch`, `profile_invalid`, `pool_invalid`, `dispatcher_invalid` | Schema, approved revision, epoch, pools/dispatcher. | Correct trusted config via supported deployment/update. |
-| `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; verifiable dispatch identity. | Fix approved deployment/credentials; never substitute unverified identity. |
+| `policy_invalid`, `policy_epoch_invalid`, `policy_proposal_mismatch`, `work_queue_policy_proposal_mismatch`, `profile_invalid`, `pool_invalid`, `dispatcher_invalid` | Schema/revision, epoch, pools/dispatcher. | Correct trusted config via supported deployment/update. |
+| `work_queue_profile_not_approved`, `work_queue_worker_not_compiler_approved`, `work_queue_dispatch_credential_identity_unavailable` | Compiler-approved worker; verifiable identity. | Fix approved deployment/credentials; never substitute unverified identity. |
 | `deployment_invalid`, `deployment_conflict` | Schema, revision, expected tip. | Fix trusted deployment; reconcile concurrency before CAS retry. |
 | `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; pause controls. | Respect pause; reconcile active work before authorized policy change. |
 | `work_expired` | Work deadline; queue time. | Refresh fair prefix; never revive expired Work. |
