@@ -132,7 +132,26 @@ func updateContainerPins(ctx context.Context, deps containerPinUpdateDeps, workf
 	var failedImages []imageFailure
 	var skippedImages []string
 
-	for _, image := range images {
+	type digestResult struct {
+		digest string
+		err    error
+	}
+	results := make([]digestResult, len(images))
+	jobs := make([]func(), 0, len(images))
+	for i, image := range images {
+		pin, found := actionCache.GetContainerPin(image)
+		if found && pin.Digest != "" && !opts.refreshExisting {
+			continue
+		}
+		jobs = append(jobs, func() {
+			results[i].digest, results[i].err = deps.fetchDigest(ctx, image, verbose)
+		})
+	}
+	if err := runUpdateNetworkJobs(ctx, jobs); err != nil {
+		return false, err
+	}
+
+	for i, image := range images {
 		existingPin, hasExistingPin := actionCache.GetContainerPin(image)
 		if hasExistingPin && existingPin.Digest != "" && !opts.refreshExisting {
 			if verbose {
@@ -142,7 +161,7 @@ func updateContainerPins(ctx context.Context, deps containerPinUpdateDeps, workf
 			continue
 		}
 
-		digest, resolveErr := deps.fetchDigest(ctx, image, verbose)
+		digest, resolveErr := results[i].digest, results[i].err
 		if resolveErr != nil {
 			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
 			failedImages = append(failedImages, imageFailure{image: image, reason: resolveErr.Error()})
