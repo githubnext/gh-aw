@@ -14,7 +14,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-JAR_SHA256 = "5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2"
+JAR_SHA256 = "d15655eeaff4b3f7b3d65c46b838bc0f35d131b2ef4b1e473689b62c98d4726f"
 MUTATIONS = {
     "agent-write": "JobIsolation",
     "persist-credentials": "NoCredentialPersistence",
