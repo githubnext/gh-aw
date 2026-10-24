@@ -27,6 +27,14 @@ func writeGraderRunWorkflow(t *testing.T, content string) string {
 	return "test"
 }
 
+func TestStageGraderRuntimeIncludesErrorCodes(t *testing.T) {
+	directory, err := stageGraderRuntime(t.TempDir())
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(directory, "error_codes.cjs"))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "ERR_GRADER_SESSION_INVALID")
+}
+
 func TestRunGraderFromUnifiedSession(t *testing.T) {
 	if _, err := exec.LookPath("node"); err != nil {
 		t.Skip("node unavailable")
