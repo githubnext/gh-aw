@@ -26,8 +26,8 @@ type statusOnlyJobValidator struct {
 
 // IsStatusOnlyJob reports whether an authored custom job opted to continue after detection errors.
 func IsStatusOnlyJob(config map[string]any) bool {
-	continueOnDetectionError, ok := config["continue-on-detection-error"].(bool)
-	return ok && continueOnDetectionError
+	gate, ok := config["detection-gate"].(string)
+	return ok && gate == "status-only"
 }
 
 // HasSuccessfulDetectionCondition reports whether a job's condition requires

@@ -86,7 +86,7 @@ func customJobDetectionStatusOnlyDiagnostics(id string, fields map[string]any, j
 	for _, dependent := range sliceutil.SortedKeys(jobs) {
 		if dependent != id && !constants.IsCompilerOwnedJobName(dependent) && graph.DependsOn(dependent, id) {
 			diagnostics = append(diagnostics, Diagnostic{
-				Path:    "jobs." + id + ".continue-on-detection-error",
+				Path:    "jobs." + id + ".detection-gate",
 				Message: fmt.Sprintf("Jobs that continue after detection errors cannot have dependent custom job %s; apply the same contract to a leaf job instead", dependent),
 			})
 			break

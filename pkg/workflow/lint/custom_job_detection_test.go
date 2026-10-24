@@ -117,7 +117,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "status and gated safe output",
 			jobFields: "needs: [agent, detection, safe_outputs]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    runs-on: ubuntu-latest\n" +
 				"    steps: [{run: 'echo ${{ needs.agent.result }} ${{ needs.detection.result }} ${{ needs.safe_outputs.outputs.created_issue_number }}'}]\n",
@@ -125,7 +125,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "agent output",
 			jobFields: "needs: [agent, detection]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    runs-on: ubuntu-latest\n" +
 				"    steps: [{run: 'echo ${{ needs.agent.outputs.result }}'}]\n",
@@ -134,7 +134,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "detection output",
 			jobFields: "needs: [agent, detection]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    runs-on: ubuntu-latest\n" +
 				"    steps: [{run: 'echo ${{ needs.detection.outputs.detection_success }}'}]\n",
@@ -143,7 +143,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "artifact download",
 			jobFields: "needs: [agent, detection]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    runs-on: ubuntu-latest\n" +
 				"    steps: [{uses: actions/download-artifact@v4}]\n",
@@ -152,7 +152,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "non-detection-gated compiler output",
 			jobFields: "needs: [agent, detection, activation]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    runs-on: ubuntu-latest\n" +
 				"    steps: [{run: 'echo ${{ needs.activation.outputs.result }}'}]\n",
@@ -161,7 +161,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 		{
 			name: "opaque reusable workflow",
 			jobFields: "needs: [agent, detection]\n" +
-				"    continue-on-detection-error: true\n" +
+				"    detection-gate: status-only\n" +
 				"    if: always()\n" +
 				"    uses: ./.github/workflows/status.yml\n",
 			wantPath: "jobs.report.uses",
@@ -187,7 +187,7 @@ func TestCustomJobDetectionStatusOnly(t *testing.T) {
 }
 
 func TestCustomJobDetectionStatusOnlyMustBeLeaf(t *testing.T) {
-	doc, err := aw.Parse("---\nsafe-outputs:\n  create-issue:\n  threat-detection: true\njobs:\n  status:\n    needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n  notify:\n    needs: [status, detection]\n---\nPrompt\n")
+	doc, err := aw.Parse("---\nsafe-outputs:\n  create-issue:\n  threat-detection: true\njobs:\n  status:\n    needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n  notify:\n    needs: [status, detection]\n---\nPrompt\n")
 	require.NoError(t, err)
 	runner, err := Default().Select("custom-job-detection")
 	require.NoError(t, err)
@@ -195,9 +195,9 @@ func TestCustomJobDetectionStatusOnlyMustBeLeaf(t *testing.T) {
 	require.NoError(t, err)
 	found := false
 	for _, diagnostic := range diagnostics {
-		found = found || diagnostic.Path == "jobs.status.continue-on-detection-error"
+		found = found || diagnostic.Path == "jobs.status.detection-gate"
 	}
-	assert.True(t, found, "expected dependent custom jobs to invalidate continue-on-detection-error opt-in")
+	assert.True(t, found, "expected dependent custom jobs to invalidate status-only opt-in")
 }
 
 func TestCustomJobDetectionActions(t *testing.T) {

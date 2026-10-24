@@ -102,42 +102,42 @@ func TestCustomJobDetectionStatusOnlyContract(t *testing.T) {
 	}{
 		{
 			name:    "agent output",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: echo '${{ needs.agent.outputs.result }}'",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: echo '${{ needs.agent.outputs.result }}'",
 			wantErr: "needs.agent.outputs",
 		},
 		{
 			name:    "detection output",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: echo '${{ needs.detection.outputs.detection_success }}'",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: echo '${{ needs.detection.outputs.detection_success }}'",
 			wantErr: "needs.detection.outputs",
 		},
 		{
 			name:    "custom output",
-			fields:  "needs: [agent, detection, producer]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: echo '${{ needs.producer.outputs.result }}'",
+			fields:  "needs: [agent, detection, producer]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: echo '${{ needs.producer.outputs.result }}'",
 			wantErr: "needs.producer.outputs",
 		},
 		{
 			name:    "non-detection-gated compiler output",
-			fields:  "needs: [agent, detection, activation]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: echo '${{ needs.activation.outputs.result }}'",
+			fields:  "needs: [agent, detection, activation]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: echo '${{ needs.activation.outputs.result }}'",
 			wantErr: "needs.activation.outputs",
 		},
 		{
 			name:    "artifact download",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - uses: actions/download-artifact@v4",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - uses: actions/download-artifact@v4",
 			wantErr: "actions/download-artifact",
 		},
 		{
 			name:    "agent output environment",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    env:\n      GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent_output.json\n    steps:\n      - run: echo status",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    env:\n      GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent_output.json\n    steps:\n      - run: echo status",
 			wantErr: "GH_AW_AGENT_OUTPUT",
 		},
 		{
 			name:    "safe output file",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: cat /tmp/gh-aw/safeoutputs/outputs.jsonl",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: cat /tmp/gh-aw/safeoutputs/outputs.jsonl",
 			wantErr: "safe-output files",
 		},
 		{
 			name:    "agent output file",
-			fields:  "needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: cat '${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json'",
+			fields:  "needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: cat '${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json'",
 			wantErr: "agent/safe-output files",
 		},
 	} {
@@ -153,7 +153,7 @@ func TestCustomJobDetectionStatusOnlyContract(t *testing.T) {
 		})
 	}
 
-	document, err := aw.Parse("---\non: workflow_dispatch\nengine: copilot\npermissions: {contents: read}\nsafe-outputs:\n  create-issue:\njobs:\n  status:\n    runs-on: ubuntu-latest\n    needs: [agent, safe_outputs]\n    continue-on-detection-error: true\n    if: always()\n    steps:\n      - run: echo '${{ needs.agent.result }} ${{ needs.detection.result }} ${{ needs.safe_outputs.outputs.created_issue_number }}'\n---\nPublic prompt.\n")
+	document, err := aw.Parse("---\non: workflow_dispatch\nengine: copilot\npermissions: {contents: read}\nsafe-outputs:\n  create-issue:\njobs:\n  status:\n    runs-on: ubuntu-latest\n    needs: [agent, safe_outputs]\n    detection-gate: status-only\n    if: always()\n    steps:\n      - run: echo '${{ needs.agent.result }} ${{ needs.detection.result }} ${{ needs.safe_outputs.outputs.created_issue_number }}'\n---\nPublic prompt.\n")
 	require.NoError(t, err)
 	compiler := NewCompiler(WithNoEmit(true))
 	data, err := compiler.ParseWorkflowDocument(document, filepath.Join(t.TempDir(), "test.md"))
@@ -162,9 +162,9 @@ func TestCustomJobDetectionStatusOnlyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, content, "if: always()")
 	require.NotContains(t, content, "if: needs.detection.result == 'success'")
-	require.NotContains(t, content, "continue-on-detection-error:")
+	require.NotContains(t, content, "detection-gate:")
 
-	document, err = aw.Parse("---\non: workflow_dispatch\nengine: copilot\npermissions: {contents: read}\nsafe-outputs:\n  create-issue:\njobs:\n  status:\n    needs: [agent, detection]\n    continue-on-detection-error: true\n    if: always()\n    uses: ./.github/workflows/status.yml\n---\nPublic prompt.\n")
+	document, err = aw.Parse("---\non: workflow_dispatch\nengine: copilot\npermissions: {contents: read}\nsafe-outputs:\n  create-issue:\njobs:\n  status:\n    needs: [agent, detection]\n    detection-gate: status-only\n    if: always()\n    uses: ./.github/workflows/status.yml\n---\nPublic prompt.\n")
 	require.NoError(t, err)
 	compiler = NewCompiler(WithNoEmit(true))
 	data, err = compiler.ParseWorkflowDocument(document, filepath.Join(t.TempDir(), "test.md"))
@@ -186,10 +186,10 @@ func TestCustomJobDetectionStatusOnlyMustBeLeaf(t *testing.T) {
 		require.NoError(t, compiler.jobManager.AddJob(job))
 	}
 	data := &WorkflowData{Jobs: map[string]any{
-		"status": map[string]any{"continue-on-detection-error": true, "needs": []any{"agent", "detection"}},
+		"status": map[string]any{"detection-gate": "status-only", "needs": []any{"agent", "detection"}},
 		"notify": map[string]any{"needs": []any{"status", "detection"}},
 	}}
-	require.ErrorContains(t, compiler.guardCustomJobDetection(data), "jobs.status.continue-on-detection-error")
+	require.ErrorContains(t, compiler.guardCustomJobDetection(data), "jobs.status.detection-gate")
 }
 
 func TestCustomJobDetectionTransitiveAndPreDetection(t *testing.T) {

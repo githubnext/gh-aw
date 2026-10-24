@@ -52,7 +52,7 @@ func (c *Compiler) guardCustomJobDetection(data *WorkflowData) error {
 		if statusOnly {
 			for _, dependent := range sliceutil.SortedKeys(data.Jobs) {
 				if dependent != id && !isBuiltinJobName(dependent) && graph.DependsOn(dependent, id) {
-					return fmt.Errorf("jobs.%s.continue-on-detection-error: jobs that continue after detection errors cannot have dependent custom job %s; apply the same contract to a leaf job instead", id, dependent)
+					return fmt.Errorf("jobs.%s.detection-gate: status-only jobs cannot have dependent custom job %s; apply the same contract to a leaf job instead", id, dependent)
 				}
 			}
 			violations := aw.ValidateStatusOnlyJob(id, config, allowedOutputJobs)
