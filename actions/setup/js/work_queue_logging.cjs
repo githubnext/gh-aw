@@ -25,6 +25,9 @@ const CONTROL_ERROR_CODES = new Set([
   "work_queue_assignment_mismatch",
   "work_queue_assignment_profile_missing",
   "work_queue_policy_proposal_mismatch",
+  "work_queue_pool_not_installed",
+  "work_queue_profile_not_approved",
+  "work_queue_worker_not_compiler_approved",
   "work_queue_dispatch_credential_kind_invalid",
   "work_queue_dispatch_app_metadata_missing",
   "work_queue_dispatch_credential_metadata_conflict",
@@ -67,6 +70,12 @@ function queueControlErrorExplanation(code) {
       return "The stored assignment does not match a valid approved worker route. Inspect the original Claim and installed deployment; do not rebuild an assignment from task text or a stale snapshot.";
     case "work_queue_policy_proposal_mismatch":
       return "The proposed queue policy differs from the installed policy. Refresh compatible worker deployments, or use an explicit administrator policy update only after the queue is quiescent.";
+    case "work_queue_pool_not_installed":
+      return "The requested pool is absent from the installed queue Policy. Adding it to aw.json does not update the installed Policy; use an explicit administrator Policy update after the queue is quiescent.";
+    case "work_queue_profile_not_approved":
+      return "The requested worker profile is absent from the installed pool. Verify the installed Policy and caller-approved worker routes; adding profiles requires an explicit administrator Policy update on a quiescent queue.";
+    case "work_queue_worker_not_compiler_approved":
+      return "The worker route is not approved by the caller's compiled configuration. Check safe-outputs.dispatch-workflow.workflows and the published worker's assignment support; do not bypass the worker allowlist.";
     case "checkpoint_invalid":
     case "queue_control_checkpoint_invalid":
       return "The queue checkpoint failed validation. Inspect the authoritative ledger and restore a valid causal history; do not delete the queue or reset its scheduling debt.";
@@ -145,6 +154,21 @@ function githubFailureMetadata(error) {
     if (message === "Resource not accessible by integration" || message === "Resource not accessible by personal access token") fields.resource_not_accessible = true;
   }
   const errors = ownValue(error, "errors");
+  const request = ownValue(error, "request");
+  const method = ownValue(request, "method");
+  if (["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"].includes(method)) fields[`http_method_${method.toLowerCase()}`] = true;
+  if (request !== undefined) fields.request_present = true;
+  if (response !== undefined) fields.response_present = true;
+  if (headers !== undefined) {
+    fields.response_headers_present = true;
+    fields.github_request_id_present = typeof ownValue(headers, "x-github-request-id") === "string";
+  }
+  const transportCodes = ["ETIMEDOUT", "ECONNRESET", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "ERR_TRANSPORT_INTEGRITY"];
+  let cause = error;
+  for (let depth = 0; depth < 5 && cause && typeof cause === "object"; depth++, cause = ownValue(cause, "cause")) {
+    const code = ownValue(cause, "code");
+    if (transportCodes.includes(code)) fields[`transport_${code.toLowerCase()}`] = true;
+  }
   const count = ownValue(errors, "length");
   if (Number.isSafeInteger(count) && count > 0 && count <= 50) {
     fields.graphql_errors = count;

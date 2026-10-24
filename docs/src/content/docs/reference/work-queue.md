@@ -9,7 +9,7 @@ For architecture, a [minimal deployment example](/gh-aw/patterns/workqueue-ops/#
 
 ## Initialization and authorization
 
-The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. `policy` updates only an existing, quiescent queue.
+The first accepted producer submission atomically installs Policy and Work. Compilation, activation, reads, and dispatch-only requests do not initialize a queue. On an existing AW-managed queue, new submission and dispatch requests for a missing pool are rejected before deployment synchronization; adding the pool to `aw.json` does not update the installed Policy. An explicit `PoolInstall` operation can add a pool while preserving existing pools and the Policy epoch, within the repository authority already granted by installed pools. Economic or existing-pool changes require a quiescent queue and an explicit administrator `policy` update.
 
 Native `submit-work` and `submit-graph` resolve scheduling and approved AW worker routes from the verified repository revision, not an unrelated local checkout. Assignment-capable workers must already be published.
 
@@ -327,6 +327,14 @@ Idle refresh is every 10 seconds; search and action review pause it. Failed read
 
 Events go to stderr with elapsed timing and sanitized counts, flags, statuses, and error categories, not payloads, identities, or credentials. Blocked controls and exhausted delivery verification also emit always-visible diagnostics.
 
+Routing diagnostics distinguish installed Policy gaps from compiler approval failures:
+
+| Code | Meaning and recovery |
+| --- | --- |
+| `work_queue_pool_not_installed` | The requested pool is absent from installed Policy. Configuration edits alone do not install it; recovery requires an explicit administrator Policy update after the queue is quiescent. |
+| `work_queue_profile_not_approved` | The worker profile is absent from the installed pool. Check installed Policy and caller-approved routes; adding profiles requires an administrator Policy update on a quiescent queue. |
+| `work_queue_worker_not_compiler_approved` | The caller's compiled configuration does not approve the worker route. Check `safe-outputs.dispatch-workflow.workflows` and the published worker's assignment support. |
+
 HTTP failure diagnostics include validated quota counters, `rate_limit_reset_unix` (Unix seconds), `retry_after_seconds`, fixed rate-limit/SSO flags, and the GitHub request ID when available. Explicit rate-limit evidence distinguishes throttled HTTP 403 responses from otherwise ambiguous access denials; quota headroom alone does not prove permission denial. Raw provider messages, arbitrary headers, and authorization URLs are never printed.
 
 Projection coordination failures emit `projection.locks.acquire.failed` and counts of requested versus acknowledged locks. `projection.locks.retained` indicates unacknowledged native writes whose locks remain held. These diagnostics do not authorize retries, worker reruns, receipt recreation, or lock deletion.
@@ -336,6 +344,8 @@ Projection coordination failures emit `projection.locks.acquire.failed` and coun
 Claim audit exports contain operations, temporary-ID references, and structured errors, not raw handler output or proof of Result. Default retention is one day; failed worker `safe-outputs-items` are retained for seven days. Repository policy or `GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS` can override retention. Uploads fail if redaction fails.
 
 The `safe_outputs` job exposes `work_queue_outcome`. Unverified Claims retain delivery state, effects disposition, and reconciliation reason in scoped `claim-delivery-errors.json`.
+
+When trusted queue controls are configured, `safe_outputs.outputs.work_queue_requests` contains their version-3 JSON receipt. A successful controls job can report `no_grant` with no launches; only a launch with `state: "bound"` identifies a verified native worker run. This receipt proves launch, not worker completion or Result.
 
 Claim files live under `/tmp/gh-aw/claims/<original-identity-hash>/` with directory/file modes `0700`/`0600`:
 

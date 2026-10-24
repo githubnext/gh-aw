@@ -391,6 +391,10 @@ describe("model_pin_check collection and rules", () => {
     expect(fs.readFileSync(path.join(outDir, "model-pins.md"), "utf8")).toContain("### All Workflow Model Pins");
     expect(fs.readFileSync(path.join(outDir, "model-pins-summary.md"), "utf8")).toBe(printed.join(""));
   });
+
+  it("requires /reflect input with a stable error code", () => {
+    expect(() => main([])).toThrow("ERR_MODEL_PIN_REFLECT_REQUIRED: --reflect <path to /reflect JSON> is required");
+  });
 });
 
 describe("repository-pins-reflection-regression", () => {

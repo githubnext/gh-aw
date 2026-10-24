@@ -172,6 +172,38 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("Stack");
   });
 
+  it("distinguishes request and transport metadata without logging URLs, bodies or credentials", () => {
+    createWorkQueueLogger("native").failure(
+      "repository.read.failed",
+      {
+        status: 500,
+        request: { method: "GET", url: "https://private-host/private-path", headers: { authorization: "private-token" } },
+        response: { status: 500, headers: {}, data: "private-body" },
+        cause: { code: "UND_ERR_SOCKET", message: "private-cause" },
+      },
+      true
+    );
+    expect(output()).toContain("http_method_get=true");
+    expect(output()).toContain("request_present=true response_present=true response_headers_present=true github_request_id_present=false");
+    expect(output()).toContain("transport_und_err_socket=true");
+    expect(output()).toContain("GitHub request ID: unknown.");
+    expect(output()).not.toContain("private-");
+  });
+
+  it("does not invoke request or cause getters, including cyclic transport errors", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-getter");
+    });
+    const failure = Object.defineProperties({ status: 500 }, { request: { get: getter }, cause: { get: getter } });
+    createWorkQueueLogger("native").failure("repository.read.failed", failure, true);
+    const cyclic = { status: 500, code: "ECONNRESET", cause: null };
+    cyclic.cause = cyclic;
+    createWorkQueueLogger("native").failure("repository.read.failed", cyclic, true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output()).toContain("transport_econnreset=true");
+    expect(output()).not.toContain("private");
+  });
+
   it("emits explicitly requested failure diagnostics without DEBUG, exposing only status and fixed categories", () => {
     const secret = "private-token-and-assignment";
     const logger = createWorkQueueLogger("dispatch");
@@ -236,6 +268,21 @@ describe("privacy-preserving work queue logging", () => {
     expect(getter).not.toHaveBeenCalled();
     expect(queueControlErrorCode(new Error("work_queue_dispatch_credential_client_mismatch: private-token"))).toBe("queue_control_authority_or_publication_failed");
     expect(queueControlErrorCode({ code: "private-token" })).toBe("queue_control_authority_or_publication_failed");
+  });
+
+  it.each([
+    ["work_queue_pool_not_installed", "does not update the installed Policy"],
+    ["work_queue_profile_not_approved", "quiescent queue"],
+    ["work_queue_worker_not_compiler_approved", "do not bypass the worker allowlist"],
+  ])("explains installed routing failures without exposing task data: %s", (code, recovery) => {
+    const error = Object.assign(new Error("private-task-and-token"), { code });
+    expect(queueControlErrorCode(error)).toBe(code);
+    expect(queueControlErrorExplanation(code)).toContain(recovery);
+    createWorkQueueLogger("dispatch").failure("intent.process.blocked", error, true);
+    expect(output()).toContain(`${code}=true`);
+    expect(output()).toContain(recovery);
+    expect(output()).not.toContain("private-");
+    expect(queueControlErrorCode(new Error(`${code}: private-task-and-token`))).toBe("queue_control_authority_or_publication_failed");
     expect(output()).not.toContain("private-token");
   });
 

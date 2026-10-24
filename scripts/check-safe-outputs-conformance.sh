@@ -2500,7 +2500,9 @@ check_add_comment_max_links() {
     local schema="pkg/parser/schemas/main_workflow_schema.json"
     local failed=0
 
-    if [ ! -f "$helpers" ] || ! grep -qE "function enforceCommentLimits\(body, \{ maxLinks = MAX_LINKS, linkBody = body \}" "$helpers"; then
+    if [ ! -f "$helpers" ] \
+        || ! grep -qE "function enforceCommentLimits\(body, \{[^}]*maxLinks = MAX_LINKS" "$helpers" \
+        || ! grep -qE "function enforceCommentLimits\(body, \{[^}]*linkBody = body" "$helpers"; then
         log_high "TYPE-016: enforceCommentLimits does not accept a configurable maxLinks and agent-only linkBody (generated links must be excluded)"
         failed=1
     elif ! grep -qE "E008: Comment contains .* links, maximum is \\\$\{maxLinks\}" "$helpers"; then
