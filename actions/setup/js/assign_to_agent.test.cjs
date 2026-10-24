@@ -334,30 +334,97 @@ describe("assign_to_agent", () => {
       expect(handler.getAssignToAgentAssigned()).toBe("issue:42:copilot\nissue:43:copilot");
     });
 
-    it("fails once before processing assignments when the selected credential is invalid", async () => {
+    it.each([false, true, "true"])("reports invalid credentials once without failing the step (ignore-if-error=%j)", async ignoreIfError => {
       vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN", "github_pat_test_expired");
       vi.stubEnv("GH_AW_ASSIGN_TO_AGENT_TOKEN_SOURCE", "GH_AW_GITHUB_TOKEN");
       vi.stubGlobal("getOctokit", vi.fn().mockReturnValue(mockGithub));
       mockGithub.request.mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
-      process.env.GH_AW_AGENT_MAX_COUNT = "2";
-      process.env.GH_AW_AGENT_IGNORE_IF_ERROR = "true";
-      setAgentOutput({
-        items: [
-          { type: "assign_to_agent", issue_number: 42, agent: "copilot" },
-          { type: "assign_to_agent", issue_number: 43, agent: "copilot" },
-        ],
-        errors: [],
-      });
+      const handler = await eval(`(async () => {
+        ${assignToAgentScript};
+        return main({ target: "*", max: 2, "ignore-if-error": ignoreIfError, "pull-request-repo": "test-owner/code" });
+      })()`);
 
-      await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+      await Promise.all([42, 43].map(issue_number => expect(handler({ type: "assign_to_agent", issue_number }, {}, new Map())).resolves.toEqual({ success: true, skipped: true })));
 
-      expect(mockCore.setFailed).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("Agent assignment credential validation failed: Bad credentials (HTTP 401)"));
-      expect(mockCore.setFailed.mock.calls[0][0]).toContain("credential source: GH_AW_GITHUB_TOKEN.");
-      expect(mockCore.setFailed.mock.calls[0][0]).toContain("organization approval/SSO");
-      expect(mockCore.setFailed.mock.calls[0][0]).not.toContain("github_pat_test_expired");
+      const diagnostic = handler.getAssignToAgentErrors();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledExactlyOnceWith(diagnostic);
+      expect(diagnostic).toContain("Agent assignment credential validation failed: Bad credentials (HTTP 401)");
+      expect(diagnostic).toContain("credential source: GH_AW_GITHUB_TOKEN.");
+      expect(diagnostic).toContain("organization approval/SSO");
+      expect(diagnostic).not.toContain("github_pat_test_expired");
+      expect(diagnostic.split("\n")).toHaveLength(1);
+      expect(handler.getAssignToAgentErrorCount()).toBe(ignoreIfError ? 0 : 1);
+      expect(handler.getAssignToAgentAssigned()).toBe("");
+      await handler.writeAssignToAgentSummary();
+      expect(mockCore.summary.addRaw).toHaveBeenCalledExactlyOnceWith(expect.stringContaining(`Assignments skipped: ${diagnostic}`));
       expect(mockGithub.request).toHaveBeenCalledExactlyOnceWith("GET /rate_limit");
       expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
       expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+      expect(mockGithub.rest.repos.get).not.toHaveBeenCalled();
+    });
+
+    it("does not validate unused assignment credentials", async () => {
+      mockGithub.request.mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
+      process.env.GH_AW_AGENT_PULL_REQUEST_REPO = "test-owner/code";
+      setAgentOutput({ items: [{ type: "create_issue", title: "Unrelated output" }] });
+
+      await eval(`(async () => { ${assignToAgentScript}; ${STANDALONE_RUNNER} })()`);
+
+      expect(mockGithub.request).not.toHaveBeenCalled();
+      expect(mockGithub.rest.repos.get).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.warning).not.toHaveBeenCalled();
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_errors", "");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("assignment_error_count", "0");
+    });
+
+    it.each([false, true])("reports a lazy PR repository lookup failure once (ignore-if-error=%j)", async ignoreIfError => {
+      mockGithub.rest.repos.get.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+      const handler = await eval(`(async () => {
+        ${assignToAgentScript};
+        return main({ target: "*", max: 2, "ignore-if-error": ignoreIfError, "pull-request-repo": "test-owner/code" });
+      })()`);
+
+      for (const issue_number of [42, 43]) {
+        await expect(handler({ type: "assign_to_agent", issue_number }, {}, new Map())).resolves.toEqual({ success: true, skipped: true });
+      }
+
+      const diagnostic = "Failed to fetch pull request repository for test-owner/code: Not Found";
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+      expect(mockGithub.request).toHaveBeenCalledExactlyOnceWith("GET /rate_limit");
+      expect(mockGithub.rest.issues.get).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledExactlyOnceWith(diagnostic);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(handler.getAssignToAgentErrors()).toBe(diagnostic);
+      expect(handler.getAssignToAgentErrorCount()).toBe(1);
+      await handler.writeAssignToAgentSummary();
+      expect(mockCore.summary.addRaw).toHaveBeenCalledExactlyOnceWith(expect.stringContaining(diagnostic));
+    });
+
+    it.each([403, 429, 500, undefined])("continues assignment after a non-authentication preflight failure (status=%j)", async status => {
+      mockGithub.request.mockImplementation(route => {
+        if (route === "GET /rate_limit") return Promise.reject(Object.assign(new Error("Preflight unavailable"), { status }));
+        return Promise.resolve({ data: { id: "task-123" } });
+      });
+      mockGithub.rest.issues.get.mockImplementation(({ issue_number }) => Promise.resolve({ data: { id: 12345, number: issue_number, assignees: [] } }));
+      const handler = await eval(`(async () => {
+        ${assignToAgentScript};
+        return main({ target: "*", max: 2 });
+      })()`);
+
+      for (const issue_number of [42, 43]) {
+        await expect(handler({ type: "assign_to_agent", issue_number }, {}, new Map())).resolves.toEqual({ success: true });
+      }
+
+      expect(mockGithub.request.mock.calls.filter(([route]) => route === "GET /rate_limit")).toHaveLength(1);
+      expect(mockGithub.request.mock.calls.filter(([route]) => route.startsWith("POST "))).toHaveLength(2);
+      expect(handler.getAssignToAgentErrors()).toBe("");
+      expect(handler.getAssignToAgentErrorCount()).toBe(0);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
     it.each([403, 429, 500])("does not misclassify a non-authentication HTTP %i assignment failure", async status => {
