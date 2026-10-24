@@ -301,7 +301,8 @@ func TestBuildActivationJob_SkipsSecretValidationWithEnvironment(t *testing.T) {
 	assert.NotContains(t, job.Outputs, "secret_verification_result", "Activation job should not expose secret_verification_result output when validate-secret is skipped")
 }
 
-func TestBuildActivationJobEnvironment(t *testing.T) {
+// TestBuildActivationJob_Environment verifies that manual-approval takes precedence over the workflow environment.
+func TestBuildActivationJob_Environment(t *testing.T) {
 	tests := []struct {
 		name        string
 		environment string
